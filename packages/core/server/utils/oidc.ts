@@ -5,7 +5,8 @@ import type { OidcSettings } from '../database/schema'
 const STATE_COOKIE = 'klonk-oidc'
 const STATE_MAX_AGE = 10 * 60
 
-type OidcState = {
+/** Organisation oder `platform` (Klonk ID / Betreiber-Login) */
+export type OidcState = {
   organizationId: string
   codeVerifier: string
   state: string
@@ -14,9 +15,16 @@ type OidcState = {
   expiresAt: number
 }
 
-export async function discoverOidc(settings: OidcSettings) {
+/** OIDC-Konfiguration mit Klartext-Secret (Organisationen speichern es verschlüsselt) */
+export type OidcClientSettings = Omit<OidcSettings, 'clientSecret'> & { clientSecretPlain: string }
+
+export function withDecryptedSecret(settings: OidcSettings): OidcClientSettings {
+  return { ...settings, clientSecretPlain: decryptSecret(settings.clientSecret) }
+}
+
+export async function discoverOidc(settings: OidcClientSettings) {
   const issuer = new URL(settings.issuer)
-  return client.discovery(issuer, settings.clientId, decryptSecret(settings.clientSecret), undefined, {
+  return client.discovery(issuer, settings.clientId, settings.clientSecretPlain, undefined, {
     // Nur in der Entwicklung (z. B. Dex auf http://localhost) unverschlüsselte Issuer erlauben
     execute: import.meta.dev && issuer.protocol === 'http:' ? [client.allowInsecureRequests] : [],
   })
@@ -32,7 +40,7 @@ export function oidcCallbackUrl(event: H3Event) {
 }
 
 /** Startet den Authorization-Code-Flow mit PKCE; Zustand liegt verschlüsselt im Cookie */
-export async function startOidcLogin(event: H3Event, organizationId: string, settings: OidcSettings, redirect: string) {
+export async function startOidcLogin(event: H3Event, organizationId: string, settings: OidcClientSettings, redirect: string) {
   const config = await discoverOidc(settings)
   const state: OidcState = {
     organizationId,
@@ -75,7 +83,7 @@ export function readOidcState(event: H3Event): OidcState | null {
 }
 
 /** Tauscht den Code gegen Tokens und liefert die geprüften Claims */
-export async function finishOidcLogin(event: H3Event, settings: OidcSettings, state: OidcState) {
+export async function finishOidcLogin(event: H3Event, settings: OidcClientSettings, state: OidcState) {
   const config = await discoverOidc(settings)
   const currentUrl = new URL(oidcCallbackUrl(event))
   currentUrl.search = getRequestURL(event).search

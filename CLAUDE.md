@@ -44,7 +44,7 @@ pnpm sso:up         # + Test-LDAP glauth (:3893) und Test-OIDC Dex (:5556, Clien
 pnpm dev            # App auf :3000 (migriert DB beim Start)
 pnpm dev:admin      # Verwaltung auf :3002
 pnpm dev:docs       # Docs auf :3001
-pnpm db:generate    # Drizzle-Migration aus apps/app/server/database/schema.ts erzeugen
+pnpm db:generate    # Drizzle-Migration aus packages/core/server/database/schema.ts erzeugen
 pnpm lint | pnpm typecheck
 pnpm test:e2e       # Playwright (Root-Config) gegen lokales Chromium
 pnpm --filter @klonk/core test      # RLS-Integrationstests
@@ -79,7 +79,11 @@ pnpm --filter @klonk/core test      # RLS-Integrationstests
 - Pro Organisation wählbar (admin → Anmeldung): lokale Konten, OIDC, LDAP (Secrets AES-GCM-verschlüsselt).
   OIDC: `server/routes/auth/oidc/*` (PKCE, Zustand verschlüsselt im Cookie), LDAP: `server/utils/ldap.ts` (Filter maskiert).
   JIT-Provisionierung in `server/utils/provision.ts` – verknüpft nie mit Konten, die ein lokales Passwort haben.
-- Privatkonten (ohne Organisation): OAuth-Anbieter; Betreiber (`owner`/`developer`) per Authentik.
+- Privatkonten (ohne Organisation): Google/Microsoft/Apple/GitHub (`server/routes/auth/<anbieter>.get.ts`, nuxt-auth-utils)
+  und **Klonk ID** = plattformweites OIDC (Authentik, `runtimeConfig.platformOidc`, Route `/auth/oidc/platform`).
+  Plattformrolle `owner`/`developer` folgt bei jedem Login den Klonk-ID-Gruppen. Wiedererkennung nur über Anbieter-ID.
+  Social-Buttons nur in der App (`appConfig.klonk.socialLogin`), in admin nur Klonk ID.
+- E2E: Dex dient auch als Klonk ID (Gruppe `admins` ⇒ owner, siehe `playwright.config.ts`).
 - Erste Einrichtung über `admin /setup`: erste Organisation + Admin (= Instanz-Besitzer).
 - Lehrkräfte setzen Passwörter von Lernenden zurück (⇒ `mustChangePassword`, alle Sessions widerrufen).
 - Sessions: versiegeltes Cookie + Zeile in `sessions`; `server/middleware/session.ts` prüft jede API-Anfrage gegen die DB.
@@ -115,7 +119,7 @@ pnpm --filter @klonk/core test      # RLS-Integrationstests
 1. [x] Monorepo-Gerüst: App, Docs, Postgres/Drizzle, Auto-Migration, Docker, i18n, E2E-Tests
 2. [x] Layer `@klonk/ui` + `@klonk/core`, Admin-App, Organisationen, Rollen, RLS, lokale Konten, Passwort-Reset
 2b. [x] OIDC + LDAP pro Organisation (Login-Flows, Verbindungstest, JIT-Provisionierung, Rollen aus Gruppen)
-2c. [ ] Privatkonten: OAuth-Anbieter (Google, Microsoft, GitHub, Apple) + Authentik für Betreiber
+2c. [x] Privatkonten: OAuth-Anbieter (Google, Microsoft, GitHub, Apple) + Klonk ID (Authentik) für Privatkonten und Betreiber
 3. [ ] Lizenz-Token-Prüfung + Free-Tier-Limits
 4. [ ] 3D-Welt (three.js): Boden, Wände, Kisten, Markierungen, Welt-Editor
 5. [ ] Blender-Modelle: Figuren (m/w/d) + Weltblöcke, glTF

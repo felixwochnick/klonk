@@ -4,12 +4,17 @@ import type { NavigationMenuItem } from '@nuxt/ui'
 const { t } = useI18n()
 const { user, isPlatformAdmin } = useAuth()
 
-const isAdmin = computed(() => user.value?.role === 'admin' || isPlatformAdmin.value)
+const hasOrganization = computed(() => !!user.value?.organizationId)
+const isAdmin = computed(() => hasOrganization.value && (user.value?.role === 'admin' || isPlatformAdmin.value))
 
 const items = computed<NavigationMenuItem[][]>(() => [
   [
-    { label: t('admin.nav.overview'), icon: 'i-lucide-house', to: '/', exact: true },
-    { label: t('admin.nav.users'), icon: 'i-lucide-users', to: '/users' },
+    ...(hasOrganization.value
+      ? [
+          { label: t('admin.nav.overview'), icon: 'i-lucide-house', to: '/', exact: true },
+          { label: t('admin.nav.users'), icon: 'i-lucide-users', to: '/users' },
+        ]
+      : []),
     ...(isAdmin.value
       ? [
           { label: t('admin.nav.organization'), icon: 'i-lucide-building-2', to: '/organization', exact: true },

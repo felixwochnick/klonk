@@ -7,7 +7,7 @@ export default defineEventHandler(async (event) => {
 
   const { oidc } = await withUserDb(user.id, tx => resolveSecrets(tx, organizationId, input))
   try {
-    const config = await discoverOidc(oidc!)
+    const config = await discoverOidc(withDecryptedSecret(oidc!))
     return { ok: true, message: config.serverMetadata().issuer }
   }
   catch (error) {

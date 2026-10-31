@@ -3,6 +3,9 @@ const { t } = useI18n()
 useSeoMeta({ title: () => t('admin.nav.overview') })
 
 const { user } = useAuth()
+// Betreiber ohne eigene Organisation starten in der Organisationsliste
+if (!user.value?.organizationId) await navigateTo('/organizations')
+
 const roleLabel = useRoleLabel(() => user.value?.organizationType)
 const { data: users } = await useFetch('/api/admin/users')
 

@@ -6,13 +6,15 @@ export default defineEventHandler(async (event) => {
   const state = readOidcState(event)
   if (!state) return sendRedirect(event, '/login?error=sso_failed')
 
+  if (state.organizationId === 'platform') return finishPlatformLogin(event, state)
+
   const [settings] = await useSystemDb().select().from(organizationAuthSettings)
     .where(eq(organizationAuthSettings.organizationId, state.organizationId))
   const oidc = settings?.oidcEnabled ? settings.oidc : null
   if (!oidc) return sendRedirect(event, '/login?error=sso_failed')
 
   try {
-    const claims = await finishOidcLogin(event, oidc, state)
+    const claims = await finishOidcLogin(event, withDecryptedSecret(oidc), state)
     const username = String(claims[oidc.usernameClaim] ?? claims.preferred_username ?? claims.email ?? '')
 
     const user = await provisionExternalUser({

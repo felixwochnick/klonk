@@ -68,6 +68,14 @@ async function create() {
         :data="organizations"
         :columns="columns"
       >
+        <template #name-cell="{ row }">
+          <NuxtLink
+            :to="{ path: '/users', query: { organizationId: row.original.id } }"
+            class="font-medium text-(--ui-primary) hover:underline"
+          >
+            {{ row.original.name }}
+          </NuxtLink>
+        </template>
         <template #type-cell="{ row }">
           {{ t(`admin.organizationType.${row.original.type}`) }}
         </template>

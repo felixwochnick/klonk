@@ -18,10 +18,16 @@ useSeoMeta({ title: () => t('admin.nav.users') })
 const toast = useToast()
 const apiError = useApiError()
 const { user, isPlatformAdmin } = useAuth()
-const roleLabel = useRoleLabel(() => user.value?.organizationType)
 const isAdmin = computed(() => user.value?.role === 'admin' || isPlatformAdmin.value)
 
-const { data: users, refresh } = await useFetch<UserRow[]>('/api/admin/users', { default: () => [] })
+// Plattform-Admins verwalten fremde Organisationen über ?organizationId=
+const route = useRoute()
+const query = computed(() => (typeof route.query.organizationId === 'string' ? { organizationId: route.query.organizationId } : {}))
+if (!user.value?.organizationId && !query.value.organizationId) await navigateTo('/organizations')
+
+const { data: users, refresh } = await useFetch<UserRow[]>('/api/admin/users', { query, default: () => [] })
+const { data: organization } = await useFetch('/api/admin/organization', { query })
+const roleLabel = useRoleLabel(() => organization.value?.type)
 
 const search = ref('')
 const filtered = computed(() => {
@@ -70,7 +76,7 @@ const createForm = reactive({ username: '', displayName: '', role: 'member' as M
 
 async function create() {
   try {
-    await $fetch('/api/admin/users', { method: 'POST', body: createForm })
+    await $fetch('/api/admin/users', { method: 'POST', body: createForm, query: query.value })
     toast.add({ title: t('admin.users.created'), color: 'success' })
     createOpen.value = false
     Object.assign(createForm, { username: '', displayName: '', role: 'member', password: '' })
@@ -141,7 +147,7 @@ async function remove(row: UserRow) {
 <template>
   <UDashboardPanel id="users">
     <template #header>
-      <UDashboardNavbar :title="t('admin.nav.users')">
+      <UDashboardNavbar :title="organization && query.organizationId ? `${t('admin.nav.users')} · ${organization.name}` : t('admin.nav.users')">
         <template #leading>
           <UDashboardSidebarCollapse />
         </template>
@@ -189,7 +195,7 @@ async function remove(row: UserRow) {
           />
         </template>
         <template #username-cell="{ row }">
-          <span class="text-(--ui-text-muted)">{{ row.original.username }}@{{ user?.domain }}</span>
+          <span class="text-(--ui-text-muted)">{{ row.original.username }}@{{ organization?.domain }}</span>
         </template>
         <template #role-cell="{ row }">
           {{ roleLabel(row.original.role) }}
@@ -240,7 +246,7 @@ async function remove(row: UserRow) {
                 required
               >
                 <template #trailing>
-                  <span class="text-xs text-(--ui-text-muted)">@{{ user?.domain }}</span>
+                  <span class="text-xs text-(--ui-text-muted)">@{{ organization?.domain }}</span>
                 </template>
               </UInput>
             </UFormField>

@@ -9,7 +9,9 @@
       "password": "Password",
       "submit": "Sign in",
       "or": "or",
-      "sso": "Sign in with {name}"
+      "sso": "Sign in with {name}",
+      "private": "Private or operator",
+      "with": "Sign in with {name}"
     },
     "logout": "Sign out",
     "changePassword": {

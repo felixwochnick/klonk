@@ -8,6 +8,12 @@ const env = {
   NUXT_DATABASE_URL: e2eDatabaseUrl,
   NUXT_PUBLIC_APP_URL: APP_URL,
   NUXT_PUBLIC_ADMIN_URL: ADMIN_URL,
+  // Klonk ID gegen den Test-IdP (Dex, `pnpm sso:up`): Gruppe `admins` ⇒ Besitzer:in
+  NUXT_PLATFORM_OIDC_ISSUER: 'http://localhost:5556/dex',
+  NUXT_PLATFORM_OIDC_CLIENT_ID: 'klonk',
+  NUXT_PLATFORM_OIDC_CLIENT_SECRET: 'klonk-dev-secret',
+  NUXT_PLATFORM_OIDC_SCOPES: 'openid profile email groups',
+  NUXT_PLATFORM_OIDC_OWNER_GROUPS: 'admins',
 }
 
 export default defineConfig({

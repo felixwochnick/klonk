@@ -13,6 +13,22 @@ const route = useRoute()
 const error = ref<string | null>(typeof route.query.error === 'string' ? t(`errors.${route.query.error}`) : null)
 const loading = ref(false)
 
+const appConfig = useAppConfig()
+const { data: providers } = await useFetch('/api/auth/providers')
+const socialProviders = computed(() => appConfig.klonk?.socialLogin === false ? [] : providers.value?.social ?? [])
+
+const providerIcons: Record<string, string> = {
+  google: 'i-simple-icons-google',
+  microsoft: 'i-simple-icons-microsoft',
+  apple: 'i-simple-icons-apple',
+  github: 'i-simple-icons-github',
+}
+const providerNames: Record<string, string> = { google: 'Google', microsoft: 'Microsoft', apple: 'Apple', github: 'GitHub' }
+
+function loginWithProvider(provider: string) {
+  return navigateTo(provider === 'platform' ? '/auth/oidc/platform' : `/auth/${provider}`, { external: true })
+}
+
 const hasPassword = computed(() => lookup.value?.methods.some(m => m === 'password' || m === 'ldap'))
 const hasOidc = computed(() => lookup.value?.methods.includes('oidc'))
 
@@ -160,6 +176,31 @@ function reset() {
         @click="loginWithOidc"
       />
     </div>
+
+    <template v-if="!lookup && (providers?.platform || socialProviders.length)">
+      <USeparator :label="t('auth.login.private')" />
+      <div class="space-y-2">
+        <UButton
+          v-if="providers?.platform"
+          block
+          variant="outline"
+          color="neutral"
+          icon="i-lucide-user-round"
+          :label="t('auth.login.with', { name: providers.platform.name })"
+          @click="loginWithProvider('platform')"
+        />
+        <UButton
+          v-for="provider in socialProviders"
+          :key="provider"
+          block
+          variant="outline"
+          color="neutral"
+          :icon="providerIcons[provider]"
+          :label="t('auth.login.with', { name: providerNames[provider] })"
+          @click="loginWithProvider(provider)"
+        />
+      </div>
+    </template>
 
     <slot name="footer" />
   </div>
