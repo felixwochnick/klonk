@@ -1,15 +1,38 @@
-# Selbsthosting: App + Postgres. Migrationen laufen automatisch beim Start der App.
+# Selbsthosting: App, Verwaltung und Postgres. Migrationen laufen automatisch beim Start.
+# Pflicht: KLONK_APP_SECRET und KLONK_ENCRYPTION_KEY (je `openssl rand -base64 32`)
 name: klonk
+
+x-env: &env
+  NUXT_DATABASE_URL: postgres://klonk:${POSTGRES_PASSWORD:-klonk}@postgres:5432/klonk
+  NUXT_APP_SECRET: ${KLONK_APP_SECRET:?KLONK_APP_SECRET fehlt}
+  NUXT_ENCRYPTION_KEY: ${KLONK_ENCRYPTION_KEY:?KLONK_ENCRYPTION_KEY fehlt}
+  # Gemeinsame Anmeldung für app.* und admin.*, z. B. `.klonk.example`
+  NUXT_SESSION_COOKIE_DOMAIN: ${KLONK_COOKIE_DOMAIN:-}
 
 services:
   app:
     build:
       context: ..
-      dockerfile: apps/app/Dockerfile
-    environment:
-      NUXT_DATABASE_URL: postgres://klonk:${POSTGRES_PASSWORD:-klonk}@postgres:5432/klonk
+      dockerfile: docker/Dockerfile
+      args:
+        APP: app
+    environment: *env
     ports:
-      - "${KLONK_PORT:-3000}:3000"
+      - "${KLONK_APP_PORT:-3000}:3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
+  admin:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+      args:
+        APP: admin
+    environment: *env
+    ports:
+      - "${KLONK_ADMIN_PORT:-3001}:3000"
     depends_on:
       postgres:
         condition: service_healthy

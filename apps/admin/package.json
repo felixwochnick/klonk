@@ -1,0 +1,29 @@
+{
+  "name": "@klonk/admin",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "nuxt dev --port 3002 --dotenv ../../.env",
+    "build": "nuxt build",
+    "preview": "nuxt preview --dotenv ../../.env",
+    "postinstall": "nuxt prepare",
+    "lint": "eslint .",
+    "typecheck": "nuxt typecheck"
+  },
+  "dependencies": {
+    "@klonk/core": "workspace:*",
+    "@klonk/ui": "workspace:*",
+    "@nuxt/ui": "^4.12.0",
+    "drizzle-orm": "^0.45.4",
+    "nuxt": "^4.6.3",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@iconify-json/lucide": "^1.2.149",
+    "@nuxt/eslint": "^1.17.0",
+    "@types/node": "^26.6.6",
+    "eslint": "^10.14.0",
+    "typescript": "^5.9.3",
+    "vue-tsc": "^3.3.14"
+  }
+}

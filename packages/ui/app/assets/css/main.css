@@ -1,0 +1,6 @@
+@import "tailwindcss";
+@import "@nuxt/ui";
+@import "./theme.css";
+
+/* Komponenten des Layers für Tailwind sichtbar machen */
+@source "../../";

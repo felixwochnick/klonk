@@ -1,0 +1,61 @@
+{
+  "auth": {
+    "login": {
+      "title": "Sign in",
+      "identifier": "Username",
+      "identifierHelp": "In the format name{'@'}domain of your school or company",
+      "next": "Continue",
+      "change": "Change",
+      "password": "Password",
+      "submit": "Sign in",
+      "or": "or",
+      "sso": "Sign in with {name}"
+    },
+    "logout": "Sign out",
+    "changePassword": {
+      "title": "Change password",
+      "required": "Please choose a new password before continuing.",
+      "current": "Current password",
+      "new": "New password",
+      "repeat": "Repeat new password",
+      "rules": "At least 8 characters",
+      "mismatch": "The passwords do not match.",
+      "submit": "Save password"
+    }
+  },
+  "roles": {
+    "school": {
+      "member": "Student",
+      "teacher": "Teacher",
+      "admin": "Admin"
+    },
+    "company": {
+      "member": "Employee",
+      "teacher": "Trainer",
+      "admin": "Admin"
+    },
+    "platform": {
+      "user": "User",
+      "developer": "Developer",
+      "owner": "Owner"
+    }
+  },
+  "errors": {
+    "unknown": "Something went wrong. Please try again.",
+    "invalid_identifier": "Please enter your username in the format name{'@'}domain.",
+    "unknown_organization": "There is no school or company for this domain.",
+    "invalid_credentials": "Username or password is incorrect.",
+    "invalid_current_password": "The current password is incorrect.",
+    "no_local_password": "This account signs in via SSO and has no password of its own.",
+    "account_disabled": "This account is disabled.",
+    "forbidden": "You don't have permission to do that.",
+    "unauthorized": "Please sign in.",
+    "password_change_required": "Please change your password first.",
+    "setup_done": "Klonk has already been set up.",
+    "username_taken": "This username is already taken.",
+    "domain_taken": "This domain is already taken.",
+    "not_found": "Not found.",
+    "sso_failed": "Signing in via SSO failed.",
+    "invalid_input": "Please check your input."
+  }
+}

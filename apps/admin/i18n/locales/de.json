@@ -1,0 +1,95 @@
+{
+  "admin": {
+    "badge": "Admin",
+    "save": "Speichern",
+    "saved": "Gespeichert",
+    "noAccess": "Die Verwaltung ist nur für Lehrkräfte, Ausbildende und Admins zugänglich.",
+    "nav": {
+      "overview": "Übersicht",
+      "users": "Konten",
+      "organization": "Organisation",
+      "login": "Anmeldung",
+      "organizations": "Alle Organisationen"
+    },
+    "organizationType": {
+      "school": "Schule",
+      "company": "Unternehmen"
+    },
+    "organization": {
+      "type": "Art",
+      "name": "Name",
+      "domain": "Domain",
+      "domainHelp": "Wird Teil des Benutzernamens: name{'@'}domain",
+      "domainChangeHelp": "Achtung: Alle Benutzernamen ändern sich mit der Domain."
+    },
+    "setup": {
+      "title": "Klonk einrichten",
+      "description": "Lege deine Schule oder dein Unternehmen und das erste Admin-Konto an.",
+      "adminAccount": "Admin-Konto",
+      "submit": "Einrichten"
+    },
+    "users": {
+      "displayName": "Name",
+      "username": "Benutzername",
+      "role": "Rolle",
+      "lastLogin": "Letzte Anmeldung",
+      "search": "Suchen …",
+      "empty": "Keine Konten gefunden",
+      "create": "Konto anlegen",
+      "created": "Konto angelegt",
+      "edit": "Bearbeiten",
+      "enable": "Entsperren",
+      "disable": "Sperren",
+      "disabled": "Gesperrt",
+      "mustChangePassword": "Passwort ändern",
+      "delete": "Löschen",
+      "confirmDelete": "Konto „{name}“ wirklich löschen?",
+      "actions": "Aktionen für {name}",
+      "resetPassword": "Passwort zurücksetzen",
+      "resetPasswordFor": "Neues Startpasswort für {name}",
+      "passwordReset": "Passwort zurückgesetzt",
+      "initialPassword": "Startpasswort",
+      "initialPasswordHelp": "Mindestens 8 Zeichen – muss bei der ersten Anmeldung geändert werden."
+    },
+    "login": {
+      "description": "Lege fest, wie sich die Mitglieder deiner Organisation anmelden. Mehrere Methoden können gleichzeitig aktiv sein.",
+      "local": "Konten mit Passwort",
+      "localDescription": "Konten werden hier in der Verwaltung angelegt.",
+      "oidc": "Single Sign-on (OIDC)",
+      "oidcDescription": "Z. B. Microsoft 365, Google Workspace, IServ, Keycloak oder Authentik.",
+      "ldap": "LDAP / Active Directory",
+      "ldapDescription": "Anmeldung mit dem Schul- bzw. Firmenpasswort über den Verzeichnisdienst.",
+      "callbackUrl": "Redirect-URI",
+      "callbackUrlHelp": "Diese Adresse beim Identity-Provider als erlaubte Redirect-URI eintragen.",
+      "scopes": "Scopes",
+      "usernameClaim": "Claim für den Benutzernamen",
+      "roleClaim": "Claim für Rollen/Gruppen",
+      "roleClaimHelp": "Optional. Werte unten zeilenweise den Rollen zuordnen – alle anderen werden Schüler:innen bzw. Mitarbeitende.",
+      "teacherValues": "Werte für Lehrkräfte/Ausbildende",
+      "adminValues": "Werte für Admins",
+      "bindPassword": "Bind-Passwort",
+      "secretKept": "Leer lassen, um den gespeicherten Wert zu behalten.",
+      "userFilter": "Benutzerfilter",
+      "userFilterHelp": "{'{{username}}'} wird durch den eingegebenen Namen ersetzt.",
+      "usernameAttribute": "Attribut für den Benutzernamen",
+      "displayNameAttribute": "Attribut für den Namen",
+      "teacherGroups": "Gruppen für Lehrkräfte/Ausbildende",
+      "adminGroups": "Gruppen für Admins",
+      "groupsHelp": "Gruppen-DNs (memberOf), eine pro Zeile",
+      "test": "Verbindung testen",
+      "testOk": "Verbindung erfolgreich",
+      "testFailed": "Verbindung fehlgeschlagen"
+    },
+    "organizations": {
+      "create": "Organisation anlegen",
+      "created": "Organisation angelegt"
+    }
+  },
+  "errors": {
+    "cannot_change_self": "Das eigene Konto kann hier nicht gesperrt oder umgestuft werden.",
+    "organization_required": "Bitte wähle eine Organisation.",
+    "no_login_method": "Mindestens eine Anmeldemethode muss aktiv sein.",
+    "oidc_incomplete": "Bitte die OIDC-Einstellungen vollständig ausfüllen.",
+    "ldap_incomplete": "Bitte die LDAP-Einstellungen vollständig ausfüllen."
+  }
+}

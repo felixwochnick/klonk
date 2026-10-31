@@ -1,9 +1,13 @@
 <template>
   <div class="min-h-dvh flex flex-col">
-    <UHeader title="Klonk">
+    <UHeader>
+      <template #title>
+        <KlonkLogo />
+      </template>
       <template #right>
         <LocaleSwitch />
         <UColorModeButton />
+        <UserMenu />
       </template>
     </UHeader>
 

@@ -1,0 +1,61 @@
+{
+  "auth": {
+    "login": {
+      "title": "Anmelden",
+      "identifier": "Benutzername",
+      "identifierHelp": "Im Format name{'@'}domain deiner Schule oder deines Unternehmens",
+      "next": "Weiter",
+      "change": "Ändern",
+      "password": "Passwort",
+      "submit": "Anmelden",
+      "or": "oder",
+      "sso": "Mit {name} anmelden"
+    },
+    "logout": "Abmelden",
+    "changePassword": {
+      "title": "Passwort ändern",
+      "required": "Bitte vergib ein neues Passwort, bevor es weitergeht.",
+      "current": "Aktuelles Passwort",
+      "new": "Neues Passwort",
+      "repeat": "Neues Passwort wiederholen",
+      "rules": "Mindestens 8 Zeichen",
+      "mismatch": "Die Passwörter stimmen nicht überein.",
+      "submit": "Passwort speichern"
+    }
+  },
+  "roles": {
+    "school": {
+      "member": "Schüler:in",
+      "teacher": "Lehrkraft",
+      "admin": "Admin"
+    },
+    "company": {
+      "member": "Mitarbeiter:in",
+      "teacher": "Ausbilder:in",
+      "admin": "Admin"
+    },
+    "platform": {
+      "user": "Nutzer:in",
+      "developer": "Entwickler:in",
+      "owner": "Besitzer:in"
+    }
+  },
+  "errors": {
+    "unknown": "Etwas ist schiefgelaufen. Bitte versuche es erneut.",
+    "invalid_identifier": "Bitte gib deinen Benutzernamen im Format name{'@'}domain ein.",
+    "unknown_organization": "Zu dieser Domain gibt es keine Schule und kein Unternehmen.",
+    "invalid_credentials": "Benutzername oder Passwort ist falsch.",
+    "invalid_current_password": "Das aktuelle Passwort ist falsch.",
+    "no_local_password": "Dieses Konto meldet sich per SSO an und hat kein eigenes Passwort.",
+    "account_disabled": "Dieses Konto ist gesperrt.",
+    "forbidden": "Dafür fehlen dir die Rechte.",
+    "unauthorized": "Bitte melde dich an.",
+    "password_change_required": "Bitte ändere zuerst dein Passwort.",
+    "setup_done": "Klonk ist bereits eingerichtet.",
+    "username_taken": "Dieser Benutzername ist bereits vergeben.",
+    "domain_taken": "Diese Domain ist bereits vergeben.",
+    "not_found": "Nicht gefunden.",
+    "sso_failed": "Die Anmeldung per SSO ist fehlgeschlagen.",
+    "invalid_input": "Bitte überprüfe deine Eingaben."
+  }
+}

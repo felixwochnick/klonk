@@ -15,7 +15,13 @@
     "test": "pnpm -r test",
     "db:up": "docker compose -f docker/docker-compose.dev.yml up -d",
     "db:down": "docker compose -f docker/docker-compose.dev.yml down",
-    "db:generate": "pnpm --filter @klonk/app db:generate",
-    "db:studio": "pnpm --filter @klonk/app db:studio"
+    "db:generate": "pnpm --filter @klonk/core db:generate",
+    "db:studio": "pnpm --filter @klonk/core db:studio",
+    "dev:admin": "pnpm --filter @klonk/admin dev",
+    "test:e2e": "playwright test"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.64.1",
+    "postgres": "^4.0.0"
   }
 }

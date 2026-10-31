@@ -1,0 +1,95 @@
+{
+  "admin": {
+    "badge": "Admin",
+    "save": "Save",
+    "saved": "Saved",
+    "noAccess": "Administration is only available to teachers, trainers and admins.",
+    "nav": {
+      "overview": "Overview",
+      "users": "Accounts",
+      "organization": "Organization",
+      "login": "Sign-in",
+      "organizations": "All organizations"
+    },
+    "organizationType": {
+      "school": "School",
+      "company": "Company"
+    },
+    "organization": {
+      "type": "Type",
+      "name": "Name",
+      "domain": "Domain",
+      "domainHelp": "Becomes part of the username: name{'@'}domain",
+      "domainChangeHelp": "Note: changing the domain changes all usernames."
+    },
+    "setup": {
+      "title": "Set up Klonk",
+      "description": "Create your school or company and the first admin account.",
+      "adminAccount": "Admin account",
+      "submit": "Set up"
+    },
+    "users": {
+      "displayName": "Name",
+      "username": "Username",
+      "role": "Role",
+      "lastLogin": "Last sign-in",
+      "search": "Search …",
+      "empty": "No accounts found",
+      "create": "Create account",
+      "created": "Account created",
+      "edit": "Edit",
+      "enable": "Unlock",
+      "disable": "Lock",
+      "disabled": "Locked",
+      "mustChangePassword": "Change password",
+      "delete": "Delete",
+      "confirmDelete": "Really delete account “{name}”?",
+      "actions": "Actions for {name}",
+      "resetPassword": "Reset password",
+      "resetPasswordFor": "New initial password for {name}",
+      "passwordReset": "Password reset",
+      "initialPassword": "Initial password",
+      "initialPasswordHelp": "At least 8 characters – must be changed on first sign-in."
+    },
+    "login": {
+      "description": "Choose how members of your organization sign in. Several methods can be active at the same time.",
+      "local": "Accounts with password",
+      "localDescription": "Accounts are created here in the admin area.",
+      "oidc": "Single sign-on (OIDC)",
+      "oidcDescription": "E.g. Microsoft 365, Google Workspace, IServ, Keycloak or Authentik.",
+      "ldap": "LDAP / Active Directory",
+      "ldapDescription": "Sign in with the school or company password via the directory service.",
+      "callbackUrl": "Redirect URI",
+      "callbackUrlHelp": "Register this address as an allowed redirect URI at your identity provider.",
+      "scopes": "Scopes",
+      "usernameClaim": "Username claim",
+      "roleClaim": "Roles/groups claim",
+      "roleClaimHelp": "Optional. Map values below to roles, one per line – everyone else becomes a student/employee.",
+      "teacherValues": "Values for teachers/trainers",
+      "adminValues": "Values for admins",
+      "bindPassword": "Bind password",
+      "secretKept": "Leave empty to keep the stored value.",
+      "userFilter": "User filter",
+      "userFilterHelp": "{'{{username}}'} is replaced by the entered name.",
+      "usernameAttribute": "Username attribute",
+      "displayNameAttribute": "Name attribute",
+      "teacherGroups": "Groups for teachers/trainers",
+      "adminGroups": "Groups for admins",
+      "groupsHelp": "Group DNs (memberOf), one per line",
+      "test": "Test connection",
+      "testOk": "Connection successful",
+      "testFailed": "Connection failed"
+    },
+    "organizations": {
+      "create": "Create organization",
+      "created": "Organization created"
+    }
+  },
+  "errors": {
+    "cannot_change_self": "You can't lock or change the role of your own account here.",
+    "organization_required": "Please choose an organization.",
+    "no_login_method": "At least one sign-in method must be active.",
+    "oidc_incomplete": "Please complete the OIDC settings.",
+    "ldap_incomplete": "Please complete the LDAP settings."
+  }
+}

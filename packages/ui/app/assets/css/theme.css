@@ -1,0 +1,14 @@
+/* Design-Tokens, die auch die Docs (Docus) übernehmen – hier kein Tailwind-Import */
+@theme static {
+  --font-sans: 'Nunito', sans-serif;
+
+  /* Klemmbaustein-Farben */
+  --color-brick-red: #c91a09;
+  --color-brick-blue: #0055bf;
+  --color-brick-yellow: #f2cd37;
+  --color-brick-green: #237841;
+}
+
+:root {
+  --ui-radius: 0.5rem;
+}
