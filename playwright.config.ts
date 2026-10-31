@@ -4,7 +4,11 @@ import { e2eDatabaseUrl } from './e2e/db'
 export const APP_URL = 'http://localhost:3010'
 export const ADMIN_URL = 'http://localhost:3012'
 
-const env = { NUXT_DATABASE_URL: e2eDatabaseUrl }
+const env = {
+  NUXT_DATABASE_URL: e2eDatabaseUrl,
+  NUXT_PUBLIC_APP_URL: APP_URL,
+  NUXT_PUBLIC_ADMIN_URL: ADMIN_URL,
+}
 
 export default defineConfig({
   testDir: './e2e',

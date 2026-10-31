@@ -59,8 +59,8 @@
       "oidcDescription": "E.g. Microsoft 365, Google Workspace, IServ, Keycloak or Authentik.",
       "ldap": "LDAP / Active Directory",
       "ldapDescription": "Sign in with the school or company password via the directory service.",
-      "callbackUrl": "Redirect URI",
-      "callbackUrlHelp": "Register this address as an allowed redirect URI at your identity provider.",
+      "callbackUrl": "Redirect URIs",
+      "callbackUrlHelp": "Register these addresses as allowed redirect URIs at your identity provider.",
       "scopes": "Scopes",
       "usernameClaim": "Username claim",
       "roleClaim": "Roles/groups claim",
@@ -78,7 +78,8 @@
       "groupsHelp": "Group DNs (memberOf), one per line",
       "test": "Test connection",
       "testOk": "Connection successful",
-      "testFailed": "Connection failed"
+      "testFailed": "Connection failed",
+      "usersFound": "{count} accounts found"
     },
     "organizations": {
       "create": "Create organization",

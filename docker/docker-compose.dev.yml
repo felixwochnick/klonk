@@ -1,5 +1,6 @@
-# Nur die Datenbank für die lokale Entwicklung
+# Entwicklung: Datenbank; mit `--profile sso` zusätzlich Test-LDAP (glauth) und Test-OIDC (Dex)
 name: klonk-dev
+
 services:
   postgres:
     image: postgres:18-alpine
@@ -11,6 +12,25 @@ services:
       - "5432:5432"
     volumes:
       - klonk-dev-db:/var/lib/postgresql
+
+  glauth:
+    image: glauth/glauth:latest
+    profiles: [sso]
+    volumes:
+      - ./dev/glauth.cfg:/app/config/config.cfg:ro
+    ports:
+      - "3893:3893"
+
+  dex:
+    image: ghcr.io/dexidp/dex:latest
+    profiles: [sso]
+    command: ["dex", "serve", "/etc/dex/config.yml"]
+    volumes:
+      - ./dev/dex.yml:/etc/dex/config.yml:ro
+    ports:
+      - "5556:5556"
+    depends_on:
+      - glauth
 
 volumes:
   klonk-dev-db:

@@ -18,7 +18,8 @@
     "db:generate": "pnpm --filter @klonk/core db:generate",
     "db:studio": "pnpm --filter @klonk/core db:studio",
     "dev:admin": "pnpm --filter @klonk/admin dev",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "sso:up": "docker compose -f docker/docker-compose.dev.yml --profile sso up -d"
   },
   "devDependencies": {
     "@playwright/test": "^1.64.1",

@@ -59,8 +59,8 @@
       "oidcDescription": "Z. B. Microsoft 365, Google Workspace, IServ, Keycloak oder Authentik.",
       "ldap": "LDAP / Active Directory",
       "ldapDescription": "Anmeldung mit dem Schul- bzw. Firmenpasswort über den Verzeichnisdienst.",
-      "callbackUrl": "Redirect-URI",
-      "callbackUrlHelp": "Diese Adresse beim Identity-Provider als erlaubte Redirect-URI eintragen.",
+      "callbackUrl": "Redirect-URIs",
+      "callbackUrlHelp": "Diese Adressen beim Identity-Provider als erlaubte Redirect-URIs eintragen.",
       "scopes": "Scopes",
       "usernameClaim": "Claim für den Benutzernamen",
       "roleClaim": "Claim für Rollen/Gruppen",
@@ -78,7 +78,8 @@
       "groupsHelp": "Gruppen-DNs (memberOf), eine pro Zeile",
       "test": "Verbindung testen",
       "testOk": "Verbindung erfolgreich",
-      "testFailed": "Verbindung fehlgeschlagen"
+      "testFailed": "Verbindung fehlgeschlagen",
+      "usersFound": "{count} Konten gefunden"
     },
     "organizations": {
       "create": "Organisation anlegen",

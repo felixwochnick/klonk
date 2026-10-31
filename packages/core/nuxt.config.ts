@@ -10,6 +10,11 @@ export default defineNuxtConfig({
     migrationsDir: fileURLToPath(new URL('./server/database/migrations', import.meta.url)),
     // 32 Byte (hex/base64) für die Verschlüsselung von SSO-Secrets in der DB
     encryptionKey: '',
+    public: {
+      // Öffentliche URLs von app.* und admin.* (für Links zwischen den Apps und OIDC-Redirect-URIs)
+      appUrl: 'http://localhost:3000',
+      adminUrl: 'http://localhost:3002',
+    },
     session: {
       name: 'klonk-session',
       maxAge: 60 * 60 * 24 * 14,

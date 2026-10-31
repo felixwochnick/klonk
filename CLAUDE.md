@@ -39,6 +39,8 @@ Abrechnungslogik oder private Signaturschlüssel in dieses Repo.
 
 ```bash
 pnpm db:up          # Postgres für Entwicklung (docker/docker-compose.dev.yml, Port 5432)
+pnpm sso:up         # + Test-LDAP glauth (:3893) und Test-OIDC Dex (:5556, Client klonk/klonk-dev-secret);
+                    #   Nutzer tim/lisa/anna, Passwort <name>-pass; E2E-SSO-Tests werden ohne diese übersprungen
 pnpm dev            # App auf :3000 (migriert DB beim Start)
 pnpm dev:admin      # Verwaltung auf :3002
 pnpm dev:docs       # Docs auf :3001
@@ -75,6 +77,8 @@ pnpm --filter @klonk/core test      # RLS-Integrationstests
 - Organisationen (`school` | `company`) mit Domain; Login `username@domain`. Rollen: `member` / `teacher` / `admin`
   (bei Unternehmen in der UI „Mitarbeitende / Ausbildende / Admin“). Plattformrolle `owner`/`developer` = Betreiber.
 - Pro Organisation wählbar (admin → Anmeldung): lokale Konten, OIDC, LDAP (Secrets AES-GCM-verschlüsselt).
+  OIDC: `server/routes/auth/oidc/*` (PKCE, Zustand verschlüsselt im Cookie), LDAP: `server/utils/ldap.ts` (Filter maskiert).
+  JIT-Provisionierung in `server/utils/provision.ts` – verknüpft nie mit Konten, die ein lokales Passwort haben.
 - Privatkonten (ohne Organisation): OAuth-Anbieter; Betreiber (`owner`/`developer`) per Authentik.
 - Erste Einrichtung über `admin /setup`: erste Organisation + Admin (= Instanz-Besitzer).
 - Lehrkräfte setzen Passwörter von Lernenden zurück (⇒ `mustChangePassword`, alle Sessions widerrufen).
@@ -110,7 +114,7 @@ pnpm --filter @klonk/core test      # RLS-Integrationstests
 
 1. [x] Monorepo-Gerüst: App, Docs, Postgres/Drizzle, Auto-Migration, Docker, i18n, E2E-Tests
 2. [x] Layer `@klonk/ui` + `@klonk/core`, Admin-App, Organisationen, Rollen, RLS, lokale Konten, Passwort-Reset
-2b. [ ] OIDC + LDAP pro Organisation (Login-Flows, Verbindungstest, JIT-Provisionierung)
+2b. [x] OIDC + LDAP pro Organisation (Login-Flows, Verbindungstest, JIT-Provisionierung, Rollen aus Gruppen)
 2c. [ ] Privatkonten: OAuth-Anbieter (Google, Microsoft, GitHub, Apple) + Authentik für Betreiber
 3. [ ] Lizenz-Token-Prüfung + Free-Tier-Limits
 4. [ ] 3D-Welt (three.js): Boden, Wände, Kisten, Markierungen, Welt-Editor

@@ -1,0 +1,47 @@
+# Test-OIDC-Provider für die Entwicklung – Nutzer kommen aus dem Test-LDAP (glauth)
+issuer: http://localhost:5556/dex
+
+storage:
+  type: memory
+
+web:
+  http: 0.0.0.0:5556
+
+oauth2:
+  skipApprovalScreen: true
+
+staticClients:
+  - id: klonk
+    name: Klonk
+    secret: klonk-dev-secret
+    redirectURIs:
+      - http://localhost:3000/auth/oidc/callback
+      - http://localhost:3002/auth/oidc/callback
+      - http://localhost:3010/auth/oidc/callback
+      - http://localhost:3012/auth/oidc/callback
+
+connectors:
+  - type: ldap
+    id: ldap
+    name: Schul-LDAP
+    config:
+      host: glauth:3893
+      insecureNoSSL: true
+      bindDN: cn=service,ou=svcaccts,dc=klonk,dc=test
+      bindPW: service-pass
+      usernamePrompt: Benutzername
+      userSearch:
+        baseDN: dc=klonk,dc=test
+        filter: "(objectClass=posixAccount)"
+        username: cn
+        idAttr: uidNumber
+        emailAttr: mail
+        nameAttr: givenName
+        preferredUsernameAttr: cn
+      groupSearch:
+        baseDN: dc=klonk,dc=test
+        filter: "(objectClass=posixGroup)"
+        userMatchers:
+          - userAttr: cn
+            groupAttr: memberUid
+        nameAttr: ou

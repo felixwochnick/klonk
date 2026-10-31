@@ -8,6 +8,8 @@ x-env: &env
   NUXT_ENCRYPTION_KEY: ${KLONK_ENCRYPTION_KEY:?KLONK_ENCRYPTION_KEY fehlt}
   # Gemeinsame Anmeldung für app.* und admin.*, z. B. `.klonk.example`
   NUXT_SESSION_COOKIE_DOMAIN: ${KLONK_COOKIE_DOMAIN:-}
+  NUXT_PUBLIC_APP_URL: ${KLONK_APP_URL:-http://localhost:3000}
+  NUXT_PUBLIC_ADMIN_URL: ${KLONK_ADMIN_URL:-http://localhost:3001}
 
 services:
   app:

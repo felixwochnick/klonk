@@ -9,7 +9,7 @@ async function login(page: Page, baseUrl: string, identifier: string, password: 
   await page.getByLabel('Benutzername').fill(identifier)
   await page.getByRole('button', { name: 'Weiter' }).click()
   await page.getByLabel('Passwort').fill(password)
-  await page.getByRole('button', { name: 'Anmelden' }).click()
+  await page.getByRole('button', { name: 'Anmelden', exact: true }).click()
 }
 
 async function changePassword(page: Page, current: string, next: string) {
@@ -72,7 +72,7 @@ test('Einrichtung, Kontenverwaltung und Passwort-Reset durch Lehrkraft', async (
   await login(student, APP_URL, 'sam@gym-muster.de', 'start-sam')
   await expect(student.getByText('Benutzername oder Passwort ist falsch.')).toBeVisible()
   await student.getByLabel('Passwort').fill('reset-sam')
-  await student.getByRole('button', { name: 'Anmelden' }).click()
+  await student.getByRole('button', { name: 'Anmelden', exact: true }).click()
   await changePassword(student, 'reset-sam', 'sam-geheim')
   await expect(student.getByTestId('user-menu')).toHaveText(/Sam Schüler/)
 

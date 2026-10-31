@@ -8,7 +8,9 @@ const apiError = useApiError()
 const identifier = ref('')
 const password = ref('')
 const lookup = ref<LoginLookup | null>(null)
-const error = ref<string | null>(null)
+const route = useRoute()
+// Fehler aus der SSO-Rückleitung (/login?error=…)
+const error = ref<string | null>(typeof route.query.error === 'string' ? t(`errors.${route.query.error}`) : null)
 const loading = ref(false)
 
 const hasPassword = computed(() => lookup.value?.methods.some(m => m === 'password' || m === 'ldap'))
@@ -51,7 +53,6 @@ async function submitPassword() {
 }
 
 function loginWithOidc() {
-  const route = useRoute()
   const redirect = typeof route.query.redirect === 'string' ? route.query.redirect : '/'
   return navigateTo(`/auth/oidc/${lookup.value!.organizationId}?redirect=${encodeURIComponent(redirect)}`, { external: true })
 }

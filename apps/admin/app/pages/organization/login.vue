@@ -44,7 +44,9 @@ const ldapForm = ref({
 
 const hasClientSecret = computed(() => data.value?.oidc?.hasClientSecret)
 const hasBindPassword = computed(() => data.value?.ldap?.hasBindPassword)
-const callbackUrl = computed(() => `${useRequestURL().origin}/auth/oidc/callback`)
+const { public: { appUrl, adminUrl } } = useRuntimeConfig()
+// Beide Apps bieten den SSO-Login an – beim Identity-Provider beide Redirect-URIs eintragen
+const callbackUrls = [...new Set([appUrl, adminUrl])].map(url => `${url}/auth/oidc/callback`)
 
 // OIDC/LDAP werden nur gespeichert, wenn sie ausgefüllt sind
 const oidcFilled = computed(() => !!oidcForm.issuer && !!oidcForm.clientId)
@@ -87,12 +89,12 @@ const testing = ref<'oidc' | 'ldap' | null>(null)
 async function test(kind: 'oidc' | 'ldap') {
   testing.value = kind
   try {
-    const result = await $fetch<{ ok: boolean, message?: string }>(`/api/admin/organization/test-${kind}`, {
+    const result = await $fetch<{ ok: boolean, message?: string, users?: number }>(`/api/admin/organization/test-${kind}`, {
       method: 'POST',
       body: body(),
     })
     toast.add(result.ok
-      ? { title: t('admin.login.testOk'), description: result.message, color: 'success' }
+      ? { title: t('admin.login.testOk'), description: result.users !== undefined ? t('admin.login.usersFound', { count: result.users }) : result.message, color: 'success' }
       : { title: t('admin.login.testFailed'), description: result.message, color: 'error' })
   }
   catch (e) {
@@ -151,11 +153,15 @@ async function test(kind: 'oidc' | 'ldap') {
               :help="t('admin.login.callbackUrlHelp')"
               class="sm:col-span-2"
             >
-              <UInput
-                :model-value="callbackUrl"
-                readonly
-                class="w-full"
-              />
+              <div class="space-y-2">
+                <UInput
+                  v-for="url in callbackUrls"
+                  :key="url"
+                  :model-value="url"
+                  readonly
+                  class="w-full"
+                />
+              </div>
             </UFormField>
             <UFormField
               label="Issuer URL"
