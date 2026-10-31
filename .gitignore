@@ -1,0 +1,21 @@
+node_modules
+.nuxt
+.output
+.data
+.nitro
+.cache
+dist
+*.log
+.env
+.env.*
+!.env.example
+.DS_Store
+
+# JetBrains
+.idea/workspace.xml
+.idea/shelf/
+.idea/httpRequests/
+.idea/dataSources/
+.idea/dataSources.local.xml
+test-results
+playwright-report

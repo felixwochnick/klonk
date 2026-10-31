@@ -1,0 +1,21 @@
+{
+  "name": "klonk-monorepo",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@12.15.0",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "pnpm --filter @klonk/app dev",
+    "dev:docs": "pnpm --filter @klonk/docs dev",
+    "build": "pnpm -r build",
+    "lint": "pnpm -r lint",
+    "typecheck": "pnpm -r typecheck",
+    "test": "pnpm -r test",
+    "db:up": "docker compose -f docker/docker-compose.dev.yml up -d",
+    "db:down": "docker compose -f docker/docker-compose.dev.yml down",
+    "db:generate": "pnpm --filter @klonk/app db:generate",
+    "db:studio": "pnpm --filter @klonk/app db:studio"
+  }
+}

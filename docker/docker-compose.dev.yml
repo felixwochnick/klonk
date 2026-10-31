@@ -1,0 +1,16 @@
+# Nur die Datenbank für die lokale Entwicklung
+name: klonk-dev
+services:
+  postgres:
+    image: postgres:18-alpine
+    environment:
+      POSTGRES_USER: klonk
+      POSTGRES_PASSWORD: klonk
+      POSTGRES_DB: klonk
+    ports:
+      - "5432:5432"
+    volumes:
+      - klonk-dev-db:/var/lib/postgresql
+
+volumes:
+  klonk-dev-db:

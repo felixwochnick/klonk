@@ -1,0 +1,33 @@
+# Selbsthosting: App + Postgres. Migrationen laufen automatisch beim Start der App.
+name: klonk
+
+services:
+  app:
+    build:
+      context: ..
+      dockerfile: apps/app/Dockerfile
+    environment:
+      NUXT_DATABASE_URL: postgres://klonk:${POSTGRES_PASSWORD:-klonk}@postgres:5432/klonk
+    ports:
+      - "${KLONK_PORT:-3000}:3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
+  postgres:
+    image: postgres:18-alpine
+    environment:
+      POSTGRES_USER: klonk
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-klonk}
+      POSTGRES_DB: klonk
+    volumes:
+      - klonk-db:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U klonk"]
+      interval: 5s
+      retries: 10
+    restart: unless-stopped
+
+volumes:
+  klonk-db:
