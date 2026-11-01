@@ -162,7 +162,14 @@ pnpm --filter @klonk/core test      # RLS-Integrationstests
   Monacos Hintergrund-Tokenizer (Leerlaufzeit) und kostet Akku.
 - **3D (Details):** `apps/app/app/utils/world-renderer.ts` (three.js, InstancedMesh, animiert `WorldEvent`s aus `@klonk/world`),
   Komponente `KlonkWorld` nur in `<ClientOnly>` (`.client.vue` + Template-Ref funktionierte nicht).
-- **PWA** mit generiertem Logo/Favicon; lokales Dateisystem über File System Access API (Projektordner öffnen).
+- **PWA** (`@vite-pwa/nuxt`, nur `apps/app`): Logo/Favicon/Icons aus `assets/brand/*.svg` per `node scripts/gen-icons.ts`
+  (rsvg-convert + ImageMagick ⇒ `packages/ui/public`, `apps/app/public/icons`, `apps/docs/public`). Workbox precacht alle
+  Assets (Monaco, Modelle, Blockly-Medien, Schriften) + die SPA-Shell `/`; `/`, `/world`, `/projects` laufen mit `ssr: false`
+  (Shell ohne Nutzerdaten, `navigateFallback: '/'` mit Allowlist – neue Lern-Seiten dort und in den routeRules ergänzen).
+  Offline: `plugins/offline-session.client.ts` merkt den Nutzer (`klonk:offline-user`), `useLicense` die Lizenz
+  (`klonk:license`); `useAuth().logout` löscht beides. Service Worker nur im Produktions-Build ⇒ `e2e/pwa.spec.ts` läuft nur
+  gegen den Stack (Chromium mit `--ignore-certificate-errors`, sonst registriert sich der SW bei selbst signierten Zertifikaten nicht).
+  Lokales Dateisystem über File System Access API (Projektordner öffnen).
 - **Auth:** siehe „Konten & Anmeldung“. Schulen und Unternehmen wählen selbst OIDC, LDAP und/oder lokale Konten.
 - **KI:** Schulen binden ihr eigenes LLM ein (OpenAI-kompatible API), optional WebLLM im Browser.
 
@@ -205,6 +212,6 @@ pnpm --filter @klonk/core test      # RLS-Integrationstests
 7. [x] JS/TS-Ausführung im Worker mit Debugging (synchron via SharedArrayBuffer/Atomics, acorn-Instrumentierung, sucrase, Monaco-TS mit Roboter-API-.d.ts)
 8. [x] Blöcke (Blockly ⇒ Klonk-Script, Debugger am Block, Haltepunkte per Rechtsklick, de/en)
 9. [x] Lokales Dateisystem: Projektordner (File System Access API) + Browser-Projekte (OPFS), Explorer, Autosave, Welten, Bibliotheken
-10. [ ] PWA (Logo, Favicon, Offline)
+10. [x] PWA (Logo, Favicon, Offline)
 11. [ ] KI-Assistent (schuleigenes LLM / WebLLM)
 12. [ ] Python, Java (TeaVM), C#

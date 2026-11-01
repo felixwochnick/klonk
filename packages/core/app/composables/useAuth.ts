@@ -5,6 +5,14 @@ export function useAuth() {
   async function logout() {
     await $fetch('/api/auth/logout', { method: 'POST' })
     await session.fetch()
+    // Für offline gemerkten Nutzer der App (PWA, apps/app/app/plugins/offline-session.client.ts) vergessen
+    try {
+      localStorage.removeItem('klonk:offline-user')
+      localStorage.removeItem('klonk:license')
+    }
+    catch {
+      // kein Speicher verfügbar
+    }
     // Session ist in der DB gelöscht ⇒ überall abgemeldet; zurück zur (ggf. zentralen) Anmeldung
     await navigateTo(loginUrl('/'), { external: true })
   }

@@ -32,6 +32,8 @@ export default defineConfig({
     launchOptions: {
       // Lokal installiertes Chromium nutzen (CHROMIUM_PATH überschreibt)
       executablePath: process.env.CHROMIUM_PATH ?? '/usr/bin/chromium',
+      // Service Worker (PWA) registrieren sich nur bei gültigem Zertifikat – im Stack selbst signiert
+      args: STACK ? ['--ignore-certificate-errors'] : [],
     },
   },
   webServer: STACK ? undefined : [

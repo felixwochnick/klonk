@@ -266,5 +266,9 @@
     "openInIde": "Open",
     "editWorld": "Edit in world editor",
     "otherFile": "Other file"
+  },
+  "pwa": {
+    "install": "Install app",
+    "offline": "Offline"
   }
 }

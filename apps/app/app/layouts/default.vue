@@ -1,5 +1,7 @@
 <script setup lang="ts">
 const { t } = useI18n()
+const { $pwa } = useNuxtApp()
+const offline = useOffline()
 </script>
 
 <template>
@@ -17,6 +19,23 @@ const { t } = useI18n()
       />
 
       <template #right>
+        <UButton
+          v-if="$pwa?.showInstallPrompt"
+          icon="i-lucide-download"
+          variant="ghost"
+          color="neutral"
+          :label="t('pwa.install')"
+          class="hidden sm:inline-flex"
+          @click="$pwa.install()"
+        />
+        <UBadge
+          v-if="offline"
+          icon="i-lucide-wifi-off"
+          :label="t('pwa.offline')"
+          color="warning"
+          variant="subtle"
+          data-testid="offline-badge"
+        />
         <LocaleSwitch />
         <UColorModeButton />
         <UserMenu />

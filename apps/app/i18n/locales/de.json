@@ -266,5 +266,9 @@
     "openInIde": "Geöffnet",
     "editWorld": "Im Welt-Editor bearbeiten",
     "otherFile": "Andere Datei"
+  },
+  "pwa": {
+    "install": "App installieren",
+    "offline": "Offline"
   }
 }
