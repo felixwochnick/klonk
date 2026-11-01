@@ -12,9 +12,12 @@
   },
   "dependencies": {
     "@klonk/core": "workspace:*",
+    "@klonk/klonk-script": "workspace:*",
+    "@klonk/runtime": "workspace:*",
     "@klonk/ui": "workspace:*",
     "@klonk/world": "workspace:*",
     "@nuxt/ui": "^4.12.0",
+    "monaco-editor": "^0.57.0",
     "nuxt": "^4.6.3",
     "three": "^0.187.0"
   },

@@ -90,6 +90,76 @@
     }
   },
   "nav": {
-    "world": "Welt"
+    "world": "Welt",
+    "code": "Programmieren"
+  },
+  "editor": {
+    "title": "Programmieren",
+    "ariaLabel": "Code-Editor",
+    "breakpoint": "Haltepunkt – hier hält das Programm an",
+    "run": "Ausführen",
+    "resume": "Weiter",
+    "pause": "Pause",
+    "step": "Einzelschritt",
+    "stepHelp": "Eine Anweisung ausführen (F10)",
+    "stop": "Stopp",
+    "reset": "Zurücksetzen",
+    "translate": "Übersetzen",
+    "translateFailed": "Das Programm enthält Fehler und kann nicht übersetzt werden.",
+    "editWorld": "Welt bearbeiten",
+    "variables": "Variablen",
+    "output": "Ausgabe",
+    "noOutput": "Noch keine Ausgabe.",
+    "error": "Fehler",
+    "errorAt": "Fehler in Zeile {line}",
+    "state": {
+      "idle": "Bereit",
+      "running": "Läuft …",
+      "paused": "Angehalten",
+      "done": "Fertig",
+      "error": "Fehler",
+      "stopped": "Gestoppt"
+    }
+  },
+  "script": {
+    "errors": {
+      "unknown": "Unbekannter Fehler ({code}).",
+      "internal": "Interner Fehler: {message}",
+      "unterminated_string": "Der Text wurde nicht mit einem Anführungszeichen beendet.",
+      "unexpected_character": "Das Zeichen „{char}“ ist hier nicht erlaubt.",
+      "unexpected_token": "„{token}“ ist hier unerwartet.",
+      "unexpected_end": "„ende“ ohne passenden Block (wiederhole, wenn, anweisung …).",
+      "unexpected_else": "„sonst“ ohne passendes „wenn“.",
+      "missing_end": "Zum Block „{keyword}“ fehlt das „ende“.",
+      "expected_times": "Nach der Anzahl fehlt „mal“ (z. B. „wiederhole 3 mal“).",
+      "expected_name": "Hier fehlt ein Name.",
+      "expected_string": "Hier fehlt ein Text in Anführungszeichen.",
+      "expected_operator": "Hier fehlt „{expected}“.",
+      "expected_expression": "Hier fehlt ein Wert oder eine Bedingung.",
+      "expected_statement": "Das ist keine Anweisung – meintest du einen Befehl wie „schritt“?",
+      "expected_newline": "Jede Anweisung gehört in eine eigene Zeile (vor „{token}“).",
+      "reserved_name": "„{name}“ ist ein eingebauter Name und kann nicht neu vergeben werden.",
+      "assign_to_builtin": "„{name}“ ist ein eingebauter Befehl und kann nicht verändert werden.",
+      "duplicate_parameter": "Der Parameter „{name}“ kommt doppelt vor.",
+      "duplicate_definition": "„{name}“ wurde schon einmal definiert.",
+      "nested_definition": "Anweisungen und Funktionen dürfen nicht in Blöcken stehen.",
+      "break_outside_loop": "„abbrechen“ geht nur innerhalb von „wiederhole“.",
+      "continue_outside_loop": "„weiter“ geht nur innerhalb von „wiederhole“.",
+      "return_outside_function": "„zurück“ geht nur innerhalb einer Funktion oder Anweisung.",
+      "undeclared_variable": "Die Variable „{name}“ gibt es noch nicht – lege sie mit „var {name} = …“ an.",
+      "unknown_name": "„{name}“ ist unbekannt.",
+      "not_callable": "„{name}“ ist eine Variable und kein Befehl.",
+      "wrong_argument_count": "„{name}“ erwartet {expected} Wert(e), bekommen hat es {actual}.",
+      "stack_overflow": "„{name}“ ruft sich zu oft selbst auf (Endlosrekursion?).",
+      "expected_count": "Eine Anzahl muss eine ganze Zahl ab 0 sein (nicht „{value}“).",
+      "expected_boolean": "Hier wird „wahr“ oder „falsch“ erwartet (nicht „{value}“).",
+      "expected_number": "Hier wird eine Zahl erwartet (nicht „{value}“).",
+      "division_by_zero": "Durch 0 kann man nicht teilen.",
+      "invalid_color": "„{value}“ ist keine gültige Farbe.",
+      "invalid_range": "Der Bereich von {from} bis {to} ist leer.",
+      "feature_libraries": "Bibliotheken („importiere“) sind in deiner Lizenz nicht enthalten.",
+      "import_not_found": "Die Datei „{path}“ wurde nicht gefunden.",
+      "import_error": "Die Datei „{path}“ enthält einen Fehler in Zeile {line}."
+    }
   }
 }

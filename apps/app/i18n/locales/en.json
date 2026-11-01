@@ -90,6 +90,76 @@
     }
   },
   "nav": {
-    "world": "World"
+    "world": "World",
+    "code": "Code"
+  },
+  "editor": {
+    "title": "Code",
+    "ariaLabel": "Code editor",
+    "breakpoint": "Breakpoint – the program pauses here",
+    "run": "Run",
+    "resume": "Continue",
+    "pause": "Pause",
+    "step": "Step",
+    "stepHelp": "Run one statement (F10)",
+    "stop": "Stop",
+    "reset": "Reset",
+    "translate": "Translate",
+    "translateFailed": "The program contains errors and cannot be translated.",
+    "editWorld": "Edit world",
+    "variables": "Variables",
+    "output": "Output",
+    "noOutput": "No output yet.",
+    "error": "Error",
+    "errorAt": "Error in line {line}",
+    "state": {
+      "idle": "Ready",
+      "running": "Running …",
+      "paused": "Paused",
+      "done": "Done",
+      "error": "Error",
+      "stopped": "Stopped"
+    }
+  },
+  "script": {
+    "errors": {
+      "unknown": "Unknown error ({code}).",
+      "internal": "Internal error: {message}",
+      "unterminated_string": "The text was not closed with a quotation mark.",
+      "unexpected_character": "The character “{char}” is not allowed here.",
+      "unexpected_token": "“{token}” is unexpected here.",
+      "unexpected_end": "“end” without a matching block (repeat, if, procedure …).",
+      "unexpected_else": "“else” without a matching “if”.",
+      "missing_end": "The block “{keyword}” is missing its “end”.",
+      "expected_times": "“times” is missing after the count (e.g. “repeat 3 times”).",
+      "expected_name": "A name is missing here.",
+      "expected_string": "A text in quotation marks is missing here.",
+      "expected_operator": "“{expected}” is missing here.",
+      "expected_expression": "A value or condition is missing here.",
+      "expected_statement": "That is not a statement – did you mean a command like “step”?",
+      "expected_newline": "Each statement belongs on its own line (before “{token}”).",
+      "reserved_name": "“{name}” is a built-in name and cannot be reused.",
+      "assign_to_builtin": "“{name}” is a built-in command and cannot be changed.",
+      "duplicate_parameter": "The parameter “{name}” appears twice.",
+      "duplicate_definition": "“{name}” has already been defined.",
+      "nested_definition": "Procedures and functions must not be inside blocks.",
+      "break_outside_loop": "“break” only works inside “repeat”.",
+      "continue_outside_loop": "“continue” only works inside “repeat”.",
+      "return_outside_function": "“return” only works inside a function or procedure.",
+      "undeclared_variable": "The variable “{name}” doesn't exist yet – create it with “var {name} = …”.",
+      "unknown_name": "“{name}” is unknown.",
+      "not_callable": "“{name}” is a variable, not a command.",
+      "wrong_argument_count": "“{name}” expects {expected} value(s) but got {actual}.",
+      "stack_overflow": "“{name}” calls itself too often (endless recursion?).",
+      "expected_count": "A count must be a whole number from 0 (not “{value}”).",
+      "expected_boolean": "“true” or “false” is expected here (not “{value}”).",
+      "expected_number": "A number is expected here (not “{value}”).",
+      "division_by_zero": "You can't divide by 0.",
+      "invalid_color": "“{value}” is not a valid color.",
+      "invalid_range": "The range from {from} to {to} is empty.",
+      "feature_libraries": "Libraries (“import”) are not included in your license.",
+      "import_not_found": "The file “{path}” was not found.",
+      "import_error": "The file “{path}” contains an error in line {line}."
+    }
   }
 }

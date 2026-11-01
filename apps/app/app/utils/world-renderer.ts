@@ -92,6 +92,8 @@ export class WorldRenderer {
   private queue: Animation[] = []
   private current?: { animation: Animation, start: number }
   private frame = 0
+  /** Nur bei Bedarf rendern (Animation, Kamera, Änderungen) – spart Leistung und lässt dem Browser Leerlaufzeit */
+  private dirty = true
   private resizeObserver: ResizeObserver
   private raycaster = new THREE.Raycaster()
 
@@ -99,12 +101,13 @@ export class WorldRenderer {
     this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: true })
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
     this.renderer.shadowMap.enabled = true
-    this.renderer.shadowMap.type = THREE.PCFSoftShadowMap
+    this.renderer.shadowMap.type = THREE.PCFShadowMap
     this.renderer.outputColorSpace = THREE.SRGBColorSpace
     container.appendChild(this.renderer.domElement)
 
     this.controls = new OrbitControls(this.camera, this.renderer.domElement)
     this.controls.enableDamping = true
+    this.controls.addEventListener('change', () => this.invalidate())
     this.controls.maxPolarAngle = Math.PI / 2 - 0.05
 
     this.scene.add(new THREE.HemisphereLight(0xFFFFFF, 0x8D8D8D, 2.2))
@@ -161,6 +164,7 @@ export class WorldRenderer {
     shadow.updateProjectionMatrix()
     this.sun.position.set(center.x - 8, 16, center.z + 10)
     this.sun.target.position.copy(center)
+    this.invalidate()
   }
 
   /** Feld unter dem Mauszeiger (für den Editor) */
@@ -182,9 +186,11 @@ export class WorldRenderer {
   }
 
   setHover(position: Position | null) {
+    if (this.hover.visible !== (!!position && !!this.world)) this.invalidate()
     this.hover.visible = !!position && !!this.world
     if (!position || !this.world) return
     this.hover.position.set(position.x, this.surface(position) + 0.03, position.z)
+    this.invalidate()
   }
 
   /** Bild der Szene (z. B. für Vorschaubilder) */
@@ -215,12 +221,22 @@ export class WorldRenderer {
     this.renderer.setSize(w, h)
     this.camera.aspect = w / h
     this.camera.updateProjectionMatrix()
+    this.invalidate()
+  }
+
+  /** Nächstes Bild neu zeichnen */
+  invalidate() {
+    this.dirty = true
   }
 
   private loop = () => {
     this.frame = requestAnimationFrame(this.loop)
+    const animating = this.busy
     this.tick(performance.now())
-    this.controls.update()
+    // update() liefert true, solange die gedämpfte Kamerabewegung ausläuft
+    if (this.controls.update() || animating) this.dirty = true
+    if (!this.dirty) return
+    this.dirty = false
     this.renderer.render(this.scene, this.camera)
   }
 
@@ -251,6 +267,7 @@ export class WorldRenderer {
   }
 
   private rebuild() {
+    this.invalidate()
     const world = this.world!
     const models = this.models!
 
@@ -281,6 +298,7 @@ export class WorldRenderer {
   }
 
   private rebuildBricks() {
+    this.invalidate()
     const world = this.world!
     if (this.bricks) {
       this.scene.remove(this.bricks)
@@ -338,6 +356,7 @@ export class WorldRenderer {
   }
 
   private addCharacterView(character: CharacterData) {
+    this.invalidate()
     const root = this.models!.characters[character.model].clone(true)
     const view: CharacterView = {
       root,
@@ -441,6 +460,7 @@ export class WorldRenderer {
   }
 
   private updateCharacterHeights() {
+    this.invalidate()
     for (const character of this.world!.getCharacters()) {
       const view = this.characters.get(character.id)
       if (view) view.root.position.y = this.surface(character) + this.markOffset(character)
