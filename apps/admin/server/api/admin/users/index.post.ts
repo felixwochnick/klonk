@@ -10,6 +10,7 @@ export default defineEventHandler(async (event) => {
     password: passwordSchema,
   }))
 
+  await assertUserCapacity(organizationId)
   const passwordHash = await hashPassword(input.password)
 
   const [created] = await withUserDb(user.id, tx => tx.insert(schema.users).values({

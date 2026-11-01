@@ -35,6 +35,8 @@ export async function provisionPrivateUser(identity: PrivateIdentity) {
       return user!
     }
 
+    // Betreiberkonten zählen nicht gegen die Nutzergrenze
+    if (identity.provider !== 'platform') await assertUserCapacity(null)
     const [user] = await tx.insert(users).values({
       organizationId: null,
       displayName: identity.displayName || identity.email || 'Klonk',
@@ -64,13 +66,20 @@ export function withRememberedRedirect(handler: (event: RequestEvent) => unknown
 /** Gemeinsamer Abschluss der OAuth-Anbieter (nuxt-auth-utils) */
 export async function finishPrivateLogin(requestEvent: RequestEvent, identity: PrivateIdentity) {
   const event = toH3Event(requestEvent)
-  const user = await provisionPrivateUser(identity)
-  if (!user) return sendRedirect(event, '/login?error=account_disabled')
-  await startUserSession(event, user)
-  return sendRedirect(event, takeRememberedRedirect(event))
+  try {
+    const user = await provisionPrivateUser(identity)
+    if (!user) return sendRedirect(event, '/login?error=account_disabled')
+    await startUserSession(event, user)
+    return sendRedirect(event, takeRememberedRedirect(event))
+  }
+  catch (error) {
+    return privateLoginFailed(event, error)
+  }
 }
 
 export function privateLoginFailed(event: RequestEvent | H3Event, error: unknown) {
+  if ((error as { message?: string }).message === 'user_limit_reached')
+    return sendRedirect(toH3Event(event), '/login?error=user_limit_reached')
   console.error('[klonk] OAuth-Anmeldung fehlgeschlagen', error)
   return sendRedirect(toH3Event(event), '/login?error=sso_failed')
 }

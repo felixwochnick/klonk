@@ -5,6 +5,7 @@ const { t } = useI18n()
 useSeoMeta({ title: () => t('admin.nav.login') })
 
 const toast = useToast()
+const { can } = useLicense()
 const apiError = useApiError()
 
 const { data } = await useFetch('/api/admin/organization/auth')
@@ -144,6 +145,16 @@ async function test(kind: 'oidc' | 'ldap') {
               v-model="form.oidcEnabled"
               :label="t('admin.login.oidc')"
               :description="t('admin.login.oidcDescription')"
+              :disabled="!can('oidc') && !form.oidcEnabled"
+            />
+            <UAlert
+              v-if="!can('oidc')"
+              class="mt-3"
+              color="warning"
+              variant="subtle"
+              icon="i-lucide-badge-check"
+              :title="t('admin.login.oidcLocked')"
+              data-testid="oidc-locked"
             />
           </template>
           <div class="grid gap-4 sm:grid-cols-2">

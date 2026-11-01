@@ -12,6 +12,8 @@ export default defineEventHandler(async (event) => {
     .where(eq(organizationAuthSettings.organizationId, state.organizationId))
   const oidc = settings?.oidcEnabled ? settings.oidc : null
   if (!oidc) return sendRedirect(event, '/login?error=sso_failed')
+  if (!hasFeature(await getEffectiveLicense(state.organizationId), 'oidc'))
+    return sendRedirect(event, '/login?error=feature_required')
 
   try {
     const claims = await finishOidcLogin(event, withDecryptedSecret(oidc), state)
@@ -32,6 +34,8 @@ export default defineEventHandler(async (event) => {
     return sendRedirect(event, state.redirect)
   }
   catch (error) {
+    if ((error as { message?: string }).message === 'user_limit_reached')
+      return sendRedirect(event, '/login?error=user_limit_reached')
     console.error('[klonk] OIDC-Anmeldung fehlgeschlagen', error)
     return sendRedirect(event, '/login?error=sso_failed')
   }

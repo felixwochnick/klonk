@@ -9,7 +9,8 @@
       "users": "Accounts",
       "organization": "Organization",
       "login": "Sign-in",
-      "organizations": "All organizations"
+      "organizations": "All organizations",
+      "license": "License"
     },
     "organizationType": {
       "school": "School",
@@ -79,11 +80,45 @@
       "test": "Test connection",
       "testOk": "Connection successful",
       "testFailed": "Connection failed",
-      "usersFound": "{count} accounts found"
+      "usersFound": "{count} accounts found",
+      "oidcLocked": "Single sign-on via OIDC is part of the license. LDAP and password accounts are free."
     },
     "organizations": {
       "create": "Create organization",
       "created": "Organization created"
+    },
+    "license": {
+      "description": "Without a license Klonk runs as the free version: up to 10 accounts, one character, the standard models, sign-in with password or LDAP and no libraries.",
+      "instance": "License of this installation",
+      "organization": "License of {name}",
+      "free": "Free",
+      "validUntil": "valid until {date}",
+      "users": "Accounts",
+      "usersUnlimited": "{used} (unlimited)",
+      "token": "License token",
+      "tokenHelp": "You get the token in your customer account after purchase.",
+      "tokenReplace": "A token is stored – a new one replaces it.",
+      "activate": "Activate license",
+      "remove": "Remove license",
+      "buy": "Buy license",
+      "manage": "Manage license",
+      "activated": "License activated",
+      "removed": "License removed",
+      "fromEnv": "The license is set via the NUXT_LICENSE_TOKEN environment variable.",
+      "ownerOnly": "The license is managed by the operators of this installation.",
+      "problem": {
+        "grace": "Expired – grace period",
+        "expired": "Expired",
+        "invalid": "Invalid token",
+        "wrong_domain": "Token is not valid for this domain"
+      },
+      "features": {
+        "oidc": "Single sign-on via OIDC",
+        "characters": "All characters",
+        "models": "Additional 3D models",
+        "libraries": "Libraries in Klonk-Script and TypeScript",
+        "ai": "AI assistant"
+      }
     }
   },
   "errors": {

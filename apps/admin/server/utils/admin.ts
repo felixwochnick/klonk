@@ -20,3 +20,13 @@ export const usernameSchema = z.string().trim().toLowerCase().regex(/^[a-z0-9._-
 export const passwordSchema = z.string().min(8).max(1000)
 export const roleSchema = z.enum(['member', 'teacher', 'admin'])
 export const domainSchema = z.string().trim().toLowerCase().regex(/^[a-z0-9-]+(\.[a-z0-9-]+)+$/)
+
+/** Token vor dem Speichern prüfen – ungültige/fremde Tokens gar nicht erst ablegen */
+export async function assertValidToken(token: string) {
+  const license = await verifyLicenseToken(token, {
+    allowDevKeys: import.meta.dev,
+    host: new URL(useRuntimeConfig().public.appUrl).hostname,
+  })
+  if (license.problem === 'invalid' || license.problem === 'wrong_domain')
+    throw createError({ statusCode: 400, message: `license_${license.problem}` })
+}

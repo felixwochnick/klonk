@@ -16,6 +16,8 @@ export const organizations = pgTable('organizations', {
   name: text().notNull(),
   // Domain-Teil des Logins: username@domain
   domain: text().notNull().unique(),
+  // Lizenz-Token der Organisation (gehostete Plattform: Abo von Schule/Unternehmen)
+  licenseToken: text(),
   createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
 })
 
@@ -102,3 +104,10 @@ export const sessions = pgTable('sessions', {
 }, t => [
   index('sessions_user_idx').on(t.userId),
 ])
+
+/** Einstellungen der gesamten Instanz (z. B. `license` = Lizenz-Token des Selbsthosters) – nur Plattform-Admins */
+export const instanceSettings = pgTable('instance_settings', {
+  key: text().primaryKey(),
+  value: jsonb().notNull(),
+  updatedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+})

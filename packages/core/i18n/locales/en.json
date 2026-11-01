@@ -60,6 +60,12 @@
     "not_found": "Not found.",
     "sso_failed": "Signing in via SSO failed.",
     "invalid_input": "Please check your input.",
-    "not_operator": "Klonk ID is only for developers and owners."
+    "not_operator": "Klonk ID is only for developers and owners.",
+    "feature_required": "This feature is not included in your license.",
+    "user_limit_reached": "The maximum number of accounts for this license has been reached.",
+    "license_invalid": "The license token is invalid.",
+    "license_wrong_domain": "The license token is not valid for this domain.",
+    "license_from_env": "The license is set via environment variable and cannot be changed here.",
+    "license_instance_only": "Licenses are stored for the whole installation."
   }
 }

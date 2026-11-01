@@ -9,7 +9,8 @@
       "users": "Konten",
       "organization": "Organisation",
       "login": "Anmeldung",
-      "organizations": "Alle Organisationen"
+      "organizations": "Alle Organisationen",
+      "license": "Lizenz"
     },
     "organizationType": {
       "school": "Schule",
@@ -79,11 +80,45 @@
       "test": "Verbindung testen",
       "testOk": "Verbindung erfolgreich",
       "testFailed": "Verbindung fehlgeschlagen",
-      "usersFound": "{count} Konten gefunden"
+      "usersFound": "{count} Konten gefunden",
+      "oidcLocked": "Single Sign-on per OIDC ist Teil der Lizenz. LDAP und Konten mit Passwort sind kostenlos."
     },
     "organizations": {
       "create": "Organisation anlegen",
       "created": "Organisation angelegt"
+    },
+    "license": {
+      "description": "Ohne Lizenz läuft Klonk in der kostenlosen Version: bis zu 10 Konten, eine Figur, die Standardmodelle, Anmeldung mit Passwort oder LDAP und keine Bibliotheken.",
+      "instance": "Lizenz dieser Installation",
+      "organization": "Lizenz von {name}",
+      "free": "Kostenlos",
+      "validUntil": "gültig bis {date}",
+      "users": "Konten",
+      "usersUnlimited": "{used} (unbegrenzt)",
+      "token": "Lizenz-Token",
+      "tokenHelp": "Das Token erhältst du nach dem Kauf im Kundenkonto.",
+      "tokenReplace": "Ein Token ist hinterlegt – ein neues ersetzt es.",
+      "activate": "Lizenz aktivieren",
+      "remove": "Lizenz entfernen",
+      "buy": "Lizenz kaufen",
+      "manage": "Lizenz verwalten",
+      "activated": "Lizenz aktiviert",
+      "removed": "Lizenz entfernt",
+      "fromEnv": "Die Lizenz ist über die Umgebungsvariable NUXT_LICENSE_TOKEN gesetzt.",
+      "ownerOnly": "Die Lizenz verwalten die Betreiber:innen dieser Installation.",
+      "problem": {
+        "grace": "Abgelaufen – Kulanzzeit läuft",
+        "expired": "Abgelaufen",
+        "invalid": "Ungültiges Token",
+        "wrong_domain": "Token gilt nicht für diese Domain"
+      },
+      "features": {
+        "oidc": "Single Sign-on per OIDC",
+        "characters": "Alle Figuren",
+        "models": "Zusätzliche 3D-Modelle",
+        "libraries": "Bibliotheken in Klonk-Script und TypeScript",
+        "ai": "KI-Assistent"
+      }
     }
   },
   "errors": {

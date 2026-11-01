@@ -22,9 +22,10 @@ const items = computed<NavigationMenuItem[][]>(() => [
         ]
       : []),
   ],
-  isPlatformAdmin.value
-    ? [{ label: t('admin.nav.organizations'), icon: 'i-lucide-globe', to: '/organizations' }]
-    : [],
+  [
+    ...(isPlatformAdmin.value ? [{ label: t('admin.nav.organizations'), icon: 'i-lucide-globe', to: '/organizations' }] : []),
+    ...(isAdmin.value || isPlatformAdmin.value ? [{ label: t('admin.nav.license'), icon: 'i-lucide-badge-check', to: '/license' }] : []),
+  ],
 ])
 </script>
 

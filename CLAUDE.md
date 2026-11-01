@@ -84,6 +84,8 @@ pnpm --filter @klonk/core test      # RLS-Integrationstests
   `useSystemDb()` (Owner, ohne RLS) nur für Login, Sessions, Einrichtung.
 - Neue Tabelle ⇒ `GRANT` an `klonk_user`, `ENABLE ROW LEVEL SECURITY`, Policies, Tests in `packages/core/tests/rls.test.ts`.
 - Mehrere permissive Policies werden ODER-verknüpft – auch im `WITH CHECK` jede Rollenbedingung wiederholen.
+- Achtung `search_path`: Heißt der DB-Nutzer `klonk`, würde `"$user"` neue Tabellen ins Hilfsschema `klonk` legen.
+  Migration 0002 setzt daher `ALTER ROLE CURRENT_USER SET search_path = public` – nie Tabellen ins Schema `klonk` legen.
 
 ### Konten & Anmeldung
 
@@ -132,8 +134,17 @@ pnpm --filter @klonk/core test      # RLS-Integrationstests
 - **Kostenlos:** 1 Figur, nur Standard-3D-Modelle, max. 10 Nutzer in der DB, LDAP-Login, **keine Bibliotheken/Imports**
   in Klonk-Script und TS.
 - Verkauf: Tokens (Self-Hosting) und Abos (Privat, Firmen, Schulen); für Schulen auch Kauf auf Rechnung.
-- In der App nur „Upgrade/Lizenz verwalten“-Link + Token-Eingabe, kein Checkout.
-- Offen: Code-Lizenz (AGPL+kommerziell / MIT / FSL / ELv2) und Liste weiterer Bezahlfunktionen.
+- In der App nur „Upgrade/Lizenz verwalten“-Link (`NUXT_PUBLIC_SHOP_URL`) + Token-Eingabe, kein Checkout.
+- **Umsetzung:** `packages/core/shared/utils/license.ts` (Features, Free-Grenzen, Kulanzzeit 14 Tage),
+  `server/utils/license.ts` (`verifyLicenseToken`, `getEffectiveLicense(orgId)`, `requireFeature()`, `assertUserCapacity()`),
+  öffentliche Schlüssel in `server/utils/license-keys.ts` (`kid`), Testschlüssel `klonk-dev` nur mit `import.meta.dev`
+  (privater Testschlüssel in `packages/core/tests/fixtures`). Instanz-Token: `NUXT_LICENSE_TOKEN` oder `instance_settings.license`
+  (admin → Lizenz, nur Plattform-Admins). Feature `hosted` ⇒ Grenzen pro Organisation (`organizations.license_token`).
+  Client: `useLicense()` (`can('libraries')`, `maxCharacters`). **Neue Bezahlfunktionen immer serverseitig mit
+  `requireFeature()` absichern** und in `LICENSE_FEATURES` + Admin-i18n (`admin.license.features.*`) eintragen.
+- Produktiver Signierschlüssel liegt nur lokal unter `~/.config/klonk/license-signing-key.pem` (gehört ins private Shop-Repo/
+  Secret-Store). Tokens manuell ausstellen: `node scripts/sign-license.ts --name … --features … --days …`.
+- Offen: Code-Lizenz (AGPL+kommerziell / MIT / FSL / ELv2), weitere Bezahlfunktionen, Abos für Privatkonten auf der gehosteten Plattform.
 
 ## Roadmap (Status pflegen!)
 
@@ -143,7 +154,7 @@ pnpm --filter @klonk/core test      # RLS-Integrationstests
 2c. [x] Privatkonten: OAuth-Anbieter (Google, Microsoft, GitHub, Apple); Klonk ID (Authentik) nur für Betreiber
 2d. [x] Zentrale Anmeldung `auth.klonk.*` (Single Sign-on für app, admin, Website)
 2e. [x] Mitgelieferter Proxy (Caddy, TLS: internal/HTTP-01/IONOS-DNS/off) + lokaler Komplett-Stack `*.klonk.local`
-3. [ ] Lizenz-Token-Prüfung + Free-Tier-Limits
+3. [x] Lizenz-Token-Prüfung + Free-Tier-Limits (Nutzergrenze, OIDC; Figuren/Modelle/Bibliotheken/KI als Flags für spätere Schritte)
 4. [ ] 3D-Welt (three.js): Boden, Wände, Kisten, Markierungen, Welt-Editor
 5. [ ] Blender-Modelle: Figuren (m/w/d) + Weltblöcke, glTF
 6. [ ] Klonk-Script: Lexer/Parser/Interpreter (Worker), Monaco-Sprache, Autocomplete, Debugger, de/en

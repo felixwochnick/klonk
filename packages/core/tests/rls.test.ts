@@ -4,7 +4,7 @@ import { drizzle } from 'drizzle-orm/postgres-js'
 import { migrate } from 'drizzle-orm/postgres-js/migrator'
 import postgres from 'postgres'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { organizationAuthSettings, organizations, sessions, users } from '../server/database/schema'
+import { instanceSettings, organizationAuthSettings, organizations, sessions, users } from '../server/database/schema'
 import { createDb, runAsUser, type Db } from '../server/utils/db'
 
 // Integrationstest gegen eine echte Postgres-Instanz (pnpm db:up) in einer eigenen Test-Datenbank
@@ -180,5 +180,22 @@ describe('RLS: organizations & Einstellungen', () => {
 
   it('Sessions sind für die Nutzerrolle gesperrt', async () => {
     await expectDbError(runAsUser(db, ids.owner!, tx => tx.select().from(sessions)), /permission denied/)
+  })
+
+  it('Instanz-Einstellungen (Lizenz) nur für Plattform-Admins', async () => {
+    await runAsUser(db, ids.owner!, tx => tx.insert(instanceSettings).values({ key: 'license', value: 'token' }))
+    expect(await runAsUser(db, ids.adminA!, tx => tx.select().from(instanceSettings))).toEqual([])
+    await expectDbError(runAsUser(db, ids.adminA!, tx =>
+      tx.insert(instanceSettings).values({ key: 'other', value: 'x' })), /row-level security/)
+    expect(await runAsUser(db, ids.owner!, tx => tx.select().from(instanceSettings))).toHaveLength(1)
+  })
+
+  it('Lizenz-Token der Organisation setzen nur deren Admins', async () => {
+    const asTeacher = await runAsUser(db, ids.teacherA!, tx => tx.update(organizations)
+      .set({ licenseToken: 'x' }).where(eq(organizations.id, ids.orgA!)).returning({ id: organizations.id }))
+    expect(asTeacher).toHaveLength(0)
+    const asAdmin = await runAsUser(db, ids.adminA!, tx => tx.update(organizations)
+      .set({ licenseToken: 'x' }).where(eq(organizations.id, ids.orgA!)).returning({ id: organizations.id }))
+    expect(asAdmin).toHaveLength(1)
   })
 })

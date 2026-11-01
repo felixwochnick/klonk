@@ -11,11 +11,15 @@ export async function findOrganizationByDomain(domain: string) {
   return row ?? null
 }
 
-export function loginMethods(settings: typeof organizationAuthSettings.$inferSelect | null): LoginMethod[] {
+/** Aktive Login-Methoden; OIDC nur mit Lizenz-Feature `oidc` */
+export async function loginMethods(organizationId: string, settings: typeof organizationAuthSettings.$inferSelect | null): Promise<LoginMethod[]> {
   const methods: LoginMethod[] = []
   if (settings?.localEnabled ?? true) methods.push('password')
   if (settings?.ldapEnabled && settings.ldap) methods.push('ldap')
-  if (settings?.oidcEnabled && settings.oidc) methods.push('oidc')
+  if (settings?.oidcEnabled && settings.oidc && hasFeature(await getEffectiveLicense(organizationId), 'oidc'))
+    methods.push('oidc')
+  // Ist nur OIDC eingerichtet, aber die Lizenz abgelaufen, bleibt die Anmeldung mit Passwort als Notzugang
+  if (!methods.length) methods.push('password')
   return methods
 }
 
@@ -29,7 +33,7 @@ export async function loginWithPassword(identifier: string, password: string) {
 
   const org = await findOrganizationByDomain(parsed.domain)
   if (!org) return null
-  const methods = loginMethods(org.settings)
+  const methods = await loginMethods(org.organization.id, org.settings)
 
   const [user] = await useSystemDb()
     .select()

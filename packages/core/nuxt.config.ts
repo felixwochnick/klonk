@@ -10,6 +10,8 @@ export default defineNuxtConfig({
     migrationsDir: fileURLToPath(new URL('./server/database/migrations', import.meta.url)),
     // 32 Byte (hex/base64) für die Verschlüsselung von SSO-Secrets in der DB
     encryptionKey: '',
+    // Lizenz-Token der Instanz (alternativ in der Verwaltung hinterlegen)
+    licenseToken: '',
     // Klonk ID: plattformweiter OIDC-Anbieter (Authentik), nur für Betreiber (Entwickler:innen, Besitzer:innen)
     platformOidc: {
       name: 'Klonk ID',
@@ -30,6 +32,8 @@ export default defineNuxtConfig({
       authUrl: '',
       // Weitere Origins (kommagetrennt), die die Anmeldung nutzen dürfen – z. B. die Website klonk.*
       websiteUrls: '',
+      // Shop/Kundenkonto auf klonk.* für „Lizenz kaufen/verwalten“ (leer = Link ausblenden)
+      shopUrl: '',
     },
     session: {
       name: 'klonk-session',

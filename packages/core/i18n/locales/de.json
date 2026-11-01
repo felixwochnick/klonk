@@ -60,6 +60,12 @@
     "not_found": "Nicht gefunden.",
     "sso_failed": "Die Anmeldung per SSO ist fehlgeschlagen.",
     "invalid_input": "Bitte überprüfe deine Eingaben.",
-    "not_operator": "Die Klonk ID ist nur für Entwickler:innen und Besitzer:innen."
+    "not_operator": "Die Klonk ID ist nur für Entwickler:innen und Besitzer:innen.",
+    "feature_required": "Diese Funktion ist in deiner Lizenz nicht enthalten.",
+    "user_limit_reached": "Die maximale Anzahl an Konten für diese Lizenz ist erreicht.",
+    "license_invalid": "Das Lizenz-Token ist ungültig.",
+    "license_wrong_domain": "Das Lizenz-Token gilt nicht für diese Domain.",
+    "license_from_env": "Die Lizenz ist per Umgebungsvariable gesetzt und kann hier nicht geändert werden.",
+    "license_instance_only": "Lizenzen werden für die gesamte Installation hinterlegt."
   }
 }

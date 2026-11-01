@@ -18,6 +18,7 @@ export default defineEventHandler(async (event) => {
   const [settings] = await useSystemDb().select().from(organizationAuthSettings)
     .where(eq(organizationAuthSettings.organizationId, organizationId))
   if (!settings?.oidcEnabled || !settings.oidc) throw createError({ statusCode: 404, message: 'not_found' })
+  await requireFeature(organizationId, 'oidc')
 
   const url = await startOidcLogin(event, organizationId, withDecryptedSecret(settings.oidc), safeRedirect)
   return sendRedirect(event, url.href)

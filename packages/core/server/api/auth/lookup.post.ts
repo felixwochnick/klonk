@@ -13,6 +13,6 @@ export default defineEventHandler(async (event): Promise<LoginLookup> => {
   return {
     organizationId: org.organization.id,
     organizationName: org.organization.name,
-    methods: loginMethods(org.settings),
+    methods: await loginMethods(org.organization.id, org.settings),
   }
 })

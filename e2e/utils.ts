@@ -23,3 +23,16 @@ export async function loginWithPassword(page: Page, startUrl: string, identifier
   await page.getByRole('button', { name: 'Anmelden', exact: true }).click()
   await waitForPage(page, url => url.pathname !== '/login')
 }
+
+/** API-Aufruf aus der geöffneten Seite heraus (Cookies, Hostauflösung und Zertifikate wie im Browser) */
+export function browserFetch(page: Page, url: string, init: { method?: string, body?: unknown } = {}) {
+  return page.evaluate(async ({ url, method, body }) => {
+    const res = await fetch(url, {
+      method,
+      credentials: 'include',
+      headers: body === undefined ? {} : { 'content-type': 'application/json' },
+      body: body === undefined ? undefined : JSON.stringify(body),
+    })
+    return { status: res.status, ok: res.ok }
+  }, { url, method: init.method ?? 'GET', body: init.body })
+}

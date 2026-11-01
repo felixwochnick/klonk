@@ -1,5 +1,6 @@
 import { expect, test, type Page } from '@playwright/test'
 import { ADMIN_URL, APP_URL } from '../playwright.config'
+import { canSignLicense } from './license'
 import { LDAP_URL, OIDC_ISSUER, testIdpAvailable } from './targets'
 import { gotoHydrated, waitForPage } from './utils'
 
@@ -8,6 +9,8 @@ test.use({ locale: 'de-DE' })
 
 test.beforeAll(async () => {
   test.skip(!(await testIdpAvailable()), 'Test-IdP läuft nicht (pnpm sso:up)')
+  // OIDC braucht die Lizenz aus admin-license.spec.ts
+  test.skip(!canSignLicense, 'Kein Signierschlüssel für diese Testumgebung')
 })
 
 async function lookup(page: Page, baseUrl: string, identifier: string) {

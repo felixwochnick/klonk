@@ -38,7 +38,8 @@ export async function provisionExternalUser(identity: ExternalIdentity) {
     }
 
     if (!user) {
-      [user] = await tx.insert(users).values({
+      await assertUserCapacity(identity.organizationId)
+      ;[user] = await tx.insert(users).values({
         organizationId: identity.organizationId,
         username,
         displayName: identity.displayName || username,
