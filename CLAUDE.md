@@ -30,9 +30,10 @@ pnpm-Workspace (`pnpm-workspace.yaml`), Node ≥ 22.
 | `apps/auth` | `@klonk/auth` | **Zentrale Anmeldung** (Single Sign-on für app, admin, Website): Login, Passwort ändern, alle SSO-Rücksprünge, `/api/session` | `auth.klonk.*` |
 | `apps/docs` | `@klonk/docs` | Docus 5 (Nuxt-Layer), Inhalte in `content/{de,en}`, Theme via `app/app.css` + `@klonk/ui/app-config` | `docs.klonk.*` |
 | `packages/ui` | `@klonk/ui` | **Nuxt-Layer für einheitliches Design**: Nuxt UI, Theme (`theme.css`, `app.config.ts`), i18n-Grundkonfiguration, `KlonkLogo`, `LocaleSwitch`, Hydration-Marker | – |
+| `packages/world` | `@klonk/world` | **Weltmodell** (ohne Darstellung, läuft auch im Worker): Raster, Ziegelstapel, Marken, Quader, Figuren, Befehle, Ereignisse, JSON-Format (`WorldData`, zod) | – |
 | `packages/core` | `@klonk/core` | **Nuxt-Layer für Server & Auth**: Drizzle-Schema, Migrationen, RLS, Sessions (nuxt-auth-utils), Login-API, `/login`, `/change-password`, `UserMenu` | – |
 
-App, Admin und Auth erweitern beide Layer (`extends: ['@klonk/ui', '@klonk/core']`). Geplant: `packages/klonk-script`, `packages/runtime`.
+App, Admin und Auth erweitern beide Layer (`extends: ['@klonk/ui', '@klonk/core']`). Geplant: `packages/klonk-script`, `packages/runtime`. Paket-Tests: `pnpm -r test`.
 Jede App/Layer hat eigene `i18n/locales/{de,en}.json`; @nuxtjs/i18n führt sie zusammen (App-Config listet die Dateien).
 
 Die Website/Shop `klonk.*` (Mollie, Token-Ausstellung) liegt in einem **separaten privaten Repo** – keinerlei
