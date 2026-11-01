@@ -8,7 +8,8 @@ Ergebnis:
   assets/blender/klonk-models.blend  – Quelldatei zum Weiterbearbeiten
   assets/blender/preview.png         – Vorschau aller Modelle
 
-Maße: 1 Feld = 1 Einheit = 2×2 Noppen. Ein Ziegel ist 0,6 hoch (Verhältnis 9,6 mm : 16 mm).
+Maße: 1 Feld = 1 Einheit = 4×4 Noppen (Raster 0,25). Ein Ziegel ist 0,3 hoch (Verhältnis 9,6 mm : 8 mm),
+eine Platte 0,1, eine Noppe 0,05. Die Figuren stehen mit jedem Fuß auf einer Noppe.
 glTF ist Y-oben; Blender-„vorne“ (-Y) wird in three.js zu +Z. Ursprung jedes Modells: Mitte der Unterseite.
 Ziegel, Platte und Fliese sind weiß und werden in three.js eingefärbt.
 """
@@ -21,12 +22,14 @@ import bpy
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
 OUT = os.path.join(ROOT, 'apps', 'app', 'public', 'models')
 
-BRICK_H = 0.6
-PLATE_H = 0.2
-GAP = 0.01           # Fuge zwischen Nachbarsteinen
-STUD_R = 0.15
-STUD_H = 0.1
-STUD_POS = 0.25      # Abstand der Noppen von der Mitte (2×2)
+PITCH = 0.25         # Noppenraster
+STUDS = 4            # Noppen pro Feld und Richtung
+BRICK_H = 1.2 * PITCH
+PLATE_H = 0.4 * PITCH
+GAP = 0.005          # Fuge zwischen Nachbarsteinen
+STUD_R = 0.3 * PITCH
+STUD_H = 0.2 * PITCH
+CHARACTER_SCALE = 0.75
 
 
 # ---------------------------------------------------------------------------
@@ -117,8 +120,13 @@ def smooth(obj):
     mod.keep_sharp = True
 
 
+def stud_positions():
+    offsets = [(i - (STUDS - 1) / 2) * PITCH for i in range(STUDS)]
+    return [(x, y) for x in offsets for y in offsets]
+
+
 def studs(prefix, top_z, mat, col, positions=None):
-    positions = positions or [(sx * STUD_POS, sy * STUD_POS) for sx in (-1, 1) for sy in (-1, 1)]
+    positions = positions or stud_positions()
     return [cylinder(f'{prefix}Stud{i}', STUD_R, STUD_H, (x, y, top_z), mat, col=col) for i, (x, y) in enumerate(positions)]
 
 
@@ -178,10 +186,10 @@ def build_plate(white):
 
 
 def build_tile(white):
-    # Glatte Fliese ohne Noppen – Marke auf einem Feld
+    # Glatte Fliese ohne Noppen (Platten-Höhe, deckt die Noppen ab) – Marke auf einem Feld
     col = collection('tile')
-    size = 1 - 6 * GAP
-    tile = box('tile', (size, size, 0.07), (0, 0, 0), white, bevel=0.01, col=col)
+    size = 1 - 4 * GAP
+    tile = box('tile', (size, size, PLATE_H), (0, 0, 0), white, bevel=0.01, col=col)
     for mod in list(tile.modifiers):
         bpy.context.view_layer.objects.active = tile
         bpy.ops.object.modifier_apply(modifier=mod.name)
@@ -206,15 +214,17 @@ def build_character(name, shirt, pants, hair, hair_style):
     root = empty(f'character-{name}', (0, 0, 0), col)
 
     # Beine mit Gelenk an der Hüfte (für die Laufanimation)
-    for side, x in (('L', 0.1), ('R', -0.1)):
+    # Beine genau über zwei Noppen (nach dem Skalieren bei ±PITCH/2)
+    leg_x = PITCH / 2 / CHARACTER_SCALE
+    for side, x in (('L', leg_x), ('R', -leg_x)):
         hip = empty(f'Leg{side}', (x, 0, 0.58), col, root)
-        leg = box(f'Leg{side}Mesh', (0.17, 0.22, 0.5), (x, 0, 0.08), m_pants, col=col)
-        shoe = box(f'Shoe{side}', (0.18, 0.26, 0.09), (x, -0.02, 0), m_pants, bevel=0.03, col=col)
+        leg = box(f'Leg{side}Mesh', (0.19, 0.22, 0.5), (x, 0, 0.08), m_pants, col=col)
+        shoe = box(f'Shoe{side}', (0.2, 0.26, 0.09), (x, -0.02, 0), m_pants, bevel=0.03, col=col)
         parent_to(leg, hip)
         parent_to(shoe, hip)
 
-    hips = box('Hips', (0.42, 0.24, 0.1), (0, 0, 0.56), m_pants, col=col)
-    torso = box('Torso', (0.5, 0.28, 0.5), (0, 0, 0.66), m_shirt, bevel=0.04, col=col)
+    hips = box('Hips', (0.54, 0.24, 0.1), (0, 0, 0.56), m_pants, col=col)
+    torso = box('Torso', (0.56, 0.28, 0.5), (0, 0, 0.66), m_shirt, bevel=0.04, col=col)
     neck = cylinder('Neck', 0.08, 0.06, (0, 0, 1.15), m_skin, col=col)
     head = box('Head', (0.36, 0.34, 0.34), (0, 0, 1.2), m_skin, bevel=0.06, col=col)
     for obj in (hips, torso, neck, head):
@@ -237,7 +247,7 @@ def build_character(name, shirt, pants, hair, hair_style):
     parent_to(smile, root)
 
     # Arme mit Gelenk an der Schulter
-    for side, x in (('L', 0.33), ('R', -0.33)):
+    for side, x in (('L', 0.36), ('R', -0.36)):
         shoulder = empty(f'Arm{side}', (x, 0, 1.1), col, root)
         arm = box(f'Arm{side}Mesh', (0.14, 0.17, 0.42), (x, 0, 0.7), m_shirt, bevel=0.04, col=col)
         hand = box(f'Hand{side}', (0.12, 0.14, 0.11), (x, 0, 0.6), m_skin, bevel=0.04, col=col)
@@ -263,6 +273,9 @@ def build_character(name, shirt, pants, hair, hair_style):
     # Noppe auf dem Kopf – das Klemmbaustein-Merkmal
     knob = cylinder('HeadStud', 0.08, 0.06, (0, 0.01, 1.61 if hair_style != 'bun' else 1.72), m_hair, col=col)
     parent_to(knob, root)
+
+    # Figur auf Ziegelmaßstab bringen (rund vier Ziegel hoch, zwei Noppen breit stehend)
+    root.scale = (CHARACTER_SCALE,) * 3
     return col
 
 

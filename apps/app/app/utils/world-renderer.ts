@@ -4,11 +4,11 @@ import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 
 /** Maße passend zu den Blender-Modellen (assets/blender/build_models.py) */
-export const BRICK_HEIGHT = 0.6
-export const PLATE_HEIGHT = 0.2
-/** Noppenhöhe – Marken (Fliesen) liegen auf den Noppen */
-export const STUD_HEIGHT = 0.1
-const TILE_HEIGHT = 0.07
+/** Ein Feld = 4×4 Noppen (Raster 0,25) */
+export const BRICK_HEIGHT = 0.3
+export const PLATE_HEIGHT = 0.1
+/** Marken sind Fliesen in Plattenhöhe, die die Noppen abdecken */
+const TILE_HEIGHT = 0.1
 
 export const BRICK_HEX: Record<BrickColor, number> = {
   red: 0xC91A09,
@@ -147,7 +147,7 @@ export class WorldRenderer {
     if (!this.world) return
     const { width, depth } = this.world
     const center = new THREE.Vector3(width / 2 - 0.5, 0, depth / 2 - 0.5)
-    const distance = Math.max(width, depth) * 1.2 + 4
+    const distance = Math.max(width, depth) * 0.95 + 3
     this.camera.position.set(center.x - distance * 0.35, distance * 0.8, center.z + distance * 0.9)
     this.controls.target.copy(center)
     this.controls.update()
@@ -326,7 +326,7 @@ export class WorldRenderer {
       for (let z = 0; z < world.depth; z++) {
         const mark = world.cell({ x, z }).mark
         if (!mark) continue
-        this.marks.setMatrixAt(count, m.makeTranslation(x, this.surface({ x, z }) + STUD_HEIGHT, z))
+        this.marks.setMatrixAt(count, m.makeTranslation(x, this.surface({ x, z }), z))
         this.marks.setColorAt(count, color.setHex(MARK_HEX[mark]))
         count++
       }
@@ -357,7 +357,7 @@ export class WorldRenderer {
   }
 
   private markOffset(position: Position) {
-    return this.world?.cell(position).mark ? STUD_HEIGHT + TILE_HEIGHT : 0
+    return this.world?.cell(position).mark ? TILE_HEIGHT : 0
   }
 
   private onEvent(event: WorldEvent) {
@@ -374,7 +374,7 @@ export class WorldRenderer {
           update: (t) => {
             view.root.position.lerpVectors(from, to, t)
             // Kleiner Hüpfer beim Steigen und Schritt-Animation
-            view.root.position.y += Math.sin(t * Math.PI) * (from.y !== to.y ? 0.35 : 0.06) + toMark * t
+            view.root.position.y += Math.sin(t * Math.PI) * (from.y !== to.y ? 0.25 : 0.04) + toMark * t
             const swing = Math.sin(t * Math.PI * 2) * 0.6
             if (view.limbs.armL) view.limbs.armL.rotation.x = swing
             if (view.limbs.armR) view.limbs.armR.rotation.x = -swing

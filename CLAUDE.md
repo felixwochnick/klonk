@@ -124,8 +124,8 @@ pnpm --filter @klonk/core test      # RLS-Integrationstests
 - **i18n:** App und Docs zunächst Deutsch + Englisch, weitere Sprachen müssen leicht ergänzbar sein.
 - **Grafik:** Figuren (männlich, weiblich, divers) und Weltblöcke in Klemmbaustein-Optik, selbst in Blender modelliert, Export glTF.
   Modelle entstehen per Skript: `blender -b --factory-startup --python assets/blender/build_models.py` ⇒
-  `apps/app/public/models/*.glb` + `assets/blender/klonk-models.blend` + `preview.png`. Maße: 1 Feld = 1 Einheit = 2×2 Noppen,
-  Ziegel 0,6 hoch, Platte 0,2, Noppe 0,1. Figuren sind aus Ziegeln aufgebaut (bewusst keine Minifiguren-Nachbildung),
+  `apps/app/public/models/*.glb` + `assets/blender/klonk-models.blend` + `preview.png`. Maße: 1 Feld = 1 Einheit = **4×4 Noppen** (Raster 0,25),
+  Ziegel 0,3 hoch, Platte/Fliese 0,1, Noppe 0,05; Figuren (Skalierung 0,75) stehen mit jedem Fuß auf einer Noppe. Figuren sind aus Ziegeln aufgebaut (bewusst keine Minifiguren-Nachbildung),
   Gelenke `ArmL/ArmR/LegL/LegR` für Animationen. Blender-MCP (Port 9876) ist optional – das Skript läuft headless.
 - **3D:** `apps/app/app/utils/world-renderer.ts` (three.js, InstancedMesh, animiert `WorldEvent`s aus `@klonk/world`),
   Komponente `KlonkWorld` nur in `<ClientOnly>` (`.client.vue` + Template-Ref funktionierte nicht).
@@ -167,6 +167,7 @@ pnpm --filter @klonk/core test      # RLS-Integrationstests
 3. [x] Lizenz-Token-Prüfung + Free-Tier-Limits (Nutzergrenze, OIDC; Figuren/Modelle/Bibliotheken/KI als Flags für spätere Schritte)
 4. [x] 3D-Welt (three.js): Boden, Ziegel, Marken, Quader, Figuren-Animation, Welt-Editor `/world` (Bearbeiten/Ausprobieren, JSON-Dateien)
 5. [x] Blender-Modelle: Figuren (m/w/d) + Ziegel/Platte/Fliese, glTF (`assets/blender/build_models.py`)
+5b. [ ] Advanced Mode: verschiedene Steintypen im 4×4-Raster (1×1, 1×2, 2×2, Platten, Schrägen …)
 6. [ ] Klonk-Script: Lexer/Parser/Interpreter (Worker), Monaco-Sprache, Autocomplete, Debugger, de/en
 7. [ ] JS/TS-Ausführung (esbuild-wasm, Worker) mit Debugging
 8. [ ] Blöcke (Blockly ⇒ Klonk-Script)
