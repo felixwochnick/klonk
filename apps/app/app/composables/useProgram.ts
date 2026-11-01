@@ -3,13 +3,34 @@ import type { RunLanguage } from '@klonk/runtime'
 
 const STORAGE_KEY = 'klonk:program'
 
-export const PROGRAM_LANGUAGES: RunLanguage[] = ['klonk', 'javascript', 'typescript']
+/** Sprachen in der IDE – Blöcke werden zu Klonk-Script */
+export type ProgramLanguage = RunLanguage | 'blocks'
+export const PROGRAM_LANGUAGES: ProgramLanguage[] = ['blocks', 'klonk', 'javascript', 'typescript']
 
 type Program = { source: string, breakpoints: number[] }
 
-function sample(language: RunLanguage, lang: ScriptLanguage) {
+/** Beispiel für Blöcke: bis zur Wand laufen und markieren (Blockly-JSON) */
+const BLOCKS_SAMPLE = JSON.stringify({
+  blocks: {
+    languageVersion: 0,
+    blocks: [{
+      type: 'klonk_repeat_while',
+      x: 40,
+      y: 40,
+      fields: { MODE: 'while' },
+      inputs: {
+        COND: { block: { type: 'logic_negate', inputs: { BOOL: { block: { type: 'klonk_is_wall' } } } } },
+        DO: { block: { type: 'klonk_step' } },
+      },
+      next: { block: { type: 'klonk_mark', fields: { COLOR: 'yellow' } } },
+    }],
+  },
+})
+
+function sample(language: ProgramLanguage, lang: ScriptLanguage) {
   const k = (name: Parameters<typeof spell>[0]) => spell(name, lang)
   const de = lang === 'de'
+  if (language === 'blocks') return BLOCKS_SAMPLE
   if (language === 'klonk') {
     return `${de ? '// Läuft bis zur Wand und legt links davon Ziegel' : '// Walks to the wall and places bricks on its left'}
 ${k('repeat')} ${k('while')} ${k('not')} ${k('isWall')}
@@ -46,8 +67,8 @@ export function useProgram() {
   const { locale } = useI18n()
   const lang = computed<ScriptLanguage>(() => (locale.value === 'en' ? 'en' : 'de'))
 
-  const language = useState<RunLanguage>('program-language', () => 'klonk')
-  const programs = useState<Partial<Record<RunLanguage, Program>>>('programs', () => ({}))
+  const language = useState<ProgramLanguage>('program-language', () => 'blocks')
+  const programs = useState<Partial<Record<ProgramLanguage, Program>>>('programs', () => ({}))
 
   const current = (): Program => (programs.value[language.value] ??= { source: sample(language.value, lang.value), breakpoints: [] })
 
@@ -65,7 +86,10 @@ export function useProgram() {
     try {
       const stored = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? 'null')
       // Älteres Format: nur ein Klonk-Script-Programm
-      if (stored && 'source' in stored) programs.value = { klonk: { source: stored.source, breakpoints: stored.breakpoints ?? [] } }
+      if (stored && 'source' in stored) {
+        programs.value = { klonk: { source: stored.source, breakpoints: stored.breakpoints ?? [] } }
+        language.value = 'klonk'
+      }
       else if (stored?.programs) {
         programs.value = stored.programs
         if (PROGRAM_LANGUAGES.includes(stored.language)) language.value = stored.language

@@ -30,6 +30,10 @@ export default defineNuxtConfig({
         '@klonk/klonk-script > zod',
         'monaco-editor',
         'three',
+        'blockly/core',
+        'blockly/blocks',
+        'blockly/msg/de',
+        'blockly/msg/en',
       ],
     },
     server: {

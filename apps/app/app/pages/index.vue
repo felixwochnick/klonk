@@ -1,12 +1,33 @@
 <script setup lang="ts">
+import type { GeneratedProgram } from '~/utils/blocks/generator'
 import { World } from '@klonk/world'
-import { ProgramRunner, type RunnerSnapshot } from '@klonk/runtime'
+import { ProgramRunner, type RunLanguage, type RunnerSnapshot } from '@klonk/runtime'
 import RunnerWorker from '@klonk/runtime/worker?worker'
 
 const { t, te } = useI18n()
 useSeoMeta({ title: () => t('editor.title') })
 
 const { language, source, breakpoints, translateTo } = useProgram()
+const isBlocks = computed(() => language.value === 'blocks')
+/** Sprache, die tatsächlich läuft (Blöcke werden zu Klonk-Script) */
+const runLanguage = computed<RunLanguage>(() => (language.value === 'blocks' ? 'klonk' : language.value))
+
+// Blöcke: erzeugtes Klonk-Script, Zuordnung Zeile ⇒ Block und Haltepunkte (Block-IDs)
+const blocksProgram = shallowRef<GeneratedProgram>({ code: '', lineToBlock: {} })
+const blockBreakpoints = ref<string[]>([])
+const showCode = ref(false)
+function onBlocksProgram(program: GeneratedProgram, breakpointIds: string[]) {
+  blocksProgram.value = program
+  blockBreakpoints.value = breakpointIds
+}
+const blockBreakpointLines = computed(() => Object.entries(blocksProgram.value.lineToBlock)
+  .filter(([, id]) => blockBreakpoints.value.includes(id))
+  .map(([line]) => Number(line)))
+const lineToBlock = (line: number | null | undefined) => (line ? blocksProgram.value.lineToBlock[line] ?? null : null)
+
+/** Was tatsächlich ausgeführt wird (Blöcke ⇒ Klonk-Script) */
+const runSource = computed(() => (isBlocks.value ? blocksProgram.value.code : source.value))
+const runBreakpoints = computed(() => (isBlocks.value ? blockBreakpointLines.value : breakpoints.value))
 const languageItems = computed(() => PROGRAM_LANGUAGES.map(l => ({ label: t(`editor.languages.${l}`), value: l })))
 const { start } = useWorldEditor()
 const { can } = useLicense()
@@ -39,9 +60,9 @@ function run(pauseOnStart = false) {
   if (!runner) return
   resetWorld()
   runner.run(world.value, {
-    language: language.value,
-    source: source.value,
-    breakpoints: breakpoints.value,
+    language: runLanguage.value,
+    source: runSource.value,
+    breakpoints: runBreakpoints.value,
     delay: speed.value,
     allowImports: can('libraries'),
     pauseOnStart,
@@ -63,7 +84,7 @@ function reset() {
   resetWorld()
 }
 
-watch(breakpoints, lines => runner?.setBreakpoints(lines))
+watch(runBreakpoints, lines => runner?.setBreakpoints(lines))
 watch(speed, delay => runner?.setDelay(delay))
 // Neue Startwelt (z. B. im Welt-Editor geändert) übernehmen, solange nichts läuft
 watch(start, () => {
@@ -199,11 +220,44 @@ const variables = computed(() => Object.entries(snapshot.value.variables))
     <div class="flex min-h-0 flex-1 flex-col lg:flex-row">
       <!-- Code -->
       <section class="flex min-h-64 flex-1 flex-col lg:max-w-[50%]">
-        <ClientOnly>
+        <ClientOnly v-if="isBlocks">
+          <div class="relative min-h-0 flex-1">
+            <KlonkBlocks
+              v-model="source"
+              :read-only="running"
+              :active-block="running ? lineToBlock(snapshot.line) : null"
+              :error-block="snapshot.state === 'error' ? lineToBlock(snapshot.error?.range?.line) : null"
+              @program="onBlocksProgram"
+            />
+          </div>
+          <div class="border-t border-(--ui-border)">
+            <UButton
+              variant="ghost"
+              color="neutral"
+              size="sm"
+              block
+              :icon="showCode ? 'i-lucide-chevron-down' : 'i-lucide-chevron-up'"
+              :label="showCode ? t('blocks.hideCode') : t('blocks.showCode')"
+              data-testid="toggle-code"
+              @click="showCode = !showCode"
+            />
+            <pre
+              v-if="showCode"
+              class="max-h-56 overflow-auto bg-(--ui-bg-muted) px-4 py-2 font-mono text-xs"
+              data-testid="generated-code"
+            ><span
+              v-for="(line, i) in blocksProgram.code.split('\n')"
+              :key="i"
+              class="block"
+              :class="running && snapshot.line === i + 1 ? 'bg-amber-200/60 dark:bg-amber-500/30' : ''"
+            >{{ line || ' ' }}</span></pre>
+          </div>
+        </ClientOnly>
+        <ClientOnly v-else>
           <KlonkEditor
             v-model="source"
             v-model:breakpoints="breakpoints"
-            :language="language"
+            :language="runLanguage"
             :read-only="running"
             :active-line="running ? snapshot.line : null"
             :error-line="snapshot.state === 'error' ? snapshot.error?.range?.line : null"

@@ -138,6 +138,11 @@ pnpm --filter @klonk/core test      # RLS-Integrationstests
   daher **keine Fremd-Ressourcen in der App** (Schriften, Bilder, Skripte nur von der eigenen Origin).
   Monaco-TS: `monaco.typescript.*Defaults` (0.57), API-Deklaration `utils/js-api-types.ts`. Worker-Abhängigkeiten in
   `vite.optimizeDeps.include`, sonst lädt die Dev-Seite beim ersten Lauf neu.
+- **Blöcke** (`apps/app/app/utils/blocks/`, `KlonkBlocks.vue`): Blockly 13 (zelos), Beschriftung aus den Klonk-Script-Tabellen
+  (`spell()`), Generator ⇒ Klonk-Script; jede Anweisung markiert ihre erste Zeile mit ` #@<blockId>` (Kommentar, wird entfernt)
+  ⇒ `lineToBlock` für Hervorhebung/Fehler/Haltepunkte. Haltepunkte in `block.data = 'breakpoint'` (mitgespeichert).
+  Blockly-Medien liegen in `public/blockly-media` (externe Quelle wäre wegen COEP blockiert). Farben nur `#rrggbb`.
+  Variablen-/Prozedurnamen behalten Umlaute (`safeName` überschrieben). Sprachen-Typ `ProgramLanguage = RunLanguage | 'blocks'`.
 - **IDE** (`apps/app/app/pages/index.vue`): Monaco (`utils/monaco.ts`: Monarch ohne `\p{L}` – Monarch kennt keine Unicode-Klassen;
   Themes `klonk-light/-dark`; `acceptSuggestionOnEnter: 'smart'`, `autoIndent: 'full'`), `KlonkEditor` (Breakpoints, aktive Zeile),
   Programme je Sprache + Breakpoints in localStorage (`klonk:program`: `{ language, programs }`). An Worker nur Plain-Daten senden (Vue-Proxys ⇒ DataCloneError).
@@ -187,7 +192,7 @@ pnpm --filter @klonk/core test      # RLS-Integrationstests
 5b. [ ] Advanced Mode: verschiedene Steintypen im 4×4-Raster (1×1, 1×2, 2×2, Platten, Schrägen …)
 6. [x] Klonk-Script: Lexer/Parser/Interpreter (Worker), Monaco-Sprache, Autocomplete, Hover, Live-Fehler, Debugger (Breakpoints, Einzelschritt, Pause, Variablen), de/en + Übersetzen
 7. [x] JS/TS-Ausführung im Worker mit Debugging (synchron via SharedArrayBuffer/Atomics, acorn-Instrumentierung, sucrase, Monaco-TS mit Roboter-API-.d.ts)
-8. [ ] Blöcke (Blockly ⇒ Klonk-Script)
+8. [x] Blöcke (Blockly ⇒ Klonk-Script, Debugger am Block, Haltepunkte per Rechtsklick, de/en)
 9. [ ] Lokales Dateisystem (Projektordner)
 10. [ ] PWA (Logo, Favicon, Offline)
 11. [ ] KI-Assistent (schuleigenes LLM / WebLLM)

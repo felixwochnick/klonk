@@ -123,7 +123,8 @@
     "languages": {
       "klonk": "Klonk-Script",
       "javascript": "JavaScript",
-      "typescript": "TypeScript"
+      "typescript": "TypeScript",
+      "blocks": "Blöcke"
     },
     "language": "Programmiersprache"
   },
@@ -170,6 +171,45 @@
       "js_runtime": "{name}: {message}",
       "js_import": "„import“/„export“ werden noch nicht unterstützt.",
       "isolation_required": "JavaScript/TypeScript braucht einen sicheren Ausführungsmodus (Cross-Origin-Isolation). Bitte die Seite neu laden oder die Verwaltung informieren."
+    }
+  },
+  "blocks": {
+    "categories": {
+      "movement": "Bewegung",
+      "bricks": "Ziegel & Marken",
+      "sensors": "Sensoren",
+      "control": "Steuerung",
+      "logic": "Logik",
+      "math": "Zahlen",
+      "text": "Text",
+      "variables": "Variablen",
+      "procedures": "Eigene Blöcke"
+    },
+    "anyColor": "(beliebig)",
+    "hello": "Hallo!",
+    "showCode": "Klonk-Script anzeigen",
+    "hideCode": "Klonk-Script ausblenden",
+    "addBreakpoint": "Haltepunkt setzen",
+    "removeBreakpoint": "Haltepunkt entfernen",
+    "tooltips": {
+      "step": "Ein Feld vorwärts gehen",
+      "turn": "Um 90° drehen",
+      "place": "Ziegel vor die Figur legen",
+      "pick": "Obersten Ziegel vor der Figur aufheben",
+      "mark": "Feld unter der Figur markieren",
+      "removeMark": "Marke unter der Figur entfernen",
+      "isWall": "Ist vor der Figur eine Wand?",
+      "isBrick": "Liegt vor der Figur ein Ziegel?",
+      "isMark": "Steht die Figur auf einer Marke?",
+      "facing": "Schaut die Figur in diese Richtung?",
+      "numberSensor": "Zahl über die Figur oder ihre Umgebung",
+      "repeatTimes": "Blöcke mehrmals wiederholen",
+      "repeatWhile": "Wiederholen, solange bzw. bis die Bedingung gilt",
+      "repeatForever": "Für immer wiederholen",
+      "wait": "Kurz warten",
+      "stop": "Programm beenden",
+      "print": "In die Ausgabe schreiben",
+      "join": "Texte oder Zahlen zusammensetzen"
     }
   }
 }

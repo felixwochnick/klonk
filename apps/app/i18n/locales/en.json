@@ -123,7 +123,8 @@
     "languages": {
       "klonk": "Klonk-Script",
       "javascript": "JavaScript",
-      "typescript": "TypeScript"
+      "typescript": "TypeScript",
+      "blocks": "Blocks"
     },
     "language": "Programming language"
   },
@@ -170,6 +171,45 @@
       "js_runtime": "{name}: {message}",
       "js_import": "“import”/“export” are not supported yet.",
       "isolation_required": "JavaScript/TypeScript needs a secure execution mode (cross-origin isolation). Please reload the page or contact your administrator."
+    }
+  },
+  "blocks": {
+    "categories": {
+      "movement": "Movement",
+      "bricks": "Bricks & marks",
+      "sensors": "Sensors",
+      "control": "Control",
+      "logic": "Logic",
+      "math": "Numbers",
+      "text": "Text",
+      "variables": "Variables",
+      "procedures": "My blocks"
+    },
+    "anyColor": "(any)",
+    "hello": "Hello!",
+    "showCode": "Show Klonk-Script",
+    "hideCode": "Hide Klonk-Script",
+    "addBreakpoint": "Add breakpoint",
+    "removeBreakpoint": "Remove breakpoint",
+    "tooltips": {
+      "step": "Move one cell forward",
+      "turn": "Turn by 90°",
+      "place": "Place a brick in front of the character",
+      "pick": "Pick up the top brick in front of the character",
+      "mark": "Mark the cell under the character",
+      "removeMark": "Remove the mark under the character",
+      "isWall": "Is there a wall in front of the character?",
+      "isBrick": "Is there a brick in front of the character?",
+      "isMark": "Is the character standing on a mark?",
+      "facing": "Is the character facing this direction?",
+      "numberSensor": "A number about the character or its surroundings",
+      "repeatTimes": "Repeat blocks several times",
+      "repeatWhile": "Repeat while or until the condition holds",
+      "repeatForever": "Repeat forever",
+      "wait": "Wait a moment",
+      "stop": "End the program",
+      "print": "Write to the output",
+      "join": "Join texts or numbers"
     }
   }
 }
