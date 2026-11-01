@@ -134,6 +134,9 @@ pnpm --filter @klonk/core test      # RLS-Integrationstests
 - **Kostenlos:** 1 Figur, nur Standard-3D-Modelle, max. 10 Nutzer in der DB, LDAP-Login, **keine Bibliotheken/Imports**
   in Klonk-Script und TS.
 - Verkauf: Tokens (Self-Hosting) und Abos (Privat, Firmen, Schulen); für Schulen auch Kauf auf Rechnung.
+- **Selbsthost-Pläne** (vom User festgelegt, Unterschied nur Plan + Grenze): `self-hosted` (bis 1000 Konten) und
+  `self-hosted-enterprise` (> 1000, unbegrenzt oder vereinbart) – `SELF_HOSTED_PLANS`. Kontengrenze: Warnung ab 90 %,
+  danach 10 % Puffer (min. 1), dann Sperre neuer Konten (`userUsage()`); kostenlos hart bei 10.
 - In der App nur „Upgrade/Lizenz verwalten“-Link (`NUXT_PUBLIC_SHOP_URL`) + Token-Eingabe, kein Checkout.
 - **Umsetzung:** `packages/core/shared/utils/license.ts` (Features, Free-Grenzen, Kulanzzeit 14 Tage),
   `server/utils/license.ts` (`verifyLicenseToken`, `getEffectiveLicense(orgId)`, `requireFeature()`, `assertUserCapacity()`),

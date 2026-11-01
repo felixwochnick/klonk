@@ -10,6 +10,7 @@ vi.stubGlobal('useSystemDb', () => {
 })
 
 const { verifyLicenseToken } = await import('../server/utils/license')
+const { FREE_LICENSE, userUsage } = shared
 
 const devKey = await importPKCS8(readFileSync(new URL('./fixtures/dev-license-key.pem', import.meta.url), 'utf8'), 'EdDSA')
 const now = new Date('2026-06-01T00:00:00Z')
@@ -74,5 +75,30 @@ describe('verifyLicenseToken', () => {
     expect((await verifyLicenseToken(token, { ...dev, host: 'klonk.example' })).problem).toBeNull()
     expect((await verifyLicenseToken(token, { ...dev, host: 'app.andere.example' })).problem).toBe('wrong_domain')
     expect((await verifyLicenseToken(token, { ...dev, host: 'evilklonk.example' })).problem).toBe('wrong_domain')
+  })
+})
+
+describe('userUsage', () => {
+  const selfHosted = { plan: 'self-hosted', maxUsers: 1000 }
+
+  it('warnt ab 90 % und sperrt erst nach 10 % Puffer', () => {
+    expect(userUsage(899, selfHosted).status).toBe('ok')
+    expect(userUsage(900, selfHosted).status).toBe('warning')
+    expect(userUsage(1000, selfHosted)).toEqual({ used: 1000, max: 1000, hardMax: 1100, status: 'over' })
+    expect(userUsage(1099, selfHosted).status).toBe('over')
+    expect(userUsage(1100, selfHosted).status).toBe('blocked')
+  })
+
+  it('kleine Grenzen haben mindestens ein Konto Puffer', () => {
+    expect(userUsage(3, { plan: 'school', maxUsers: 3 })).toMatchObject({ hardMax: 4, status: 'over' })
+  })
+
+  it('die kostenlose Version sperrt ohne Puffer bei 10 Konten', () => {
+    expect(userUsage(9, FREE_LICENSE).status).toBe('warning')
+    expect(userUsage(10, FREE_LICENSE)).toMatchObject({ hardMax: 10, status: 'blocked' })
+  })
+
+  it('ohne Grenze immer ok', () => {
+    expect(userUsage(50_000, { plan: 'self-hosted-enterprise', maxUsers: null }).status).toBe('ok')
   })
 })

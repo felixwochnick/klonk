@@ -1,7 +1,7 @@
 <script setup lang="ts">
 definePageMeta({ requiresAdmin: true })
 
-type Section = { license: LicenseInfo, hasToken: boolean, usage: { used: number, max: number | null } }
+type Section = { license: LicenseInfo, hasToken: boolean, usage: UserUsage }
 type Overview = {
   hosted: boolean
   instance: null | (Section & { source: 'env' | 'db' })

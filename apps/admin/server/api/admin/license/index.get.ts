@@ -8,8 +8,8 @@ export default defineEventHandler(async (event) => {
 
   const result: {
     hosted: boolean
-    instance: null | { license: LicenseInfo, source: 'env' | 'db', hasToken: boolean, usage: { used: number, max: number | null } }
-    organization: null | { license: LicenseInfo, hasToken: boolean, usage: { used: number, max: number | null } }
+    instance: null | { license: LicenseInfo, source: 'env' | 'db', hasToken: boolean, usage: UserUsage }
+    organization: null | { license: LicenseInfo, hasToken: boolean, usage: UserUsage }
   } = { hosted, instance: null, organization: null }
 
   if (isPlatformAdmin) {

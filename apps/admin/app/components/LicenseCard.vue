@@ -2,7 +2,7 @@
 const props = defineProps<{
   title: string
   license: LicenseInfo
-  usage: { used: number, max: number | null }
+  usage: UserUsage
   hasToken: boolean
   /** Token darf hier geändert werden */
   editable: boolean
@@ -12,13 +12,14 @@ const props = defineProps<{
 
 const emit = defineEmits<{ save: [token: string | null] }>()
 
-const { t, d } = useI18n()
+const { t, te, d } = useI18n()
 const { public: { shopUrl } } = useRuntimeConfig()
 
 const token = ref('')
 const features = LICENSE_FEATURES.filter(f => f !== 'hosted')
 
 const isFree = computed(() => props.license.plan === 'free')
+const planLabel = computed(() => (te(`admin.license.plans.${props.license.plan}`) ? t(`admin.license.plans.${props.license.plan}`) : props.license.plan))
 const usagePercent = computed(() => (props.usage.max ? Math.min(100, (props.usage.used / props.usage.max) * 100) : 0))
 
 function save() {
@@ -39,7 +40,7 @@ function save() {
             class="text-xl font-bold"
             data-testid="license-plan"
           >
-            {{ isFree ? t('admin.license.free') : license.plan }}
+            {{ planLabel }}
             <span
               v-if="license.licensee"
               class="font-normal text-(--ui-text-muted)"
@@ -72,7 +73,11 @@ function save() {
         <UProgress
           v-if="usage.max !== null"
           :model-value="usagePercent"
-          :color="usage.used >= usage.max ? 'error' : 'primary'"
+          :color="usage.status === 'ok' ? 'primary' : usage.status === 'warning' ? 'warning' : 'error'"
+        />
+        <UserLimitAlert
+          :usage="usage"
+          class="mt-3"
         />
       </div>
 

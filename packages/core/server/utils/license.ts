@@ -135,25 +135,23 @@ async function countUsers(organizationId?: string) {
   return row?.n ?? 0
 }
 
-/** Nutzerstand für die Anzeige in der Verwaltung */
-export async function getUserUsage(organizationId: string | null) {
+/** Nutzerstand (inkl. Warn-/Sperrstatus) – gehostet pro Organisation, sonst für die ganze Instanz */
+export async function getUserUsage(organizationId: string | null): Promise<UserUsage> {
   const instance = await getInstanceLicense()
-  if (hasFeature(instance, 'hosted') && organizationId) {
-    const license = await getOrganizationLicense(organizationId)
-    return { used: await countUsers(organizationId), max: license.maxUsers }
-  }
-  return { used: await countUsers(), max: instance.maxUsers }
+  if (hasFeature(instance, 'hosted') && organizationId)
+    return userUsage(await countUsers(organizationId), await getOrganizationLicense(organizationId))
+  return userUsage(await countUsers(), instance)
 }
 
-/** Vor dem Anlegen eines Kontos: Nutzergrenze der Lizenz einhalten */
+/** Vor dem Anlegen eines Kontos: Grenze der Lizenz inkl. Puffer einhalten */
 export async function assertUserCapacity(organizationId: string | null) {
   const instance = await getInstanceLicense()
-  if (instance.maxUsers !== null && await countUsers() >= instance.maxUsers)
+  if (userUsage(await countUsers(), instance).status === 'blocked')
     throw createError({ statusCode: 402, message: 'user_limit_reached' })
 
   if (hasFeature(instance, 'hosted') && organizationId) {
     const license = await getOrganizationLicense(organizationId)
-    if (license.maxUsers !== null && await countUsers(organizationId) >= license.maxUsers)
+    if (userUsage(await countUsers(organizationId), license).status === 'blocked')
       throw createError({ statusCode: 402, message: 'user_limit_reached' })
   }
 }

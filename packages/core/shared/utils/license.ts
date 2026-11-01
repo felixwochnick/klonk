@@ -51,6 +51,40 @@ export const FREE_LICENSE: LicenseInfo = {
   problem: null,
 }
 
+/**
+ * Pläne fürs Selbsthosten (Preise pflegt der Shop auf klonk.*). Der Plan steht im Token,
+ * die Grenze in `maxUsers` – hier nur die Standardwerte fürs Ausstellen und die Anzeige.
+ */
+export const SELF_HOSTED_PLANS = {
+  'self-hosted': { maxUsers: 1000 },
+  'self-hosted-enterprise': { maxUsers: null },
+} as const satisfies Record<string, { maxUsers: number | null }>
+
+/** Ab diesem Anteil der Grenze warnt die Verwaltung */
+export const USER_LIMIT_WARNING = 0.9
+/** Puffer über der Grenze, bevor gesperrt wird (z. B. neuer Jahrgang) – nicht in der kostenlosen Version */
+export const USER_LIMIT_BUFFER = 0.1
+
+export type UserUsage = {
+  used: number
+  /** Grenze laut Lizenz, `null` = unbegrenzt */
+  max: number | null
+  /** Ab hier können keine Konten mehr angelegt werden */
+  hardMax: number | null
+  /** `warning` ≥ 90 %, `over` Grenze erreicht (Puffer läuft), `blocked` keine neuen Konten */
+  status: 'ok' | 'warning' | 'over' | 'blocked'
+}
+
+export function userUsage(used: number, license: Pick<LicenseInfo, 'plan' | 'maxUsers'>): UserUsage {
+  const max = license.maxUsers
+  if (max === null) return { used, max, hardMax: null, status: 'ok' }
+
+  const buffer = license.plan === 'free' ? 0 : Math.max(1, Math.floor(max * USER_LIMIT_BUFFER))
+  const hardMax = max + buffer
+  const status = used >= hardMax ? 'blocked' : used >= max ? 'over' : used >= max * USER_LIMIT_WARNING ? 'warning' : 'ok'
+  return { used, max, hardMax, status }
+}
+
 export function hasFeature(license: Pick<LicenseInfo, 'features'>, feature: LicenseFeature) {
   return license.features.includes(feature)
 }

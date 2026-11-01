@@ -91,7 +91,6 @@
       "description": "Ohne Lizenz läuft Klonk in der kostenlosen Version: bis zu 10 Konten, eine Figur, die Standardmodelle, Anmeldung mit Passwort oder LDAP und keine Bibliotheken.",
       "instance": "Lizenz dieser Installation",
       "organization": "Lizenz von {name}",
-      "free": "Kostenlos",
       "validUntil": "gültig bis {date}",
       "users": "Konten",
       "usersUnlimited": "{used} (unbegrenzt)",
@@ -118,7 +117,21 @@
         "models": "Zusätzliche 3D-Modelle",
         "libraries": "Bibliotheken in Klonk-Script und TypeScript",
         "ai": "KI-Assistent"
-      }
+      },
+      "plans": {
+        "free": "Kostenlos",
+        "self-hosted": "Self-Hosted (bis 1000 Konten)",
+        "self-hosted-enterprise": "Self-Hosted Enterprise (über 1000 Konten)",
+        "school": "Schule",
+        "company": "Unternehmen",
+        "private": "Privat"
+      },
+      "limit": {
+        "warning": "{used} von {max} Konten belegt – die Grenze der Lizenz ist bald erreicht.",
+        "over": "Die Grenze von {max} Konten ist erreicht. Es können noch {left} Konten angelegt werden, danach ist ein Upgrade nötig.",
+        "blocked": "Die Grenze von {max} Konten ist erreicht – neue Konten erst nach einem Upgrade."
+      },
+      "upgrade": "Upgrade"
     }
   },
   "errors": {

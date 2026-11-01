@@ -27,6 +27,7 @@ if (!user.value?.organizationId && !query.value.organizationId) await navigateTo
 
 const { data: users, refresh } = await useFetch<UserRow[]>('/api/admin/users', { query, default: () => [] })
 const { data: organization } = await useFetch('/api/admin/organization', { query })
+const { data: usage, refresh: refreshUsage } = await useFetch<UserUsage>('/api/admin/license/usage', { query })
 const roleLabel = useRoleLabel(() => organization.value?.type)
 
 const search = ref('')
@@ -80,7 +81,7 @@ async function create() {
     toast.add({ title: t('admin.users.created'), color: 'success' })
     createOpen.value = false
     Object.assign(createForm, { username: '', displayName: '', role: 'member', password: '' })
-    await refresh()
+    await Promise.all([refresh(), refreshUsage()])
   }
   catch (e) {
     toast.add({ title: apiError(e), color: 'error' })
@@ -136,7 +137,7 @@ async function remove(row: UserRow) {
   if (!confirm(t('admin.users.confirmDelete', { name: row.displayName }))) return
   try {
     await $fetch(`/api/admin/users/${row.id}`, { method: 'DELETE' })
-    await refresh()
+    await Promise.all([refresh(), refreshUsage()])
   }
   catch (e) {
     toast.add({ title: apiError(e), color: 'error' })
@@ -163,6 +164,10 @@ async function remove(row: UserRow) {
     </template>
 
     <template #body>
+      <UserLimitAlert
+        v-if="usage && isAdmin"
+        :usage="usage"
+      />
       <UInput
         v-model="search"
         icon="i-lucide-search"

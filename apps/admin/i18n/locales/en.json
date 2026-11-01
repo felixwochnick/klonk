@@ -91,7 +91,6 @@
       "description": "Without a license Klonk runs as the free version: up to 10 accounts, one character, the standard models, sign-in with password or LDAP and no libraries.",
       "instance": "License of this installation",
       "organization": "License of {name}",
-      "free": "Free",
       "validUntil": "valid until {date}",
       "users": "Accounts",
       "usersUnlimited": "{used} (unlimited)",
@@ -118,7 +117,21 @@
         "models": "Additional 3D models",
         "libraries": "Libraries in Klonk-Script and TypeScript",
         "ai": "AI assistant"
-      }
+      },
+      "plans": {
+        "free": "Free",
+        "self-hosted": "Self-Hosted (up to 1000 accounts)",
+        "self-hosted-enterprise": "Self-Hosted Enterprise (more than 1000 accounts)",
+        "school": "School",
+        "company": "Company",
+        "private": "Private"
+      },
+      "limit": {
+        "warning": "{used} of {max} accounts used – the license limit will be reached soon.",
+        "over": "The limit of {max} accounts has been reached. {left} more accounts can be created, after that an upgrade is required.",
+        "blocked": "The limit of {max} accounts has been reached – new accounts only after an upgrade."
+      },
+      "upgrade": "Upgrade"
     }
   },
   "errors": {
