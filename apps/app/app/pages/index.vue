@@ -1,13 +1,56 @@
 <script setup lang="ts">
 import type { GeneratedProgram } from '~/utils/blocks/generator'
-import { World } from '@klonk/world'
+import { translate } from '@klonk/klonk-script'
+import { World, type WorldData } from '@klonk/world'
 import { ProgramRunner, type RunLanguage, type RunnerSnapshot } from '@klonk/runtime'
 import RunnerWorker from '@klonk/runtime/worker?worker'
 
 const { t, te } = useI18n()
+const toast = useToast()
 useSeoMeta({ title: () => t('editor.title') })
 
-const { language, source, breakpoints, translateTo } = useProgram()
+const program = useProgram()
+const proj = useProject()
+const inProject = computed(() => !!proj.project.value)
+const showProject = ref(false)
+watch(inProject, (open) => {
+  if (open) showProject.value = true
+})
+
+const KIND_LANGUAGE = { blocks: 'blocks', klonk: 'klonk', javascript: 'javascript', typescript: 'typescript' } as const
+/** Im Projekt: Datei der passenden Art geöffnet? (Welten/Sonstiges sind keine Programme) */
+const hasDocument = computed(() => !inProject.value || (!!proj.kind.value && proj.kind.value in KIND_LANGUAGE))
+
+// Dokument: Projektdatei oder (ohne Projekt) das im Browser gemerkte Programm
+const language = computed<ProgramLanguage>({
+  get: () => (inProject.value ? KIND_LANGUAGE[proj.kind.value as keyof typeof KIND_LANGUAGE] ?? 'klonk' : program.language.value),
+  set: (value) => {
+    program.language.value = value
+  },
+})
+const source = computed({
+  get: () => (inProject.value ? proj.content.value : program.source.value),
+  set: (value: string) => {
+    if (inProject.value) proj.update(value)
+    else program.source.value = value
+  },
+})
+const breakpoints = computed({
+  get: () => (inProject.value ? proj.breakpoints.value : program.breakpoints.value),
+  set: (value: number[]) => {
+    if (inProject.value) proj.breakpoints.value = value
+    else program.breakpoints.value = value
+  },
+})
+function translateTo(target: 'de' | 'en') {
+  try {
+    source.value = translate(source.value, target)
+    return true
+  }
+  catch {
+    return false
+  }
+}
 const isBlocks = computed(() => language.value === 'blocks')
 /** Sprache, die tatsächlich läuft (Blöcke werden zu Klonk-Script) */
 const runLanguage = computed<RunLanguage>(() => (language.value === 'blocks' ? 'klonk' : language.value))
@@ -32,6 +75,21 @@ const languageItems = computed(() => PROGRAM_LANGUAGES.map(l => ({ label: t(`edi
 const { start } = useWorldEditor()
 const { can } = useLicense()
 
+// Startwelt: aus dem Projekt (falls gewählt) oder die im Welt-Editor gemerkte
+const projectWorld = shallowRef<WorldData | null>(null)
+async function loadProjectWorld() {
+  try {
+    projectWorld.value = await proj.readWorld()
+  }
+  catch {
+    projectWorld.value = null
+    toast.add({ title: t('project.errors.invalidWorld'), color: 'error' })
+  }
+  if (!running.value) resetWorld()
+}
+watch([proj.worldPath, proj.project], loadProjectWorld)
+const startData = () => projectWorld.value ?? start.value.toJSON()
+
 // Angezeigte Welt: Kopie der Startwelt, auf der das Programm läuft
 const world = shallowRef(new World(start.value.toJSON()))
 const speed = ref(300)
@@ -53,18 +111,21 @@ const errorMessage = computed(() => {
 })
 
 function resetWorld() {
-  world.value = new World(start.value.toJSON())
+  world.value = new World(startData())
 }
 
-function run(pauseOnStart = false) {
+async function run(pauseOnStart = false) {
   if (!runner) return
   resetWorld()
+  // Bibliotheken: Klonk-Script-Dateien des Projekts (nur mit Lizenz)
+  const files = inProject.value && can('libraries') ? await proj.importableFiles() : {}
   runner.run(world.value, {
     language: runLanguage.value,
     source: runSource.value,
     breakpoints: runBreakpoints.value,
     delay: speed.value,
     allowImports: can('libraries'),
+    files,
     pauseOnStart,
   })
 }
@@ -91,7 +152,6 @@ watch(start, () => {
   if (!running.value) resetWorld()
 })
 
-const toast = useToast()
 const translateItems = computed(() => [[
   { label: 'Deutsch', onSelect: () => translateTo('de') || toast.add({ title: t('editor.translateFailed'), color: 'error' }) },
   { label: 'English', onSelect: () => translateTo('en') || toast.add({ title: t('editor.translateFailed'), color: 'error' }) },
@@ -120,6 +180,16 @@ const variables = computed(() => Object.entries(snapshot.value.variables))
   <div class="flex h-[calc(100dvh-var(--ui-header-height))] flex-col">
     <!-- Werkzeugleiste -->
     <div class="flex flex-wrap items-center gap-2 border-b border-(--ui-border) px-3 py-2">
+      <UTooltip :text="t('project.title')">
+        <UButton
+          :icon="showProject ? 'i-lucide-panel-left-close' : 'i-lucide-panel-left-open'"
+          variant="ghost"
+          color="neutral"
+          :aria-label="t('project.title')"
+          data-testid="toggle-project"
+          @click="showProject = !showProject"
+        />
+      </UTooltip>
       <UButton
         v-if="!running"
         icon="i-lucide-play"
@@ -189,7 +259,7 @@ const variables = computed(() => Object.entries(snapshot.value.variables))
         <USelect
           v-model="language"
           :items="languageItems"
-          :disabled="running"
+          :disabled="running || inProject"
           icon="i-lucide-file-code"
           class="w-44"
           data-testid="language"
@@ -218,9 +288,26 @@ const variables = computed(() => Object.entries(snapshot.value.variables))
     </div>
 
     <div class="flex min-h-0 flex-1 flex-col lg:flex-row">
+      <!-- Projekt -->
+      <aside
+        v-if="showProject"
+        class="shrink-0 border-(--ui-border) lg:w-64 lg:border-r"
+      >
+        <ClientOnly>
+          <ProjectPanel />
+        </ClientOnly>
+      </aside>
+
       <!-- Code -->
       <section class="flex min-h-64 flex-1 flex-col lg:max-w-[50%]">
-        <ClientOnly v-if="isBlocks">
+        <div
+          v-if="!hasDocument"
+          class="flex flex-1 items-center justify-center p-6 text-center text-(--ui-text-muted)"
+          data-testid="no-document"
+        >
+          {{ t('project.noDocument') }}
+        </div>
+        <ClientOnly v-else-if="isBlocks">
           <div class="relative min-h-0 flex-1">
             <KlonkBlocks
               v-model="source"
@@ -253,7 +340,7 @@ const variables = computed(() => Object.entries(snapshot.value.variables))
             >{{ line || ' ' }}</span></pre>
           </div>
         </ClientOnly>
-        <ClientOnly v-else>
+        <ClientOnly v-if="hasDocument && !isBlocks">
           <KlonkEditor
             v-model="source"
             v-model:breakpoints="breakpoints"

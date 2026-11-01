@@ -27,7 +27,8 @@ const BLOCKS_SAMPLE = JSON.stringify({
   },
 })
 
-function sample(language: ProgramLanguage, lang: ScriptLanguage) {
+/** Beispielprogramm je Sprache (auch für neue Projektdateien) */
+export function programSample(language: ProgramLanguage, lang: ScriptLanguage) {
   const k = (name: Parameters<typeof spell>[0]) => spell(name, lang)
   const de = lang === 'de'
   if (language === 'blocks') return BLOCKS_SAMPLE
@@ -70,7 +71,7 @@ export function useProgram() {
   const language = useState<ProgramLanguage>('program-language', () => 'blocks')
   const programs = useState<Partial<Record<ProgramLanguage, Program>>>('programs', () => ({}))
 
-  const current = (): Program => (programs.value[language.value] ??= { source: sample(language.value, lang.value), breakpoints: [] })
+  const current = (): Program => (programs.value[language.value] ??= { source: programSample(language.value, lang.value), breakpoints: [] })
 
   const source = computed({
     get: () => programs.value[language.value]?.source ?? '',
@@ -123,5 +124,5 @@ export function useProgram() {
     }
   }
 
-  return { language, source, breakpoints, lang, translateTo, reset: () => (source.value = sample(language.value, lang.value)) }
+  return { language, source, breakpoints, lang, translateTo, reset: () => (source.value = programSample(language.value, lang.value)) }
 }

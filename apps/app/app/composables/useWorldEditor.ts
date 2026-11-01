@@ -187,7 +187,16 @@ export function useWorldEditor() {
     return world.value.getCharacters().map(c => ({ ...c }))
   })
 
+  /** Welt aus einer Datei/einem Projekt als Startwelt übernehmen */
+  function loadData(data: WorldData) {
+    return attempt(() => {
+      if (data.characters.length > maxCharacters.value) throw new WorldError('character_limit', { max: maxCharacters.value })
+      setStart(new World(data))
+    })
+  }
+
   return {
+    loadData,
     world, start, mode, tool, brickColor, markColor, characterModel, selectedCharacter, status, characters, maxCharacters,
     applyTool, newWorld, exportJson, importJson, play, edit, resetRun, command,
     BRICK_COLORS, MARK_COLORS, CHARACTER_MODELS,

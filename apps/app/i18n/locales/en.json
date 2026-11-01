@@ -211,5 +211,49 @@
       "print": "Write to the output",
       "join": "Join texts or numbers"
     }
+  },
+  "project": {
+    "title": "Project",
+    "intro": "Save programs and worlds as files – in a folder on your computer or as a project in the browser.",
+    "openFolder": "Open folder",
+    "newBrowserProject": "New browser project",
+    "recentFolders": "Recent folders",
+    "browserProjects": "Browser projects",
+    "close": "Close project",
+    "newFile": "New file",
+    "world": "World",
+    "browserWorld": "World from the world editor",
+    "rename": "Rename",
+    "delete": "Delete",
+    "actions": "Actions for {name}",
+    "name": "Name",
+    "ok": "OK",
+    "defaultProjectName": "My project",
+    "defaultName": {
+      "blocks": "program",
+      "klonk": "program",
+      "javascript": "program",
+      "typescript": "program",
+      "world": "world"
+    },
+    "confirmDelete": "Really delete “{name}”?",
+    "confirmDeleteProject": "Delete browser project “{name}” with all files?",
+    "noDocument": "Choose a program on the left or create a new file.",
+    "status": {
+      "saved": "All changes saved",
+      "saving": "Saving …",
+      "error": "Saving failed"
+    },
+    "loadWorld": "Load world from project",
+    "saveWorld": "Save world to project",
+    "worldLoaded": "World “{name}” loaded",
+    "worldSaved": "World saved as “{name}”",
+    "errors": {
+      "exists": "A file with this name already exists.",
+      "invalidName": "This name is not allowed.",
+      "permission": "Access to the folder was not granted.",
+      "invalidWorld": "The world file is invalid.",
+      "generic": "That didn't work."
+    }
   }
 }

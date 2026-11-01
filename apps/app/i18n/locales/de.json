@@ -211,5 +211,49 @@
       "print": "In die Ausgabe schreiben",
       "join": "Texte oder Zahlen zusammensetzen"
     }
+  },
+  "project": {
+    "title": "Projekt",
+    "intro": "Speichere Programme und Welten als Dateien – in einem Ordner auf deinem Rechner oder als Projekt im Browser.",
+    "openFolder": "Ordner öffnen",
+    "newBrowserProject": "Neues Browser-Projekt",
+    "recentFolders": "Zuletzt geöffnete Ordner",
+    "browserProjects": "Browser-Projekte",
+    "close": "Projekt schließen",
+    "newFile": "Neue Datei",
+    "world": "Welt",
+    "browserWorld": "Welt aus dem Welt-Editor",
+    "rename": "Umbenennen",
+    "delete": "Löschen",
+    "actions": "Aktionen für {name}",
+    "name": "Name",
+    "ok": "OK",
+    "defaultProjectName": "Mein Projekt",
+    "defaultName": {
+      "blocks": "programm",
+      "klonk": "programm",
+      "javascript": "programm",
+      "typescript": "programm",
+      "world": "welt"
+    },
+    "confirmDelete": "„{name}“ wirklich löschen?",
+    "confirmDeleteProject": "Browser-Projekt „{name}“ mit allen Dateien löschen?",
+    "noDocument": "Wähle links ein Programm aus oder lege eine neue Datei an.",
+    "status": {
+      "saved": "Alle Änderungen gespeichert",
+      "saving": "Speichert …",
+      "error": "Speichern fehlgeschlagen"
+    },
+    "loadWorld": "Welt aus Projekt laden",
+    "saveWorld": "Welt ins Projekt speichern",
+    "worldLoaded": "Welt „{name}“ geladen",
+    "worldSaved": "Welt als „{name}“ gespeichert",
+    "errors": {
+      "exists": "Eine Datei mit diesem Namen gibt es schon.",
+      "invalidName": "Dieser Name ist nicht erlaubt.",
+      "permission": "Kein Zugriff auf den Ordner erlaubt.",
+      "invalidWorld": "Die Welt-Datei ist ungültig.",
+      "generic": "Das hat nicht geklappt."
+    }
   }
 }

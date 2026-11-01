@@ -101,11 +101,11 @@ function refreshBreakpoints() {
 }
 
 /** Rechtsklick auf einen Anweisungsblock: Haltepunkt setzen/entfernen */
-let menuRegistered = false
 function registerContextMenu(B: typeof BlocklyType) {
-  if (menuRegistered) return
-  menuRegistered = true
-  B.ContextMenuRegistry.registry.register({
+  // Die Registry ist global – Eintrag einer früheren Instanz (andere Closure) ersetzen
+  const registry = B.ContextMenuRegistry.registry
+  if (registry.getItem('klonk_breakpoint')) registry.unregister('klonk_breakpoint')
+  registry.register({
     id: 'klonk_breakpoint',
     scopeType: B.ContextMenuRegistry.ScopeType.BLOCK,
     weight: -1,

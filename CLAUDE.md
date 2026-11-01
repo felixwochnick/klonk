@@ -143,6 +143,11 @@ pnpm --filter @klonk/core test      # RLS-Integrationstests
   ⇒ `lineToBlock` für Hervorhebung/Fehler/Haltepunkte. Haltepunkte in `block.data = 'breakpoint'` (mitgespeichert).
   Blockly-Medien liegen in `public/blockly-media` (externe Quelle wäre wegen COEP blockiert). Farben nur `#rrggbb`.
   Variablen-/Prozedurnamen behalten Umlaute (`safeName` überschrieben). Sprachen-Typ `ProgramLanguage = RunLanguage | 'blocks'`.
+- **Projekte** (`utils/project-fs.ts`, `useProject.ts`, `ProjectPanel.vue`): gleiche Klasse `Project` für echte Ordner
+  (`showDirectoryPicker`, Chrome/Edge) und Browser-Projekte (OPFS `klonk-projects/<name>`, alle Browser; E2E testet über OPFS).
+  Zustand modulweit (Handles nicht serialisierbar), zuletzt geöffnete Ordner in IndexedDB, Autosave 400 ms. Dateiart aus der
+  Endung (`.blocks`, `.klonk`, `.js`, `.ts`, `.klonkworld.json`). Ohne Projekt nutzt die IDE weiter `useProgram()` (localStorage).
+  Reka-`SelectItem` erlaubt keinen leeren Wert ⇒ Platzhalterwerte verwenden. Blockly-Kontextmenü global ⇒ vor Neu-Registrierung abmelden.
 - **IDE** (`apps/app/app/pages/index.vue`): Monaco (`utils/monaco.ts`: Monarch ohne `\p{L}` – Monarch kennt keine Unicode-Klassen;
   Themes `klonk-light/-dark`; `acceptSuggestionOnEnter: 'smart'`, `autoIndent: 'full'`), `KlonkEditor` (Breakpoints, aktive Zeile),
   Programme je Sprache + Breakpoints in localStorage (`klonk:program`: `{ language, programs }`). An Worker nur Plain-Daten senden (Vue-Proxys ⇒ DataCloneError).
@@ -193,7 +198,7 @@ pnpm --filter @klonk/core test      # RLS-Integrationstests
 6. [x] Klonk-Script: Lexer/Parser/Interpreter (Worker), Monaco-Sprache, Autocomplete, Hover, Live-Fehler, Debugger (Breakpoints, Einzelschritt, Pause, Variablen), de/en + Übersetzen
 7. [x] JS/TS-Ausführung im Worker mit Debugging (synchron via SharedArrayBuffer/Atomics, acorn-Instrumentierung, sucrase, Monaco-TS mit Roboter-API-.d.ts)
 8. [x] Blöcke (Blockly ⇒ Klonk-Script, Debugger am Block, Haltepunkte per Rechtsklick, de/en)
-9. [ ] Lokales Dateisystem (Projektordner)
+9. [x] Lokales Dateisystem: Projektordner (File System Access API) + Browser-Projekte (OPFS), Explorer, Autosave, Welten, Bibliotheken
 10. [ ] PWA (Logo, Favicon, Offline)
 11. [ ] KI-Assistent (schuleigenes LLM / WebLLM)
 12. [ ] Python, Java (TeaVM), C#

@@ -8,6 +8,25 @@ const editor = useWorldEditor()
 const { world, mode, tool, brickColor, markColor, characterModel, selectedCharacter, status, characters, maxCharacters } = editor
 
 const speed = ref(350)
+
+// Welt im Projekt laden/speichern (wenn in der IDE ein Projekt geöffnet ist)
+const proj = useProject()
+const toast = useToast()
+async function loadFromProject() {
+  try {
+    const data = await proj.readWorld()
+    if (data && editor.loadData(data)) toast.add({ title: t('project.worldLoaded', { name: proj.worldPath.value }), color: 'success' })
+  }
+  catch {
+    toast.add({ title: t('project.errors.invalidWorld'), color: 'error' })
+  }
+}
+async function saveToProject() {
+  const path = proj.worldPath.value ?? `${t('project.defaultName.world')}.klonkworld.json`
+  await proj.writeWorld(path, editor.start.value.toJSON())
+  proj.selectWorld(path)
+  toast.add({ title: t('project.worldSaved', { name: path }), color: 'success' })
+}
 const view = useTemplateRef('view')
 
 const tools = computed<{ value: EditorTool, icon: string, label: string }[]>(() => [
@@ -166,6 +185,26 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey))
             class="col-span-2"
             @click="download"
           />
+          <template v-if="proj.project.value">
+            <UButton
+              variant="outline"
+              color="neutral"
+              icon="i-lucide-folder-input"
+              :label="t('project.loadWorld')"
+              :disabled="!proj.worldPath.value"
+              class="col-span-2"
+              data-testid="world-load-project"
+              @click="loadFromProject"
+            />
+            <UButton
+              variant="outline"
+              icon="i-lucide-folder-output"
+              :label="t('project.saveWorld')"
+              class="col-span-2"
+              data-testid="world-save-project"
+              @click="saveToProject"
+            />
+          </template>
           <input
             ref="fileInput"
             type="file"
