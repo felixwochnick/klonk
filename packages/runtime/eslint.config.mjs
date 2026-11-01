@@ -5,6 +5,6 @@ export default createConfigForNuxt({
     stylistic: true,
   },
 }).prepend({
-  // Mitgelieferter Java-Compiler (teavm-javac, nicht selbst geschrieben)
-  ignores: ['teavm/**'],
+  // Mitgelieferter Java-Compiler (teavm-javac) und gebauter C#-Host – nicht selbst geschrieben
+  ignores: ['teavm/**', 'dotnet/**'],
 })

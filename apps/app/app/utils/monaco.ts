@@ -25,6 +25,7 @@ export function loadMonaco(t: Translator): Promise<Monaco> {
     registerKlonk(monaco)
     registerApiLanguage(monaco, 'python', PYTHON_STYLE)
     registerApiLanguage(monaco, 'java', JAVA_STYLE)
+    registerApiLanguage(monaco, 'csharp', CSHARP_STYLE)
     configureTypeScript(monaco)
     return monaco
   })()
@@ -182,7 +183,17 @@ const JAVA_STYLE: ApiStyle = {
   optional: '?',
 }
 
-/** Python und Java (Syntaxfarben bringt Monaco mit): Roboter-API vervollständigen und erklären */
+const CSHARP_KEYWORDS = ['var', 'int', 'double', 'bool', 'string', 'if', 'else', 'while', 'for', 'foreach', 'in', 'do', 'return', 'break', 'continue', 'new', 'true', 'false', 'null', 'const', 'static', 'void', 'class', 'Console.WriteLine']
+
+const CSHARP_STYLE: ApiStyle = {
+  keywords: CSHARP_KEYWORDS,
+  // PascalCase wie in C# üblich (IsWall, PlaceBrick, Red)
+  name: name => csharpName(spell(name, 'en')),
+  param: name => name,
+  optional: '?',
+}
+
+/** Python, Java und C# (Syntaxfarben bringt Monaco mit): Roboter-API vervollständigen und erklären */
 function registerApiLanguage(monaco: Monaco, id: string, style: ApiStyle) {
   const { CompletionItemKind: Kind, CompletionItemInsertTextRule: Rule } = monaco.languages
   const entries = () => (Object.entries(BUILTINS) as [BuiltinName, Builtin][])

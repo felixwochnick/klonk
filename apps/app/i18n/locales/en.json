@@ -127,7 +127,8 @@
       "typescript": "TypeScript",
       "blocks": "Blocks",
       "python": "Python",
-      "java": "Java"
+      "java": "Java",
+      "csharp": "C#"
     },
     "language": "Programming language"
   },
@@ -173,13 +174,17 @@
       "js_syntax": "Syntax error: {message}",
       "js_runtime": "{name}: {message}",
       "js_import": "“import”/“export” are not supported yet.",
-      "isolation_required": "JavaScript, TypeScript, Python and Java need a secure execution mode (cross-origin isolation). Please reload the page or contact your administrator.",
+      "isolation_required": "JavaScript, TypeScript, Python, Java and C# need a secure execution mode (cross-origin isolation). Please reload the page or contact your administrator.",
       "py_runtime": "{name}: {message}",
       "python_load": "Python could not be loaded ({message}). The first time requires an internet connection.",
       "java_compile": "Java error: {message}",
       "java_runtime": "Exception: {message}",
       "java_no_main": "No class with \"public static void main(String[] args)\" found.",
-      "java_load": "Java could not be loaded ({message}). The first time requires an internet connection."
+      "java_load": "Java could not be loaded ({message}). The first time requires an internet connection.",
+      "cs_compile": "C# error: {message}",
+      "cs_runtime": "{name}: {message}",
+      "cs_no_main": "No program found (statements or a Main method).",
+      "cs_load": "C# could not be loaded ({message}). The first time requires an internet connection."
     }
   },
   "blocks": {
@@ -245,7 +250,8 @@
       "typescript": "program",
       "world": "world",
       "python": "program",
-      "java": "Main"
+      "java": "Main",
+      "csharp": "Program"
     },
     "confirmDelete": "Really delete “{name}”?",
     "confirmDeleteProject": "Delete browser project “{name}” with all files?",

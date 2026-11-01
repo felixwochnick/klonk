@@ -4,7 +4,7 @@
  * Browser-Projekte (Origin Private File System, alle modernen Browser).
  */
 
-export type FileKind = 'blocks' | 'klonk' | 'javascript' | 'typescript' | 'python' | 'java' | 'world' | 'other'
+export type FileKind = 'blocks' | 'klonk' | 'javascript' | 'typescript' | 'python' | 'java' | 'csharp' | 'world' | 'other'
 
 export type ProjectFile = {
   /** Pfad relativ zum Projektordner, mit `/` getrennt */
@@ -25,6 +25,7 @@ export function fileKind(name: string): FileKind {
   if (lower.endsWith('.js')) return 'javascript'
   if (lower.endsWith('.py')) return 'python'
   if (lower.endsWith('.java')) return 'java'
+  if (lower.endsWith('.cs')) return 'csharp'
   return 'other'
 }
 
@@ -35,6 +36,7 @@ export const KIND_EXTENSION: Record<Exclude<FileKind, 'other'>, string> = {
   typescript: '.ts',
   python: '.py',
   java: '.java',
+  csharp: '.cs',
   world: '.klonkworld.json',
 }
 

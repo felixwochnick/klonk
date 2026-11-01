@@ -1,0 +1,39 @@
+<!--
+  C# für Klonk: Roslyn auf der .NET-WebAssembly-Laufzeit (im Worker von @klonk/runtime).
+  Bauen: `pnpm build:csharp` ⇒ packages/runtime/dotnet/ (nicht im Git; Docker baut es selbst).
+-->
+<Project Sdk="Microsoft.NET.Sdk.WebAssembly">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <OutputType>Exe</OutputType>
+    <Nullable>enable</Nullable>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <InvariantGlobalization>true</InvariantGlobalization>
+    <!-- Echte Fehlertexte (DivideByZeroException …) statt Ressourcenschlüsseln -->
+    <UseSystemResourceKeys>false</UseSystemResourceKeys>
+    <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
+    <WasmEnableThreads>false</WasmEnableThreads>
+    <!-- Nur das Framework trimmen; Roslyn bleibt vollständig (Reflexion) -->
+    <PublishTrimmed>true</PublishTrimmed>
+    <TrimMode>partial</TrimMode>
+    <SuppressTrimAnalysisWarnings>true</SuppressTrimAnalysisWarnings>
+    <WasmFingerprintAssets>false</WasmFingerprintAssets>
+    <CompressionEnabled>false</CompressionEnabled>
+    <NoWarn>$(NoWarn);CA1416</NoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="4.14.0" />
+    <TrimmerRootAssembly Include="Microsoft.CodeAnalysis" />
+    <TrimmerRootAssembly Include="Microsoft.CodeAnalysis.CSharp" />
+    <!-- Alles, wogegen Nutzerprogramme kompiliert werden, vollständig behalten (sonst MissingMethodException) -->
+    <TrimmerRootAssembly Include="System.Private.CoreLib" />
+    <TrimmerRootAssembly Include="System.Runtime" />
+    <TrimmerRootAssembly Include="System.Console" />
+    <TrimmerRootAssembly Include="System.Collections" />
+    <TrimmerRootAssembly Include="System.Linq" />
+    <!-- Roboter-API: wird mit dem Nutzerprogramm kompiliert -->
+    <EmbeddedResource Include="RobotApi.txt" LogicalName="Robot.cs" WithCulture="false" />
+    <!-- Referenz-Assemblies für das Nutzerprogramm -->
+    <EmbeddedResource Include="$(NetCoreTargetingPackRoot)/Microsoft.NETCore.App.Ref/$(BundledNETCoreAppPackageVersion)/ref/net10.0/System.Runtime.dll;$(NetCoreTargetingPackRoot)/Microsoft.NETCore.App.Ref/$(BundledNETCoreAppPackageVersion)/ref/net10.0/System.Console.dll;$(NetCoreTargetingPackRoot)/Microsoft.NETCore.App.Ref/$(BundledNETCoreAppPackageVersion)/ref/net10.0/System.Collections.dll;$(NetCoreTargetingPackRoot)/Microsoft.NETCore.App.Ref/$(BundledNETCoreAppPackageVersion)/ref/net10.0/System.Linq.dll" LogicalName="ref/%(Filename)%(Extension)" />
+  </ItemGroup>
+</Project>

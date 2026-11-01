@@ -1,0 +1,86 @@
+// Roboter-API für C# – wird mit dem Nutzerprogramm kompiliert und per `using static Klonk.Robot;` eingebunden.
+// Englische Namen in C#-Schreibweise (Step, IsWall, PlaceBrick(Red) …). Die Aufrufe gehen über Delegaten,
+// die der Host (Host.cs) im AppDomain hinterlegt, an die JS-Roboter-API im Worker.
+#nullable enable
+namespace Klonk
+{
+    public static class Robot
+    {
+        private static readonly System.Func<string, string[], string> CallHost =
+            (System.Func<string, string[], string>)System.AppDomain.CurrentDomain.GetData("klonk.call")!;
+        private static readonly System.Func<int, bool> CheckpointHost =
+            (System.Func<int, bool>)System.AppDomain.CurrentDomain.GetData("klonk.checkpoint")!;
+        private static readonly System.Action<string, string> VariableHost =
+            (System.Action<string, string>)System.AppDomain.CurrentDomain.GetData("klonk.variable")!;
+        private static readonly System.Action PauseHost =
+            (System.Action)System.AppDomain.CurrentDomain.GetData("klonk.pause")!;
+
+        public const string Red = "red";
+        public const string Blue = "blue";
+        public const string Yellow = "yellow";
+        public const string Green = "green";
+        public const string Orange = "orange";
+        public const string Purple = "purple";
+        public const string White = "white";
+        public const string Black = "black";
+
+        private static string Call(string name, params string[] args) => CallHost(name, args);
+        private static string N(double value) => "n:" + value.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        private static string S(string value) => "s:" + value;
+
+        public static void Step(int count = 1) => Call("step", N(count));
+        public static void TurnLeft() => Call("turnLeft");
+        public static void TurnRight() => Call("turnRight");
+        public static void PlaceBrick(string color = Red) => Call("placeBrick", S(color));
+        public static void PickBrick() => Call("pickBrick");
+        public static void SetMark(string color = Yellow) => Call("setMark", S(color));
+        public static void RemoveMark() => Call("removeMark");
+        public static void SelectCharacter(string name) => Call("selectCharacter", S(name));
+        public static bool IsWall() => Call("isWall") == "true";
+        public static bool IsBrick() => Call("isBrick") == "true";
+        public static bool IsBrick(string color) => Call("isBrick", S(color)) == "true";
+        public static bool IsMark() => Call("isMark") == "true";
+        public static bool IsMark(string color) => Call("isMark", S(color)) == "true";
+        public static bool IsFacingNorth() => Call("isFacingNorth") == "true";
+        public static bool IsFacingEast() => Call("isFacingEast") == "true";
+        public static bool IsFacingSouth() => Call("isFacingSouth") == "true";
+        public static bool IsFacingWest() => Call("isFacingWest") == "true";
+        public static int BrickCount() => int.Parse(Call("brickCount"));
+        public static int PositionX() => int.Parse(Call("positionX"));
+        public static int PositionY() => int.Parse(Call("positionY"));
+        public static int Random(int min, int max) => int.Parse(Call("random", N(min), N(max)));
+        public static void Wait(double seconds = 1) => Call("wait", N(seconds));
+
+        public static void Print(params object?[] values)
+        {
+            var parts = new string[values.Length];
+            for (var i = 0; i < values.Length; i++) parts[i] = Show(values[i], false);
+            Call("print", S(string.Join(" ", parts)));
+        }
+
+        // Debugger (vom Instrumentierer eingefügt)
+        public static bool __cp(int line) => CheckpointHost(line);
+        public static void __pause() => PauseHost();
+        public static void __v(string name, object? value) => VariableHost(name, Show(value, true));
+
+        private static string Show(object? value, bool quote)
+        {
+            if (value is null) return "null";
+            if (value is string s) return quote ? "\"" + s + "\"" : s;
+            if (value is char c) return quote ? "'" + c + "'" : c.ToString();
+            if (value is bool b) return b ? "true" : "false";
+            if (value is System.IFormattable f) return f.ToString(null, System.Globalization.CultureInfo.InvariantCulture);
+            if (value is System.Collections.IEnumerable items)
+            {
+                var parts = new System.Collections.Generic.List<string>();
+                foreach (var item in items)
+                {
+                    if (parts.Count == 20) { parts.Add("…"); break; }
+                    parts.Add(Show(item, true));
+                }
+                return "[" + string.Join(", ", parts) + "]";
+            }
+            return value.ToString() ?? "";
+        }
+    }
+}

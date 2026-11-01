@@ -5,7 +5,7 @@ const STORAGE_KEY = 'klonk:program'
 
 /** Sprachen in der IDE – Blöcke werden zu Klonk-Script */
 export type ProgramLanguage = RunLanguage | 'blocks'
-export const PROGRAM_LANGUAGES: ProgramLanguage[] = ['blocks', 'klonk', 'javascript', 'typescript', 'python', 'java']
+export const PROGRAM_LANGUAGES: ProgramLanguage[] = ['blocks', 'klonk', 'javascript', 'typescript', 'python', 'java', 'csharp']
 
 type Program = { source: string, breakpoints: number[] }
 
@@ -43,12 +43,34 @@ ${k('end')}
 ${k('setMark')}
 `
   }
-  // JS/TS/Python/Java: Schlüsselwörter sind englisch ⇒ Roboter-API und Beispiel ebenfalls nur englisch
+  // JS/TS/Python/Java/C#: Schlüsselwörter sind englisch ⇒ Roboter-API und Beispiel ebenfalls nur englisch
   return codeSample(language)
 }
 
-function codeSample(language: 'javascript' | 'typescript' | 'python' | 'java') {
+function codeSample(language: 'javascript' | 'typescript' | 'python' | 'java' | 'csharp') {
   const k = (name: Parameters<typeof spell>[0]) => spell(name, 'en')
+  if (language === 'csharp') {
+    const c = (name: Parameters<typeof spell>[0]) => csharpName(spell(name, 'en'))
+    return `// Walks to the wall and places bricks on its left
+int Row(string color)
+{
+    var count = 0;
+    while (!${c('isWall')}())
+    {
+        ${c('turnLeft')}();
+        ${c('placeBrick')}(color);
+        ${c('turnRight')}();
+        ${c('step')}();
+        count++;
+    }
+    return count;
+}
+
+var placed = Row(${c('blue')});
+${c('setMark')}();
+Console.WriteLine($"Bricks placed: {placed}");
+`
+  }
   if (language === 'java') {
     return `// Walks to the wall and places bricks on its left
 public class Main {
@@ -178,4 +200,9 @@ export function useProgram() {
 /** Python-Schreibweise der Roboter-API (`istWand` ⇒ `ist_wand`, wie im Python-Vorspann der Laufzeit) */
 export function pythonName(name: string) {
   return name.replace(/(?<=[a-zäöüß0-9])([A-ZÄÖÜ])/g, m => `_${m.toLowerCase()}`)
+}
+
+/** C#-Schreibweise der Roboter-API (`isWall` ⇒ `IsWall`, `red` ⇒ `Red`, wie in packages/csharp/RobotApi.txt) */
+export function csharpName(name: string) {
+  return name.charAt(0).toUpperCase() + name.slice(1)
 }

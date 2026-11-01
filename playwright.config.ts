@@ -45,7 +45,8 @@ export default defineConfig({
       reuseExistingServer: !process.env.CI,
     },
     {
-      command: 'node e2e/ensure-db.ts && pnpm --filter @klonk/app exec nuxt dev --port 3010 --dotenv ../../.env',
+      // C#-Host (dotnet publish) vorher bauen, falls er fehlt oder veraltet ist
+      command: 'node e2e/ensure-db.ts && node scripts/build-csharp.ts --if-missing && pnpm --filter @klonk/app exec nuxt dev --port 3010 --dotenv ../../.env',
       url: `${APP_URL}/api/health`,
       env,
       timeout: 180_000,

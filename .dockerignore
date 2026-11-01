@@ -5,3 +5,6 @@
 .git
 .idea
 .env
+packages/runtime/dotnet
+packages/csharp/bin
+packages/csharp/obj

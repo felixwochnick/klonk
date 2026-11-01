@@ -141,12 +141,12 @@ export function useProject() {
     await refresh()
   }
 
-  /** Bibliotheken: Klonk-Script-Dateien (`importiere`), Python-Module und Java-Klassen */
+  /** Bibliotheken: Klonk-Script-Dateien (`importiere`), Python-Module, Java-Klassen und C#-Dateien */
   async function importableFiles(): Promise<Record<string, string>> {
     if (!project.value) return {}
     await flush()
     const result: Record<string, string> = {}
-    for (const file of files.value.filter(f => f.kind === 'klonk' || f.kind === 'python' || f.kind === 'java')) result[file.path] = await project.value.read(file.path)
+    for (const file of files.value.filter(f => f.kind === 'klonk' || f.kind === 'python' || f.kind === 'java' || f.kind === 'csharp')) result[file.path] = await project.value.read(file.path)
     return result
   }
 

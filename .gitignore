@@ -21,3 +21,8 @@ test-results
 playwright-report
 
 docker/local/klonk-local-ca.crt
+
+# C#-Host (node scripts/build-csharp.ts)
+packages/runtime/dotnet/
+packages/csharp/bin/
+packages/csharp/obj/

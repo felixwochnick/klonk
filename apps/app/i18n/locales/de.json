@@ -127,7 +127,8 @@
       "typescript": "TypeScript",
       "blocks": "Blöcke",
       "python": "Python",
-      "java": "Java"
+      "java": "Java",
+      "csharp": "C#"
     },
     "language": "Programmiersprache"
   },
@@ -173,13 +174,17 @@
       "js_syntax": "Syntaxfehler: {message}",
       "js_runtime": "{name}: {message}",
       "js_import": "„import“/„export“ werden noch nicht unterstützt.",
-      "isolation_required": "JavaScript, TypeScript, Python und Java brauchen einen sicheren Ausführungsmodus (Cross-Origin-Isolation). Bitte die Seite neu laden oder die Verwaltung informieren.",
+      "isolation_required": "JavaScript, TypeScript, Python, Java und C# brauchen einen sicheren Ausführungsmodus (Cross-Origin-Isolation). Bitte die Seite neu laden oder die Verwaltung informieren.",
       "py_runtime": "{name}: {message}",
       "python_load": "Python konnte nicht geladen werden ({message}). Beim ersten Mal ist eine Internetverbindung nötig.",
       "java_compile": "Java-Fehler: {message}",
       "java_runtime": "Ausnahme: {message}",
       "java_no_main": "Keine Klasse mit „public static void main(String[] args)“ gefunden.",
-      "java_load": "Java konnte nicht geladen werden ({message}). Beim ersten Mal ist eine Internetverbindung nötig."
+      "java_load": "Java konnte nicht geladen werden ({message}). Beim ersten Mal ist eine Internetverbindung nötig.",
+      "cs_compile": "C#-Fehler: {message}",
+      "cs_runtime": "{name}: {message}",
+      "cs_no_main": "Kein Programm gefunden (Anweisungen oder eine Methode Main).",
+      "cs_load": "C# konnte nicht geladen werden ({message}). Beim ersten Mal ist eine Internetverbindung nötig."
     }
   },
   "blocks": {
@@ -245,7 +250,8 @@
       "typescript": "programm",
       "world": "welt",
       "python": "programm",
-      "java": "Main"
+      "java": "Main",
+      "csharp": "Program"
     },
     "confirmDelete": "„{name}“ wirklich löschen?",
     "confirmDeleteProject": "Browser-Projekt „{name}“ mit allen Dateien löschen?",

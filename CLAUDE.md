@@ -57,6 +57,7 @@ pnpm test:e2e       # Playwright (Root-Config) gegen lokales Chromium
 pnpm stack:up       # Komplett-Stack *.klonk.localhost (Proxy, alle Apps, Docs, Test-LDAP/-IdP) – scripts/local-stack.sh
 pnpm test:e2e:stack # dieselben E2E-Tests gegen den Stack (Produktions-Builds hinter TLS-Proxy)
 pnpm --filter @klonk/core test      # RLS-Integrationstests
+node scripts/build-csharp.ts        # C#-Host bauen (.NET-SDK 10 nötig; Ausgabe nicht im Git)
 ```
 
 `.env` im Repo-Root (Vorlage `.env.example`) wird per `--dotenv ../../.env` von app und admin geladen:
@@ -100,7 +101,7 @@ pnpm --filter @klonk/core test      # RLS-Integrationstests
 - Privatkonten (ohne Organisation): Google/Microsoft/Apple/GitHub (`server/routes/auth/<anbieter>.get.ts`, nuxt-auth-utils)
   Wiedererkennung nur über Anbieter-ID. Social-Buttons nur in der App (`appConfig.klonk.socialLogin`).
 - **Klonk ID** (Authentik, `runtimeConfig.platformOidc`, Route `/auth/oidc/platform`) ist **nur für Entwickler:innen und
-  Besitzer:innen** (vom User so festgelegt): Button nur für admin (`appConfig.klonk.operatorLogin` bzw. Ziel admin auf auth.*), ohne Betreiber-Gruppe
+  Besitzer:innen** (vom User so festgelegt): Button in admin und auf auth.* **immer** (`appConfig.klonk.operatorLogin`, vom User so festgelegt; in der eingebauten App-Anmeldung nicht), ohne Betreiber-Gruppe
   kein Login; Gruppenentzug ⇒ Konto gesperrt + Sessions widerrufen, Rückkehr in die Gruppe ⇒ wieder freigegeben.
 - E2E: Dex dient auch als Klonk ID (Gruppe `admins` ⇒ owner, siehe `playwright.config.ts`).
 - Erste Einrichtung über `admin /setup`: erste Organisation + Admin (= Instanz-Besitzer).
@@ -110,7 +111,7 @@ pnpm --filter @klonk/core test      # RLS-Integrationstests
 - **Zentrale Anmeldung:** Ist `NUXT_PUBLIC_AUTH_URL` gesetzt, leiten app/admin (`useAuthUrls().isCentral`) für Login und
   Passwortänderung nach auth.* weiter (`?redirect=<absolute URL>`); ohne die Variable nutzt jede App ihre eingebaute Login-Seite.
   Weiterleitungsziele immer über `safeRedirectTarget()` gegen die erlaubten Origins (app, admin, auth, `NUXT_PUBLIC_WEBSITE_URLS`)
-  prüfen. Auf auth.* bestimmt das Ziel die Buttons: Ziel admin ⇒ Klonk ID, sonst Social-Login.
+  prüfen. Auf auth.* ist die Klonk ID immer sichtbar; Social-Login nur, wenn das Ziel nicht die Verwaltung ist.
   Gemeinsame Session über `NUXT_SESSION_COOKIE_DOMAIN` (z. B. `.klonk.example`); die Website (privates Repo) fragt
   `auth.*/api/session` mit `credentials: 'include'` ab. Setup-Prüfung der Verwaltung steckt in der Core-Middleware
   (`appConfig.klonk.setupRoute`), da Layer-Middlewares vor App-Middlewares laufen.
@@ -118,7 +119,7 @@ pnpm --filter @klonk/core test      # RLS-Integrationstests
 ## Produktentscheidungen
 
 - **Editor:** Monaco. **Sprachen:** Klonk-Script (eigene Sprache), JS/TS (lokal im Worker, mit Debugging), Blöcke (Blockly ⇒ Klonk-Script).
-  Python (Pyodide, `sys.settrace`), Java (**TeaVM**, im Browser kompiliert). Später: C#. Ausführungsschicht von Anfang an
+  Python (Pyodide, `sys.settrace`), Java (**TeaVM**, im Browser kompiliert), C# (Roslyn auf .NET-WebAssembly). Ausführungsschicht von Anfang an
   sprachunabhängig: gemeinsame Roboter-API + Debugger-Protokoll; synchrone Roboterbefehle im Worker via
   SharedArrayBuffer/Atomics ⇒ App braucht COOP/COEP-Header.
 - **Sprachen mit englischen Schlüsselwörtern (JS, TS, Python, Java, C#) nutzen nur die englische Roboter-API** (vom User so
@@ -159,6 +160,17 @@ pnpm --filter @klonk/core test      # RLS-Integrationstests
   TeaVM-Loader geben (bei URL nimmt er wegen `process` im Vite-Worker Node an). Dateinamen beim Compiler flach (`Robot.java`, nicht
   `klonk/Robot.java`). Farben als `RED`…, `wait` ⇒ `sleep` (sonst verdeckt `Object.wait()` den statischen Import).
   Unit-Tests kompilieren echt in Node (`tests/java.test.ts`).
+- **C#** (`packages/csharp/` = .NET-Projekt, `packages/runtime/src/csharp/run.ts`): Host (`Host.cs`, `[JSExport] Run`) kompiliert
+  mit Roslyn, instrumentiert per **semantischem Modell** (Prüfpunkte wie Java, Variablen = `DefinitelyAssignedOnEntry` ∩
+  `LookupSymbols` ∩ gleiche Methode, keine ref/ref-struct) und führt per `Assembly.Load` aus. Roboter-API `RobotApi.txt`
+  (PascalCase, `Red`…) wird als Quelltext mitkompiliert und ruft über Delegaten in `AppDomain`-Daten → `[JSImport]`-Funktionen.
+  Implizite Usings + `using static Klonk.Robot` als eigene Datei mit `global using`. Build: `node scripts/build-csharp.ts`
+  ⇒ `packages/runtime/dotnet/` (**nicht im Git**; E2E baut es bei Bedarf, Docker in eigener SDK-Stage). Fallen:
+  `concurrentBuild: false` (Single-Thread-WASM: „Cannot wait on monitors“); Ressource nicht `*.cs.txt` nennen (MSBuild hält
+  `.cs` für eine Kultur ⇒ Satelliten-Assembly); CoreLib/System.Runtime/Console/Collections/Linq nicht trimmen (sonst
+  MissingMethodException in Nutzercode); im Modul-Worker `importScripts` ausblenden + `window = globalThis` vor dem Laden von
+  `dotnet.js` (sonst wartet es ewig auf `coreAssetsInMemory`); .NET bindet JSImport-Funktionen beim ersten Aufruf fest ⇒
+  Weiterleitung über `bindImports()`. Unit-Tests laufen mit dem gebauten Host in Node (`tests/csharp.test.ts`).
 - **Blöcke** (`apps/app/app/utils/blocks/`, `KlonkBlocks.vue`): Blockly 13 (zelos), Beschriftung aus den Klonk-Script-Tabellen
   (`spell()`), Generator ⇒ Klonk-Script; jede Anweisung markiert ihre erste Zeile mit ` #@<blockId>` (Kommentar, wird entfernt)
   ⇒ `lineToBlock` für Hervorhebung/Fehler/Haltepunkte. Haltepunkte in `block.data = 'breakpoint'` (mitgespeichert).
@@ -170,7 +182,7 @@ pnpm --filter @klonk/core test      # RLS-Integrationstests
 - **Projekte** (`utils/project-fs.ts`, `useProject.ts`, `ProjectPanel.vue`): gleiche Klasse `Project` für echte Ordner
   (`showDirectoryPicker`, Chrome/Edge) und Browser-Projekte (OPFS `klonk-projects/<name>`, alle Browser; E2E testet über OPFS).
   Zustand modulweit (Handles nicht serialisierbar), zuletzt geöffnete Ordner in IndexedDB, Autosave 400 ms. Dateiart aus der
-  Endung (`.blocks`, `.klonk`, `.js`, `.ts`, `.py`, `.java`, `.klonkworld.json`). Ohne Projekt nutzt die IDE weiter `useProgram()` (localStorage).
+  Endung (`.blocks`, `.klonk`, `.js`, `.ts`, `.py`, `.java`, `.cs`, `.klonkworld.json`). Ohne Projekt nutzt die IDE weiter `useProgram()` (localStorage).
   Reka-`SelectItem` erlaubt keinen leeren Wert ⇒ Platzhalterwerte verwenden. Blockly-Kontextmenü global ⇒ vor Neu-Registrierung abmelden.
   Bedienlogik gemeinsam in `useProjectExplorer()` (Seitenleiste `ProjectPanel` + Vollbild-Explorer `pages/projects.vue`),
   Datei-Symbole `FileIcon` (simple-icons für JS/TS/…, Klonk-Script als eigener Ziegel), Namensdialog `ProjectNameDialog`.
@@ -235,4 +247,4 @@ pnpm --filter @klonk/core test      # RLS-Integrationstests
 9. [x] Lokales Dateisystem: Projektordner (File System Access API) + Browser-Projekte (OPFS), Explorer, Autosave, Welten, Bibliotheken
 10. [x] PWA (Logo, Favicon, Offline)
 11. [ ] KI-Assistent (schuleigenes LLM / WebLLM)
-12. [ ] Weitere Sprachen: Python ✓ (Pyodide), Java ✓ (TeaVM), C#
+12. [x] Weitere Sprachen: Python (Pyodide), Java (TeaVM), C# (Roslyn/.NET-WASM)
