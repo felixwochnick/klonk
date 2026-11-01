@@ -2,5 +2,94 @@
   "home": {
     "title": "Willkommen bei Klonk",
     "description": "Programmieren lernen mit Klemmbaustein-Figuren – in Klonk-Script, Blöcken, JavaScript und TypeScript."
+  },
+  "world": {
+    "title": "Welt",
+    "tool": "Werkzeug",
+    "color": "Farbe",
+    "character": "Figur",
+    "characterLimit": "Deine Lizenz erlaubt {max} Figur(en).",
+    "modes": {
+      "edit": "Bearbeiten",
+      "play": "Ausprobieren"
+    },
+    "tools": {
+      "brick": "Ziegel",
+      "mark": "Marke",
+      "block": "Quader",
+      "character": "Figur",
+      "erase": "Leeren"
+    },
+    "toolHelp": {
+      "brick": "Klick legt einen Ziegel, Rechtsklick nimmt einen weg.",
+      "mark": "Klick setzt oder entfernt eine Marke.",
+      "block": "Klick setzt oder entfernt einen Quader (Hindernis).",
+      "character": "Klick setzt eine Figur, Klick auf eine Figur dreht sie, Rechtsklick entfernt sie.",
+      "erase": "Klick leert das Feld vollständig."
+    },
+    "new": "Neue Welt",
+    "open": "Öffnen",
+    "save": "Speichern",
+    "create": "Erstellen",
+    "reset": "Zurücksetzen",
+    "resetCamera": "Ansicht zurücksetzen",
+    "speed": "Geschwindigkeit",
+    "keyboardHelp": "Tastatur: ↑ Schritt, ← → drehen, H hinlegen, A aufheben, M markieren",
+    "size": {
+      "width": "Breite",
+      "depth": "Länge",
+      "height": "Höhe"
+    },
+    "commands": {
+      "step": "Schritt",
+      "turnLeft": "Links drehen",
+      "turnRight": "Rechts drehen",
+      "placeBrick": "Hinlegen",
+      "pickBrick": "Aufheben",
+      "setMark": "Markieren",
+      "removeMark": "Marke löschen"
+    },
+    "directions": {
+      "north": "Norden",
+      "east": "Osten",
+      "south": "Süden",
+      "west": "Westen"
+    },
+    "status": {
+      "position": "Feld ({x}{'|'}{z})",
+      "wall": "Wand voraus",
+      "bricks": "{count} Ziegel voraus",
+      "onMark": "auf Marke"
+    },
+    "characters": {
+      "male": "Figur (männlich)",
+      "female": "Figur (weiblich)",
+      "diverse": "Figur (divers)"
+    },
+    "colors": {
+      "red": "Rot",
+      "blue": "Blau",
+      "yellow": "Gelb",
+      "green": "Grün",
+      "orange": "Orange",
+      "purple": "Lila",
+      "white": "Weiß",
+      "black": "Schwarz"
+    },
+    "errors": {
+      "wall": "Da ist eine Wand – hier geht es nicht weiter.",
+      "block": "Da steht ein Quader im Weg.",
+      "too_high": "Zu hoch! Die Figur kann nur einen Ziegel hoch oder runter steigen.",
+      "occupied": "Das Feld ist schon besetzt.",
+      "stack_full": "Der Stapel ist schon so hoch wie die Welt.",
+      "no_brick": "Da liegt kein Ziegel.",
+      "no_mark": "Hier ist keine Marke.",
+      "unknown_character": "Diese Figur gibt es nicht.",
+      "character_limit": "Deine Lizenz erlaubt höchstens {max} Figur(en).",
+      "invalid_world": "Die Weltdatei ist ungültig."
+    }
+  },
+  "nav": {
+    "world": "Welt"
   }
 }

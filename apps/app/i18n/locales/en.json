@@ -2,5 +2,94 @@
   "home": {
     "title": "Welcome to Klonk",
     "description": "Learn to code with brick figures – in Klonk-Script, blocks, JavaScript and TypeScript."
+  },
+  "world": {
+    "title": "World",
+    "tool": "Tool",
+    "color": "Color",
+    "character": "Character",
+    "characterLimit": "Your license allows {max} character(s).",
+    "modes": {
+      "edit": "Edit",
+      "play": "Try out"
+    },
+    "tools": {
+      "brick": "Brick",
+      "mark": "Mark",
+      "block": "Block",
+      "character": "Character",
+      "erase": "Clear"
+    },
+    "toolHelp": {
+      "brick": "Click places a brick, right-click removes one.",
+      "mark": "Click sets or removes a mark.",
+      "block": "Click sets or removes a block (obstacle).",
+      "character": "Click places a character, clicking a character turns it, right-click removes it.",
+      "erase": "Click clears the cell completely."
+    },
+    "new": "New world",
+    "open": "Open",
+    "save": "Save",
+    "create": "Create",
+    "reset": "Reset",
+    "resetCamera": "Reset view",
+    "speed": "Speed",
+    "keyboardHelp": "Keyboard: ↑ step, ← → turn, H place, A pick up, M mark",
+    "size": {
+      "width": "Width",
+      "depth": "Length",
+      "height": "Height"
+    },
+    "commands": {
+      "step": "Step",
+      "turnLeft": "Turn left",
+      "turnRight": "Turn right",
+      "placeBrick": "Place",
+      "pickBrick": "Pick up",
+      "setMark": "Mark",
+      "removeMark": "Remove mark"
+    },
+    "directions": {
+      "north": "North",
+      "east": "East",
+      "south": "South",
+      "west": "West"
+    },
+    "status": {
+      "position": "Cell ({x}{'|'}{z})",
+      "wall": "Wall ahead",
+      "bricks": "{count} bricks ahead",
+      "onMark": "on mark"
+    },
+    "characters": {
+      "male": "Character (male)",
+      "female": "Character (female)",
+      "diverse": "Character (diverse)"
+    },
+    "colors": {
+      "red": "Red",
+      "blue": "Blue",
+      "yellow": "Yellow",
+      "green": "Green",
+      "orange": "Orange",
+      "purple": "Purple",
+      "white": "White",
+      "black": "Black"
+    },
+    "errors": {
+      "wall": "There's a wall – you can't go further here.",
+      "block": "A block is in the way.",
+      "too_high": "Too high! The character can only climb one brick up or down.",
+      "occupied": "The cell is already occupied.",
+      "stack_full": "The stack is already as high as the world.",
+      "no_brick": "There is no brick.",
+      "no_mark": "There is no mark here.",
+      "unknown_character": "This character doesn't exist.",
+      "character_limit": "Your license allows at most {max} character(s).",
+      "invalid_world": "The world file is invalid."
+    }
+  },
+  "nav": {
+    "world": "World"
   }
 }

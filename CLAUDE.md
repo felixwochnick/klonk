@@ -123,6 +123,12 @@ pnpm --filter @klonk/core test      # RLS-Integrationstests
   Schlüsselworttabellen, gemeinsamer AST. Autocomplete, Breakpoints, Schrittmodus.
 - **i18n:** App und Docs zunächst Deutsch + Englisch, weitere Sprachen müssen leicht ergänzbar sein.
 - **Grafik:** Figuren (männlich, weiblich, divers) und Weltblöcke in Klemmbaustein-Optik, selbst in Blender modelliert, Export glTF.
+  Modelle entstehen per Skript: `blender -b --factory-startup --python assets/blender/build_models.py` ⇒
+  `apps/app/public/models/*.glb` + `assets/blender/klonk-models.blend` + `preview.png`. Maße: 1 Feld = 1 Einheit = 2×2 Noppen,
+  Ziegel 0,6 hoch, Platte 0,2, Noppe 0,1. Figuren sind aus Ziegeln aufgebaut (bewusst keine Minifiguren-Nachbildung),
+  Gelenke `ArmL/ArmR/LegL/LegR` für Animationen. Blender-MCP (Port 9876) ist optional – das Skript läuft headless.
+- **3D:** `apps/app/app/utils/world-renderer.ts` (three.js, InstancedMesh, animiert `WorldEvent`s aus `@klonk/world`),
+  Komponente `KlonkWorld` nur in `<ClientOnly>` (`.client.vue` + Template-Ref funktionierte nicht).
 - **PWA** mit generiertem Logo/Favicon; lokales Dateisystem über File System Access API (Projektordner öffnen).
 - **Auth:** siehe „Konten & Anmeldung“. Schulen und Unternehmen wählen selbst OIDC, LDAP und/oder lokale Konten.
 - **KI:** Schulen binden ihr eigenes LLM ein (OpenAI-kompatible API), optional WebLLM im Browser.
@@ -159,8 +165,8 @@ pnpm --filter @klonk/core test      # RLS-Integrationstests
 2d. [x] Zentrale Anmeldung `auth.klonk.*` (Single Sign-on für app, admin, Website)
 2e. [x] Mitgelieferter Proxy (Caddy, TLS: internal/HTTP-01/IONOS-DNS/off) + lokaler Komplett-Stack `*.klonk.local`
 3. [x] Lizenz-Token-Prüfung + Free-Tier-Limits (Nutzergrenze, OIDC; Figuren/Modelle/Bibliotheken/KI als Flags für spätere Schritte)
-4. [ ] 3D-Welt (three.js): Boden, Wände, Kisten, Markierungen, Welt-Editor
-5. [ ] Blender-Modelle: Figuren (m/w/d) + Weltblöcke, glTF
+4. [x] 3D-Welt (three.js): Boden, Ziegel, Marken, Quader, Figuren-Animation, Welt-Editor `/world` (Bearbeiten/Ausprobieren, JSON-Dateien)
+5. [x] Blender-Modelle: Figuren (m/w/d) + Ziegel/Platte/Fliese, glTF (`assets/blender/build_models.py`)
 6. [ ] Klonk-Script: Lexer/Parser/Interpreter (Worker), Monaco-Sprache, Autocomplete, Debugger, de/en
 7. [ ] JS/TS-Ausführung (esbuild-wasm, Worker) mit Debugging
 8. [ ] Blöcke (Blockly ⇒ Klonk-Script)
