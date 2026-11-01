@@ -6,7 +6,8 @@ import RunnerWorker from '@klonk/runtime/worker?worker'
 const { t, te } = useI18n()
 useSeoMeta({ title: () => t('editor.title') })
 
-const { source, breakpoints, translateTo } = useProgram()
+const { language, source, breakpoints, translateTo } = useProgram()
+const languageItems = computed(() => PROGRAM_LANGUAGES.map(l => ({ label: t(`editor.languages.${l}`), value: l })))
 const { start } = useWorldEditor()
 const { can } = useLicense()
 
@@ -38,7 +39,7 @@ function run(pauseOnStart = false) {
   if (!runner) return
   resetWorld()
   runner.run(world.value, {
-    language: 'klonk',
+    language: language.value,
     source: source.value,
     breakpoints: breakpoints.value,
     delay: speed.value,
@@ -164,7 +165,19 @@ const variables = computed(() => Object.entries(snapshot.value.variables))
       </div>
 
       <div class="ms-auto flex items-center gap-2">
-        <UDropdownMenu :items="translateItems">
+        <USelect
+          v-model="language"
+          :items="languageItems"
+          :disabled="running"
+          icon="i-lucide-file-code"
+          class="w-44"
+          data-testid="language"
+          :aria-label="t('editor.language')"
+        />
+        <UDropdownMenu
+          v-if="language === 'klonk'"
+          :items="translateItems"
+        >
           <UButton
             icon="i-lucide-languages"
             variant="ghost"
@@ -190,6 +203,7 @@ const variables = computed(() => Object.entries(snapshot.value.variables))
           <KlonkEditor
             v-model="source"
             v-model:breakpoints="breakpoints"
+            :language="language"
             :read-only="running"
             :active-line="running ? snapshot.line : null"
             :error-line="snapshot.state === 'error' ? snapshot.error?.range?.line : null"

@@ -32,7 +32,7 @@ pnpm-Workspace (`pnpm-workspace.yaml`), Node ≥ 22.
 | `packages/ui` | `@klonk/ui` | **Nuxt-Layer für einheitliches Design**: Nuxt UI, Theme (`theme.css`, `app.config.ts`), i18n-Grundkonfiguration, `KlonkLogo`, `LocaleSwitch`, Hydration-Marker | – |
 | `packages/world` | `@klonk/world` | **Weltmodell** (ohne Darstellung, läuft auch im Worker): Raster, Ziegelstapel, Marken, Quader, Figuren, Befehle, Ereignisse, JSON-Format (`WorldData`, zod) | – |
 | `packages/klonk-script` | `@klonk/klonk-script` | **Klonk-Script**: Sprachtabellen de/en (`languages.ts` – neue Sprache = neue Spalte), Lexer, Parser (AST), async Interpreter mit Prüfpunkten, Übersetzen | – |
-| `packages/runtime` | `@klonk/runtime` | **Ausführung**: Worker (`@klonk/runtime/worker?worker`), sprachunabhängiges Protokoll (`protocol.ts`), `ProgramRunner` (Hauptthread, spielt Roboterbefehle auf der angezeigten Welt nach) | – |
+| `packages/runtime` | `@klonk/runtime` | **Ausführung**: Worker (`@klonk/runtime/worker?worker`), sprachunabhängiges Protokoll (`protocol.ts`), `ProgramRunner` (Hauptthread, spielt Roboterbefehle auf der angezeigten Welt nach); JS/TS in `src/js/` | – |
 | `packages/core` | `@klonk/core` | **Nuxt-Layer für Server & Auth**: Drizzle-Schema, Migrationen, RLS, Sessions (nuxt-auth-utils), Login-API, `/login`, `/change-password`, `UserMenu` | – |
 
 App, Admin und Auth erweitern beide Layer (`extends: ['@klonk/ui', '@klonk/core']`). Paket-Tests: `pnpm -r test`.
@@ -129,9 +129,18 @@ pnpm --filter @klonk/core test      # RLS-Integrationstests
   `apps/app/public/models/*.glb` + `assets/blender/klonk-models.blend` + `preview.png`. Maße: 1 Feld = 1 Einheit = **4×4 Noppen** (Raster 0,25),
   Ziegel 0,3 hoch, Platte/Fliese 0,1, Noppe 0,05; Figuren (Skalierung 0,75) stehen mit jedem Fuß auf einer Noppe. Figuren sind aus Ziegeln aufgebaut (bewusst keine Minifiguren-Nachbildung),
   Gelenke `ArmL/ArmR/LegL/LegR` für Animationen. Blender-MCP (Port 9876) ist optional – das Skript läuft headless.
+- **JS/TS-Ausführung** (`packages/runtime/src/js/`): Nutzercode läuft **synchron** im Worker. `instrument.ts` (acorn +
+  magic-string, nur Einfügungen ⇒ Zeilen bleiben) setzt vor jede Anweisung `__klonk_cp(zeile, () => vars)`, auch in leere/
+  blocklose Schleifen. Steuerung über `SharedArrayBuffer` (`shared.ts`: PAUSE/SIGNAL/DELAY + Haltepunkt-Bitmap), da der
+  blockierte Worker keine Nachrichten empfängt. TS ⇒ JS mit sucrase (behält Zeilen). Roboter-API (`api.ts`) aus den
+  Klonk-Script-Tabellen, de+en. Vor dem Ausführen werden `fetch`, `WebSocket`, `postMessage` … im Worker entfernt (Sandbox).
+  Braucht `crossOriginIsolated` ⇒ app setzt COOP `same-origin` + COEP `require-corp` (routeRules + vite.server.headers) –
+  daher **keine Fremd-Ressourcen in der App** (Schriften, Bilder, Skripte nur von der eigenen Origin).
+  Monaco-TS: `monaco.typescript.*Defaults` (0.57), API-Deklaration `utils/js-api-types.ts`. Worker-Abhängigkeiten in
+  `vite.optimizeDeps.include`, sonst lädt die Dev-Seite beim ersten Lauf neu.
 - **IDE** (`apps/app/app/pages/index.vue`): Monaco (`utils/monaco.ts`: Monarch ohne `\p{L}` – Monarch kennt keine Unicode-Klassen;
   Themes `klonk-light/-dark`; `acceptSuggestionOnEnter: 'smart'`, `autoIndent: 'full'`), `KlonkEditor` (Breakpoints, aktive Zeile),
-  Programm/Breakpoints in localStorage (`klonk:program`). An Worker nur Plain-Daten senden (Vue-Proxys ⇒ DataCloneError).
+  Programme je Sprache + Breakpoints in localStorage (`klonk:program`: `{ language, programs }`). An Worker nur Plain-Daten senden (Vue-Proxys ⇒ DataCloneError).
   Befehlsreferenz der Docs: `node scripts/gen-script-docs.ts` nach Änderungen an `languages.ts`.
 - **3D:** `apps/app/app/utils/world-renderer.ts` rendert nur bei Bedarf (`invalidate()`) – Dauer-Rendern blockierte
   Monacos Hintergrund-Tokenizer (Leerlaufzeit) und kostet Akku.
@@ -177,7 +186,7 @@ pnpm --filter @klonk/core test      # RLS-Integrationstests
 5. [x] Blender-Modelle: Figuren (m/w/d) + Ziegel/Platte/Fliese, glTF (`assets/blender/build_models.py`)
 5b. [ ] Advanced Mode: verschiedene Steintypen im 4×4-Raster (1×1, 1×2, 2×2, Platten, Schrägen …)
 6. [x] Klonk-Script: Lexer/Parser/Interpreter (Worker), Monaco-Sprache, Autocomplete, Hover, Live-Fehler, Debugger (Breakpoints, Einzelschritt, Pause, Variablen), de/en + Übersetzen
-7. [ ] JS/TS-Ausführung (esbuild-wasm, Worker) mit Debugging
+7. [x] JS/TS-Ausführung im Worker mit Debugging (synchron via SharedArrayBuffer/Atomics, acorn-Instrumentierung, sucrase, Monaco-TS mit Roboter-API-.d.ts)
 8. [ ] Blöcke (Blockly ⇒ Klonk-Script)
 9. [ ] Lokales Dateisystem (Projektordner)
 10. [ ] PWA (Logo, Favicon, Offline)

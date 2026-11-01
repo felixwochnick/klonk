@@ -1,17 +1,21 @@
 <script setup lang="ts">
 import { spell } from '@klonk/klonk-script'
 import type { editor as MonacoEditor } from 'monaco-editor'
-import { KLONK_LANGUAGE, loadMonaco, validate, type Monaco } from '~/utils/monaco'
+import { KLONK_LANGUAGE, loadMonaco, updateRobotApi, validate, type Monaco } from '~/utils/monaco'
+
+const monacoLanguage = (language: string) => (language === 'klonk' ? KLONK_LANGUAGE : language)
 
 // Code-Editor (Monaco) für Klonk-Script mit Breakpoints und Hervorhebung der aktuellen Zeile.
 // Nur im Browser verwenden (<ClientOnly>).
 const props = withDefaults(defineProps<{
+  /** Programmiersprache des Editors */
+  language?: 'klonk' | 'javascript' | 'typescript'
   readOnly?: boolean
   /** Zeile, die gerade läuft */
   activeLine?: number | null
   /** Zeile mit Laufzeitfehler */
   errorLine?: number | null
-}>(), { readOnly: false, activeLine: null, errorLine: null })
+}>(), { language: 'klonk', readOnly: false, activeLine: null, errorLine: null })
 
 const source = defineModel<string>({ required: true })
 const breakpoints = defineModel<number[]>('breakpoints', { default: () => [] })
@@ -24,6 +28,7 @@ const ready = ref(false)
 let editor: MonacoEditor.IStandaloneCodeEditor | undefined
 let monaco: Monaco | undefined
 let decorations: MonacoEditor.IEditorDecorationsCollection | undefined
+let stopLanguageWatch: (() => void) | undefined
 
 const translator = {
   lang: () => (locale.value === 'en' ? 'en' : 'de') as 'de' | 'en',
@@ -46,7 +51,7 @@ onMounted(async () => {
   monaco = await loadMonaco(translator)
   editor = monaco.editor.create(container.value!, {
     value: source.value,
-    language: KLONK_LANGUAGE,
+    language: monacoLanguage(props.language),
     theme: colorMode.value === 'dark' ? 'klonk-dark' : 'klonk-light',
     automaticLayout: true,
     minimap: { enabled: false },
@@ -66,12 +71,21 @@ onMounted(async () => {
   decorations = editor.createDecorationsCollection()
 
   const model = editor.getModel()!
-  validate(monaco, model)
+  const check = () => {
+    // JS/TS prüft der TypeScript-Worker von Monaco selbst
+    if (props.language === 'klonk' && monaco) validate(monaco, model)
+  }
+  check()
   let timer: ReturnType<typeof setTimeout> | undefined
   editor.onDidChangeModelContent(() => {
     source.value = editor!.getValue()
     clearTimeout(timer)
-    timer = setTimeout(() => monaco && validate(monaco, model), 250)
+    timer = setTimeout(check, 250)
+  })
+  stopLanguageWatch = watch(() => props.language, (language) => {
+    monaco!.editor.setModelMarkers(model, KLONK_LANGUAGE, [])
+    monaco!.editor.setModelLanguage(model, monacoLanguage(language))
+    check()
   })
 
   // Klick auf den Rand setzt/entfernt Breakpoints
@@ -89,7 +103,10 @@ onMounted(async () => {
   ready.value = true
 })
 
-onBeforeUnmount(() => editor?.dispose())
+onBeforeUnmount(() => {
+  stopLanguageWatch?.()
+  editor?.dispose()
+})
 
 watch(source, (value) => {
   if (editor && value !== editor.getValue()) editor.setValue(value)
@@ -98,7 +115,9 @@ watch(() => props.readOnly, readOnly => editor?.updateOptions({ readOnly }))
 watch(() => colorMode.value, mode => monaco?.editor.setTheme(mode === 'dark' ? 'klonk-dark' : 'klonk-light'))
 watch(locale, () => {
   const model = editor?.getModel()
-  if (monaco && model) validate(monaco, model)
+  if (!monaco || !model) return
+  if (props.language === 'klonk') validate(monaco, model)
+  updateRobotApi(monaco)
 })
 watch([breakpoints, () => props.activeLine, () => props.errorLine], updateDecorations)
 

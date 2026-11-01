@@ -119,7 +119,13 @@
       "done": "Done",
       "error": "Error",
       "stopped": "Stopped"
-    }
+    },
+    "languages": {
+      "klonk": "Klonk-Script",
+      "javascript": "JavaScript",
+      "typescript": "TypeScript"
+    },
+    "language": "Programming language"
   },
   "script": {
     "errors": {
@@ -159,7 +165,11 @@
       "invalid_range": "The range from {from} to {to} is empty.",
       "feature_libraries": "Libraries (“import”) are not included in your license.",
       "import_not_found": "The file “{path}” was not found.",
-      "import_error": "The file “{path}” contains an error in line {line}."
+      "import_error": "The file “{path}” contains an error in line {line}.",
+      "js_syntax": "Syntax error: {message}",
+      "js_runtime": "{name}: {message}",
+      "js_import": "“import”/“export” are not supported yet.",
+      "isolation_required": "JavaScript/TypeScript needs a secure execution mode (cross-origin isolation). Please reload the page or contact your administrator."
     }
   }
 }

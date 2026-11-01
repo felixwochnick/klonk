@@ -1,3 +1,4 @@
+import { robotApiDeclarations } from './js-api-types'
 import { BUILTINS, KEYWORDS, check, spell, tokenize, type Builtin, type BuiltinName, type ScriptLanguage } from '@klonk/klonk-script'
 
 export type Monaco = typeof import('monaco-editor')
@@ -13,12 +14,16 @@ let translator: Translator | undefined
 export function loadMonaco(t: Translator): Promise<Monaco> {
   translator = t
   monacoPromise ??= (async () => {
-    const [monaco, { default: EditorWorker }] = await Promise.all([
+    const [monaco, { default: EditorWorker }, { default: TsWorker }] = await Promise.all([
       import('monaco-editor'),
       import('monaco-editor/editor/editor.worker?worker'),
+      import('monaco-editor/language/typescript/ts.worker?worker'),
     ])
-    self.MonacoEnvironment = { getWorker: () => new EditorWorker() }
+    self.MonacoEnvironment = {
+      getWorker: (_id: string, label: string) => (label === 'typescript' || label === 'javascript' ? new TsWorker() : new EditorWorker()),
+    }
     registerKlonk(monaco)
+    configureTypeScript(monaco)
     return monaco
   })()
   return monacoPromise
@@ -188,4 +193,33 @@ export function validate(monaco: Monaco, model: import('monaco-editor').editor.I
   }))
   monaco.editor.setModelMarkers(model, KLONK_LANGUAGE, markers)
   return markers
+}
+
+let apiLib: { dispose: () => void }[] = []
+
+/** JS/TS: Skript-Modus, gängige Optionen für Einsteiger, Roboter-API als Deklaration */
+function configureTypeScript(monaco: Monaco) {
+  const ts = monaco.typescript
+  const options = {
+    target: ts.ScriptTarget.ESNext,
+    lib: ['esnext'],
+    allowNonTsExtensions: true,
+    strict: true,
+    noImplicitAny: false,
+    allowJs: true,
+    checkJs: false,
+  }
+  ts.typescriptDefaults.setCompilerOptions(options)
+  ts.javascriptDefaults.setCompilerOptions(options)
+  updateRobotApi(monaco)
+}
+
+/** Roboter-API-Deklarationen (Dokumentation in der aktuellen UI-Sprache) */
+export function updateRobotApi(monaco: Monaco) {
+  for (const lib of apiLib) lib.dispose()
+  const source = robotApiDeclarations(translator?.lang() ?? 'de')
+  apiLib = [
+    monaco.typescript.typescriptDefaults.addExtraLib(source, 'file:///klonk-api.d.ts'),
+    monaco.typescript.javascriptDefaults.addExtraLib(source, 'file:///klonk-api.d.ts'),
+  ]
 }

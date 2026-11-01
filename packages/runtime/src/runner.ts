@@ -1,5 +1,6 @@
 import type { RobotCommand, SourceRange, Value } from '@klonk/klonk-script'
 import type { World } from '@klonk/world'
+import { CONTROL, createSharedState, views, writeBreakpoints } from './js/shared'
 import type { FromWorker, RunError, RunLanguage, ToWorker } from './protocol'
 
 export type RunnerState = 'idle' | 'running' | 'paused' | 'done' | 'error' | 'stopped'
@@ -32,6 +33,8 @@ export type RunOptions = {
 export class ProgramRunner {
   private worker?: Worker
   private snapshot: RunnerSnapshot = emptySnapshot()
+  /** JS/TS: Steuerung über gemeinsamen Speicher (der Nutzercode blockiert den Worker) */
+  private shared?: SharedArrayBuffer
 
   constructor(
     private createWorker: () => Worker,
@@ -46,6 +49,18 @@ export class ProgramRunner {
   run(world: World, options: RunOptions) {
     this.terminate()
     this.update({ ...emptySnapshot(), state: 'running' })
+
+    const js = options.language !== 'klonk'
+    this.shared = undefined
+    if (js) {
+      if (typeof SharedArrayBuffer === 'undefined' || !globalThis.crossOriginIsolated) {
+        this.update({ state: 'error', error: { code: 'isolation_required', params: {} } })
+        return
+      }
+      this.shared = createSharedState()
+      writeBreakpoints(this.shared, options.breakpoints ?? [])
+      Atomics.store(views(this.shared).control, CONTROL.DELAY, options.delay ?? 300)
+    }
 
     const worker = this.createWorker()
     this.worker = worker
@@ -68,27 +83,39 @@ export class ProgramRunner {
       allowImports: options.allowImports ?? false,
       files: options.files ?? {},
       pauseOnStart: options.pauseOnStart,
-    })
+    }, this.shared)
   }
 
   pause() {
-    this.post({ type: 'pause' })
+    if (this.shared) Atomics.store(views(this.shared).control, CONTROL.PAUSE, 1)
+    else this.post({ type: 'pause' })
   }
 
   resume() {
-    this.post({ type: 'resume' })
+    if (!this.signal(1)) this.post({ type: 'resume' })
   }
 
   step() {
-    this.post({ type: 'step' })
+    if (!this.signal(2)) this.post({ type: 'step' })
   }
 
   setBreakpoints(lines: number[]) {
-    this.post({ type: 'breakpoints', lines })
+    if (this.shared) writeBreakpoints(this.shared, [...lines])
+    else this.post({ type: 'breakpoints', lines })
   }
 
   setDelay(delay: number) {
-    this.post({ type: 'delay', delay })
+    if (this.shared) Atomics.store(views(this.shared).control, CONTROL.DELAY, delay)
+    else this.post({ type: 'delay', delay })
+  }
+
+  /** JS/TS: angehaltenen Worker wecken (1 = weiter, 2 = Einzelschritt) */
+  private signal(value: 1 | 2) {
+    if (!this.shared) return false
+    const { control } = views(this.shared)
+    Atomics.store(control, CONTROL.SIGNAL, value)
+    Atomics.notify(control, CONTROL.SIGNAL)
+    return true
   }
 
   stop() {
@@ -130,9 +157,11 @@ export class ProgramRunner {
     }
   }
 
-  private post(message: ToWorker) {
+  private post(message: ToWorker, shared?: SharedArrayBuffer) {
     // Reaktive Proxys (z. B. aus Vue) lassen sich nicht an Worker senden – als einfache Daten kopieren
-    this.worker?.postMessage(JSON.parse(JSON.stringify(message)))
+    const plain = JSON.parse(JSON.stringify(message)) as ToWorker
+    if (shared && plain.type === 'run') plain.shared = shared
+    this.worker?.postMessage(plain)
   }
 
   private terminate() {

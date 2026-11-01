@@ -119,7 +119,13 @@
       "done": "Fertig",
       "error": "Fehler",
       "stopped": "Gestoppt"
-    }
+    },
+    "languages": {
+      "klonk": "Klonk-Script",
+      "javascript": "JavaScript",
+      "typescript": "TypeScript"
+    },
+    "language": "Programmiersprache"
   },
   "script": {
     "errors": {
@@ -159,7 +165,11 @@
       "invalid_range": "Der Bereich von {from} bis {to} ist leer.",
       "feature_libraries": "Bibliotheken („importiere“) sind in deiner Lizenz nicht enthalten.",
       "import_not_found": "Die Datei „{path}“ wurde nicht gefunden.",
-      "import_error": "Die Datei „{path}“ enthält einen Fehler in Zeile {line}."
+      "import_error": "Die Datei „{path}“ enthält einen Fehler in Zeile {line}.",
+      "js_syntax": "Syntaxfehler: {message}",
+      "js_runtime": "{name}: {message}",
+      "js_import": "„import“/„export“ werden noch nicht unterstützt.",
+      "isolation_required": "JavaScript/TypeScript braucht einen sicheren Ausführungsmodus (Cross-Origin-Isolation). Bitte die Seite neu laden oder die Verwaltung informieren."
     }
   }
 }

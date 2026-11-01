@@ -13,7 +13,10 @@
   },
   "dependencies": {
     "@klonk/klonk-script": "workspace:*",
-    "@klonk/world": "workspace:*"
+    "@klonk/world": "workspace:*",
+    "acorn": "^8.19.0",
+    "magic-string": "^1.4.5",
+    "sucrase": "^3.35.1"
   },
   "devDependencies": {
     "@nuxt/eslint-config": "^1.17.0",

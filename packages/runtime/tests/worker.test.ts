@@ -81,3 +81,59 @@ describe('Worker', () => {
     expect(shown.cell({ x: 2, z: 0 }).bricks).toEqual(['green'])
   })
 })
+
+describe('Worker: JavaScript/TypeScript', () => {
+  // Die Steuerung läuft über SharedArrayBuffer; Atomics.wait blockiert den Testthread nicht,
+  // solange keine Pause angefordert wird (Delay 0, keine Haltepunkte).
+  const shared = () => {
+    const buffer = new SharedArrayBuffer(64 + 20_000)
+    return buffer
+  }
+
+  it('führt JS mit der deutsch/englischen Roboter-API aus', async () => {
+    run('while (!isWall()) { schritt() }\nrechtsDrehen()\nplaceBrick("rot")\nprint("x =", positionX())', { language: 'javascript', shared: shared() })
+    await until(() => last()?.type === 'done')
+    expect(messages.filter(m => m.type === 'command')).toHaveLength(6)
+    expect(messages).toContainEqual({ type: 'command', command: { name: 'placeBrick', id: 'k', color: 'red' } })
+    expect(messages).toContainEqual({ type: 'output', text: 'x = 5' })
+  })
+
+  it('TypeScript mit Typen läuft', async () => {
+    run('function n(x: number): number {\n  return x + 1\n}\nconst y: number = n(2)\nausgabe(y)', { language: 'typescript', shared: shared() })
+    await until(() => last()?.type === 'done')
+    expect(messages).toContainEqual({ type: 'output', text: '3' })
+  })
+
+  it('Fehler mit Zeile: Welt, Laufzeit, Syntax, falsche Farbe', async () => {
+    run('turnLeft()\nstep()', { language: 'javascript', shared: shared() })
+    await until(() => last()?.type === 'error')
+    expect(last()).toMatchObject({ error: { code: 'world', params: { worldCode: 'wall' }, range: { line: 2 } } })
+
+    messages.length = 0
+    run('let a = 1\nundefinedFunction()', { language: 'javascript', shared: shared() })
+    await until(() => last()?.type === 'error')
+    expect(last()).toMatchObject({ error: { code: 'js_runtime', params: { name: 'ReferenceError' }, range: { line: 2 } } })
+
+    messages.length = 0
+    run('let x = (', { language: 'javascript', shared: shared() })
+    await until(() => last()?.type === 'error')
+    expect(last()).toMatchObject({ error: { code: 'js_syntax', range: { line: 1 } } })
+
+    messages.length = 0
+    run('hinlegen("pink")', { language: 'javascript', shared: shared() })
+    await until(() => last()?.type === 'error')
+    expect(last()).toMatchObject({ error: { code: 'invalid_color' } })
+  })
+
+  it('Nutzercode hat keinen Netzwerkzugriff', async () => {
+    run('print(typeof fetch, typeof XMLHttpRequest, typeof WebSocket)', { language: 'javascript', shared: shared() })
+    await until(() => last()?.type === 'done')
+    expect(messages).toContainEqual({ type: 'output', text: 'undefined undefined undefined' })
+  })
+
+  it('ohne gemeinsamen Speicher gibt es eine verständliche Meldung', async () => {
+    run('step()', { language: 'javascript' })
+    await until(() => last()?.type === 'error')
+    expect(last()).toMatchObject({ error: { code: 'isolation_required' } })
+  })
+})

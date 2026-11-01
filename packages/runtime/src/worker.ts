@@ -1,10 +1,13 @@
 /// <reference lib="webworker" />
 import { Interpreter, KlonkError, type SourceRange, type Value } from '@klonk/klonk-script'
 import { World } from '@klonk/world'
+import { runJavaScript } from './js/run'
 import type { FromWorker, ToWorker } from './protocol'
 
 // Führt Programme abseits der Oberfläche aus. Abbrechen = Worker beenden (worker.terminate()).
-const post = (message: FromWorker) => self.postMessage(message)
+// postMessage vorher sichern – JS/TS-Nutzercode bekommt es nicht.
+const postMessage = self.postMessage.bind(self)
+const post = (message: FromWorker) => postMessage(message)
 
 let breakpoints = new Set<number>()
 let delay = 0
@@ -23,7 +26,8 @@ self.onmessage = (event: MessageEvent<ToWorker>) => {
   const message = event.data
   switch (message.type) {
     case 'run':
-      void run(message)
+      if (message.language === 'klonk') void run(message)
+      else runJavaScript(message, post)
       break
     case 'pause':
       pauseRequested = true
