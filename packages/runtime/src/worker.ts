@@ -2,6 +2,7 @@
 import { Interpreter, KlonkError, type SourceRange, type Value } from '@klonk/klonk-script'
 import { World } from '@klonk/world'
 import { runJavaScript } from './js/run'
+import { runJava } from './java/run'
 import { runPython } from './python/run'
 import type { FromWorker, ToWorker } from './protocol'
 
@@ -29,6 +30,7 @@ self.onmessage = (event: MessageEvent<ToWorker>) => {
     case 'run':
       if (message.language === 'klonk') void run(message)
       else if (message.language === 'python') void runPython(message, post)
+      else if (message.language === 'java') void runJava(message, post)
       else runJavaScript(message, post)
       break
     case 'pause':

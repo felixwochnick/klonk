@@ -9,6 +9,7 @@ const ICONS: Record<Exclude<FileKind, 'klonk'>, { icon: string, color: string }>
   javascript: { icon: 'i-simple-icons-javascript', color: 'text-yellow-400' },
   typescript: { icon: 'i-simple-icons-typescript', color: 'text-blue-500' },
   python: { icon: 'i-simple-icons-python', color: 'text-sky-600 dark:text-sky-400' },
+  java: { icon: 'i-simple-icons-openjdk', color: 'text-orange-600 dark:text-orange-400' },
   world: { icon: 'i-lucide-boxes', color: 'text-green-600 dark:text-green-500' },
   other: { icon: 'i-lucide-file', color: 'text-(--ui-text-dimmed)' },
 }

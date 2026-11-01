@@ -23,7 +23,8 @@ export function loadMonaco(t: Translator): Promise<Monaco> {
       getWorker: (_id: string, label: string) => (label === 'typescript' || label === 'javascript' ? new TsWorker() : new EditorWorker()),
     }
     registerKlonk(monaco)
-    registerPython(monaco)
+    registerApiLanguage(monaco, 'python', PYTHON_STYLE)
+    registerApiLanguage(monaco, 'java', JAVA_STYLE)
     configureTypeScript(monaco)
     return monaco
   })()
@@ -155,28 +156,58 @@ function registerKlonk(monaco: Monaco) {
 }
 
 const PYTHON_KEYWORDS = ['if', 'elif', 'else', 'while', 'for', 'in', 'range', 'def', 'return', 'break', 'continue', 'pass', 'and', 'or', 'not', 'True', 'False', 'None', 'import', 'from', 'print', 'len', 'int', 'str']
+const JAVA_KEYWORDS = ['public', 'class', 'static', 'void', 'int', 'double', 'boolean', 'String', 'if', 'else', 'while', 'for', 'do', 'return', 'break', 'continue', 'new', 'true', 'false', 'null', 'final', 'System.out.println']
 
-/** Python (Monaco bringt die Syntaxfarben mit): Roboter-API (englisch, snake_case) vervollständigen und erklären */
-function registerPython(monaco: Monaco) {
+/** Schreibweise der Roboter-API je Sprache (nur englische Namen); `null` = gibt es dort nicht */
+type ApiStyle = {
+  keywords: string[]
+  name: (name: BuiltinName, builtin: Builtin) => string | null
+  param: (name: string) => string
+  optional: string
+}
+
+const PYTHON_STYLE: ApiStyle = {
+  keywords: PYTHON_KEYWORDS,
+  // print bleibt Pythons eigenes
+  name: (name, builtin) => (name === 'print' ? null : builtin.kind === 'constant' ? spell(name, 'en') : pythonName(spell(name, 'en'))),
+  param: pythonName,
+  optional: '=…',
+}
+
+const JAVA_STYLE: ApiStyle = {
+  keywords: JAVA_KEYWORDS,
+  // Konstanten in Java-Schreibweise; wait heißt sleep (Object.wait() verdeckt sonst den statischen Import)
+  name: (name, builtin) => (builtin.kind === 'constant' ? spell(name, 'en').toUpperCase() : name === 'wait' ? 'sleep' : spell(name, 'en')),
+  param: name => name,
+  optional: '?',
+}
+
+/** Python und Java (Syntaxfarben bringt Monaco mit): Roboter-API vervollständigen und erklären */
+function registerApiLanguage(monaco: Monaco, id: string, style: ApiStyle) {
   const { CompletionItemKind: Kind, CompletionItemInsertTextRule: Rule } = monaco.languages
-  monaco.languages.registerCompletionItemProvider('python', {
+  const entries = () => (Object.entries(BUILTINS) as [BuiltinName, Builtin][])
+    .map(([name, builtin]) => ({ name, builtin, label: style.name(name, builtin) }))
+    .filter((e): e is { name: BuiltinName, builtin: Builtin, label: string } => e.label !== null)
+  const signature = (label: string, builtin: Builtin) => (builtin.kind === 'constant'
+    ? label
+    : `${label}(${(builtin.params ?? []).map(p => style.param(p.name.en[0]!) + (p.optional ? style.optional : '')).join(', ')})`)
+
+  monaco.languages.registerCompletionItemProvider(id, {
     provideCompletionItems(model, position) {
       const lang = translator?.lang() ?? 'de'
       const word = model.getWordUntilPosition(position)
       const range = new monaco.Range(position.lineNumber, word.startColumn, position.lineNumber, word.endColumn)
-      const suggestions: import('monaco-editor').languages.CompletionItem[] = PYTHON_KEYWORDS.map(k => ({
+      const suggestions: import('monaco-editor').languages.CompletionItem[] = style.keywords.map(k => ({
         label: k, kind: Kind.Keyword, insertText: k, range, sortText: `2${k}`,
       }))
-      for (const [name, builtin] of Object.entries(BUILTINS) as [BuiltinName, Builtin][]) {
-        if (name === 'print') continue
-        const label = pythonName(spell(name, 'en'))
+      for (const { builtin, label } of entries()) {
         const params = (builtin.params ?? []).filter(p => !p.optional)
         suggestions.push({
           label,
           kind: builtin.kind === 'constant' ? Kind.Constant : builtin.kind === 'sensor' ? Kind.Property : Kind.Function,
-          detail: pythonSignature(name),
+          detail: signature(label, builtin),
           documentation: { value: builtin.doc[lang] },
-          insertText: builtin.kind === 'constant' ? label : `${label}(${params.map((p, i) => `\${${i + 1}:${pythonName(p.name.en[0]!)}}`).join(', ')})`,
+          insertText: builtin.kind === 'constant' ? label : `${label}(${params.map((p, i) => `\${${i + 1}:${style.param(p.name.en[0]!)}}`).join(', ')})`,
           insertTextRules: Rule.InsertAsSnippet,
           range,
           sortText: `1${label}`,
@@ -185,27 +216,17 @@ function registerPython(monaco: Monaco) {
       return { suggestions }
     },
   })
-  monaco.languages.registerHoverProvider('python', {
+  monaco.languages.registerHoverProvider(id, {
     provideHover(model, position) {
       const word = model.getWordAtPosition(position)
-      if (!word) return null
-      const lang = translator?.lang() ?? 'de'
-      const entry = Object.entries(BUILTINS).find(([, b]) => b.names.en.some(n => pythonName(n) === word.word))
-      if (!entry || entry[0] === 'print') return null
-      const [name, builtin] = entry as [BuiltinName, Builtin]
+      const entry = word && entries().find(e => e.label === word.word)
+      if (!word || !entry) return null
       return {
         range: new monaco.Range(position.lineNumber, word.startColumn, position.lineNumber, word.endColumn),
-        contents: [{ value: `\`${pythonSignature(name)}\`` }, { value: builtin.doc[lang] }],
+        contents: [{ value: `\`${signature(entry.label, entry.builtin)}\`` }, { value: entry.builtin.doc[translator?.lang() ?? 'de'] }],
       }
     },
   })
-}
-
-function pythonSignature(name: BuiltinName) {
-  const builtin: Builtin = BUILTINS[name]
-  const label = pythonName(spell(name, 'en'))
-  if (builtin.kind === 'constant') return label
-  return `${label}(${(builtin.params ?? []).map(p => pythonName(p.name.en[0]!) + (p.optional ? '=…' : '')).join(', ')})`
 }
 
 function signature(name: BuiltinName, lang: ScriptLanguage) {

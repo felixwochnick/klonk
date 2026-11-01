@@ -118,7 +118,7 @@ pnpm --filter @klonk/core test      # RLS-Integrationstests
 ## Produktentscheidungen
 
 - **Editor:** Monaco. **Sprachen:** Klonk-Script (eigene Sprache), JS/TS (lokal im Worker, mit Debugging), Blöcke (Blockly ⇒ Klonk-Script).
-  Python (Pyodide, `sys.settrace`). Später: Java (**TeaVM**, im Browser kompiliert), C#. Ausführungsschicht von Anfang an
+  Python (Pyodide, `sys.settrace`), Java (**TeaVM**, im Browser kompiliert). Später: C#. Ausführungsschicht von Anfang an
   sprachunabhängig: gemeinsame Roboter-API + Debugger-Protokoll; synchrone Roboterbefehle im Worker via
   SharedArrayBuffer/Atomics ⇒ App braucht COOP/COEP-Header.
 - **Sprachen mit englischen Schlüsselwörtern (JS, TS, Python, Java, C#) nutzen nur die englische Roboter-API** (vom User so
@@ -149,6 +149,16 @@ pnpm --filter @klonk/core test      # RLS-Integrationstests
   API-Fehler kommen in Python als `JsException` an ⇒ zuletzt geworfener `ApiError` wird gemerkt und übersetzt. Projekt-`.py`-Dateien
   nur mit Lizenz (`libraries`) importierbar. Unit-Tests laufen mit Pyodide in Node (`tests/python.test.ts`, Loader injizierbar).
   Monaco: Python-Syntax eingebaut, Vervollständigung/Hover der API in `utils/monaco.ts` (`registerPython`).
+- **Java** (`packages/runtime/src/java/`): [teavm-javac](https://github.com/konsoletyper/teavm-javac) (javac + TeaVM als WebAssembly,
+  Apache 2.0) liegt mit Prüfsummen in `packages/runtime/teavm/` (`node scripts/fetch-teavm-javac.ts`, Quelle teavm.org/playground/3/),
+  Auslieferung per Nitro-`publicAssets` unter `/teavm/`, PWA-Cache bei Bedarf. Ablauf im Worker: `instrument.ts` (java-parser-CST,
+  nur Einfügungen) setzt vor jede Anweisung `if (klonk.Robot.__cp(zeile)) { __v("x", x)…; __pause(); }` und klammert Rümpfe von
+  Schleifen/if; `import static klonk.Robot.*;` kommt in Zeile 1. `robot.ts` = Java-Klasse `klonk.Robot`, ruft per **JSO-Schnittstellen**
+  `window.klonk` (Worker setzt `window = globalThis`). **Wichtig:** Dieser Browser-javac stürzt bei `@JSBody` und eigenen Annotationen
+  ab („cyclic inheritance … Annotation“/Stack-Überlauf) – nur `@JSProperty` + JSO-Interfaces nutzen. Compiler als **Bytes** an den
+  TeaVM-Loader geben (bei URL nimmt er wegen `process` im Vite-Worker Node an). Dateinamen beim Compiler flach (`Robot.java`, nicht
+  `klonk/Robot.java`). Farben als `RED`…, `wait` ⇒ `sleep` (sonst verdeckt `Object.wait()` den statischen Import).
+  Unit-Tests kompilieren echt in Node (`tests/java.test.ts`).
 - **Blöcke** (`apps/app/app/utils/blocks/`, `KlonkBlocks.vue`): Blockly 13 (zelos), Beschriftung aus den Klonk-Script-Tabellen
   (`spell()`), Generator ⇒ Klonk-Script; jede Anweisung markiert ihre erste Zeile mit ` #@<blockId>` (Kommentar, wird entfernt)
   ⇒ `lineToBlock` für Hervorhebung/Fehler/Haltepunkte. Haltepunkte in `block.data = 'breakpoint'` (mitgespeichert).
@@ -160,7 +170,7 @@ pnpm --filter @klonk/core test      # RLS-Integrationstests
 - **Projekte** (`utils/project-fs.ts`, `useProject.ts`, `ProjectPanel.vue`): gleiche Klasse `Project` für echte Ordner
   (`showDirectoryPicker`, Chrome/Edge) und Browser-Projekte (OPFS `klonk-projects/<name>`, alle Browser; E2E testet über OPFS).
   Zustand modulweit (Handles nicht serialisierbar), zuletzt geöffnete Ordner in IndexedDB, Autosave 400 ms. Dateiart aus der
-  Endung (`.blocks`, `.klonk`, `.js`, `.ts`, `.py`, `.klonkworld.json`). Ohne Projekt nutzt die IDE weiter `useProgram()` (localStorage).
+  Endung (`.blocks`, `.klonk`, `.js`, `.ts`, `.py`, `.java`, `.klonkworld.json`). Ohne Projekt nutzt die IDE weiter `useProgram()` (localStorage).
   Reka-`SelectItem` erlaubt keinen leeren Wert ⇒ Platzhalterwerte verwenden. Blockly-Kontextmenü global ⇒ vor Neu-Registrierung abmelden.
   Bedienlogik gemeinsam in `useProjectExplorer()` (Seitenleiste `ProjectPanel` + Vollbild-Explorer `pages/projects.vue`),
   Datei-Symbole `FileIcon` (simple-icons für JS/TS/…, Klonk-Script als eigener Ziegel), Namensdialog `ProjectNameDialog`.
@@ -225,4 +235,4 @@ pnpm --filter @klonk/core test      # RLS-Integrationstests
 9. [x] Lokales Dateisystem: Projektordner (File System Access API) + Browser-Projekte (OPFS), Explorer, Autosave, Welten, Bibliotheken
 10. [x] PWA (Logo, Favicon, Offline)
 11. [ ] KI-Assistent (schuleigenes LLM / WebLLM)
-12. [ ] Weitere Sprachen: Python ✓ (Pyodide), Java (TeaVM), C#
+12. [ ] Weitere Sprachen: Python ✓ (Pyodide), Java ✓ (TeaVM), C#

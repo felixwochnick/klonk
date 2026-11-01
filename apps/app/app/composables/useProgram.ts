@@ -5,7 +5,7 @@ const STORAGE_KEY = 'klonk:program'
 
 /** Sprachen in der IDE – Blöcke werden zu Klonk-Script */
 export type ProgramLanguage = RunLanguage | 'blocks'
-export const PROGRAM_LANGUAGES: ProgramLanguage[] = ['blocks', 'klonk', 'javascript', 'typescript', 'python']
+export const PROGRAM_LANGUAGES: ProgramLanguage[] = ['blocks', 'klonk', 'javascript', 'typescript', 'python', 'java']
 
 type Program = { source: string, breakpoints: number[] }
 
@@ -43,12 +43,35 @@ ${k('end')}
 ${k('setMark')}
 `
   }
-  // JS/TS/Python: Schlüsselwörter sind englisch ⇒ Roboter-API und Beispiel ebenfalls nur englisch
+  // JS/TS/Python/Java: Schlüsselwörter sind englisch ⇒ Roboter-API und Beispiel ebenfalls nur englisch
   return codeSample(language)
 }
 
-function codeSample(language: 'javascript' | 'typescript' | 'python') {
+function codeSample(language: 'javascript' | 'typescript' | 'python' | 'java') {
   const k = (name: Parameters<typeof spell>[0]) => spell(name, 'en')
+  if (language === 'java') {
+    return `// Walks to the wall and places bricks on its left
+public class Main {
+    static int row(String color) {
+        int count = 0;
+        while (!${k('isWall')}()) {
+            ${k('turnLeft')}();
+            ${k('placeBrick')}(color);
+            ${k('turnRight')}();
+            ${k('step')}();
+            count++;
+        }
+        return count;
+    }
+
+    public static void main(String[] args) {
+        int placed = row(${k('blue').toUpperCase()});
+        ${k('setMark')}();
+        System.out.println("Bricks placed: " + placed);
+    }
+}
+`
+  }
   if (language === 'python') {
     const p = (name: Parameters<typeof spell>[0]) => pythonName(spell(name, 'en'))
     return `# Walks to the wall and places bricks on its left

@@ -126,7 +126,8 @@
       "javascript": "JavaScript",
       "typescript": "TypeScript",
       "blocks": "Blocks",
-      "python": "Python"
+      "python": "Python",
+      "java": "Java"
     },
     "language": "Programming language"
   },
@@ -172,9 +173,13 @@
       "js_syntax": "Syntax error: {message}",
       "js_runtime": "{name}: {message}",
       "js_import": "“import”/“export” are not supported yet.",
-      "isolation_required": "JavaScript, TypeScript and Python need a secure execution mode (cross-origin isolation). Please reload the page or contact your administrator.",
+      "isolation_required": "JavaScript, TypeScript, Python and Java need a secure execution mode (cross-origin isolation). Please reload the page or contact your administrator.",
       "py_runtime": "{name}: {message}",
-      "python_load": "Python could not be loaded ({message}). The first time requires an internet connection."
+      "python_load": "Python could not be loaded ({message}). The first time requires an internet connection.",
+      "java_compile": "Java error: {message}",
+      "java_runtime": "Exception: {message}",
+      "java_no_main": "No class with \"public static void main(String[] args)\" found.",
+      "java_load": "Java could not be loaded ({message}). The first time requires an internet connection."
     }
   },
   "blocks": {
@@ -239,7 +244,8 @@
       "javascript": "program",
       "typescript": "program",
       "world": "world",
-      "python": "program"
+      "python": "program",
+      "java": "Main"
     },
     "confirmDelete": "Really delete “{name}”?",
     "confirmDeleteProject": "Delete browser project “{name}” with all files?",

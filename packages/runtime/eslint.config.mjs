@@ -4,4 +4,7 @@ export default createConfigForNuxt({
   features: {
     stylistic: true,
   },
+}).prepend({
+  // Mitgelieferter Java-Compiler (teavm-javac, nicht selbst geschrieben)
+  ignores: ['teavm/**'],
 })

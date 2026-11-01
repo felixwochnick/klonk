@@ -1,8 +1,8 @@
 import type { WorldData } from '@klonk/world'
 import type { RobotCommand, SourceRange, Value } from '@klonk/klonk-script'
 
-/** Sprachen, die der Runner ausführen kann (später: java, csharp …) */
-export type RunLanguage = 'klonk' | 'javascript' | 'typescript' | 'python'
+/** Sprachen, die der Runner ausführen kann (später: csharp) */
+export type RunLanguage = 'klonk' | 'javascript' | 'typescript' | 'python' | 'java'
 
 /** Hauptthread ⇒ Worker */
 export type ToWorker
@@ -20,7 +20,7 @@ export type ToWorker
     files: Record<string, string>
     /** Gleich in der ersten Zeile anhalten */
     pauseOnStart?: boolean
-    /** JS/TS/Python: gemeinsamer Speicher für Pause/Haltepunkte/Tempo (siehe js/shared.ts) */
+    /** JS/TS/Python/Java: gemeinsamer Speicher für Pause/Haltepunkte/Tempo (siehe js/shared.ts) */
     shared?: SharedArrayBuffer
   }
   | { type: 'pause' }

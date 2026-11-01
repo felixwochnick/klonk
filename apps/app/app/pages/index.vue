@@ -17,7 +17,7 @@ watch(inProject, (open) => {
   if (open) showProject.value = true
 })
 
-const KIND_LANGUAGE = { blocks: 'blocks', klonk: 'klonk', javascript: 'javascript', typescript: 'typescript', python: 'python' } as const
+const KIND_LANGUAGE = { blocks: 'blocks', klonk: 'klonk', javascript: 'javascript', typescript: 'typescript', python: 'python', java: 'java' } as const
 /** Im Projekt: Datei der passenden Art geöffnet? (Welten/Sonstiges sind keine Programme) */
 const hasDocument = computed(() => !inProject.value || (!!proj.kind.value && proj.kind.value in KIND_LANGUAGE))
 
