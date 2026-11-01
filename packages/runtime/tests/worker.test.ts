@@ -90,16 +90,16 @@ describe('Worker: JavaScript/TypeScript', () => {
     return buffer
   }
 
-  it('führt JS mit der deutsch/englischen Roboter-API aus', async () => {
-    run('while (!isWall()) { schritt() }\nrechtsDrehen()\nplaceBrick("rot")\nprint("x =", positionX())', { language: 'javascript', shared: shared() })
+  it('führt JS mit der englischen Roboter-API aus, deutsche Namen gibt es nicht', async () => {
+    run('while (!isWall()) { step() }\nturnRight()\nplaceBrick("Red")\nprint("x =", positionX(), typeof schritt)', { language: 'javascript', shared: shared() })
     await until(() => last()?.type === 'done')
     expect(messages.filter(m => m.type === 'command')).toHaveLength(6)
     expect(messages).toContainEqual({ type: 'command', command: { name: 'placeBrick', id: 'k', color: 'red' } })
-    expect(messages).toContainEqual({ type: 'output', text: 'x = 5' })
+    expect(messages).toContainEqual({ type: 'output', text: 'x = 5 undefined' })
   })
 
   it('TypeScript mit Typen läuft', async () => {
-    run('function n(x: number): number {\n  return x + 1\n}\nconst y: number = n(2)\nausgabe(y)', { language: 'typescript', shared: shared() })
+    run('function n(x: number): number {\n  return x + 1\n}\nconst y: number = n(2)\nprint(y)', { language: 'typescript', shared: shared() })
     await until(() => last()?.type === 'done')
     expect(messages).toContainEqual({ type: 'output', text: '3' })
   })
@@ -120,7 +120,7 @@ describe('Worker: JavaScript/TypeScript', () => {
     expect(last()).toMatchObject({ error: { code: 'js_syntax', range: { line: 1 } } })
 
     messages.length = 0
-    run('hinlegen("pink")', { language: 'javascript', shared: shared() })
+    run('placeBrick("rot")', { language: 'javascript', shared: shared() })
     await until(() => last()?.type === 'error')
     expect(last()).toMatchObject({ error: { code: 'invalid_color' } })
   })

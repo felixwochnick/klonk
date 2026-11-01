@@ -43,42 +43,48 @@ ${k('end')}
 ${k('setMark')}
 `
   }
+  // JS/TS/Python: Schlüsselwörter sind englisch ⇒ Roboter-API und Beispiel ebenfalls nur englisch
+  return codeSample(language)
+}
+
+function codeSample(language: 'javascript' | 'typescript' | 'python') {
+  const k = (name: Parameters<typeof spell>[0]) => spell(name, 'en')
   if (language === 'python') {
-    const p = (name: Parameters<typeof spell>[0]) => pythonName(spell(name, lang))
-    return `${de ? '# Läuft bis zur Wand und legt links davon Ziegel' : '# Walks to the wall and places bricks on its left'}
-def ${de ? 'reihe' : 'row'}(${de ? 'farbe' : 'color'}):
-    ${de ? 'anzahl' : 'count'} = 0
+    const p = (name: Parameters<typeof spell>[0]) => pythonName(spell(name, 'en'))
+    return `# Walks to the wall and places bricks on its left
+def row(color):
+    count = 0
     while not ${p('isWall')}():
         ${p('turnLeft')}()
-        ${p('placeBrick')}(${de ? 'farbe' : 'color'})
+        ${p('placeBrick')}(color)
         ${p('turnRight')}()
         ${p('step')}()
-        ${de ? 'anzahl' : 'count'} += 1
-    return ${de ? 'anzahl' : 'count'}
+        count += 1
+    return count
 
 
-${de ? 'gelegt' : 'placed'} = ${de ? 'reihe' : 'row'}(${p('blue')})
+placed = row(${p('blue')})
 ${p('setMark')}()
-print(${de ? '"Ziegel gelegt:"' : '"Bricks placed:"'}, ${de ? 'gelegt' : 'placed'})
+print("Bricks placed:", placed)
 `
   }
   const ts = language === 'typescript'
-  return `${de ? '// Läuft bis zur Wand und legt links davon Ziegel' : '// Walks to the wall and places bricks on its left'}
-function ${de ? 'reihe' : 'row'}(${de ? 'farbe' : 'color'}${ts ? ': KlonkColor' : ''})${ts ? ': number' : ''} {
-  let ${de ? 'anzahl' : 'count'} = 0
+  return `// Walks to the wall and places bricks on its left
+function row(color${ts ? ': KlonkColor' : ''})${ts ? ': number' : ''} {
+  let count = 0
   while (!${k('isWall')}()) {
     ${k('turnLeft')}()
-    ${k('placeBrick')}(${de ? 'farbe' : 'color'})
+    ${k('placeBrick')}(color)
     ${k('turnRight')}()
     ${k('step')}()
-    ${de ? 'anzahl' : 'count'}++
+    count++
   }
-  return ${de ? 'anzahl' : 'count'}
+  return count
 }
 
-const ${de ? 'gelegt' : 'placed'} = ${de ? 'reihe' : 'row'}(${k('blue')})
+const placed = row(${k('blue')})
 ${k('setMark')}()
-${k('print')}(${de ? '"Ziegel gelegt:"' : '"Bricks placed:"'}, ${de ? 'gelegt' : 'placed'})
+${k('print')}("Bricks placed:", placed)
 `
 }
 

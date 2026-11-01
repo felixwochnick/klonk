@@ -33,12 +33,12 @@ test('Seite ist cross-origin-isoliert (Voraussetzung für JS/TS)', async ({ page
   expect(await page.evaluate(() => crossOriginIsolated)).toBe(true)
 })
 
-test('JavaScript ausführen mit deutscher und englischer API', async ({ page }) => {
+test('JavaScript ausführen mit der englischen API', async ({ page }) => {
   await openIde(page, 'javascript', `let n = 0
-while (!istWand()) {
+while (!isWall()) {
   turnLeft()
-  hinlegen(rot)
-  rechtsDrehen()
+  placeBrick(red)
+  turnRight()
   step()
   n++
 }
@@ -60,7 +60,7 @@ let summe: number = 0
 for (let i = 1; i <= 3; i++) {
   summe += doppelt(i)
 }
-ausgabe(summe)`, [3])
+print(summe)`, [3])
   await page.getByTestId('run').click()
   await expect(state(page)).toHaveAttribute('data-state', 'paused', { timeout: 15_000 })
   await expect(page.getByTestId('variable-x')).toContainText('1')
@@ -100,8 +100,8 @@ test('TypeScript: Typfehler und Autovervollständigung der Roboter-API', async (
   await expect(page.locator('.squiggly-error')).toHaveCount(1, { timeout: 20_000 })
   await page.locator('.view-lines').click()
   await page.keyboard.press('Control+End')
-  await page.keyboard.type('istW')
+  await page.keyboard.type('isW')
   await page.waitForTimeout(500)
   await page.keyboard.press('Control+Space')
-  await expect(page.locator('.suggest-widget .monaco-list-row').first()).toContainText('istWand', { timeout: 15_000 })
+  await expect(page.locator('.suggest-widget .monaco-list-row').first()).toContainText('isWall', { timeout: 15_000 })
 })

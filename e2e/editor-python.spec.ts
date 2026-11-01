@@ -28,12 +28,12 @@ test.beforeEach(async ({ page }) => {
   await loginWithPassword(page, `${APP_URL}/login`, 'admin@gym-muster.de', 'admin-passwort')
 })
 
-test('Python ausführen mit deutscher und englischer API', async ({ page }) => {
+test('Python ausführen mit der englischen API', async ({ page }) => {
   await openIde(page, `n = 0
-while not ist_wand():
+while not is_wall():
     turn_left()
-    hinlegen(rot)
-    rechtsDrehen()
+    place_brick(red)
+    turn_right()
     step()
     n += 1
 print("Schritte:", n, [1, 2])`)
@@ -78,7 +78,7 @@ test('Endlosschleife lässt sich pausieren und stoppen', async ({ page }) => {
 })
 
 test('Fehler mit Zeile und Autovervollständigung', async ({ page }) => {
-  await openIde(page, 'linksDrehen()\nlinksDrehen()\nschritt()\n')
+  await openIde(page, 'turn_left()\nturn_left()\nstep()\n')
   await page.getByTestId('run').click()
   await expect(state(page)).toHaveAttribute('data-state', 'error', { timeout: 60_000 })
   await expect(page.getByTestId('run-error')).toContainText('Fehler in Zeile 3')
@@ -86,7 +86,7 @@ test('Fehler mit Zeile und Autovervollständigung', async ({ page }) => {
 
   await page.locator('.view-lines').click()
   await page.keyboard.press('Control+End')
-  await page.keyboard.type('\nist_')
+  await page.keyboard.type('\nis_')
   await page.keyboard.press('Control+Space')
-  await expect(page.locator('.suggest-widget .monaco-list-row').first()).toContainText('ist_', { timeout: 15_000 })
+  await expect(page.locator('.suggest-widget .monaco-list-row').first()).toContainText('is_', { timeout: 15_000 })
 })

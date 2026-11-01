@@ -121,6 +121,9 @@ pnpm --filter @klonk/core test      # RLS-Integrationstests
   Python (Pyodide, `sys.settrace`). Später: Java (**TeaVM**, im Browser kompiliert), C#. Ausführungsschicht von Anfang an
   sprachunabhängig: gemeinsame Roboter-API + Debugger-Protokoll; synchrone Roboterbefehle im Worker via
   SharedArrayBuffer/Atomics ⇒ App braucht COOP/COEP-Header.
+- **Sprachen mit englischen Schlüsselwörtern (JS, TS, Python, Java, C#) nutzen nur die englische Roboter-API** (vom User so
+  festgelegt): keine deutschen Befehle/Farben, Beispiele und Parameternamen englisch; nur Doku/Hover folgen der UI-Sprache.
+  Mehrsprachig ist nur Klonk-Script (und damit die Blöcke).
 - **Klonk-Script ist mehrsprachig:** Schlüsselwörter und Befehle pro Sprache (anfangs Deutsch + Englisch) über
   Schlüsselworttabellen, gemeinsamer AST. Autocomplete, Breakpoints, Schrittmodus.
 - **i18n:** App und Docs zunächst Deutsch + Englisch, weitere Sprachen müssen leicht ergänzbar sein.
@@ -133,7 +136,7 @@ pnpm --filter @klonk/core test      # RLS-Integrationstests
   magic-string, nur Einfügungen ⇒ Zeilen bleiben) setzt vor jede Anweisung `__klonk_cp(zeile, () => vars)`, auch in leere/
   blocklose Schleifen. Steuerung über `SharedArrayBuffer` (`shared.ts`: PAUSE/SIGNAL/DELAY + Haltepunkt-Bitmap), da der
   blockierte Worker keine Nachrichten empfängt. TS ⇒ JS mit sucrase (behält Zeilen). Roboter-API (`api.ts`) aus den
-  Klonk-Script-Tabellen, de+en. Vor dem Ausführen werden `fetch`, `WebSocket`, `postMessage` … im Worker entfernt (Sandbox).
+  Klonk-Script-Tabellen, nur englische Namen. Vor dem Ausführen werden `fetch`, `WebSocket`, `postMessage` … im Worker entfernt (Sandbox).
   Braucht `crossOriginIsolated` ⇒ app setzt COOP `same-origin` + COEP `require-corp` (routeRules + vite.server.headers) –
   daher **keine Fremd-Ressourcen in der App** (Schriften, Bilder, Skripte nur von der eigenen Origin).
   Monaco-TS: `monaco.typescript.*Defaults` (0.57), API-Deklaration `utils/js-api-types.ts`. Worker-Abhängigkeiten in
@@ -141,8 +144,8 @@ pnpm --filter @klonk/core test      # RLS-Integrationstests
 - **Python** (`packages/runtime/src/python/`): Pyodide (`pyodide`-Paket, Version fest) wird **nicht gebündelt**, sondern per
   Nitro-`publicAssets` unter `/pyodide/` ausgeliefert (COEP) und im Worker per dynamischem Import geladen; PWA cacht es erst bei
   Bedarf (`CacheFirst`). Gleiche SAB-Steuerung wie JS: `prelude.ts` setzt `sys.settrace` (nur Datei `<klonk>`) ⇒ Prüfpunkt je Zeile,
-  Variablen erst beim Anhalten (`repr`). Roboter-API aus `createApi()` als **Builtins** in allen Schreibweisen + snake_case
-  (`ist_wand`, `turn_left`; gleiche Regel wie `pythonName()` in `useProgram.ts`), `print` bleibt Pythons eigenes, `ausgabe = print`.
+  Variablen erst beim Anhalten (`repr`). Roboter-API aus `createApi()` als **Builtins** nur in snake_case
+  (`is_wall`, `turn_left`; gleiche Regel wie `pythonName()` in `useProgram.ts`), `print` bleibt Pythons eigenes.
   API-Fehler kommen in Python als `JsException` an ⇒ zuletzt geworfener `ApiError` wird gemerkt und übersetzt. Projekt-`.py`-Dateien
   nur mit Lizenz (`libraries`) importierbar. Unit-Tests laufen mit Pyodide in Node (`tests/python.test.ts`, Loader injizierbar).
   Monaco: Python-Syntax eingebaut, Vervollständigung/Hover der API in `utils/monaco.ts` (`registerPython`).

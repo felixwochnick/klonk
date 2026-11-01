@@ -156,7 +156,7 @@ function registerKlonk(monaco: Monaco) {
 
 const PYTHON_KEYWORDS = ['if', 'elif', 'else', 'while', 'for', 'in', 'range', 'def', 'return', 'break', 'continue', 'pass', 'and', 'or', 'not', 'True', 'False', 'None', 'import', 'from', 'print', 'len', 'int', 'str']
 
-/** Python (Monaco bringt die Syntaxfarben mit): Roboter-API in snake_case vervollständigen und erklären */
+/** Python (Monaco bringt die Syntaxfarben mit): Roboter-API (englisch, snake_case) vervollständigen und erklären */
 function registerPython(monaco: Monaco) {
   const { CompletionItemKind: Kind, CompletionItemInsertTextRule: Rule } = monaco.languages
   monaco.languages.registerCompletionItemProvider('python', {
@@ -169,14 +169,14 @@ function registerPython(monaco: Monaco) {
       }))
       for (const [name, builtin] of Object.entries(BUILTINS) as [BuiltinName, Builtin][]) {
         if (name === 'print') continue
-        const label = pythonName(spell(name, lang))
+        const label = pythonName(spell(name, 'en'))
         const params = (builtin.params ?? []).filter(p => !p.optional)
         suggestions.push({
           label,
           kind: builtin.kind === 'constant' ? Kind.Constant : builtin.kind === 'sensor' ? Kind.Property : Kind.Function,
-          detail: pythonSignature(name, lang),
+          detail: pythonSignature(name),
           documentation: { value: builtin.doc[lang] },
-          insertText: builtin.kind === 'constant' ? label : `${label}(${params.map((p, i) => `\${${i + 1}:${p.name[lang][0]}}`).join(', ')})`,
+          insertText: builtin.kind === 'constant' ? label : `${label}(${params.map((p, i) => `\${${i + 1}:${pythonName(p.name.en[0]!)}}`).join(', ')})`,
           insertTextRules: Rule.InsertAsSnippet,
           range,
           sortText: `1${label}`,
@@ -190,22 +190,22 @@ function registerPython(monaco: Monaco) {
       const word = model.getWordAtPosition(position)
       if (!word) return null
       const lang = translator?.lang() ?? 'de'
-      const entry = Object.entries(BUILTINS).find(([, b]) => [...b.names.de, ...b.names.en].some(n => n === word.word || pythonName(n) === word.word))
+      const entry = Object.entries(BUILTINS).find(([, b]) => b.names.en.some(n => pythonName(n) === word.word))
       if (!entry || entry[0] === 'print') return null
       const [name, builtin] = entry as [BuiltinName, Builtin]
       return {
         range: new monaco.Range(position.lineNumber, word.startColumn, position.lineNumber, word.endColumn),
-        contents: [{ value: `\`${pythonSignature(name, lang)}\`` }, { value: builtin.doc[lang] }],
+        contents: [{ value: `\`${pythonSignature(name)}\`` }, { value: builtin.doc[lang] }],
       }
     },
   })
 }
 
-function pythonSignature(name: BuiltinName, lang: ScriptLanguage) {
+function pythonSignature(name: BuiltinName) {
   const builtin: Builtin = BUILTINS[name]
-  const label = pythonName(spell(name, lang))
+  const label = pythonName(spell(name, 'en'))
   if (builtin.kind === 'constant') return label
-  return `${label}(${(builtin.params ?? []).map(p => (p.optional ? `${p.name[lang][0]}=…` : p.name[lang][0])).join(', ')})`
+  return `${label}(${(builtin.params ?? []).map(p => pythonName(p.name.en[0]!) + (p.optional ? '=…' : '')).join(', ')})`
 }
 
 function signature(name: BuiltinName, lang: ScriptLanguage) {

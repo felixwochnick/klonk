@@ -2,7 +2,7 @@
 export const USER_FILE = '<klonk>'
 
 /**
- * Python-Vorspann: Roboter-API als Builtins (de/en, dazu snake_case wie `turn_left` / `links_drehen`),
+ * Python-Vorspann: Roboter-API als Builtins in Python-Schreibweise (`turn_left`, `is_wall`, nur Englisch),
  * Tracing für Prüfpunkte (nur Zeilen der Nutzerdatei) und Variablenansicht.
  */
 export const PRELUDE = String.raw`
@@ -20,13 +20,10 @@ for _name in dir(_klonk_api):
     if _name.startswith('_'):
         continue
     _value = getattr(_klonk_api, _name)
-    for _spelling in {_name, _klonk_snake(_name)}:
-        # print bleibt Pythons eigenes print (gleiche Ausgabe)
-        if _spelling != 'print':
-            _klonk_names[_spelling] = _value
-
-# ausgabe(…) verhält sich wie print(…)
-_klonk_names['ausgabe'] = print
+    _spelling = _klonk_snake(_name)
+    # print bleibt Pythons eigenes print (gleiche Ausgabe)
+    if _spelling != 'print':
+        _klonk_names[_spelling] = _value
 
 # Als Builtins: sichtbar im Programm und in importierten Projektdateien, trotzdem überschreibbar
 for _name, _value in _klonk_names.items():

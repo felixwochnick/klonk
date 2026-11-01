@@ -1,4 +1,4 @@
-import { BUILTIN_INDEX, BUILTINS, show, type BuiltinName, type RobotCommand, type Value } from '@klonk/klonk-script'
+import { BUILTINS, show, type BuiltinName, type RobotCommand, type Value } from '@klonk/klonk-script'
 import { BRICK_COLORS, MARK_COLORS, WorldError, type World } from '@klonk/world'
 
 export type JsHost = {
@@ -16,9 +16,9 @@ export class ApiError extends Error {
   }
 }
 
-/** Farbe in kanonischer Form (`'rot'`, `'Red'`, `'red'` ⇒ `'red'`) */
+/** Farbe in kanonischer Form (`'Red'`, `'red'` ⇒ `'red'`) – nur englische Namen */
 function color<T extends string>(value: unknown, allowed: readonly T[]): T {
-  const canonical = typeof value === 'string' ? BUILTIN_INDEX.get(value.toLowerCase()) ?? value : value
+  const canonical = typeof value === 'string' ? value.toLowerCase() : value
   if (typeof canonical !== 'string' || !allowed.includes(canonical as T)) throw new ApiError('invalid_color', { value: String(value) })
   return canonical as T
 }
@@ -40,8 +40,8 @@ export function display(value: unknown, depth = 0): string {
 }
 
 /**
- * Roboter-API für JS/TS – dieselben Befehle wie in Klonk-Script, auf Deutsch und Englisch
- * (`step()` / `schritt()`, `isWall()` / `istWand()` …). Liefert Name ⇒ Funktion bzw. Konstante.
+ * Roboter-API für JS/TS/Python – dieselben Befehle wie in Klonk-Script, aber nur mit den englischen Namen
+ * (die Schlüsselwörter dieser Sprachen sind ohnehin englisch). Liefert Name ⇒ Funktion bzw. Konstante.
  */
 export function createApi(host: JsHost): Record<string, unknown> {
   const delay = () => host.sleep(-1)
@@ -125,10 +125,10 @@ export function createApi(host: JsHost): Record<string, unknown> {
     black: 'black',
   }
 
-  // Alle Schreibweisen (de/en) auf dieselbe Umsetzung legen; Konstanten als Werte
+  // Englische Schreibweisen; Konstanten als Werte
   const api: Record<string, unknown> = {}
   for (const [name, builtin] of Object.entries(BUILTINS) as [BuiltinName, (typeof BUILTINS)[BuiltinName]][]) {
-    for (const spelling of [...builtin.names.de, ...builtin.names.en]) api[spelling] = impl[name]
+    for (const spelling of builtin.names.en) api[spelling] = impl[name]
   }
   return api
 }
