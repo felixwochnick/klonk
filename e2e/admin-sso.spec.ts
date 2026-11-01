@@ -1,13 +1,13 @@
 import { expect, test, type Page } from '@playwright/test'
 import { ADMIN_URL, APP_URL } from '../playwright.config'
+import { LDAP_URL, OIDC_ISSUER, testIdpAvailable } from './targets'
 import { gotoHydrated, waitForPage } from './utils'
 
 // Benötigt Test-LDAP und Dex: `pnpm sso:up`. Baut auf den Daten aus admin-accounts.spec.ts auf.
 test.use({ locale: 'de-DE' })
 
 test.beforeAll(async () => {
-  const dex = await fetch('http://localhost:5556/dex/.well-known/openid-configuration').catch(() => null)
-  test.skip(!dex?.ok, 'Test-IdP läuft nicht (pnpm sso:up)')
+  test.skip(!(await testIdpAvailable()), 'Test-IdP läuft nicht (pnpm sso:up)')
 })
 
 async function lookup(page: Page, baseUrl: string, identifier: string) {
@@ -25,7 +25,7 @@ test('Admin konfiguriert LDAP und OIDC', async ({ page }) => {
 
   // LDAP
   await page.getByRole('switch', { name: 'LDAP / Active Directory' }).click()
-  await page.getByLabel('Server URL').fill('ldap://localhost:3893')
+  await page.getByLabel('Server URL').fill(LDAP_URL)
   await page.getByLabel('Bind DN').fill('cn=service,ou=svcaccts,dc=klonk,dc=test')
   await page.getByLabel('Bind-Passwort').fill('service-pass')
   await page.getByLabel('Base DN').fill('dc=klonk,dc=test')
@@ -39,7 +39,7 @@ test('Admin konfiguriert LDAP und OIDC', async ({ page }) => {
 
   // OIDC (Dex)
   await page.getByRole('switch', { name: 'Single Sign-on (OIDC)' }).click()
-  await page.getByLabel('Issuer URL').fill('http://localhost:5556/dex')
+  await page.getByLabel('Issuer URL').fill(OIDC_ISSUER)
   await page.getByLabel('Client ID').fill('klonk')
   await page.getByLabel('Client Secret').fill('klonk-dev-secret')
   await page.getByLabel('Scopes').fill('openid profile email groups')
@@ -48,7 +48,7 @@ test('Admin konfiguriert LDAP und OIDC', async ({ page }) => {
   await page.getByLabel('Werte für Lehrkräfte/Ausbildende').fill('teachers')
   await page.getByLabel('Werte für Admins').fill('admins')
   await page.getByRole('button', { name: 'Verbindung testen' }).first().click()
-  await expect(page.getByText('http://localhost:5556/dex', { exact: true })).toBeVisible()
+  await expect(page.getByText(OIDC_ISSUER, { exact: true })).toBeVisible()
 
   await page.getByRole('button', { name: 'Speichern' }).click()
   await expect(page.getByText('Gespeichert', { exact: true })).toBeVisible()

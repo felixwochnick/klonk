@@ -20,7 +20,11 @@
     "dev:admin": "pnpm --filter @klonk/admin dev",
     "test:e2e": "playwright test",
     "sso:up": "docker compose -f docker/docker-compose.dev.yml --profile sso up -d",
-    "dev:auth": "pnpm --filter @klonk/auth dev"
+    "dev:auth": "pnpm --filter @klonk/auth dev",
+    "stack:up": "scripts/local-stack.sh up",
+    "stack:down": "scripts/local-stack.sh down",
+    "stack:reset": "scripts/local-stack.sh reset",
+    "test:e2e:stack": "KLONK_E2E_TARGET=stack playwright test"
   },
   "devDependencies": {
     "@playwright/test": "^1.64.1",

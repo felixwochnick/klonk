@@ -25,9 +25,17 @@ pnpm dev:docs   # Docs auf http://localhost:3001
 
 ## Selbst hosten
 
+Mitgelieferter Proxy mit automatischen Zertifikaten (Let's Encrypt per HTTP- oder IONOS-DNS-Challenge) – nur `*.deine-domain` muss auf den Server zeigen:
+
 ```bash
-export KLONK_APP_SECRET=$(openssl rand -base64 32) KLONK_ENCRYPTION_KEY=$(openssl rand -base64 32)
-POSTGRES_PASSWORD=geheim docker compose -f docker/docker-compose.yml up -d
+cp docker/.env.example docker/.env   # Domain, TLS-Modus, Secrets
+docker compose --env-file docker/.env -f docker/docker-compose.yml up -d --build
 ```
 
-Das Datenbankschema wird beim Start automatisch geprüft und migriert.
+## Alles lokal testen
+
+```bash
+pnpm stack:up   # https://app.klonk.local, admin., auth., docs. – selbst signiert, inkl. Test-LDAP und Test-IdP
+```
+
+Details: [Selbst hosten](apps/docs/content/de/1.getting-started/1.self-hosting.md)

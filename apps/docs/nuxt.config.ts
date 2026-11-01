@@ -3,8 +3,10 @@ export default defineNuxtConfig({
 
   modules: ['@nuxtjs/i18n'],
 
+  // Öffentliche Adresse der Docs (Sitemap, OG-Bilder) – im Proxy-Image aus KLONK_DOMAIN gesetzt
   site: {
     name: 'Klonk Docs',
+    url: process.env.DOCS_URL ?? 'http://localhost:3001',
   },
 
   // Domain steht noch nicht fest (docs.klonk.*) – per Umgebungsvariable setzen

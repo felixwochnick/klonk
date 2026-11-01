@@ -1,0 +1,60 @@
+# Lokaler Komplett-Stack: docker/docker-compose.yml + diese Datei, Variablen aus docker/local/local.env.
+# Start über `pnpm stack:up` (scripts/local-stack.sh). Enthält Test-LDAP (glauth) und Test-OIDC (Dex).
+x-local-app: &local-app
+  # Die Apps vertrauen der lokalen CA des Proxys (für OIDC-Discovery gegen https://sso.klonk.local)
+  volumes:
+    - local-ca:/ca:ro
+  depends_on:
+    postgres:
+      condition: service_healthy
+    proxy:
+      condition: service_healthy
+
+services:
+  proxy:
+    volumes:
+      - ./local/sso.caddy:/etc/caddy/sites/sso.caddy:ro
+      - local-ca:/ca
+    healthcheck:
+      # Gesund, sobald die lokale CA existiert; für die Apps (Nutzer node) lesbar bereitstellen
+      test: ["CMD-SHELL", "test -f /data/caddy/pki/authorities/local/root.crt && cp /data/caddy/pki/authorities/local/root.crt /ca/root.crt && chmod 644 /ca/root.crt"]
+      interval: 2s
+      retries: 60
+    networks:
+      default:
+        # Dienste im Stack erreichen die öffentlichen Namen über den Proxy
+        aliases:
+          - app.klonk.local
+          - admin.klonk.local
+          - auth.klonk.local
+          - docs.klonk.local
+          - sso.klonk.local
+
+  app:
+    <<: *local-app
+    environment:
+      NODE_EXTRA_CA_CERTS: /ca/root.crt
+  admin:
+    <<: *local-app
+    environment:
+      NODE_EXTRA_CA_CERTS: /ca/root.crt
+  auth:
+    <<: *local-app
+    environment:
+      NODE_EXTRA_CA_CERTS: /ca/root.crt
+
+  glauth:
+    image: glauth/glauth:latest
+    volumes:
+      - ./dev/glauth.cfg:/app/config/config.cfg:ro
+
+  dex:
+    image: ghcr.io/dexidp/dex:latest
+    command: ["dex", "serve", "/etc/dex/config.yml"]
+    volumes:
+      - ./local/dex.yml:/etc/dex/config.yml:ro
+    depends_on:
+      - glauth
+
+volumes:
+  local-ca:

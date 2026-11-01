@@ -51,6 +51,8 @@ pnpm dev:docs       # Docs auf :3001
 pnpm db:generate    # Drizzle-Migration aus packages/core/server/database/schema.ts erzeugen
 pnpm lint | pnpm typecheck
 pnpm test:e2e       # Playwright (Root-Config) gegen lokales Chromium
+pnpm stack:up       # Komplett-Stack *.klonk.local (Proxy, alle Apps, Docs, Test-LDAP/-IdP) – scripts/local-stack.sh
+pnpm test:e2e:stack # dieselben E2E-Tests gegen den Stack (Produktions-Builds hinter TLS-Proxy, kein /etc/hosts nötig)
 pnpm --filter @klonk/core test      # RLS-Integrationstests
 ```
 
@@ -64,8 +66,15 @@ pnpm --filter @klonk/core test      # RLS-Integrationstests
   Handgeschriebenes SQL (RLS, Rollen, Funktionen) ⇒ `pnpm --filter @klonk/core db:generate --custom --name <thema>`.
 - `server/plugins/01.migrate.ts` prüft beim Serverstart das Schema und spielt fehlende Migrationen ein
   (Postgres-Advisory-Lock gegen parallele Instanzen; bei Fehler bricht der Start ab).
-- Self-Hosting: `docker/docker-compose.yml` (app + admin + auth + Postgres), ein Image pro App aus `docker/Dockerfile`
-  (`--build-arg APP=app|admin|auth`, Build-Kontext = Repo-Root), `NUXT_MIGRATIONS_DIR=/app/migrations` im Image.
+- Self-Hosting: `docker/docker-compose.yml` (proxy + app + admin + auth + Postgres, Variablen aus `docker/.env`, Vorlage
+  `docker/.env.example`), ein Image pro App aus `docker/Dockerfile` (`--build-arg APP=app|admin|auth`, Build-Kontext = Repo-Root),
+  `NUXT_MIGRATIONS_DIR=/app/migrations` im Image. Alle öffentlichen URLs/Cookie-Domain werden aus `KLONK_DOMAIN` abgeleitet.
+- **Proxy** `docker/proxy/` (Caddy mit IONOS-DNS-Modul + statisch erzeugte Docs): `*.KLONK_DOMAIN` ⇒ app/admin/auth/docs,
+  Hauptdomain ⇒ App. TLS über `KLONK_TLS`: `internal` (lokale CA), `http` (Let's Encrypt HTTP-01), `ionos` (DNS-01 via
+  `IONOS_API_TOKEN`), `off`. Zusätzliche Sites über `/etc/caddy/sites/*.caddy`.
+- **Lokaler Stack** `docker/docker-compose.local.yml` + `docker/local/` (klonk.local, `tls internal`, glauth + Dex unter
+  sso.klonk.local; Apps vertrauen der lokalen CA via `NODE_EXTRA_CA_CERTS`, Proxy hat Netz-Aliase für alle Hostnamen).
+  E2E-Ziel per `KLONK_E2E_TARGET=stack` (`e2e/targets.ts`).
 
 ### Row Level Security (Pflicht für alle Nutzerdaten)
 
@@ -133,6 +142,7 @@ pnpm --filter @klonk/core test      # RLS-Integrationstests
 2b. [x] OIDC + LDAP pro Organisation (Login-Flows, Verbindungstest, JIT-Provisionierung, Rollen aus Gruppen)
 2c. [x] Privatkonten: OAuth-Anbieter (Google, Microsoft, GitHub, Apple); Klonk ID (Authentik) nur für Betreiber
 2d. [x] Zentrale Anmeldung `auth.klonk.*` (Single Sign-on für app, admin, Website)
+2e. [x] Mitgelieferter Proxy (Caddy, TLS: internal/HTTP-01/IONOS-DNS/off) + lokaler Komplett-Stack `*.klonk.local`
 3. [ ] Lizenz-Token-Prüfung + Free-Tier-Limits
 4. [ ] 3D-Welt (three.js): Boden, Wände, Kisten, Markierungen, Welt-Editor
 5. [ ] Blender-Modelle: Figuren (m/w/d) + Weltblöcke, glTF

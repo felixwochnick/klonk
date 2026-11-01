@@ -19,3 +19,5 @@ dist
 .idea/dataSources.local.xml
 test-results
 playwright-report
+
+docker/local/klonk-local-ca.crt

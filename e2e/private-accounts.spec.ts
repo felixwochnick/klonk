@@ -1,13 +1,13 @@
 import { expect, test, type Page } from '@playwright/test'
 import { ADMIN_URL, APP_URL } from '../playwright.config'
+import { LDAP_URL, OIDC_ISSUER, testIdpAvailable } from './targets'
 import { gotoHydrated, waitForPage } from './utils'
 
 // Klonk ID (Betreiberzugang) gegen Dex (`pnpm sso:up`); baut auf admin-accounts.spec.ts auf
 test.use({ locale: 'de-DE' })
 
 test.beforeAll(async () => {
-  const dex = await fetch('http://localhost:5556/dex/.well-known/openid-configuration').catch(() => null)
-  test.skip(!dex?.ok, 'Test-IdP läuft nicht (pnpm sso:up)')
+  test.skip(!(await testIdpAvailable()), 'Test-IdP läuft nicht (pnpm sso:up)')
 })
 
 async function loginWithKlonkId(page: Page, baseUrl: string, username: string) {

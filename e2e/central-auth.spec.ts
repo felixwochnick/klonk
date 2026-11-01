@@ -41,11 +41,19 @@ test('Fremde Weiterleitungsziele werden ignoriert', async ({ page }) => {
   await expect(page).toHaveURL(`${AUTH_URL}/`)
 })
 
-test('/api/session liefert den Status nur an erlaubte Origins', async ({ request }) => {
-  const allowed = await request.get(`${AUTH_URL}/api/session`, { headers: { origin: APP_URL } })
-  expect(allowed.headers()['access-control-allow-origin']).toBe(APP_URL)
-  expect(await allowed.json()).toEqual({ user: null })
+test('/api/session liefert den Status nur an erlaubte Origins', async ({ page }) => {
+  // Abfrage aus der gerade geöffneten Seite heraus, wie es die Website tun würde
+  const fetchSession = () => page.evaluate(
+    url => fetch(url, { credentials: 'include' }).then(r => r.json()).catch(() => 'blocked'),
+    `${AUTH_URL}/api/session`,
+  )
 
-  const foreign = await request.get(`${AUTH_URL}/api/session`, { headers: { origin: 'https://evil.example' } })
-  expect(foreign.headers()['access-control-allow-origin']).toBeUndefined()
+  // Erlaubte Seite (App): Anmeldestatus per CORS lesbar
+  await page.goto(`${APP_URL}/api/health`)
+  expect(await fetchSession()).toEqual({ user: null })
+
+  // Fremde Seite: der Browser blockiert die Antwort
+  await page.route('https://evil.example/**', route => route.fulfill({ body: '<html></html>', contentType: 'text/html' }))
+  await page.goto('https://evil.example/')
+  expect(await fetchSession()).toBe('blocked')
 })

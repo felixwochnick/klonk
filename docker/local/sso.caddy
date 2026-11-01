@@ -1,0 +1,5 @@
+# Test-OIDC-Provider (Dex) des lokalen Stacks
+{$KLONK_SCHEME}://sso.{$KLONK_DOMAIN} {
+	import common
+	reverse_proxy dex:5556
+}

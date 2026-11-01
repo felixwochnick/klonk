@@ -1,9 +1,9 @@
 import { defineConfig } from '@playwright/test'
 import { e2eDatabaseUrl } from './e2e/db'
 
-export const APP_URL = 'http://localhost:3010'
-export const ADMIN_URL = 'http://localhost:3012'
-export const AUTH_URL = 'http://localhost:3013'
+import { ADMIN_URL, APP_URL, AUTH_URL, OIDC_ISSUER, STACK } from './e2e/targets'
+
+export { ADMIN_URL, APP_URL, AUTH_URL }
 
 const env = {
   NUXT_DATABASE_URL: e2eDatabaseUrl,
@@ -11,7 +11,7 @@ const env = {
   NUXT_PUBLIC_ADMIN_URL: ADMIN_URL,
   NUXT_PUBLIC_AUTH_URL: AUTH_URL,
   // Klonk ID gegen den Test-IdP (Dex, `pnpm sso:up`): Gruppe `admins` ⇒ Besitzer:in
-  NUXT_PLATFORM_OIDC_ISSUER: 'http://localhost:5556/dex',
+  NUXT_PLATFORM_OIDC_ISSUER: OIDC_ISSUER,
   NUXT_PLATFORM_OIDC_CLIENT_ID: 'klonk',
   NUXT_PLATFORM_OIDC_CLIENT_SECRET: 'klonk-dev-secret',
   NUXT_PLATFORM_OIDC_SCOPES: 'openid profile email groups',
@@ -27,12 +27,15 @@ export default defineConfig({
   use: {
     screenshot: 'only-on-failure',
     trace: 'retain-on-failure',
+    // Stack: selbst signierte Zertifikate, *.klonk.local ohne /etc/hosts-Eintrag auf localhost auflösen
+    ignoreHTTPSErrors: STACK,
     launchOptions: {
+      args: STACK ? ['--host-resolver-rules=MAP *.klonk.local 127.0.0.1, MAP klonk.local 127.0.0.1'] : [],
       // Lokal installiertes Chromium nutzen (CHROMIUM_PATH überschreibt)
       executablePath: process.env.CHROMIUM_PATH ?? '/usr/bin/chromium',
     },
   },
-  webServer: [
+  webServer: STACK ? undefined : [
     {
       command: 'node e2e/ensure-db.ts && pnpm --filter @klonk/auth exec nuxt dev --port 3013 --dotenv ../../.env',
       url: `${AUTH_URL}/api/health`,

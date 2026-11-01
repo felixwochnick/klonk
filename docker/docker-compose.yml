@@ -1,62 +1,97 @@
-# Selbsthosting: App, Verwaltung, zentrale Anmeldung und Postgres. Migrationen laufen automatisch beim Start.
-# Für eine gemeinsame Anmeldung alle drei unter einer Domain betreiben (z. B. app./admin./auth.klonk.example)
-# und KLONK_COOKIE_DOMAIN=.klonk.example setzen.
-# Pflicht: KLONK_APP_SECRET und KLONK_ENCRYPTION_KEY (je `openssl rand -base64 32`)
+# Klonk selbst hosten: Proxy (Caddy) + App + Verwaltung + Anmeldung + Postgres.
+# Nur ein DNS-Eintrag nötig: *.KLONK_DOMAIN (und KLONK_DOMAIN) ⇒ dieser Server.
+# Konfiguration über docker/.env (Vorlage docker/.env.example). Migrationen laufen automatisch beim Start.
 name: klonk
 
 x-env: &env
   NUXT_DATABASE_URL: postgres://klonk:${POSTGRES_PASSWORD:-klonk}@postgres:5432/klonk
   NUXT_APP_SECRET: ${KLONK_APP_SECRET:?KLONK_APP_SECRET fehlt}
   NUXT_ENCRYPTION_KEY: ${KLONK_ENCRYPTION_KEY:?KLONK_ENCRYPTION_KEY fehlt}
-  # Gemeinsame Anmeldung für app.* und admin.*, z. B. `.klonk.example`
-  NUXT_SESSION_COOKIE_DOMAIN: ${KLONK_COOKIE_DOMAIN:-}
-  NUXT_PUBLIC_APP_URL: ${KLONK_APP_URL:-http://localhost:3000}
-  NUXT_PUBLIC_ADMIN_URL: ${KLONK_ADMIN_URL:-http://localhost:3001}
-  NUXT_PUBLIC_AUTH_URL: ${KLONK_AUTH_URL:-http://localhost:3002}
+  # Eine Anmeldung für alle Subdomains
+  NUXT_SESSION_COOKIE_DOMAIN: .${KLONK_DOMAIN:?KLONK_DOMAIN fehlt}
+  NUXT_PUBLIC_APP_URL: ${KLONK_PUBLIC_SCHEME:-https}://app.${KLONK_DOMAIN}
+  NUXT_PUBLIC_ADMIN_URL: ${KLONK_PUBLIC_SCHEME:-https}://admin.${KLONK_DOMAIN}
+  NUXT_PUBLIC_AUTH_URL: ${KLONK_PUBLIC_SCHEME:-https}://auth.${KLONK_DOMAIN}
   NUXT_PUBLIC_WEBSITE_URLS: ${KLONK_WEBSITE_URLS:-}
+  # Klonk ID (Betreiberzugang, optional)
+  NUXT_PLATFORM_OIDC_ISSUER: ${KLONK_ID_ISSUER:-}
+  NUXT_PLATFORM_OIDC_CLIENT_ID: ${KLONK_ID_CLIENT_ID:-}
+  NUXT_PLATFORM_OIDC_CLIENT_SECRET: ${KLONK_ID_CLIENT_SECRET:-}
+  NUXT_PLATFORM_OIDC_SCOPES: ${KLONK_ID_SCOPES:-openid profile email}
+  NUXT_PLATFORM_OIDC_OWNER_GROUPS: ${KLONK_ID_OWNER_GROUPS:-klonk-owners}
+  NUXT_PLATFORM_OIDC_DEVELOPER_GROUPS: ${KLONK_ID_DEVELOPER_GROUPS:-klonk-developers}
+  # Privatkonten per OAuth (optional); Rücksprung immer über auth.*
+  NUXT_OAUTH_GOOGLE_CLIENT_ID: ${KLONK_GOOGLE_CLIENT_ID:-}
+  NUXT_OAUTH_GOOGLE_CLIENT_SECRET: ${KLONK_GOOGLE_CLIENT_SECRET:-}
+  NUXT_OAUTH_GOOGLE_REDIRECT_URL: ${KLONK_PUBLIC_SCHEME:-https}://auth.${KLONK_DOMAIN}/auth/google
+  NUXT_OAUTH_MICROSOFT_CLIENT_ID: ${KLONK_MICROSOFT_CLIENT_ID:-}
+  NUXT_OAUTH_MICROSOFT_CLIENT_SECRET: ${KLONK_MICROSOFT_CLIENT_SECRET:-}
+  NUXT_OAUTH_MICROSOFT_REDIRECT_URL: ${KLONK_PUBLIC_SCHEME:-https}://auth.${KLONK_DOMAIN}/auth/microsoft
+  NUXT_OAUTH_GITHUB_CLIENT_ID: ${KLONK_GITHUB_CLIENT_ID:-}
+  NUXT_OAUTH_GITHUB_CLIENT_SECRET: ${KLONK_GITHUB_CLIENT_SECRET:-}
+  NUXT_OAUTH_GITHUB_REDIRECT_URL: ${KLONK_PUBLIC_SCHEME:-https}://auth.${KLONK_DOMAIN}/auth/github
+  NUXT_OAUTH_APPLE_CLIENT_ID: ${KLONK_APPLE_CLIENT_ID:-}
+  NUXT_OAUTH_APPLE_TEAM_ID: ${KLONK_APPLE_TEAM_ID:-}
+  NUXT_OAUTH_APPLE_KEY_ID: ${KLONK_APPLE_KEY_ID:-}
+  NUXT_OAUTH_APPLE_PRIVATE_KEY: ${KLONK_APPLE_PRIVATE_KEY:-}
+  NUXT_OAUTH_APPLE_REDIRECT_URL: ${KLONK_PUBLIC_SCHEME:-https}://auth.${KLONK_DOMAIN}/auth/apple
+
+x-app: &app
+  environment: *env
+  depends_on:
+    postgres:
+      condition: service_healthy
+  restart: unless-stopped
 
 services:
+  proxy:
+    build:
+      context: ..
+      dockerfile: docker/proxy/Dockerfile
+      args:
+        KLONK_DOMAIN: ${KLONK_DOMAIN}
+    environment:
+      KLONK_DOMAIN: ${KLONK_DOMAIN}
+      # internal | http | ionos | off
+      KLONK_TLS: ${KLONK_TLS:-internal}
+      KLONK_ACME_EMAIL: ${KLONK_ACME_EMAIL:-}
+      IONOS_API_TOKEN: ${IONOS_API_TOKEN:-}
+    ports:
+      - "${KLONK_HTTP_PORT:-80}:80"
+      - "${KLONK_HTTPS_PORT:-443}:443"
+      - "${KLONK_HTTPS_PORT:-443}:443/udp"
+    volumes:
+      - caddy-data:/data
+      - caddy-config:/config
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1:2019/config/"]
+      interval: 5s
+      retries: 20
+    restart: unless-stopped
+
   app:
+    <<: *app
     build:
       context: ..
       dockerfile: docker/Dockerfile
       args:
         APP: app
-    environment: *env
-    ports:
-      - "${KLONK_APP_PORT:-3000}:3000"
-    depends_on:
-      postgres:
-        condition: service_healthy
-    restart: unless-stopped
 
   admin:
+    <<: *app
     build:
       context: ..
       dockerfile: docker/Dockerfile
       args:
         APP: admin
-    environment: *env
-    ports:
-      - "${KLONK_ADMIN_PORT:-3001}:3000"
-    depends_on:
-      postgres:
-        condition: service_healthy
-    restart: unless-stopped
 
   auth:
+    <<: *app
     build:
       context: ..
       dockerfile: docker/Dockerfile
       args:
         APP: auth
-    environment: *env
-    ports:
-      - "${KLONK_AUTH_PORT:-3002}:3000"
-    depends_on:
-      postgres:
-        condition: service_healthy
-    restart: unless-stopped
 
   postgres:
     image: postgres:18-alpine
@@ -74,3 +109,5 @@ services:
 
 volumes:
   klonk-db:
+  caddy-data:
+  caddy-config:
