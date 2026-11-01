@@ -27,10 +27,9 @@ export default defineConfig({
   use: {
     screenshot: 'only-on-failure',
     trace: 'retain-on-failure',
-    // Stack: selbst signierte Zertifikate, *.klonk.local ohne /etc/hosts-Eintrag auf localhost auflösen
+    // Stack: selbst signierte Zertifikate (*.localhost löst der Browser selbst auf)
     ignoreHTTPSErrors: STACK,
     launchOptions: {
-      args: STACK ? ['--host-resolver-rules=MAP *.klonk.local 127.0.0.1, MAP klonk.local 127.0.0.1'] : [],
       // Lokal installiertes Chromium nutzen (CHROMIUM_PATH überschreibt)
       executablePath: process.env.CHROMIUM_PATH ?? '/usr/bin/chromium',
     },

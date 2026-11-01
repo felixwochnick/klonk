@@ -1,6 +1,6 @@
 # Mitgelieferter Reverse-Proxy (Caddy) inkl. statisch erzeugter Docs und IONOS-DNS-Modul für Let's Encrypt
 # Build-Kontext: Repo-Root (docker build -f docker/proxy/Dockerfile --build-arg KLONK_DOMAIN=klonk.example .)
-ARG KLONK_DOMAIN=klonk.local
+ARG KLONK_DOMAIN=klonk.localhost
 
 FROM caddy:2-builder AS caddy
 RUN xcaddy build --with github.com/caddy-dns/ionos

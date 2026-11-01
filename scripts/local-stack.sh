@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Lokaler Komplett-Stack unter *.klonk.local (Proxy mit selbst signierten Zertifikaten, alle Dienste, Test-Anmeldedienste)
+# Lokaler Komplett-Stack unter *.klonk.localhost – *.localhost zeigt immer auf den eigenen Rechner (RFC 6761) (Proxy mit selbst signierten Zertifikaten, alle Dienste, Test-Anmeldedienste)
 #
 #   scripts/local-stack.sh up       Bauen und starten
 #   scripts/local-stack.sh down     Stoppen (Daten bleiben erhalten)
@@ -10,7 +10,7 @@ set -euo pipefail
 
 cd "$(dirname "$0")/.."
 COMPOSE=(docker compose -p klonk-local --env-file docker/local/local.env -f docker/docker-compose.yml -f docker/docker-compose.local.yml)
-HOSTS="klonk.local app.klonk.local admin.klonk.local auth.klonk.local docs.klonk.local sso.klonk.local"
+HOSTS="klonk.localhost app.klonk.localhost admin.klonk.localhost auth.klonk.localhost docs.klonk.localhost sso.klonk.localhost"
 CA_FILE=docker/local/klonk-local-ca.crt
 
 export_ca() {
@@ -25,7 +25,8 @@ check_hosts() {
   done
   if ((${#missing[@]})); then
     echo
-    echo "Diese Namen lösen noch nicht auf. Einmalig in /etc/hosts eintragen:"
+    echo "Diese Namen lösen auf diesem System nicht auf (Browser schaffen *.localhost trotzdem)."
+    echo "Für curl & Co. einmalig in /etc/hosts eintragen:"
     echo "  echo '127.0.0.1 $HOSTS' | sudo tee -a /etc/hosts"
   fi
 }
@@ -48,11 +49,11 @@ case "${1:-up}" in
     cat <<INFO
 
 Klonk läuft:
-  App            https://app.klonk.local
-  Verwaltung     https://admin.klonk.local   (beim ersten Aufruf: Einrichtung)
-  Anmeldung      https://auth.klonk.local
-  Docs           https://docs.klonk.local
-  Test-IdP       https://sso.klonk.local/dex  (Nutzer tim/lisa/anna, Passwort <name>-pass)
+  App            https://app.klonk.localhost
+  Verwaltung     https://admin.klonk.localhost   (beim ersten Aufruf: Einrichtung)
+  Anmeldung      https://auth.klonk.localhost
+  Docs           https://docs.klonk.localhost
+  Test-IdP       https://sso.klonk.localhost/dex  (Nutzer tim/lisa/anna, Passwort <name>-pass)
   Test-LDAP      ldap://glauth:3893 (aus Sicht der Dienste), Bind cn=service,ou=svcaccts,dc=klonk,dc=test / service-pass
 INFO
     check_hosts

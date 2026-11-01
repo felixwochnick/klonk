@@ -35,7 +35,7 @@ docker compose --env-file docker/.env -f docker/docker-compose.yml up -d --build
 ## Alles lokal testen
 
 ```bash
-pnpm stack:up   # https://app.klonk.local, admin., auth., docs. – selbst signiert, inkl. Test-LDAP und Test-IdP
+pnpm stack:up   # https://app.klonk.localhost, admin., auth., docs. – selbst signiert, inkl. Test-LDAP und Test-IdP
 ```
 
 Details: [Selbst hosten](apps/docs/content/de/1.getting-started/1.self-hosting.md)

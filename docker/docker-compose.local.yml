@@ -1,7 +1,7 @@
 # Lokaler Komplett-Stack: docker/docker-compose.yml + diese Datei, Variablen aus docker/local/local.env.
 # Start über `pnpm stack:up` (scripts/local-stack.sh). Enthält Test-LDAP (glauth) und Test-OIDC (Dex).
 x-local-app: &local-app
-  # Die Apps vertrauen der lokalen CA des Proxys (für OIDC-Discovery gegen https://sso.klonk.local)
+  # Die Apps vertrauen der lokalen CA des Proxys (für OIDC-Discovery gegen https://sso.klonk.localhost)
   volumes:
     - local-ca:/ca:ro
   depends_on:
@@ -24,11 +24,11 @@ services:
       default:
         # Dienste im Stack erreichen die öffentlichen Namen über den Proxy
         aliases:
-          - app.klonk.local
-          - admin.klonk.local
-          - auth.klonk.local
-          - docs.klonk.local
-          - sso.klonk.local
+          - app.klonk.localhost
+          - admin.klonk.localhost
+          - auth.klonk.localhost
+          - docs.klonk.localhost
+          - sso.klonk.localhost
 
   app:
     <<: *local-app

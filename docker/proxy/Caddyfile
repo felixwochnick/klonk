@@ -1,6 +1,6 @@
 # Klonk-Proxy: leitet *.{$KLONK_DOMAIN} an die Dienste weiter.
 # TLS-Modus über KLONK_TLS (siehe entrypoint.sh):
-#   internal – eigene lokale CA (selbst signiert, z. B. für *.klonk.local)
+#   internal – eigene lokale CA (selbst signiert, z. B. für *.klonk.localhost)
 #   http     – Let's Encrypt per HTTP-Challenge (Ports 80/443 müssen erreichbar sein)
 #   ionos    – Let's Encrypt per DNS-Challenge über die IONOS-API (auch hinter Firewall/NAT)
 #   off      – nur HTTP, wenn bereits ein anderer Proxy TLS übernimmt

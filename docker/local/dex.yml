@@ -1,5 +1,5 @@
-# Test-OIDC-Provider für den lokalen Stack (*.klonk.local) – Nutzer kommen aus dem Test-LDAP (glauth)
-issuer: https://sso.klonk.local/dex
+# Test-OIDC-Provider für den lokalen Stack (*.klonk.localhost) – Nutzer kommen aus dem Test-LDAP (glauth)
+issuer: https://sso.klonk.localhost/dex
 
 storage:
   type: memory
@@ -15,7 +15,7 @@ staticClients:
     name: Klonk
     secret: klonk-dev-secret
     redirectURIs:
-      - https://auth.klonk.local/auth/oidc/callback
+      - https://auth.klonk.localhost/auth/oidc/callback
 
 connectors:
   - type: ldap

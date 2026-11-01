@@ -52,8 +52,8 @@ pnpm dev:docs       # Docs auf :3001
 pnpm db:generate    # Drizzle-Migration aus packages/core/server/database/schema.ts erzeugen
 pnpm lint | pnpm typecheck
 pnpm test:e2e       # Playwright (Root-Config) gegen lokales Chromium
-pnpm stack:up       # Komplett-Stack *.klonk.local (Proxy, alle Apps, Docs, Test-LDAP/-IdP) – scripts/local-stack.sh
-pnpm test:e2e:stack # dieselben E2E-Tests gegen den Stack (Produktions-Builds hinter TLS-Proxy, kein /etc/hosts nötig)
+pnpm stack:up       # Komplett-Stack *.klonk.localhost (Proxy, alle Apps, Docs, Test-LDAP/-IdP) – scripts/local-stack.sh
+pnpm test:e2e:stack # dieselben E2E-Tests gegen den Stack (Produktions-Builds hinter TLS-Proxy)
 pnpm --filter @klonk/core test      # RLS-Integrationstests
 ```
 
@@ -73,8 +73,8 @@ pnpm --filter @klonk/core test      # RLS-Integrationstests
 - **Proxy** `docker/proxy/` (Caddy mit IONOS-DNS-Modul + statisch erzeugte Docs): `*.KLONK_DOMAIN` ⇒ app/admin/auth/docs,
   Hauptdomain ⇒ App. TLS über `KLONK_TLS`: `internal` (lokale CA), `http` (Let's Encrypt HTTP-01), `ionos` (DNS-01 via
   `IONOS_API_TOKEN`), `off`. Zusätzliche Sites über `/etc/caddy/sites/*.caddy`.
-- **Lokaler Stack** `docker/docker-compose.local.yml` + `docker/local/` (klonk.local, `tls internal`, glauth + Dex unter
-  sso.klonk.local; Apps vertrauen der lokalen CA via `NODE_EXTRA_CA_CERTS`, Proxy hat Netz-Aliase für alle Hostnamen).
+- **Lokaler Stack** `docker/docker-compose.local.yml` + `docker/local/` (klonk.localhost – `.localhost` löst immer lokal auf, kein `.local` (mDNS)!, `tls internal`, glauth + Dex unter
+  sso.klonk.localhost; Apps vertrauen der lokalen CA via `NODE_EXTRA_CA_CERTS`, Proxy hat Netz-Aliase für alle Hostnamen).
   E2E-Ziel per `KLONK_E2E_TARGET=stack` (`e2e/targets.ts`).
 
 ### Row Level Security (Pflicht für alle Nutzerdaten)
@@ -163,7 +163,7 @@ pnpm --filter @klonk/core test      # RLS-Integrationstests
 2b. [x] OIDC + LDAP pro Organisation (Login-Flows, Verbindungstest, JIT-Provisionierung, Rollen aus Gruppen)
 2c. [x] Privatkonten: OAuth-Anbieter (Google, Microsoft, GitHub, Apple); Klonk ID (Authentik) nur für Betreiber
 2d. [x] Zentrale Anmeldung `auth.klonk.*` (Single Sign-on für app, admin, Website)
-2e. [x] Mitgelieferter Proxy (Caddy, TLS: internal/HTTP-01/IONOS-DNS/off) + lokaler Komplett-Stack `*.klonk.local`
+2e. [x] Mitgelieferter Proxy (Caddy, TLS: internal/HTTP-01/IONOS-DNS/off) + lokaler Komplett-Stack `*.klonk.localhost`
 3. [x] Lizenz-Token-Prüfung + Free-Tier-Limits (Nutzergrenze, OIDC; Figuren/Modelle/Bibliotheken/KI als Flags für spätere Schritte)
 4. [x] 3D-Welt (three.js): Boden, Ziegel, Marken, Quader, Figuren-Animation, Welt-Editor `/world` (Bearbeiten/Ausprobieren, JSON-Dateien)
 5. [x] Blender-Modelle: Figuren (m/w/d) + Ziegel/Platte/Fliese, glTF (`assets/blender/build_models.py`)
