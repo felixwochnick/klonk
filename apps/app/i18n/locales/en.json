@@ -91,7 +91,8 @@
   },
   "nav": {
     "world": "World",
-    "code": "Code"
+    "code": "Code",
+    "projects": "Projects"
   },
   "editor": {
     "title": "Code",
@@ -254,6 +255,16 @@
       "permission": "Access to the folder was not granted.",
       "invalidWorld": "The world file is invalid.",
       "generic": "That didn't work."
-    }
+    },
+    "explorer": "Explorer",
+    "fileCount": "no files | one file | {count} files",
+    "search": "Search files",
+    "toIde": "Go to IDE",
+    "noMatches": "No matching files.",
+    "empty": "No files yet – create one above.",
+    "activeWorld": "Project world",
+    "openInIde": "Open",
+    "editWorld": "Edit in world editor",
+    "otherFile": "Other file"
   }
 }

@@ -88,6 +88,8 @@ async function loadProjectWorld() {
   if (!running.value) resetWorld()
 }
 watch([proj.worldPath, proj.project], loadProjectWorld)
+// Projekt kann schon offen sein (z. B. aus dem Explorer kommend)
+onMounted(() => proj.project.value && loadProjectWorld())
 const startData = () => projectWorld.value ?? start.value.toJSON()
 
 // Angezeigte Welt: Kopie der Startwelt, auf der das Programm läuft

@@ -143,11 +143,17 @@ pnpm --filter @klonk/core test      # RLS-Integrationstests
   ⇒ `lineToBlock` für Hervorhebung/Fehler/Haltepunkte. Haltepunkte in `block.data = 'breakpoint'` (mitgespeichert).
   Blockly-Medien liegen in `public/blockly-media` (externe Quelle wäre wegen COEP blockiert). Farben nur `#rrggbb`.
   Variablen-/Prozedurnamen behalten Umlaute (`safeName` überschrieben). Sprachen-Typ `ProgramLanguage = RunLanguage | 'blocks'`.
+  Design: globale CSS-Overrides in `KlonkBlocks.vue` mit Nuxt-UI-Variablen (`--ui-bg`, `--ui-border` …); Kategorien haben
+  `toolboxitemid` = Schlüssel aus `CATEGORY_COLORS` ⇒ CSS-Variable `--klonk-category`. Flyout `setAutoClose(false)` (bleibt
+  beim Ziehen offen, erste Kategorie beim Start geöffnet – erneuter Klick auf die Kategorie schließt sie).
 - **Projekte** (`utils/project-fs.ts`, `useProject.ts`, `ProjectPanel.vue`): gleiche Klasse `Project` für echte Ordner
   (`showDirectoryPicker`, Chrome/Edge) und Browser-Projekte (OPFS `klonk-projects/<name>`, alle Browser; E2E testet über OPFS).
   Zustand modulweit (Handles nicht serialisierbar), zuletzt geöffnete Ordner in IndexedDB, Autosave 400 ms. Dateiart aus der
   Endung (`.blocks`, `.klonk`, `.js`, `.ts`, `.klonkworld.json`). Ohne Projekt nutzt die IDE weiter `useProgram()` (localStorage).
   Reka-`SelectItem` erlaubt keinen leeren Wert ⇒ Platzhalterwerte verwenden. Blockly-Kontextmenü global ⇒ vor Neu-Registrierung abmelden.
+  Bedienlogik gemeinsam in `useProjectExplorer()` (Seitenleiste `ProjectPanel` + Vollbild-Explorer `pages/projects.vue`),
+  Datei-Symbole `FileIcon` (simple-icons für JS/TS/…, Klonk-Script als eigener Ziegel), Namensdialog `ProjectNameDialog`.
+  IDE lädt die Projektwelt auch beim Mount (Projekt kann schon offen sein); `/world?load=1` lädt die gewählte Projektwelt.
 - **IDE** (`apps/app/app/pages/index.vue`): Monaco (`utils/monaco.ts`: Monarch ohne `\p{L}` – Monarch kennt keine Unicode-Klassen;
   Themes `klonk-light/-dark`; `acceptSuggestionOnEnter: 'smart'`, `autoIndent: 'full'`), `KlonkEditor` (Breakpoints, aktive Zeile),
   Programme je Sprache + Breakpoints in localStorage (`klonk:program`: `{ language, programs }`). An Worker nur Plain-Daten senden (Vue-Proxys ⇒ DataCloneError).

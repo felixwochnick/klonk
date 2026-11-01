@@ -27,6 +27,13 @@ async function saveToProject() {
   proj.selectWorld(path)
   toast.add({ title: t('project.worldSaved', { name: path }), color: 'success' })
 }
+// Aus dem Explorer „Im Welt-Editor bearbeiten“ ⇒ gewählte Projektwelt gleich laden
+const route = useRoute()
+onMounted(async () => {
+  if (route.query.load === undefined || !proj.worldPath.value) return
+  await loadFromProject()
+  await navigateTo({ query: {} }, { replace: true })
+})
 const view = useTemplateRef('view')
 
 const tools = computed<{ value: EditorTool, icon: string, label: string }[]>(() => [

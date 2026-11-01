@@ -12,6 +12,7 @@ const { t } = useI18n()
         :items="[
           { label: t('nav.code'), icon: 'i-lucide-code', to: '/', exact: true },
           { label: t('nav.world'), icon: 'i-lucide-boxes', to: '/world' },
+          { label: t('nav.projects'), icon: 'i-lucide-folder-tree', to: '/projects' },
         ]"
       />
 

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type * as BlocklyType from 'blockly/core'
-import { defineKlonkBlocks, klonkTheme, toolbox } from '~/utils/blocks/definitions'
+import { CATEGORY_COLORS, defineKlonkBlocks, klonkTheme, toolbox } from '~/utils/blocks/definitions'
 import { generateKlonkScript, type GeneratedProgram } from '~/utils/blocks/generator'
 
 // Blockprogrammierung (Blockly) – erzeugt Klonk-Script. Nur im Browser verwenden (<ClientOnly>).
@@ -60,6 +60,8 @@ function create() {
     grid: { spacing: 24, length: 2, colour: colorMode.value === 'dark' ? '#3f3f46' : '#d4d4d8', snap: true },
   })
 
+  setupToolbox(workspace)
+
   try {
     if (model.value) B.serialization.workspaces.load(JSON.parse(model.value), workspace)
   }
@@ -75,6 +77,18 @@ function create() {
     save()
     publish()
   })
+}
+
+/** Auswahl bleibt beim Herausziehen offen (wie Scratch), Kategorien bekommen ihre Farbe als CSS-Variable */
+function setupToolbox(ws: BlocklyType.WorkspaceSvg) {
+  const box = ws.getToolbox() as BlocklyType.Toolbox | null
+  if (!box) return
+  (box.getFlyout() as BlocklyType.Flyout | null)?.setAutoClose(false)
+  for (const item of box.getToolboxItems()) {
+    const colour = CATEGORY_COLORS[item.getId() as keyof typeof CATEGORY_COLORS]
+    if (colour) (item as BlocklyType.ToolboxCategory).getDiv()?.style.setProperty('--klonk-category', colour)
+  }
+  box.selectItemByPosition(0)
 }
 
 function save() {
@@ -173,6 +187,127 @@ watch(() => props.errorBlock, (id, previous) => {
 </template>
 
 <style>
+/* Blockly im Nuxt-UI-Design (global: Menüs/Dropdowns hängen direkt am <body>) */
+.blocklySvg {
+  background-color: var(--ui-bg) !important;
+}
+.blocklyToolbox {
+  background-color: var(--ui-bg) !important;
+  border-inline-end: 1px solid var(--ui-border);
+  padding: 8px 6px !important;
+}
+.blocklyToolboxCategoryContainer {
+  margin: 0 0 2px !important;
+}
+.blocklyToolboxCategory {
+  height: auto !important;
+  padding: 6px 12px 6px 8px !important;
+  border: none !important;
+  border-radius: calc(var(--ui-radius) * 1.5);
+  background-color: transparent !important;
+  transition: background-color 0.15s;
+}
+.blocklyToolboxCategory:not(.blocklyToolboxSelected):hover {
+  background-color: var(--ui-bg-elevated) !important;
+}
+.blocklyToolboxSelected {
+  background-color: color-mix(in oklab, var(--klonk-category) 16%, transparent) !important;
+}
+.blocklyTreeRowContentContainer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.blocklyToolboxCategoryIcon {
+  visibility: visible !important;
+  width: 12px !important;
+  height: 12px !important;
+  flex-shrink: 0;
+  border-radius: 9999px;
+  background: var(--klonk-category, var(--ui-text-dimmed)) !important;
+}
+.blocklyToolboxCategoryLabel {
+  padding: 0 !important;
+  font: 600 14px var(--font-sans) !important;
+  color: var(--ui-text) !important;
+}
+.blocklyToolboxSelected .blocklyToolboxCategoryLabel {
+  color: var(--ui-text-highlighted) !important;
+}
+.blocklyFlyoutBackground {
+  fill: var(--ui-bg-muted) !important;
+  fill-opacity: 1 !important;
+}
+.blocklyFlyoutButtonBackground {
+  fill: var(--ui-primary) !important;
+  stroke: none !important;
+}
+.blocklyFlyoutButton .blocklyText {
+  fill: var(--ui-bg) !important;
+  font-family: var(--font-sans) !important;
+  font-weight: 600 !important;
+}
+.blocklyFlyoutButtonShadow {
+  display: none;
+}
+.blocklyFlyoutLabelText {
+  fill: var(--ui-text-muted) !important;
+}
+.blocklyScrollbarHandle {
+  fill: var(--ui-border-accented) !important;
+}
+.blocklyFlyoutScrollbar .blocklyScrollbarHandle {
+  fill: var(--ui-border) !important;
+}
+
+/* Kontextmenü, Dropdowns, Tooltips */
+.blocklyWidgetDiv .blocklyMenu,
+.blocklyDropDownDiv {
+  background-color: var(--ui-bg) !important;
+  border: 1px solid var(--ui-border) !important;
+  border-radius: calc(var(--ui-radius) * 1.5) !important;
+  box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1) !important;
+  padding: 4px !important;
+  font-family: var(--font-sans) !important;
+}
+.blocklyDropDownDiv .blocklyMenu {
+  padding: 0 !important;
+}
+.blocklyDropDownArrow {
+  background-color: var(--ui-bg) !important;
+  border-color: var(--ui-border) !important;
+}
+.blocklyMenuItem {
+  border-radius: var(--ui-radius);
+  color: var(--ui-text) !important;
+  font-size: 14px !important;
+}
+.blocklyDropDownDiv .blocklyMenuItemContent,
+.blocklyWidgetDiv .blocklyMenuItemContent {
+  color: var(--ui-text) !important;
+  font-family: var(--font-sans) !important;
+}
+.blocklyMenuItemHighlight {
+  background-color: var(--ui-bg-elevated) !important;
+}
+.blocklyMenuItemDisabled .blocklyMenuItemContent {
+  color: var(--ui-text-dimmed) !important;
+}
+.blocklyMenuSeparator {
+  border-color: var(--ui-border) !important;
+}
+.blocklyTooltipDiv {
+  background-color: var(--ui-bg) !important;
+  color: var(--ui-text-highlighted) !important;
+  border: 1px solid var(--ui-border) !important;
+  border-radius: var(--ui-radius);
+  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1) !important;
+  padding: 4px 8px !important;
+  opacity: 1 !important;
+  font: 13px var(--font-sans) !important;
+}
+
+/* Haltepunkte, Fehler */
 .klonk-block-breakpoint > .blocklyPath {
   stroke: #e5484d !important;
   stroke-width: 4px !important;

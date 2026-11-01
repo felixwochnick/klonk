@@ -11,6 +11,7 @@
     "typecheck": "nuxt typecheck"
   },
   "dependencies": {
+    "@iconify-json/simple-icons": "^1.2.101",
     "@klonk/core": "workspace:*",
     "@klonk/klonk-script": "workspace:*",
     "@klonk/runtime": "workspace:*",

@@ -201,7 +201,7 @@ export function toolbox(t: T) {
       {
         kind: 'category',
         name: t('blocks.categories.movement'),
-        categorystyle: 'movement_category',
+        categorystyle: 'movement_category', toolboxitemid: 'movement',
         contents: [
           { kind: 'block', type: 'klonk_step' },
           { kind: 'block', type: 'klonk_step_n', inputs: { COUNT: num(2) } },
@@ -212,19 +212,19 @@ export function toolbox(t: T) {
       {
         kind: 'category',
         name: t('blocks.categories.bricks'),
-        categorystyle: 'bricks_category',
+        categorystyle: 'bricks_category', toolboxitemid: 'bricks',
         contents: ['klonk_place', 'klonk_pick', 'klonk_mark', 'klonk_remove_mark'].map(type => ({ kind: 'block', type })),
       },
       {
         kind: 'category',
         name: t('blocks.categories.sensors'),
-        categorystyle: 'sensors_category',
+        categorystyle: 'sensors_category', toolboxitemid: 'sensors',
         contents: ['klonk_is_wall', 'klonk_is_brick', 'klonk_is_mark', 'klonk_facing', 'klonk_number_sensor'].map(type => ({ kind: 'block', type })),
       },
       {
         kind: 'category',
         name: t('blocks.categories.control'),
-        categorystyle: 'control_category',
+        categorystyle: 'control_category', toolboxitemid: 'control',
         contents: [
           { kind: 'block', type: 'klonk_repeat_times', inputs: { TIMES: num(4) } },
           { kind: 'block', type: 'klonk_repeat_while', inputs: { COND: { block: { type: 'logic_negate', inputs: { BOOL: { block: { type: 'klonk_is_wall' } } } } } } },
@@ -239,13 +239,13 @@ export function toolbox(t: T) {
       {
         kind: 'category',
         name: t('blocks.categories.logic'),
-        categorystyle: 'logic_category',
+        categorystyle: 'logic_category', toolboxitemid: 'logic',
         contents: ['logic_negate', 'logic_operation', 'logic_compare', 'logic_boolean'].map(type => ({ kind: 'block', type })),
       },
       {
         kind: 'category',
         name: t('blocks.categories.math'),
-        categorystyle: 'math_category',
+        categorystyle: 'math_category', toolboxitemid: 'math',
         contents: [
           { kind: 'block', type: 'math_number' },
           { kind: 'block', type: 'klonk_arithmetic', inputs: { A: num(1), B: num(1) } },
@@ -255,15 +255,15 @@ export function toolbox(t: T) {
       {
         kind: 'category',
         name: t('blocks.categories.text'),
-        categorystyle: 'text_category',
+        categorystyle: 'text_category', toolboxitemid: 'text',
         contents: [
           { kind: 'block', type: 'klonk_print', inputs: { VALUE: { shadow: { type: 'text', fields: { TEXT: t('blocks.hello') } } } } },
           { kind: 'block', type: 'text' },
           { kind: 'block', type: 'klonk_join' },
         ],
       },
-      { kind: 'category', name: t('blocks.categories.variables'), categorystyle: 'variable_category', custom: 'VARIABLE' },
-      { kind: 'category', name: t('blocks.categories.procedures'), categorystyle: 'procedure_category', custom: 'PROCEDURE' },
+      { kind: 'category', name: t('blocks.categories.variables'), categorystyle: 'variable_category', toolboxitemid: 'variables', custom: 'VARIABLE' },
+      { kind: 'category', name: t('blocks.categories.procedures'), categorystyle: 'procedure_category', toolboxitemid: 'procedures', custom: 'PROCEDURE' },
     ],
   }
 }

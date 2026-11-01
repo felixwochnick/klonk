@@ -91,7 +91,8 @@
   },
   "nav": {
     "world": "Welt",
-    "code": "Programmieren"
+    "code": "Programmieren",
+    "projects": "Projekte"
   },
   "editor": {
     "title": "Programmieren",
@@ -254,6 +255,16 @@
       "permission": "Kein Zugriff auf den Ordner erlaubt.",
       "invalidWorld": "Die Welt-Datei ist ungültig.",
       "generic": "Das hat nicht geklappt."
-    }
+    },
+    "explorer": "Explorer",
+    "fileCount": "keine Dateien | eine Datei | {count} Dateien",
+    "search": "Dateien suchen",
+    "toIde": "Zur IDE",
+    "noMatches": "Keine passenden Dateien.",
+    "empty": "Noch keine Dateien – lege oben eine an.",
+    "activeWorld": "Projektwelt",
+    "openInIde": "Geöffnet",
+    "editWorld": "Im Welt-Editor bearbeiten",
+    "otherFile": "Andere Datei"
   }
 }

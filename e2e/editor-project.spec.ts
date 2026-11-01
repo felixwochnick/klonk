@@ -142,3 +142,32 @@ test('Bibliotheken aus dem Projekt (mit Lizenz)', async ({ page }) => {
     await expect(page.getByTestId('run-error')).toContainText('Bibliotheken')
   }
 })
+
+test('Vollbild-Explorer: Kacheln, Suche, Welt wählen, Programm in der IDE öffnen', async ({ page }) => {
+  await gotoHydrated(page, `${APP_URL}/projects`)
+  await seedProject(page, 'Explorer', {
+    'start.klonk': 'schritt\nausgabe(positionX)\n',
+    'hilfe.ts': 'step()\n',
+    'welt.klonkworld.json': JSON.stringify(WORLD),
+  })
+  await page.reload()
+  await page.locator('html[data-hydrated="true"]').waitFor({ state: 'attached' })
+  await page.getByTestId('explorer-project-Explorer').click()
+  await expect(page.getByTestId('explorer-project-name')).toHaveText('Explorer')
+  await expect(page.getByTestId('explorer-file-hilfe.ts')).toContainText('TypeScript')
+
+  await page.getByPlaceholder('Dateien suchen').fill('hilfe')
+  await expect(page.getByTestId('explorer-file-start.klonk')).toHaveCount(0)
+  await page.getByPlaceholder('Dateien suchen').fill('')
+
+  await page.getByTestId('explorer-file-welt.klonkworld.json').click()
+  await expect(page.getByTestId('explorer-file-welt.klonkworld.json')).toContainText('Projektwelt')
+  await page.screenshot({ path: 'test-results/explorer.png' })
+
+  await page.getByTestId('explorer-file-start.klonk').click()
+  await expect(page).toHaveURL(`${APP_URL}/`)
+  await expect(page.locator('.view-lines')).toContainText('schritt')
+  await page.getByTestId('run').click()
+  await expect(state(page)).toHaveAttribute('data-state', 'done', { timeout: 30_000 })
+  await expect(page.getByTestId('output')).toHaveText('2')
+})

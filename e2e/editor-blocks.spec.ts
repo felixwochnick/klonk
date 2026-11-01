@@ -59,15 +59,18 @@ test('Blöcke werden zu Klonk-Script und laufen', async ({ page }) => {
   await page.screenshot({ path: 'test-results/editor-blocks-done.png' })
 })
 
-test('Block aus dem Werkzeugkasten ziehen', async ({ page }) => {
+test('Block aus dem Werkzeugkasten ziehen – Auswahl bleibt offen', async ({ page }) => {
   await openBlocks(page, LOOP)
   await page.getByTestId('toggle-code').click()
-  await page.getByRole('treeitem', { name: 'Bewegung' }).click()
+  // Die erste Kategorie ist beim Start geöffnet
+  await expect(page.getByRole('treeitem', { name: 'Bewegung' })).toHaveAttribute('aria-selected', 'true')
   const flyoutBlock = page.locator('.blocklyFlyout .blocklyDraggable').filter({ hasText: 'linksDrehen' }).first()
   await expect(flyoutBlock).toBeVisible()
   const target = await page.getByTestId('blocks-editor').boundingBox()
   await flyoutBlock.dragTo(page.getByTestId('blocks-editor'), { targetPosition: { x: target!.width - 200, y: target!.height - 150 } })
   await expect(page.getByTestId('generated-code')).toContainText('linksDrehen')
+  await expect(flyoutBlock).toBeVisible()
+  await page.screenshot({ path: 'test-results/editor-blocks-toolbox.png' })
 })
 
 test('Haltepunkt per Rechtsklick, Hervorhebung, Weiter', async ({ page }) => {

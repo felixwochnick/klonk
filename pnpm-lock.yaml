@@ -218,6 +218,9 @@ importers:
 
   apps/app:
     dependencies:
+      '@iconify-json/simple-icons':
+        specifier: ^1.2.101
+        version: 1.2.101
       '@klonk/core':
         specifier: workspace:*
         version: link:../../packages/core
