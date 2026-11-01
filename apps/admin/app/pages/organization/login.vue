@@ -44,9 +44,8 @@ const ldapForm = ref({
 
 const hasClientSecret = computed(() => data.value?.oidc?.hasClientSecret)
 const hasBindPassword = computed(() => data.value?.ldap?.hasBindPassword)
-const { public: { appUrl, adminUrl } } = useRuntimeConfig()
-// Beide Apps bieten den SSO-Login an – beim Identity-Provider beide Redirect-URIs eintragen
-const callbackUrls = [...new Set([appUrl, adminUrl])].map(url => `${url}/auth/oidc/callback`)
+// Beim Identity-Provider einzutragen: zentrale Anmeldung oder beide Apps
+const { oidcCallbackUrls: callbackUrls } = useAuthUrls()
 
 // OIDC/LDAP werden nur gespeichert, wenn sie ausgefüllt sind
 const oidcFilled = computed(() => !!oidcForm.issuer && !!oidcForm.clientId)

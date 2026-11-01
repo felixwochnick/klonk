@@ -4,6 +4,10 @@ export default defineAppConfig({
     socialLogin: true as boolean,
     /** Betreiber-Login per Klonk ID (nur in der Verwaltung) */
     operatorLogin: false as boolean,
+    /** Diese App ist die zentrale Anmeldung (auth.klonk.*) */
+    authServer: false as boolean,
+    /** Pfad des Einrichtungsassistenten (nur admin) */
+    setupRoute: '' as string,
   },
 })
 
@@ -12,6 +16,8 @@ declare module '@nuxt/schema' {
     klonk?: {
       socialLogin?: boolean
       operatorLogin?: boolean
+      authServer?: boolean
+      setupRoute?: string
     }
   }
 }

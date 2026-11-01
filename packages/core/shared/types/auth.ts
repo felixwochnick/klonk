@@ -15,6 +15,8 @@ export type SessionUser = {
   role: MemberRole
   platformRole: PlatformRole
   mustChangePassword: boolean
+  /** Lokales Passwort vorhanden (sonst nur SSO) */
+  hasPassword: boolean
 }
 
 export type LoginLookup = {

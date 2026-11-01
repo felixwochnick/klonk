@@ -26,6 +26,10 @@ export default defineNuxtConfig({
       // Öffentliche URLs von app.* und admin.* (für Links zwischen den Apps und OIDC-Redirect-URIs)
       appUrl: 'http://localhost:3000',
       adminUrl: 'http://localhost:3002',
+      // Zentrale Anmeldung (auth.klonk.*). Leer = jede App nutzt ihre eingebaute Login-Seite
+      authUrl: '',
+      // Weitere Origins (kommagetrennt), die die Anmeldung nutzen dürfen – z. B. die Website klonk.*
+      websiteUrls: '',
     },
     session: {
       name: 'klonk-session',

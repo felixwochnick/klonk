@@ -1,6 +1,6 @@
 import { expect, test, type Page } from '@playwright/test'
 import { ADMIN_URL, APP_URL } from '../playwright.config'
-import { gotoHydrated } from './utils'
+import { gotoHydrated, waitForPage } from './utils'
 
 // Klonk ID (Betreiberzugang) gegen Dex (`pnpm sso:up`); baut auf admin-accounts.spec.ts auf
 test.use({ locale: 'de-DE' })
@@ -36,8 +36,7 @@ test('Klonk ID ohne Betreiber-Gruppe wird abgelehnt', async ({ page }) => {
 
 test('Betreiber:in per Klonk ID verwaltet alle Organisationen', async ({ page }) => {
   await loginWithKlonkId(page, ADMIN_URL, 'anna')
-  await expect(page).toHaveURL(/\/organizations$/)
-  await page.locator('html[data-hydrated="true"]').waitFor({ state: 'attached' })
+  await waitForPage(page, url => url.pathname === '/organizations')
   await expect(page.getByRole('link', { name: 'Gymnasium Musterstadt' })).toBeVisible()
 
   // Neue Organisation (Unternehmen) anlegen und deren Konten öffnen

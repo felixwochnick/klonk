@@ -3,5 +3,6 @@ export default defineAppConfig({
   klonk: {
     socialLogin: false,
     operatorLogin: true,
+    setupRoute: '/setup',
   },
 })

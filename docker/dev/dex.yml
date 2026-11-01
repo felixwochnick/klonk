@@ -17,8 +17,10 @@ staticClients:
     redirectURIs:
       - http://localhost:3000/auth/oidc/callback
       - http://localhost:3002/auth/oidc/callback
+      - http://localhost:3003/auth/oidc/callback
       - http://localhost:3010/auth/oidc/callback
       - http://localhost:3012/auth/oidc/callback
+      - http://localhost:3013/auth/oidc/callback
 
 connectors:
   - type: ldap

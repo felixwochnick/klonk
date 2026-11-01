@@ -12,6 +12,8 @@ per Code. Vorbild ist die Robot-App aus [felixwochnick/virtual-school](https://g
   Screenshots via `chromium --headless=new --screenshot=…`. Vor Interaktionen auf `html[data-hydrated="true"]` warten
   (`gotoHydrated` in `e2e/utils.ts`). Die E2E-Tests starten eigene Dev-Server (app :3010, admin :3012) gegen die
   Datenbank `klonk_e2e` und leeren sie vorher – laufende `pnpm dev`-Server derselben App vorher beenden (gemeinsames `.nuxt`).
+  Auth läuft im E2E auf :3013. Nach Weiterleitungen über auth.* hinweg mit `waitForPage()` auf Hydration warten,
+  Logins über `loginWithPassword()` (beides `e2e/utils.ts`).
 - RLS-Integrationstests: `pnpm --filter @klonk/core test` (Vitest, legt `klonk_rls_test` an). Neue Tabellen/Policies dort abdecken.
 - Prozesse beenden mit `pgrep -f "nuxt[.]mjs dev"` – ohne die Klammern trifft das Muster die eigene Shell.
 - Vor dem Commit: `pnpm lint` und `pnpm typecheck` müssen sauber sein.
@@ -25,11 +27,12 @@ pnpm-Workspace (`pnpm-workspace.yaml`), Node ≥ 22.
 |---|---|---|---|
 | `apps/app` | `@klonk/app` | Lern-App (Editor, Welt) | `app.klonk.*` |
 | `apps/admin` | `@klonk/admin` | Verwaltung: Einrichtung, Konten, Organisation, Login-Methoden (OIDC/LDAP/lokal), alle Organisationen | `admin.klonk.*` |
+| `apps/auth` | `@klonk/auth` | **Zentrale Anmeldung** (Single Sign-on für app, admin, Website): Login, Passwort ändern, alle SSO-Rücksprünge, `/api/session` | `auth.klonk.*` |
 | `apps/docs` | `@klonk/docs` | Docus 5 (Nuxt-Layer), Inhalte in `content/{de,en}`, Theme via `app/app.css` + `@klonk/ui/app-config` | `docs.klonk.*` |
 | `packages/ui` | `@klonk/ui` | **Nuxt-Layer für einheitliches Design**: Nuxt UI, Theme (`theme.css`, `app.config.ts`), i18n-Grundkonfiguration, `KlonkLogo`, `LocaleSwitch`, Hydration-Marker | – |
 | `packages/core` | `@klonk/core` | **Nuxt-Layer für Server & Auth**: Drizzle-Schema, Migrationen, RLS, Sessions (nuxt-auth-utils), Login-API, `/login`, `/change-password`, `UserMenu` | – |
 
-App und Admin erweitern beide Layer (`extends: ['@klonk/ui', '@klonk/core']`). Geplant: `packages/klonk-script`, `packages/runtime`.
+App, Admin und Auth erweitern beide Layer (`extends: ['@klonk/ui', '@klonk/core']`). Geplant: `packages/klonk-script`, `packages/runtime`.
 Jede App/Layer hat eigene `i18n/locales/{de,en}.json`; @nuxtjs/i18n führt sie zusammen (App-Config listet die Dateien).
 
 Die Website/Shop `klonk.*` (Mollie, Token-Ausstellung) liegt in einem **separaten privaten Repo** – keinerlei
@@ -43,6 +46,7 @@ pnpm sso:up         # + Test-LDAP glauth (:3893) und Test-OIDC Dex (:5556, Clien
                     #   Nutzer tim/lisa/anna, Passwort <name>-pass; E2E-SSO-Tests werden ohne diese übersprungen
 pnpm dev            # App auf :3000 (migriert DB beim Start)
 pnpm dev:admin      # Verwaltung auf :3002
+pnpm dev:auth       # Zentrale Anmeldung auf :3003 (für Login in app/admin mitstarten, s. NUXT_PUBLIC_AUTH_URL)
 pnpm dev:docs       # Docs auf :3001
 pnpm db:generate    # Drizzle-Migration aus packages/core/server/database/schema.ts erzeugen
 pnpm lint | pnpm typecheck
@@ -60,8 +64,8 @@ pnpm --filter @klonk/core test      # RLS-Integrationstests
   Handgeschriebenes SQL (RLS, Rollen, Funktionen) ⇒ `pnpm --filter @klonk/core db:generate --custom --name <thema>`.
 - `server/plugins/01.migrate.ts` prüft beim Serverstart das Schema und spielt fehlende Migrationen ein
   (Postgres-Advisory-Lock gegen parallele Instanzen; bei Fehler bricht der Start ab).
-- Self-Hosting: `docker/docker-compose.yml` (app + admin + Postgres), ein Image pro App aus `docker/Dockerfile`
-  (`--build-arg APP=app|admin`, Build-Kontext = Repo-Root), `NUXT_MIGRATIONS_DIR=/app/migrations` im Image.
+- Self-Hosting: `docker/docker-compose.yml` (app + admin + auth + Postgres), ein Image pro App aus `docker/Dockerfile`
+  (`--build-arg APP=app|admin|auth`, Build-Kontext = Repo-Root), `NUXT_MIGRATIONS_DIR=/app/migrations` im Image.
 
 ### Row Level Security (Pflicht für alle Nutzerdaten)
 
@@ -82,13 +86,20 @@ pnpm --filter @klonk/core test      # RLS-Integrationstests
 - Privatkonten (ohne Organisation): Google/Microsoft/Apple/GitHub (`server/routes/auth/<anbieter>.get.ts`, nuxt-auth-utils)
   Wiedererkennung nur über Anbieter-ID. Social-Buttons nur in der App (`appConfig.klonk.socialLogin`).
 - **Klonk ID** (Authentik, `runtimeConfig.platformOidc`, Route `/auth/oidc/platform`) ist **nur für Entwickler:innen und
-  Besitzer:innen** (vom User so festgelegt): Button nur in admin (`appConfig.klonk.operatorLogin`), ohne Betreiber-Gruppe
+  Besitzer:innen** (vom User so festgelegt): Button nur für admin (`appConfig.klonk.operatorLogin` bzw. Ziel admin auf auth.*), ohne Betreiber-Gruppe
   kein Login; Gruppenentzug ⇒ Konto gesperrt + Sessions widerrufen, Rückkehr in die Gruppe ⇒ wieder freigegeben.
 - E2E: Dex dient auch als Klonk ID (Gruppe `admins` ⇒ owner, siehe `playwright.config.ts`).
 - Erste Einrichtung über `admin /setup`: erste Organisation + Admin (= Instanz-Besitzer).
 - Lehrkräfte setzen Passwörter von Lernenden zurück (⇒ `mustChangePassword`, alle Sessions widerrufen).
 - Sessions: versiegeltes Cookie + Zeile in `sessions`; `server/middleware/session.ts` prüft jede API-Anfrage gegen die DB.
 - API-Fehler als Code (`createError({ message: 'code' })`), UI übersetzt via `errors.<code>`; Bodies mit `readValidated()`.
+- **Zentrale Anmeldung:** Ist `NUXT_PUBLIC_AUTH_URL` gesetzt, leiten app/admin (`useAuthUrls().isCentral`) für Login und
+  Passwortänderung nach auth.* weiter (`?redirect=<absolute URL>`); ohne die Variable nutzt jede App ihre eingebaute Login-Seite.
+  Weiterleitungsziele immer über `safeRedirectTarget()` gegen die erlaubten Origins (app, admin, auth, `NUXT_PUBLIC_WEBSITE_URLS`)
+  prüfen. Auf auth.* bestimmt das Ziel die Buttons: Ziel admin ⇒ Klonk ID, sonst Social-Login.
+  Gemeinsame Session über `NUXT_SESSION_COOKIE_DOMAIN` (z. B. `.klonk.example`); die Website (privates Repo) fragt
+  `auth.*/api/session` mit `credentials: 'include'` ab. Setup-Prüfung der Verwaltung steckt in der Core-Middleware
+  (`appConfig.klonk.setupRoute`), da Layer-Middlewares vor App-Middlewares laufen.
 
 ## Produktentscheidungen
 
@@ -121,6 +132,7 @@ pnpm --filter @klonk/core test      # RLS-Integrationstests
 2. [x] Layer `@klonk/ui` + `@klonk/core`, Admin-App, Organisationen, Rollen, RLS, lokale Konten, Passwort-Reset
 2b. [x] OIDC + LDAP pro Organisation (Login-Flows, Verbindungstest, JIT-Provisionierung, Rollen aus Gruppen)
 2c. [x] Privatkonten: OAuth-Anbieter (Google, Microsoft, GitHub, Apple); Klonk ID (Authentik) nur für Betreiber
+2d. [x] Zentrale Anmeldung `auth.klonk.*` (Single Sign-on für app, admin, Website)
 3. [ ] Lizenz-Token-Prüfung + Free-Tier-Limits
 4. [ ] 3D-Welt (three.js): Boden, Wände, Kisten, Markierungen, Welt-Editor
 5. [ ] Blender-Modelle: Figuren (m/w/d) + Weltblöcke, glTF

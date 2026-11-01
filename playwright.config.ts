@@ -3,11 +3,13 @@ import { e2eDatabaseUrl } from './e2e/db'
 
 export const APP_URL = 'http://localhost:3010'
 export const ADMIN_URL = 'http://localhost:3012'
+export const AUTH_URL = 'http://localhost:3013'
 
 const env = {
   NUXT_DATABASE_URL: e2eDatabaseUrl,
   NUXT_PUBLIC_APP_URL: APP_URL,
   NUXT_PUBLIC_ADMIN_URL: ADMIN_URL,
+  NUXT_PUBLIC_AUTH_URL: AUTH_URL,
   // Klonk ID gegen den Test-IdP (Dex, `pnpm sso:up`): Gruppe `admins` ⇒ Besitzer:in
   NUXT_PLATFORM_OIDC_ISSUER: 'http://localhost:5556/dex',
   NUXT_PLATFORM_OIDC_CLIENT_ID: 'klonk',
@@ -31,6 +33,13 @@ export default defineConfig({
     },
   },
   webServer: [
+    {
+      command: 'node e2e/ensure-db.ts && pnpm --filter @klonk/auth exec nuxt dev --port 3013 --dotenv ../../.env',
+      url: `${AUTH_URL}/api/health`,
+      env,
+      timeout: 180_000,
+      reuseExistingServer: !process.env.CI,
+    },
     {
       command: 'node e2e/ensure-db.ts && pnpm --filter @klonk/app exec nuxt dev --port 3010 --dotenv ../../.env',
       url: `${APP_URL}/api/health`,

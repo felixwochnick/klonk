@@ -6,7 +6,7 @@ import { organizationAuthSettings } from '../../../database/schema'
 export default defineEventHandler(async (event) => {
   const { organizationId } = await getValidatedRouterParams(event, z.object({ organizationId: z.union([z.uuid(), z.literal('platform')]) }).parse)
   const { redirect } = await getValidatedQuery(event, z.object({ redirect: z.string().optional() }).parse)
-  const safeRedirect = redirect?.startsWith('/') && !redirect.startsWith('//') ? redirect : '/'
+  const safeRedirect = safeRedirectTarget(redirect, allowedOriginsFor(event))
 
   if (organizationId === 'platform') {
     const platform = platformOidcSettings()

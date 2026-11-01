@@ -28,6 +28,7 @@ export async function loadSessionUser(userId: string): Promise<SessionUser | nul
     role: user.role,
     platformRole: user.platformRole,
     mustChangePassword: user.mustChangePassword,
+    hasPassword: !!user.passwordHash,
   }
 }
 
@@ -103,4 +104,30 @@ export function parseIdentifier(identifier: string) {
     username: identifier.slice(0, at).trim().toLowerCase(),
     domain: identifier.slice(at + 1).trim().toLowerCase(),
   }
+}
+
+/** Erlaubte Weiterleitungsziele nach dem Login (Apps, zentrale Anmeldung, Website, eigene Seite) */
+export function allowedOriginsFor(event: H3Event) {
+  return [...allowedRedirectOrigins(useRuntimeConfig().public), requestOrigin(event)]
+}
+
+const REDIRECT_COOKIE = 'klonk-redirect'
+
+/** Merkt sich das Weiterleitungsziel über den Umweg zum OAuth-Anbieter */
+export function rememberRedirect(event: H3Event) {
+  const { redirect, code } = getQuery(event)
+  if (code || typeof redirect !== 'string') return
+  setCookie(event, REDIRECT_COOKIE, safeRedirectTarget(redirect, allowedOriginsFor(event)), {
+    httpOnly: true,
+    secure: !import.meta.dev,
+    sameSite: 'lax',
+    path: '/auth',
+    maxAge: 600,
+  })
+}
+
+export function takeRememberedRedirect(event: H3Event) {
+  const target = getCookie(event, REDIRECT_COOKIE)
+  deleteCookie(event, REDIRECT_COOKIE, { path: '/auth' })
+  return safeRedirectTarget(target, allowedOriginsFor(event))
 }

@@ -1,10 +1,12 @@
 export function useAuth() {
   const session = useUserSession()
+  const { loginUrl } = useAuthUrls()
 
   async function logout() {
     await $fetch('/api/auth/logout', { method: 'POST' })
     await session.fetch()
-    await navigateTo('/login')
+    // Session ist in der DB gelöscht ⇒ überall abgemeldet; zurück zur (ggf. zentralen) Anmeldung
+    await navigateTo(loginUrl('/'), { external: true })
   }
 
   /** Lädt Rollen/Daten neu aus der DB (z. B. nach Änderungen durch Admins) */

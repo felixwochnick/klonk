@@ -6,15 +6,18 @@ useSeoMeta({ title: () => t('auth.login.title') })
 
 const route = useRoute()
 const { loggedIn } = useUserSession()
+const { allowedOrigins } = useAuthUrls()
 
-const redirect = computed(() => {
-  const target = route.query.redirect
-  return typeof target === 'string' && target.startsWith('/') && !target.startsWith('//') ? target : '/'
-})
+// Ziel nach dem Login: eigener Pfad oder (auf auth.klonk.*) eine erlaubte App-URL
+const redirect = computed(() => safeRedirectTarget(route.query.redirect, allowedOrigins))
+const external = computed(() => !redirect.value.startsWith('/'))
 
-if (loggedIn.value) await navigateTo(redirect.value)
+if (loggedIn.value) await navigateTo(redirect.value, { external: external.value })
 </script>
 
 <template>
-  <AuthLoginForm @success="navigateTo(redirect)" />
+  <AuthLoginForm
+    :redirect="redirect"
+    @success="navigateTo(redirect, { external })"
+  />
 </template>

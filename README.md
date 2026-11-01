@@ -6,6 +6,7 @@ Programmieren lernen mit Klemmbaustein-Figuren – in Klonk-Script, Blöcken, Ja
 |---|---|
 | [`apps/app`](apps/app) | Die Klonk-App (Nuxt 4, Nuxt UI, Postgres) |
 | [`apps/admin`](apps/admin) | Verwaltung: Organisationen, Konten, Login-Methoden |
+| [`apps/auth`](apps/auth) | Zentrale Anmeldung (Single Sign-on) |
 | [`packages/ui`](packages/ui) | Nuxt-Layer: gemeinsames Design |
 | [`packages/core`](packages/core) | Nuxt-Layer: Datenbank, RLS, Anmeldung |
 | [`apps/docs`](apps/docs) | Dokumentation (Docus) |
@@ -18,6 +19,7 @@ cp .env.example .env
 pnpm db:up      # Postgres starten
 pnpm dev        # App auf http://localhost:3000
 pnpm dev:admin  # Verwaltung auf http://localhost:3002
+pnpm dev:auth   # Anmeldung auf http://localhost:3003
 pnpm dev:docs   # Docs auf http://localhost:3001
 ```
 

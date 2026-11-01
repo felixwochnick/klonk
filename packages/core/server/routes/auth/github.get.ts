@@ -1,5 +1,5 @@
 // Privatkonto per GitHub (nuxt-auth-utils, Zugangsdaten über NUXT_OAUTH_GITHUB_*)
-export default defineOAuthGitHubEventHandler({
+export default withRememberedRedirect(defineOAuthGitHubEventHandler({
   async onSuccess(event, { user }) {
     return finishPrivateLogin(event, {
       provider: 'github',
@@ -9,4 +9,4 @@ export default defineOAuthGitHubEventHandler({
     })
   },
   onError: privateLoginFailed,
-})
+}))

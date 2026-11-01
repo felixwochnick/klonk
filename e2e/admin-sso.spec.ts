@@ -1,6 +1,6 @@
 import { expect, test, type Page } from '@playwright/test'
 import { ADMIN_URL, APP_URL } from '../playwright.config'
-import { gotoHydrated } from './utils'
+import { gotoHydrated, waitForPage } from './utils'
 
 // Benötigt Test-LDAP und Dex: `pnpm sso:up`. Baut auf den Daten aus admin-accounts.spec.ts auf.
 test.use({ locale: 'de-DE' })
@@ -20,6 +20,7 @@ test('Admin konfiguriert LDAP und OIDC', async ({ page }) => {
   await lookup(page, ADMIN_URL, 'admin@gym-muster.de')
   await page.getByLabel('Passwort').fill('admin-passwort')
   await page.getByRole('button', { name: 'Anmelden', exact: true }).click()
+  await waitForPage(page, url => url.pathname !== '/login')
   await page.getByRole('link', { name: 'Anmeldung' }).click()
 
   // LDAP
@@ -53,7 +54,7 @@ test('Admin konfiguriert LDAP und OIDC', async ({ page }) => {
   await expect(page.getByText('Gespeichert', { exact: true })).toBeVisible()
 
   // Secrets werden nicht ausgeliefert, bleiben aber gespeichert
-  await page.reload()
+  await gotoHydrated(page, page.url())
   await expect(page.getByLabel('Client Secret')).toHaveValue('')
   await expect(page.getByText('Leer lassen, um den gespeicherten Wert zu behalten.').first()).toBeVisible()
 })
@@ -66,6 +67,7 @@ test('Anmeldung per LDAP legt das Konto an', async ({ page }) => {
 
   await page.getByLabel('Passwort').fill('tim-pass')
   await page.getByRole('button', { name: 'Anmelden', exact: true }).click()
+  await waitForPage(page, url => url.pathname !== '/login')
   await expect(page.getByTestId('user-menu')).toHaveText(/Tim Schüler/)
 })
 

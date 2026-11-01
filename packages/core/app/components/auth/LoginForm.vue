@@ -1,4 +1,5 @@
 <script setup lang="ts">
+const props = withDefaults(defineProps<{ redirect?: string }>(), { redirect: '/' })
 const emit = defineEmits<{ success: [] }>()
 
 const { t } = useI18n()
@@ -15,9 +16,14 @@ const loading = ref(false)
 
 const appConfig = useAppConfig()
 const { data: providers } = await useFetch('/api/auth/providers')
-const socialProviders = computed(() => appConfig.klonk?.socialLogin === false ? [] : providers.value?.social ?? [])
-// Klonk ID ist der Betreiberzugang und erscheint nur in der Verwaltung
-const operatorLogin = computed(() => appConfig.klonk?.operatorLogin ? providers.value?.platform : null)
+// Auf auth.klonk.* entscheidet das Ziel: Verwaltung ⇒ Betreiber-Login, sonst Privatkonten
+const { public: { adminUrl } } = useRuntimeConfig()
+const targetsAdmin = computed(() => !!appConfig.klonk?.authServer && props.redirect.startsWith(adminUrl))
+const socialProviders = computed(() =>
+  appConfig.klonk?.socialLogin === false || targetsAdmin.value ? [] : providers.value?.social ?? [])
+// Klonk ID ist der Betreiberzugang und erscheint nur für die Verwaltung
+const operatorLogin = computed(() =>
+  appConfig.klonk?.operatorLogin || targetsAdmin.value ? providers.value?.platform : null)
 
 const providerIcons: Record<string, string> = {
   google: 'i-simple-icons-google',
@@ -28,7 +34,8 @@ const providerIcons: Record<string, string> = {
 const providerNames: Record<string, string> = { google: 'Google', microsoft: 'Microsoft', apple: 'Apple', github: 'GitHub' }
 
 function loginWithProvider(provider: string) {
-  return navigateTo(provider === 'platform' ? '/auth/oidc/platform' : `/auth/${provider}`, { external: true })
+  const path = provider === 'platform' ? '/auth/oidc/platform' : `/auth/${provider}`
+  return navigateTo(`${path}?redirect=${encodeURIComponent(props.redirect)}`, { external: true })
 }
 
 const hasPassword = computed(() => lookup.value?.methods.some(m => m === 'password' || m === 'ldap'))
@@ -71,8 +78,7 @@ async function submitPassword() {
 }
 
 function loginWithOidc() {
-  const redirect = typeof route.query.redirect === 'string' ? route.query.redirect : '/'
-  return navigateTo(`/auth/oidc/${lookup.value!.organizationId}?redirect=${encodeURIComponent(redirect)}`, { external: true })
+  return navigateTo(`/auth/oidc/${lookup.value!.organizationId}?redirect=${encodeURIComponent(props.redirect)}`, { external: true })
 }
 
 function reset() {

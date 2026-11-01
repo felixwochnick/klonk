@@ -1,4 +1,4 @@
-# Ein Image pro App: docker build -f docker/Dockerfile --build-arg APP=app|admin .
+# Ein Image pro App: docker build -f docker/Dockerfile --build-arg APP=app|admin|auth .
 ARG APP=app
 
 FROM node:22-alpine AS build

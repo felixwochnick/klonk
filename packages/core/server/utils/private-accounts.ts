@@ -53,13 +53,21 @@ export async function provisionPrivateUser(identity: PrivateIdentity) {
 // nuxt-auth-utils typisiert Events als `RequestEvent` – zur Laufzeit dasselbe Objekt wie das H3Event
 const toH3Event = (event: RequestEvent | H3Event) => event as H3Event
 
+/** Umhüllt einen OAuth-Handler von nuxt-auth-utils: merkt sich `?redirect=` für die Rückkehr */
+export function withRememberedRedirect(handler: (event: RequestEvent) => unknown) {
+  return defineEventHandler((event) => {
+    rememberRedirect(event)
+    return handler(event as unknown as RequestEvent)
+  })
+}
+
 /** Gemeinsamer Abschluss der OAuth-Anbieter (nuxt-auth-utils) */
 export async function finishPrivateLogin(requestEvent: RequestEvent, identity: PrivateIdentity) {
   const event = toH3Event(requestEvent)
   const user = await provisionPrivateUser(identity)
   if (!user) return sendRedirect(event, '/login?error=account_disabled')
   await startUserSession(event, user)
-  return sendRedirect(event, '/')
+  return sendRedirect(event, takeRememberedRedirect(event))
 }
 
 export function privateLoginFailed(event: RequestEvent | H3Event, error: unknown) {

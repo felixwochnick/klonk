@@ -1,5 +1,5 @@
 // Privatkonto per Google (nuxt-auth-utils, Zugangsdaten über NUXT_OAUTH_GOOGLE_*)
-export default defineOAuthGoogleEventHandler({
+export default withRememberedRedirect(defineOAuthGoogleEventHandler({
   async onSuccess(event, { user }) {
     return finishPrivateLogin(event, {
       provider: 'google',
@@ -9,4 +9,4 @@ export default defineOAuthGoogleEventHandler({
     })
   },
   onError: privateLoginFailed,
-})
+}))

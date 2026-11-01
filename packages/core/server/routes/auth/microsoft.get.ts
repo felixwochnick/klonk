@@ -1,5 +1,5 @@
 // Privatkonto per Microsoft (nuxt-auth-utils, Zugangsdaten über NUXT_OAUTH_MICROSOFT_*)
-export default defineOAuthMicrosoftEventHandler({
+export default withRememberedRedirect(defineOAuthMicrosoftEventHandler({
   async onSuccess(event, { user }) {
     return finishPrivateLogin(event, {
       provider: 'microsoft',
@@ -9,4 +9,4 @@ export default defineOAuthMicrosoftEventHandler({
     })
   },
   onError: privateLoginFailed,
-})
+}))
