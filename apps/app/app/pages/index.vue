@@ -17,7 +17,7 @@ watch(inProject, (open) => {
   if (open) showProject.value = true
 })
 
-const KIND_LANGUAGE = { blocks: 'blocks', klonk: 'klonk', javascript: 'javascript', typescript: 'typescript' } as const
+const KIND_LANGUAGE = { blocks: 'blocks', klonk: 'klonk', javascript: 'javascript', typescript: 'typescript', python: 'python' } as const
 /** Im Projekt: Datei der passenden Art geöffnet? (Welten/Sonstiges sind keine Programme) */
 const hasDocument = computed(() => !inProject.value || (!!proj.kind.value && proj.kind.value in KIND_LANGUAGE))
 
@@ -119,7 +119,7 @@ function resetWorld() {
 async function run(pauseOnStart = false) {
   if (!runner) return
   resetWorld()
-  // Bibliotheken: Klonk-Script-Dateien des Projekts (nur mit Lizenz)
+  // Bibliotheken: Klonk-Script-/Python-Dateien des Projekts (nur mit Lizenz)
   const files = inProject.value && can('libraries') ? await proj.importableFiles() : {}
   runner.run(world.value, {
     language: runLanguage.value,

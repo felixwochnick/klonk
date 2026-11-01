@@ -125,7 +125,8 @@
       "klonk": "Klonk-Script",
       "javascript": "JavaScript",
       "typescript": "TypeScript",
-      "blocks": "Blöcke"
+      "blocks": "Blöcke",
+      "python": "Python"
     },
     "language": "Programmiersprache"
   },
@@ -171,7 +172,9 @@
       "js_syntax": "Syntaxfehler: {message}",
       "js_runtime": "{name}: {message}",
       "js_import": "„import“/„export“ werden noch nicht unterstützt.",
-      "isolation_required": "JavaScript/TypeScript braucht einen sicheren Ausführungsmodus (Cross-Origin-Isolation). Bitte die Seite neu laden oder die Verwaltung informieren."
+      "isolation_required": "JavaScript, TypeScript und Python brauchen einen sicheren Ausführungsmodus (Cross-Origin-Isolation). Bitte die Seite neu laden oder die Verwaltung informieren.",
+      "py_runtime": "{name}: {message}",
+      "python_load": "Python konnte nicht geladen werden ({message}). Beim ersten Mal ist eine Internetverbindung nötig."
     }
   },
   "blocks": {
@@ -235,7 +238,8 @@
       "klonk": "programm",
       "javascript": "programm",
       "typescript": "programm",
-      "world": "welt"
+      "world": "welt",
+      "python": "programm"
     },
     "confirmDelete": "„{name}“ wirklich löschen?",
     "confirmDeleteProject": "Browser-Projekt „{name}“ mit allen Dateien löschen?",

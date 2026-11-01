@@ -2,6 +2,7 @@
 import { Interpreter, KlonkError, type SourceRange, type Value } from '@klonk/klonk-script'
 import { World } from '@klonk/world'
 import { runJavaScript } from './js/run'
+import { runPython } from './python/run'
 import type { FromWorker, ToWorker } from './protocol'
 
 // Führt Programme abseits der Oberfläche aus. Abbrechen = Worker beenden (worker.terminate()).
@@ -27,6 +28,7 @@ self.onmessage = (event: MessageEvent<ToWorker>) => {
   switch (message.type) {
     case 'run':
       if (message.language === 'klonk') void run(message)
+      else if (message.language === 'python') void runPython(message, post)
       else runJavaScript(message, post)
       break
     case 'pause':

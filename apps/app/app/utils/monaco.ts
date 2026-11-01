@@ -23,6 +23,7 @@ export function loadMonaco(t: Translator): Promise<Monaco> {
       getWorker: (_id: string, label: string) => (label === 'typescript' || label === 'javascript' ? new TsWorker() : new EditorWorker()),
     }
     registerKlonk(monaco)
+    registerPython(monaco)
     configureTypeScript(monaco)
     return monaco
   })()
@@ -151,6 +152,60 @@ function registerKlonk(monaco: Monaco) {
       }
     },
   })
+}
+
+const PYTHON_KEYWORDS = ['if', 'elif', 'else', 'while', 'for', 'in', 'range', 'def', 'return', 'break', 'continue', 'pass', 'and', 'or', 'not', 'True', 'False', 'None', 'import', 'from', 'print', 'len', 'int', 'str']
+
+/** Python (Monaco bringt die Syntaxfarben mit): Roboter-API in snake_case vervollständigen und erklären */
+function registerPython(monaco: Monaco) {
+  const { CompletionItemKind: Kind, CompletionItemInsertTextRule: Rule } = monaco.languages
+  monaco.languages.registerCompletionItemProvider('python', {
+    provideCompletionItems(model, position) {
+      const lang = translator?.lang() ?? 'de'
+      const word = model.getWordUntilPosition(position)
+      const range = new monaco.Range(position.lineNumber, word.startColumn, position.lineNumber, word.endColumn)
+      const suggestions: import('monaco-editor').languages.CompletionItem[] = PYTHON_KEYWORDS.map(k => ({
+        label: k, kind: Kind.Keyword, insertText: k, range, sortText: `2${k}`,
+      }))
+      for (const [name, builtin] of Object.entries(BUILTINS) as [BuiltinName, Builtin][]) {
+        if (name === 'print') continue
+        const label = pythonName(spell(name, lang))
+        const params = (builtin.params ?? []).filter(p => !p.optional)
+        suggestions.push({
+          label,
+          kind: builtin.kind === 'constant' ? Kind.Constant : builtin.kind === 'sensor' ? Kind.Property : Kind.Function,
+          detail: pythonSignature(name, lang),
+          documentation: { value: builtin.doc[lang] },
+          insertText: builtin.kind === 'constant' ? label : `${label}(${params.map((p, i) => `\${${i + 1}:${p.name[lang][0]}}`).join(', ')})`,
+          insertTextRules: Rule.InsertAsSnippet,
+          range,
+          sortText: `1${label}`,
+        })
+      }
+      return { suggestions }
+    },
+  })
+  monaco.languages.registerHoverProvider('python', {
+    provideHover(model, position) {
+      const word = model.getWordAtPosition(position)
+      if (!word) return null
+      const lang = translator?.lang() ?? 'de'
+      const entry = Object.entries(BUILTINS).find(([, b]) => [...b.names.de, ...b.names.en].some(n => n === word.word || pythonName(n) === word.word))
+      if (!entry || entry[0] === 'print') return null
+      const [name, builtin] = entry as [BuiltinName, Builtin]
+      return {
+        range: new monaco.Range(position.lineNumber, word.startColumn, position.lineNumber, word.endColumn),
+        contents: [{ value: `\`${pythonSignature(name, lang)}\`` }, { value: builtin.doc[lang] }],
+      }
+    },
+  })
+}
+
+function pythonSignature(name: BuiltinName, lang: ScriptLanguage) {
+  const builtin: Builtin = BUILTINS[name]
+  const label = pythonName(spell(name, lang))
+  if (builtin.kind === 'constant') return label
+  return `${label}(${(builtin.params ?? []).map(p => (p.optional ? `${p.name[lang][0]}=…` : p.name[lang][0])).join(', ')})`
 }
 
 function signature(name: BuiltinName, lang: ScriptLanguage) {

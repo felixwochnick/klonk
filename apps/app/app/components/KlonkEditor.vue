@@ -9,7 +9,7 @@ const monacoLanguage = (language: string) => (language === 'klonk' ? KLONK_LANGU
 // Nur im Browser verwenden (<ClientOnly>).
 const props = withDefaults(defineProps<{
   /** Programmiersprache des Editors */
-  language?: 'klonk' | 'javascript' | 'typescript'
+  language?: 'klonk' | 'javascript' | 'typescript' | 'python'
   readOnly?: boolean
   /** Zeile, die gerade läuft */
   activeLine?: number | null

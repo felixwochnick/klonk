@@ -125,7 +125,8 @@
       "klonk": "Klonk-Script",
       "javascript": "JavaScript",
       "typescript": "TypeScript",
-      "blocks": "Blocks"
+      "blocks": "Blocks",
+      "python": "Python"
     },
     "language": "Programming language"
   },
@@ -171,7 +172,9 @@
       "js_syntax": "Syntax error: {message}",
       "js_runtime": "{name}: {message}",
       "js_import": "“import”/“export” are not supported yet.",
-      "isolation_required": "JavaScript/TypeScript needs a secure execution mode (cross-origin isolation). Please reload the page or contact your administrator."
+      "isolation_required": "JavaScript, TypeScript and Python need a secure execution mode (cross-origin isolation). Please reload the page or contact your administrator.",
+      "py_runtime": "{name}: {message}",
+      "python_load": "Python could not be loaded ({message}). The first time requires an internet connection."
     }
   },
   "blocks": {
@@ -235,7 +238,8 @@
       "klonk": "program",
       "javascript": "program",
       "typescript": "program",
-      "world": "world"
+      "world": "world",
+      "python": "program"
     },
     "confirmDelete": "Really delete “{name}”?",
     "confirmDeleteProject": "Delete browser project “{name}” with all files?",

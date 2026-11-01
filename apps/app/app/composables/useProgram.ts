@@ -5,7 +5,7 @@ const STORAGE_KEY = 'klonk:program'
 
 /** Sprachen in der IDE – Blöcke werden zu Klonk-Script */
 export type ProgramLanguage = RunLanguage | 'blocks'
-export const PROGRAM_LANGUAGES: ProgramLanguage[] = ['blocks', 'klonk', 'javascript', 'typescript']
+export const PROGRAM_LANGUAGES: ProgramLanguage[] = ['blocks', 'klonk', 'javascript', 'typescript', 'python']
 
 type Program = { source: string, breakpoints: number[] }
 
@@ -41,6 +41,25 @@ ${k('repeat')} ${k('while')} ${k('not')} ${k('isWall')}
   ${k('step')}
 ${k('end')}
 ${k('setMark')}
+`
+  }
+  if (language === 'python') {
+    const p = (name: Parameters<typeof spell>[0]) => pythonName(spell(name, lang))
+    return `${de ? '# Läuft bis zur Wand und legt links davon Ziegel' : '# Walks to the wall and places bricks on its left'}
+def ${de ? 'reihe' : 'row'}(${de ? 'farbe' : 'color'}):
+    ${de ? 'anzahl' : 'count'} = 0
+    while not ${p('isWall')}():
+        ${p('turnLeft')}()
+        ${p('placeBrick')}(${de ? 'farbe' : 'color'})
+        ${p('turnRight')}()
+        ${p('step')}()
+        ${de ? 'anzahl' : 'count'} += 1
+    return ${de ? 'anzahl' : 'count'}
+
+
+${de ? 'gelegt' : 'placed'} = ${de ? 'reihe' : 'row'}(${p('blue')})
+${p('setMark')}()
+print(${de ? '"Ziegel gelegt:"' : '"Bricks placed:"'}, ${de ? 'gelegt' : 'placed'})
 `
   }
   const ts = language === 'typescript'
@@ -125,4 +144,9 @@ export function useProgram() {
   }
 
   return { language, source, breakpoints, lang, translateTo, reset: () => (source.value = programSample(language.value, lang.value)) }
+}
+
+/** Python-Schreibweise der Roboter-API (`istWand` ⇒ `ist_wand`, wie im Python-Vorspann der Laufzeit) */
+export function pythonName(name: string) {
+  return name.replace(/(?<=[a-zäöüß0-9])([A-ZÄÖÜ])/g, m => `_${m.toLowerCase()}`)
 }

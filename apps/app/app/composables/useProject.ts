@@ -141,12 +141,12 @@ export function useProject() {
     await refresh()
   }
 
-  /** Alle Klonk-Script-Dateien für `importiere` */
+  /** Bibliotheken: Klonk-Script-Dateien (`importiere`) und Python-Module (`import`) */
   async function importableFiles(): Promise<Record<string, string>> {
     if (!project.value) return {}
     await flush()
     const result: Record<string, string> = {}
-    for (const file of files.value.filter(f => f.kind === 'klonk')) result[file.path] = await project.value.read(file.path)
+    for (const file of files.value.filter(f => f.kind === 'klonk' || f.kind === 'python')) result[file.path] = await project.value.read(file.path)
     return result
   }
 

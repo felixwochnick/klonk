@@ -1,3 +1,9 @@
+import { createRequire } from 'node:module'
+import { dirname } from 'node:path'
+
+// Python: Pyodide-Dateien von der eigenen Origin ausliefern (COEP erlaubt keine Fremd-Ressourcen)
+const PYODIDE_DIR = dirname(createRequire(import.meta.url).resolve('pyodide/package.json'))
+
 // Jeder Build bekommt eine neue Revision für die vorab gespeicherte App-Shell
 const SHELL_REVISION = Date.now().toString(36)
 
@@ -24,6 +30,10 @@ export default defineNuxtConfig({
   },
 
   compatibilityDate: '2026-10-01',
+
+  nitro: {
+    publicAssets: [{ dir: PYODIDE_DIR, baseURL: '/pyodide', maxAge: 60 * 60 * 24 * 30 }],
+  },
 
   vite: {
     worker: { format: 'es' },
@@ -85,7 +95,8 @@ export default defineNuxtConfig({
     },
     workbox: {
       globPatterns: ['**/*.{js,mjs,css,wasm,glb,png,svg,ico,woff2,json}'],
-      globIgnores: ['**/_payload.json', 'models-preview.png'],
+      // Pyodide (~13 MB) erst bei Bedarf, dann dauerhaft im Cache
+      globIgnores: ['**/_payload.json', 'models-preview.png', 'pyodide/**'],
       // Monaco, three.js und Blockly sind groß
       maximumFileSizeToCacheInBytes: 16 * 1024 * 1024,
       // Alle Lern-Seiten teilen sich dieselbe SPA-Shell
@@ -95,6 +106,7 @@ export default defineNuxtConfig({
       runtimeCaching: [
         // Symbole, die nicht im Client-Bundle stecken
         { urlPattern: /\/api\/_nuxt_icon\//, handler: 'StaleWhileRevalidate', options: { cacheName: 'icons' } },
+        { urlPattern: /\/pyodide\//, handler: 'CacheFirst', options: { cacheName: 'pyodide' } },
       ],
       cleanupOutdatedCaches: true,
     },

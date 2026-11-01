@@ -118,7 +118,7 @@ pnpm --filter @klonk/core test      # RLS-Integrationstests
 ## Produktentscheidungen
 
 - **Editor:** Monaco. **Sprachen:** Klonk-Script (eigene Sprache), JS/TS (lokal im Worker, mit Debugging), Blöcke (Blockly ⇒ Klonk-Script).
-  Später: Python (Pyodide, `sys.settrace`), Java (**TeaVM**, im Browser kompiliert), C#. Ausführungsschicht von Anfang an
+  Python (Pyodide, `sys.settrace`). Später: Java (**TeaVM**, im Browser kompiliert), C#. Ausführungsschicht von Anfang an
   sprachunabhängig: gemeinsame Roboter-API + Debugger-Protokoll; synchrone Roboterbefehle im Worker via
   SharedArrayBuffer/Atomics ⇒ App braucht COOP/COEP-Header.
 - **Klonk-Script ist mehrsprachig:** Schlüsselwörter und Befehle pro Sprache (anfangs Deutsch + Englisch) über
@@ -138,6 +138,14 @@ pnpm --filter @klonk/core test      # RLS-Integrationstests
   daher **keine Fremd-Ressourcen in der App** (Schriften, Bilder, Skripte nur von der eigenen Origin).
   Monaco-TS: `monaco.typescript.*Defaults` (0.57), API-Deklaration `utils/js-api-types.ts`. Worker-Abhängigkeiten in
   `vite.optimizeDeps.include`, sonst lädt die Dev-Seite beim ersten Lauf neu.
+- **Python** (`packages/runtime/src/python/`): Pyodide (`pyodide`-Paket, Version fest) wird **nicht gebündelt**, sondern per
+  Nitro-`publicAssets` unter `/pyodide/` ausgeliefert (COEP) und im Worker per dynamischem Import geladen; PWA cacht es erst bei
+  Bedarf (`CacheFirst`). Gleiche SAB-Steuerung wie JS: `prelude.ts` setzt `sys.settrace` (nur Datei `<klonk>`) ⇒ Prüfpunkt je Zeile,
+  Variablen erst beim Anhalten (`repr`). Roboter-API aus `createApi()` als **Builtins** in allen Schreibweisen + snake_case
+  (`ist_wand`, `turn_left`; gleiche Regel wie `pythonName()` in `useProgram.ts`), `print` bleibt Pythons eigenes, `ausgabe = print`.
+  API-Fehler kommen in Python als `JsException` an ⇒ zuletzt geworfener `ApiError` wird gemerkt und übersetzt. Projekt-`.py`-Dateien
+  nur mit Lizenz (`libraries`) importierbar. Unit-Tests laufen mit Pyodide in Node (`tests/python.test.ts`, Loader injizierbar).
+  Monaco: Python-Syntax eingebaut, Vervollständigung/Hover der API in `utils/monaco.ts` (`registerPython`).
 - **Blöcke** (`apps/app/app/utils/blocks/`, `KlonkBlocks.vue`): Blockly 13 (zelos), Beschriftung aus den Klonk-Script-Tabellen
   (`spell()`), Generator ⇒ Klonk-Script; jede Anweisung markiert ihre erste Zeile mit ` #@<blockId>` (Kommentar, wird entfernt)
   ⇒ `lineToBlock` für Hervorhebung/Fehler/Haltepunkte. Haltepunkte in `block.data = 'breakpoint'` (mitgespeichert).
@@ -149,7 +157,7 @@ pnpm --filter @klonk/core test      # RLS-Integrationstests
 - **Projekte** (`utils/project-fs.ts`, `useProject.ts`, `ProjectPanel.vue`): gleiche Klasse `Project` für echte Ordner
   (`showDirectoryPicker`, Chrome/Edge) und Browser-Projekte (OPFS `klonk-projects/<name>`, alle Browser; E2E testet über OPFS).
   Zustand modulweit (Handles nicht serialisierbar), zuletzt geöffnete Ordner in IndexedDB, Autosave 400 ms. Dateiart aus der
-  Endung (`.blocks`, `.klonk`, `.js`, `.ts`, `.klonkworld.json`). Ohne Projekt nutzt die IDE weiter `useProgram()` (localStorage).
+  Endung (`.blocks`, `.klonk`, `.js`, `.ts`, `.py`, `.klonkworld.json`). Ohne Projekt nutzt die IDE weiter `useProgram()` (localStorage).
   Reka-`SelectItem` erlaubt keinen leeren Wert ⇒ Platzhalterwerte verwenden. Blockly-Kontextmenü global ⇒ vor Neu-Registrierung abmelden.
   Bedienlogik gemeinsam in `useProjectExplorer()` (Seitenleiste `ProjectPanel` + Vollbild-Explorer `pages/projects.vue`),
   Datei-Symbole `FileIcon` (simple-icons für JS/TS/…, Klonk-Script als eigener Ziegel), Namensdialog `ProjectNameDialog`.
@@ -214,4 +222,4 @@ pnpm --filter @klonk/core test      # RLS-Integrationstests
 9. [x] Lokales Dateisystem: Projektordner (File System Access API) + Browser-Projekte (OPFS), Explorer, Autosave, Welten, Bibliotheken
 10. [x] PWA (Logo, Favicon, Offline)
 11. [ ] KI-Assistent (schuleigenes LLM / WebLLM)
-12. [ ] Python, Java (TeaVM), C#
+12. [ ] Weitere Sprachen: Python ✓ (Pyodide), Java (TeaVM), C#

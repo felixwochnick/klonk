@@ -114,7 +114,7 @@ export function useProjectExplorer(options: { onOpenFile?: (file: ProjectFile) =
   }
 
   const newItems = computed<DropdownMenuItem[][]>(() => [
-    (['blocks', 'klonk', 'javascript', 'typescript'] as const).map(kind => ({
+    (['blocks', 'klonk', 'javascript', 'typescript', 'python'] as const).map(kind => ({
       label: t(`editor.languages.${kind}`), icon: KIND_ICON[kind], onSelect: () => openDialog({ mode: 'file', kind }),
     })),
     [{ label: t('project.world'), icon: KIND_ICON.world, onSelect: () => openDialog({ mode: 'file', kind: 'world' }) }],
@@ -154,6 +154,7 @@ const KIND_ICON: Record<FileKind, string> = {
   klonk: 'i-lucide-file-code',
   javascript: 'i-simple-icons-javascript',
   typescript: 'i-simple-icons-typescript',
+  python: 'i-simple-icons-python',
   world: 'i-lucide-boxes',
   other: 'i-lucide-file',
 }
