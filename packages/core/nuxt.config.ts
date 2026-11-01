@@ -10,7 +10,7 @@ export default defineNuxtConfig({
     migrationsDir: fileURLToPath(new URL('./server/database/migrations', import.meta.url)),
     // 32 Byte (hex/base64) für die Verschlüsselung von SSO-Secrets in der DB
     encryptionKey: '',
-    // Klonk ID: plattformweiter OIDC-Anbieter (Authentik) für Privatkonten und Betreiber
+    // Klonk ID: plattformweiter OIDC-Anbieter (Authentik), nur für Betreiber (Entwickler:innen, Besitzer:innen)
     platformOidc: {
       name: 'Klonk ID',
       issuer: '',

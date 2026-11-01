@@ -16,6 +16,8 @@ const loading = ref(false)
 const appConfig = useAppConfig()
 const { data: providers } = await useFetch('/api/auth/providers')
 const socialProviders = computed(() => appConfig.klonk?.socialLogin === false ? [] : providers.value?.social ?? [])
+// Klonk ID ist der Betreiberzugang und erscheint nur in der Verwaltung
+const operatorLogin = computed(() => appConfig.klonk?.operatorLogin ? providers.value?.platform : null)
 
 const providerIcons: Record<string, string> = {
   google: 'i-simple-icons-google',
@@ -177,18 +179,9 @@ function reset() {
       />
     </div>
 
-    <template v-if="!lookup && (providers?.platform || socialProviders.length)">
+    <template v-if="!lookup && socialProviders.length">
       <USeparator :label="t('auth.login.private')" />
       <div class="space-y-2">
-        <UButton
-          v-if="providers?.platform"
-          block
-          variant="outline"
-          color="neutral"
-          icon="i-lucide-user-round"
-          :label="t('auth.login.with', { name: providers.platform.name })"
-          @click="loginWithProvider('platform')"
-        />
         <UButton
           v-for="provider in socialProviders"
           :key="provider"
@@ -200,6 +193,18 @@ function reset() {
           @click="loginWithProvider(provider)"
         />
       </div>
+    </template>
+
+    <template v-if="!lookup && operatorLogin">
+      <USeparator :label="t('auth.login.operator')" />
+      <UButton
+        block
+        variant="ghost"
+        color="neutral"
+        icon="i-lucide-shield-user"
+        :label="t('auth.login.with', { name: operatorLogin.name })"
+        @click="loginWithProvider('platform')"
+      />
     </template>
 
     <slot name="footer" />

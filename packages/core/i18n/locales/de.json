@@ -10,8 +10,9 @@
       "submit": "Anmelden",
       "or": "oder",
       "sso": "Mit {name} anmelden",
-      "private": "Privat oder als Betreiber:in",
-      "with": "Mit {name} anmelden"
+      "private": "Privatkonto",
+      "with": "Mit {name} anmelden",
+      "operator": "Betreiber:innen"
     },
     "logout": "Abmelden",
     "changePassword": {
@@ -58,6 +59,7 @@
     "domain_taken": "Diese Domain ist bereits vergeben.",
     "not_found": "Nicht gefunden.",
     "sso_failed": "Die Anmeldung per SSO ist fehlgeschlagen.",
-    "invalid_input": "Bitte überprüfe deine Eingaben."
+    "invalid_input": "Bitte überprüfe deine Eingaben.",
+    "not_operator": "Die Klonk ID ist nur für Entwickler:innen und Besitzer:innen."
   }
 }

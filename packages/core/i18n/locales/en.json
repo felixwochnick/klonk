@@ -10,8 +10,9 @@
       "submit": "Sign in",
       "or": "or",
       "sso": "Sign in with {name}",
-      "private": "Private or operator",
-      "with": "Sign in with {name}"
+      "private": "Private account",
+      "with": "Sign in with {name}",
+      "operator": "Operators"
     },
     "logout": "Sign out",
     "changePassword": {
@@ -58,6 +59,7 @@
     "domain_taken": "This domain is already taken.",
     "not_found": "Not found.",
     "sso_failed": "Signing in via SSO failed.",
-    "invalid_input": "Please check your input."
+    "invalid_input": "Please check your input.",
+    "not_operator": "Klonk ID is only for developers and owners."
   }
 }

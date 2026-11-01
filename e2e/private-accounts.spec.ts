@@ -2,7 +2,7 @@ import { expect, test, type Page } from '@playwright/test'
 import { ADMIN_URL, APP_URL } from '../playwright.config'
 import { gotoHydrated } from './utils'
 
-// Klonk ID gegen Dex (`pnpm sso:up`); baut auf admin-accounts.spec.ts auf
+// Klonk ID (Betreiberzugang) gegen Dex (`pnpm sso:up`); baut auf admin-accounts.spec.ts auf
 test.use({ locale: 'de-DE' })
 
 test.beforeAll(async () => {
@@ -18,19 +18,20 @@ async function loginWithKlonkId(page: Page, baseUrl: string, username: string) {
   await page.locator('#submit-login').click()
 }
 
-test('Privatkonto per Klonk ID', async ({ page }) => {
-  await loginWithKlonkId(page, APP_URL, 'tim')
-  await expect(page.getByTestId('user-menu')).toHaveText(/Tim Schüler/)
+test('Klonk ID nur in der Verwaltung, Social-Login nur in der App', async ({ page }) => {
+  await gotoHydrated(page, `${APP_URL}/login`)
+  await expect(page.getByRole('button', { name: 'Mit Klonk ID anmelden' })).toHaveCount(0)
 
-  // Privatkonten haben keinen Zugang zur Verwaltung
-  await gotoHydrated(page, `${ADMIN_URL}/`)
-  await expect(page).toHaveURL(/\/no-access$/)
-})
-
-test('Social-Login ist in der Verwaltung ausgeblendet', async ({ page }) => {
   await gotoHydrated(page, `${ADMIN_URL}/login`)
   await expect(page.getByRole('button', { name: 'Mit Klonk ID anmelden' })).toBeVisible()
   await expect(page.getByRole('button', { name: /Google|GitHub/ })).toHaveCount(0)
+})
+
+test('Klonk ID ohne Betreiber-Gruppe wird abgelehnt', async ({ page }) => {
+  await loginWithKlonkId(page, ADMIN_URL, 'tim')
+  await expect(page).toHaveURL(/\/login\?error=not_operator/)
+  await expect(page.getByText('Die Klonk ID ist nur für Entwickler:innen und Besitzer:innen.')).toBeVisible()
+  await expect(page.getByTestId('user-menu')).toHaveCount(0)
 })
 
 test('Betreiber:in per Klonk ID verwaltet alle Organisationen', async ({ page }) => {

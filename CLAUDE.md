@@ -80,9 +80,10 @@ pnpm --filter @klonk/core test      # RLS-Integrationstests
   OIDC: `server/routes/auth/oidc/*` (PKCE, Zustand verschlüsselt im Cookie), LDAP: `server/utils/ldap.ts` (Filter maskiert).
   JIT-Provisionierung in `server/utils/provision.ts` – verknüpft nie mit Konten, die ein lokales Passwort haben.
 - Privatkonten (ohne Organisation): Google/Microsoft/Apple/GitHub (`server/routes/auth/<anbieter>.get.ts`, nuxt-auth-utils)
-  und **Klonk ID** = plattformweites OIDC (Authentik, `runtimeConfig.platformOidc`, Route `/auth/oidc/platform`).
-  Plattformrolle `owner`/`developer` folgt bei jedem Login den Klonk-ID-Gruppen. Wiedererkennung nur über Anbieter-ID.
-  Social-Buttons nur in der App (`appConfig.klonk.socialLogin`), in admin nur Klonk ID.
+  Wiedererkennung nur über Anbieter-ID. Social-Buttons nur in der App (`appConfig.klonk.socialLogin`).
+- **Klonk ID** (Authentik, `runtimeConfig.platformOidc`, Route `/auth/oidc/platform`) ist **nur für Entwickler:innen und
+  Besitzer:innen** (vom User so festgelegt): Button nur in admin (`appConfig.klonk.operatorLogin`), ohne Betreiber-Gruppe
+  kein Login; Gruppenentzug ⇒ Konto gesperrt + Sessions widerrufen, Rückkehr in die Gruppe ⇒ wieder freigegeben.
 - E2E: Dex dient auch als Klonk ID (Gruppe `admins` ⇒ owner, siehe `playwright.config.ts`).
 - Erste Einrichtung über `admin /setup`: erste Organisation + Admin (= Instanz-Besitzer).
 - Lehrkräfte setzen Passwörter von Lernenden zurück (⇒ `mustChangePassword`, alle Sessions widerrufen).
@@ -119,7 +120,7 @@ pnpm --filter @klonk/core test      # RLS-Integrationstests
 1. [x] Monorepo-Gerüst: App, Docs, Postgres/Drizzle, Auto-Migration, Docker, i18n, E2E-Tests
 2. [x] Layer `@klonk/ui` + `@klonk/core`, Admin-App, Organisationen, Rollen, RLS, lokale Konten, Passwort-Reset
 2b. [x] OIDC + LDAP pro Organisation (Login-Flows, Verbindungstest, JIT-Provisionierung, Rollen aus Gruppen)
-2c. [x] Privatkonten: OAuth-Anbieter (Google, Microsoft, GitHub, Apple) + Klonk ID (Authentik) für Privatkonten und Betreiber
+2c. [x] Privatkonten: OAuth-Anbieter (Google, Microsoft, GitHub, Apple); Klonk ID (Authentik) nur für Betreiber
 3. [ ] Lizenz-Token-Prüfung + Free-Tier-Limits
 4. [ ] 3D-Welt (three.js): Boden, Wände, Kisten, Markierungen, Welt-Editor
 5. [ ] Blender-Modelle: Figuren (m/w/d) + Weltblöcke, glTF
