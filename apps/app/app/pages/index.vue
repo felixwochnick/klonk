@@ -176,6 +176,46 @@ onMounted(() => window.addEventListener('keydown', onKey))
 onBeforeUnmount(() => window.removeEventListener('keydown', onKey))
 
 const variables = computed(() => Object.entries(snapshot.value.variables))
+
+// Fenstergrößen (ab lg): Trenner ziehen wie in Code-Editoren, im Browser gemerkt
+const LAYOUT_KEY = 'klonk:layout'
+const panes = ref({ project: 256, code: 0, output: 224 })
+const panesRow = ref<HTMLElement>()
+const worldColumn = ref<HTMLElement>()
+onMounted(() => {
+  try {
+    Object.assign(panes.value, JSON.parse(localStorage.getItem(LAYOUT_KEY) ?? '{}'))
+  }
+  catch {
+    // ungültig ⇒ Standard
+  }
+  // Ohne gemerkte Breite: Code und Welt teilen sich den Platz
+  if (!panes.value.code && panesRow.value) panes.value.code = Math.round((panesRow.value.clientWidth - (showProject.value ? panes.value.project : 0)) / 2)
+})
+const clamp = (value: number, min: number, max: number) => Math.round(Math.min(Math.max(value, min), Math.max(min, max)))
+function resizeProject(delta: number) {
+  panes.value.project = clamp(panes.value.project + delta, 180, 480)
+}
+function resizeCode(delta: number) {
+  const row = panesRow.value?.clientWidth ?? 1200
+  panes.value.code = clamp(panes.value.code + delta, 280, row - (showProject.value ? panes.value.project : 0) - 320)
+}
+function resizeOutput(delta: number) {
+  panes.value.output = clamp(panes.value.output - delta, 80, (worldColumn.value?.clientHeight ?? 600) - 160)
+}
+function savePanes() {
+  try {
+    localStorage.setItem(LAYOUT_KEY, JSON.stringify(panes.value))
+  }
+  catch {
+    // z. B. privater Modus
+  }
+}
+const paneStyle = computed(() => ({
+  '--pane-project': `${panes.value.project}px`,
+  '--pane-code': panes.value.code ? `${panes.value.code}px` : '50%',
+  '--pane-output': `${panes.value.output}px`,
+}))
 </script>
 
 <template>
@@ -289,19 +329,35 @@ const variables = computed(() => Object.entries(snapshot.value.variables))
       </div>
     </div>
 
-    <div class="flex min-h-0 flex-1 flex-col lg:flex-row">
+    <div
+      ref="panesRow"
+      class="flex min-h-0 flex-1 flex-col lg:flex-row"
+      :style="paneStyle"
+    >
       <!-- Projekt -->
-      <aside
-        v-if="showProject"
-        class="shrink-0 border-(--ui-border) lg:w-64 lg:border-r"
-      >
-        <ClientOnly>
-          <ProjectPanel />
-        </ClientOnly>
-      </aside>
+      <template v-if="showProject">
+        <aside
+          class="shrink-0 border-b border-(--ui-border) lg:w-(--pane-project) lg:border-b-0"
+          data-testid="project-pane"
+        >
+          <ClientOnly>
+            <ProjectPanel />
+          </ClientOnly>
+        </aside>
+        <SplitHandle
+          orientation="vertical"
+          :label="t('editor.resizeProject')"
+          data-testid="split-project"
+          @move="resizeProject"
+          @end="savePanes"
+        />
+      </template>
 
       <!-- Code -->
-      <section class="flex min-h-64 flex-1 flex-col lg:max-w-[50%]">
+      <section
+        class="flex min-h-64 flex-1 flex-col lg:w-(--pane-code) lg:max-w-[calc(100%-20rem)] lg:flex-none"
+        data-testid="code-pane"
+      >
         <div
           v-if="!hasDocument"
           class="flex flex-1 items-center justify-center p-6 text-center text-(--ui-text-muted)"
@@ -354,8 +410,19 @@ const variables = computed(() => Object.entries(snapshot.value.variables))
         </ClientOnly>
       </section>
 
+      <SplitHandle
+        orientation="vertical"
+        :label="t('editor.resizeCode')"
+        data-testid="split-code"
+        @move="resizeCode"
+        @end="savePanes"
+      />
+
       <!-- Welt + Ausgabe -->
-      <section class="flex min-h-0 flex-1 flex-col border-(--ui-border) lg:border-l">
+      <section
+        ref="worldColumn"
+        class="flex min-h-0 min-w-0 flex-1 flex-col border-t border-(--ui-border) lg:border-t-0"
+      >
         <div class="relative min-h-64 flex-1 bg-(--ui-bg-muted)">
           <ClientOnly>
             <KlonkWorld
@@ -377,7 +444,17 @@ const variables = computed(() => Object.entries(snapshot.value.variables))
           </div>
         </div>
 
-        <div class="h-56 shrink-0 overflow-y-auto border-t border-(--ui-border) p-3 text-sm">
+        <SplitHandle
+          orientation="horizontal"
+          :label="t('editor.resizeOutput')"
+          data-testid="split-output"
+          @move="resizeOutput"
+          @end="savePanes"
+        />
+        <div
+          class="h-56 shrink-0 overflow-y-auto border-t border-(--ui-border) p-3 text-sm lg:h-(--pane-output) lg:border-t-0"
+          data-testid="output-pane"
+        >
           <UAlert
             v-if="errorMessage"
             color="error"

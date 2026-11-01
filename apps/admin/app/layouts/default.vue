@@ -63,7 +63,10 @@ const items = computed<NavigationMenuItem[][]>(() => [
       <template #footer>
         <div class="flex w-full items-center justify-between gap-1">
           <UserMenu />
-          <div class="flex">
+          <div
+            v-if="!user"
+            class="flex"
+          >
             <LocaleSwitch />
             <UColorModeButton />
           </div>

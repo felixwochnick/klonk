@@ -30,6 +30,8 @@ export const MARK_HEX: Record<MarkColor, number> = {
 
 const BLOCK_HEX = 0x6C6E68
 const FLOOR_HEX = 0x9BA19D
+/** Noppenraster (4×4 Noppen je Feld) */
+const STUD_PITCH = 0.25
 const ROTATION: Record<Direction, number> = { south: 0, east: Math.PI / 2, north: Math.PI, west: -Math.PI / 2 }
 
 type Models = { brick: THREE.BufferGeometry, plate: THREE.BufferGeometry, tile: THREE.BufferGeometry, characters: Record<CharacterModel, THREE.Object3D> }
@@ -357,7 +359,12 @@ export class WorldRenderer {
 
   private addCharacterView(character: CharacterData) {
     this.invalidate()
-    const root = this.models!.characters[character.model].clone(true)
+    // Füße auf Noppen: seitlich passt die Mitte schon (±½ Raster), in Blickrichtung um ½ Raster nach hinten
+    // (4×4 Noppen ⇒ die Feldmitte liegt zwischen zwei Noppenreihen; vorne bleibt so etwas mehr Platz)
+    const model = this.models!.characters[character.model].clone(true)
+    model.position.z = -STUD_PITCH / 2
+    const root = new THREE.Group()
+    root.add(model)
     const view: CharacterView = {
       root,
       limbs: {

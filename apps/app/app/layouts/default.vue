@@ -2,6 +2,8 @@
 const { t } = useI18n()
 const { $pwa } = useNuxtApp()
 const offline = useOffline()
+// Angemeldet: Sprache und Darstellung unter Einstellungen (Kontomenü)
+const { user } = useAuth()
 </script>
 
 <template>
@@ -36,8 +38,10 @@ const offline = useOffline()
           variant="subtle"
           data-testid="offline-badge"
         />
-        <LocaleSwitch />
-        <UColorModeButton />
+        <template v-if="!user">
+          <LocaleSwitch />
+          <UColorModeButton />
+        </template>
         <UserMenu />
       </template>
     </UHeader>

@@ -12,6 +12,7 @@ const items = computed<DropdownMenuItem[][]>(() => [
   ...(user.value?.hasPassword
     ? [[{ label: t('auth.changePassword.title'), icon: 'i-lucide-key-round', to: changePasswordUrl(route.fullPath), external: true }]]
     : []),
+  [{ label: t('settings.title'), icon: 'i-lucide-settings', to: '/settings' }],
   [{ label: t('auth.logout'), icon: 'i-lucide-log-out', onSelect: logout }],
 ])
 </script>

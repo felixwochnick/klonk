@@ -131,7 +131,7 @@ node scripts/build-csharp.ts        # C#-Host bauen (.NET-SDK 10 nötig; Ausgabe
 - **Grafik:** Figuren (männlich, weiblich, divers) und Weltblöcke in Klemmbaustein-Optik, selbst in Blender modelliert, Export glTF.
   Modelle entstehen per Skript: `blender -b --factory-startup --python assets/blender/build_models.py` ⇒
   `apps/app/public/models/*.glb` + `assets/blender/klonk-models.blend` + `preview.png`. Maße: 1 Feld = 1 Einheit = **4×4 Noppen** (Raster 0,25),
-  Ziegel 0,3 hoch, Platte/Fliese 0,1, Noppe 0,05; Figuren (Skalierung 0,75) stehen mit jedem Fuß auf einer Noppe. Figuren sind aus Ziegeln aufgebaut (bewusst keine Minifiguren-Nachbildung),
+  Ziegel 0,3 hoch, Platte/Fliese 0,1, Noppe 0,05; Figuren (Skalierung 0,75) stehen mit jedem Fuß auf einer Noppe (der Renderer setzt das Modell dafür ½ Raster = 0,125 hinter die Feldmitte). Figuren sind aus Ziegeln aufgebaut (bewusst keine Minifiguren-Nachbildung),
   Gelenke `ArmL/ArmR/LegL/LegR` für Animationen. Blender-MCP (Port 9876) ist optional – das Skript läuft headless.
 - **JS/TS-Ausführung** (`packages/runtime/src/js/`): Nutzercode läuft **synchron** im Worker. `instrument.ts` (acorn +
   magic-string, nur Einfügungen ⇒ Zeilen bleiben) setzt vor jede Anweisung `__klonk_cp(zeile, () => vars)`, auch in leere/
@@ -191,6 +191,9 @@ node scripts/build-csharp.ts        # C#-Host bauen (.NET-SDK 10 nötig; Ausgabe
   Themes `klonk-light/-dark`; `acceptSuggestionOnEnter: 'smart'`, `autoIndent: 'full'`), `KlonkEditor` (Breakpoints, aktive Zeile),
   Programme je Sprache + Breakpoints in localStorage (`klonk:program`: `{ language, programs }`). An Worker nur Plain-Daten senden (Vue-Proxys ⇒ DataCloneError).
   Befehlsreferenz der Docs: `node scripts/gen-script-docs.ts` nach Änderungen an `languages.ts`.
+- **IDE-Layout:** Trenner `SplitHandle` (Zeigen + Pfeiltasten) zwischen Projekt/Code/Welt/Ausgabe, Größen in `klonk:layout` (localStorage), nur ab `lg`.
+- **Einstellungen:** `SettingsForm` (core) unter `/settings` in app und admin (Kontomenü über „Abmelden“): Sprache + Hell/Dunkel/System.
+  Angemeldet blendet der Kopf die Schnellschalter aus; Login-Seiten behalten sie. Nuxt-UI-Radius = Standard (kein `--ui-radius`).
 - **3D:** `apps/app/app/utils/world-renderer.ts` rendert nur bei Bedarf (`invalidate()`) – Dauer-Rendern blockierte
   Monacos Hintergrund-Tokenizer (Leerlaufzeit) und kostet Akku.
 - **3D (Details):** `apps/app/app/utils/world-renderer.ts` (three.js, InstancedMesh, animiert `WorldEvent`s aus `@klonk/world`),

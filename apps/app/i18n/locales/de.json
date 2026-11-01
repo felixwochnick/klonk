@@ -130,7 +130,10 @@
       "java": "Java",
       "csharp": "C#"
     },
-    "language": "Programmiersprache"
+    "language": "Programmiersprache",
+    "resizeProject": "Breite des Projekts ändern",
+    "resizeCode": "Breite des Codes ändern",
+    "resizeOutput": "Höhe der Ausgabe ändern"
   },
   "script": {
     "errors": {
