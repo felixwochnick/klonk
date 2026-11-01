@@ -21,7 +21,7 @@ const { public: { adminUrl } } = useRuntimeConfig()
 const targetsAdmin = computed(() => !!appConfig.klonk?.authServer && props.redirect.startsWith(adminUrl))
 const socialProviders = computed(() =>
   appConfig.klonk?.socialLogin === false || targetsAdmin.value ? [] : providers.value?.social ?? [])
-// Klonk ID ist der Betreiberzugang und erscheint nur für die Verwaltung
+// Klonk ID ist der Betreiberzugang: in der Verwaltung und auf der zentralen Anmeldung (operatorLogin) immer sichtbar
 const operatorLogin = computed(() =>
   appConfig.klonk?.operatorLogin || targetsAdmin.value ? providers.value?.platform : null)
 

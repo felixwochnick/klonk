@@ -18,9 +18,11 @@ async function loginWithKlonkId(page: Page, baseUrl: string, username: string) {
   await page.locator('#submit-login').click()
 }
 
-test('Klonk ID nur in der Verwaltung, Social-Login nur in der App', async ({ page }) => {
+test('Klonk ID immer auf der zentralen Anmeldung, Social-Login nicht für die Verwaltung', async ({ page }) => {
+  // App-Login führt zur zentralen Anmeldung (auth.*) – dort ist die Klonk ID immer da
   await gotoHydrated(page, `${APP_URL}/login`)
-  await expect(page.getByRole('button', { name: 'Mit Klonk ID anmelden' })).toHaveCount(0)
+  await waitForPage(page, url => url.pathname === '/login')
+  await expect(page.getByRole('button', { name: 'Mit Klonk ID anmelden' })).toBeVisible()
 
   await gotoHydrated(page, `${ADMIN_URL}/login`)
   await expect(page.getByRole('button', { name: 'Mit Klonk ID anmelden' })).toBeVisible()
