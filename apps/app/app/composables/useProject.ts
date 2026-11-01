@@ -5,6 +5,7 @@ import type { FileKind, Project, ProjectFile } from '~/utils/project-fs'
 // Zustand außerhalb von Komponenten: Datei-Handles sind nicht serialisierbar (kein useState)
 const project = shallowRef<Project | null>(null)
 const files = ref<ProjectFile[]>([])
+const folders = ref<string[]>([])
 const currentPath = ref<string | null>(null)
 const content = ref('')
 const worldPath = ref<string | null>(null)
@@ -25,7 +26,10 @@ export function useProject() {
   const worldFiles = computed(() => files.value.filter(f => f.kind === 'world'))
 
   async function refresh() {
-    if (project.value) files.value = await project.value.list()
+    if (!project.value) return
+    const scanned = await project.value.scan()
+    files.value = scanned.files
+    folders.value = scanned.folders
   }
 
   async function open(next: Project) {
@@ -48,6 +52,7 @@ export function useProject() {
     await flush()
     project.value = null
     files.value = []
+    folders.value = []
     currentPath.value = null
     content.value = ''
     worldPath.value = null
@@ -89,6 +94,42 @@ export function useProject() {
     if (worldPath.value === from) worldPath.value = to
     breakpointsByFile.value[to] = breakpointsByFile.value[from] ?? []
     await refresh()
+    rememberSelection()
+  }
+
+  /** Neuer Ordner (Pfad mit `/` für Unterordner) */
+  async function createFolder(path: string) {
+    if (!project.value) return
+    if (!path.split('/').every(isValidName)) throw new Error('invalid_name')
+    await project.value.createFolder(path)
+    await refresh()
+  }
+
+  /** Ordner umbenennen/verschieben – geöffnete Datei, Projektwelt und Haltepunkte ziehen mit */
+  async function renameFolder(from: string, to: string) {
+    if (!project.value) return
+    if (!to.split('/').every(isValidName)) throw new Error('invalid_name')
+    await flush()
+    await project.value.renameFolder(from, to)
+    const moved = (path: string | null) => (path && path.startsWith(`${from}/`) ? `${to}${path.slice(from.length)}` : path)
+    currentPath.value = moved(currentPath.value)
+    worldPath.value = moved(worldPath.value)
+    breakpointsByFile.value = Object.fromEntries(Object.entries(breakpointsByFile.value).map(([path, lines]) => [moved(path)!, lines]))
+    await refresh()
+    rememberSelection()
+  }
+
+  async function removeFolder(path: string) {
+    if (!project.value) return
+    await project.value.removeFolder(path)
+    const inside = (p: string | null) => !!p && p.startsWith(`${path}/`)
+    if (inside(currentPath.value)) {
+      currentPath.value = null
+      content.value = ''
+    }
+    if (inside(worldPath.value)) worldPath.value = null
+    await refresh()
+    if (!currentPath.value && programFiles.value[0]) await select(programFiles.value[0].path)
     rememberSelection()
   }
 
@@ -169,8 +210,8 @@ export function useProject() {
   })
 
   return {
-    project, files, programFiles, worldFiles, currentPath, content, kind, worldPath, status, breakpoints,
-    open, close, select, create, rename, remove, update, flush, refresh, readWorld, writeWorld, importableFiles, selectWorld,
+    project, files, folders, programFiles, worldFiles, currentPath, content, kind, worldPath, status, breakpoints,
+    open, close, select, create, rename, remove, createFolder, renameFolder, removeFolder, update, flush, refresh, readWorld, writeWorld, importableFiles, selectWorld,
     openBrowserProject: async (name: string, createIt = false) => open(await openBrowserProject(name, createIt)),
   }
 }

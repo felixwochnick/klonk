@@ -5,7 +5,25 @@ import {
   supportsBrowserProjects, supportsFolders, Project, type FileKind, type ProjectFile, type RecentProject,
 } from '~/utils/project-fs'
 
-export type ProjectDialog = { mode: 'project' } | { mode: 'file', kind: Exclude<FileKind, 'other'> } | { mode: 'rename', file: ProjectFile }
+export type ProjectDialog
+  = | { mode: 'project' }
+    | { mode: 'file', kind: Exclude<FileKind, 'other'>, folder?: string }
+    | { mode: 'folder', parent?: string }
+    | { mode: 'rename', file: ProjectFile }
+    | { mode: 'renameFolder', path: string }
+
+/** Zeile der Baumansicht: Ordner (auf-/zuklappbar) oder Datei, mit Einrückung */
+export type TreeRow
+  = | { type: 'folder', path: string, name: string, depth: number, open: boolean }
+    | { type: 'file', file: ProjectFile, depth: number }
+
+const PROGRAM_KINDS = ['blocks', 'klonk', 'javascript', 'typescript', 'python', 'java', 'csharp'] as const
+const join = (folder: string | undefined, name: string) => (folder ? `${folder}/${name}` : name)
+const baseName = (path: string) => path.slice(path.lastIndexOf('/') + 1)
+const parentOf = (path: string) => (path.includes('/') ? path.slice(0, path.lastIndexOf('/')) : '')
+
+// Zugeklappte Ordner (modulweit, bleibt beim Seitenwechsel erhalten)
+const collapsed = ref(new Set<string>())
 
 /** Gemeinsame Bedienlogik für Projekt-Seitenleiste und Vollbild-Explorer */
 export function useProjectExplorer(options: { onOpenFile?: (file: ProjectFile) => void } = {}) {
@@ -13,7 +31,7 @@ export function useProjectExplorer(options: { onOpenFile?: (file: ProjectFile) =
   const toast = useToast()
   const proj = useProject()
   const { start } = useWorldEditor()
-  const { files } = proj
+  const { files, folders } = proj
 
   const canFolders = ref(false)
   const canBrowser = ref(false)
@@ -64,12 +82,20 @@ export function useProjectExplorer(options: { onOpenFile?: (file: ProjectFile) =
   const dialogName = ref('')
   const dialogTitle = computed(() => {
     const mode = dialog.value?.mode
-    return mode === 'project' ? t('project.newBrowserProject') : mode === 'rename' ? t('project.rename') : t('project.newFile')
+    if (mode === 'project') return t('project.newBrowserProject')
+    if (mode === 'folder') return t('project.newFolder')
+    return mode === 'rename' || mode === 'renameFolder' ? t('project.rename') : t('project.newFile')
   })
 
   function openDialog(value: ProjectDialog) {
     dialog.value = value
-    dialogName.value = value.mode === 'rename' ? value.file.path : value.mode === 'project' ? t('project.defaultProjectName') : t(`project.defaultName.${value.kind}`)
+    dialogName.value = value.mode === 'rename'
+      ? value.file.path
+      : value.mode === 'renameFolder'
+        ? value.path
+        : value.mode === 'project'
+          ? t('project.defaultProjectName')
+          : value.mode === 'folder' ? t('project.defaultName.folder') : t(`project.defaultName.${value.kind}`)
   }
 
   async function submitDialog() {
@@ -88,9 +114,17 @@ export function useProjectExplorer(options: { onOpenFile?: (file: ProjectFile) =
       }
       else if (d.mode === 'file') {
         const initial = d.kind === 'world' ? `${JSON.stringify(World.empty().toJSON(), null, 2)}\n` : programSample(d.kind, lang)
-        await proj.create(name, d.kind, initial)
+        await proj.create(join(d.folder, name), d.kind, initial)
+        if (d.folder) expand(d.folder)
       }
-      else {
+      else if (d.mode === 'folder') {
+        await proj.createFolder(join(d.parent, name))
+        if (d.parent) expand(d.parent)
+      }
+      else if (d.mode === 'renameFolder') {
+        if (name !== d.path) await proj.renameFolder(d.path, name)
+      }
+      else if (name !== d.file.path) {
         await proj.rename(d.file.path, name)
       }
       dialog.value = null
@@ -113,12 +147,97 @@ export function useProjectExplorer(options: { onOpenFile?: (file: ProjectFile) =
     options.onOpenFile?.(file)
   }
 
-  const newItems = computed<DropdownMenuItem[][]>(() => [
-    (['blocks', 'klonk', 'javascript', 'typescript', 'python', 'java', 'csharp'] as const).map(kind => ({
-      label: t(`editor.languages.${kind}`), icon: KIND_ICON[kind], onSelect: () => openDialog({ mode: 'file', kind }),
-    })),
-    [{ label: t('project.world'), icon: KIND_ICON.world, onSelect: () => openDialog({ mode: 'file', kind: 'world' }) }],
-  ])
+  async function removeFolder(path: string) {
+    if (!confirm(t('project.confirmDeleteFolder', { name: path }))) return
+    await proj.removeFolder(path).catch(fail)
+  }
+
+  /** Datei oder Ordner in einen anderen Ordner verschieben (`''` = oberste Ebene), z. B. per Ziehen */
+  async function move(path: string, folder: string, isFolder = false) {
+    const target = join(folder || undefined, baseName(path))
+    if (target === path || (isFolder && (folder === path || folder.startsWith(`${path}/`)))) return
+    try {
+      if (isFolder) await proj.renameFolder(path, target)
+      else await proj.rename(path, target)
+      if (folder) expand(folder)
+    }
+    catch (error) {
+      fail(error)
+    }
+  }
+
+  // Ziehen und Ablegen: Dateien/Ordner auf einen Ordner ziehen (`''` = oberste Ebene)
+  const DRAG_TYPE = 'application/x-klonk-entry'
+  const dropTarget = ref<string | null>(null)
+  function onDragStart(event: DragEvent, path: string, isFolder: boolean) {
+    event.dataTransfer?.setData(DRAG_TYPE, JSON.stringify({ path, isFolder }))
+    if (event.dataTransfer) event.dataTransfer.effectAllowed = 'move'
+  }
+  function onDragOver(event: DragEvent, folder: string) {
+    if (!event.dataTransfer?.types.includes(DRAG_TYPE)) return
+    event.preventDefault()
+    event.stopPropagation()
+    dropTarget.value = folder
+  }
+  function onDrop(event: DragEvent, folder: string) {
+    const data = event.dataTransfer?.getData(DRAG_TYPE)
+    dropTarget.value = null
+    if (!data) return
+    event.preventDefault()
+    event.stopPropagation()
+    const { path, isFolder } = JSON.parse(data) as { path: string, isFolder: boolean }
+    if (parentOf(path) !== folder) void move(path, folder, isFolder)
+  }
+
+  /** Menü „Neu“: Programme, Welt, Ordner – optional in einem Ordner */
+  function newItemsIn(folder?: string): DropdownMenuItem[][] {
+    return [
+      PROGRAM_KINDS.map(kind => ({
+        label: t(`editor.languages.${kind}`), icon: KIND_ICON[kind], onSelect: () => openDialog({ mode: 'file', kind, folder }),
+      })),
+      [
+        { label: t('project.world'), icon: KIND_ICON.world, onSelect: () => openDialog({ mode: 'file', kind: 'world', folder }) },
+        { label: t('project.folder'), icon: 'i-lucide-folder-plus', onSelect: () => openDialog({ mode: 'folder', parent: folder }) },
+      ],
+    ]
+  }
+  const newItems = computed(() => newItemsIn())
+
+  function folderActions(path: string): DropdownMenuItem[][] {
+    return [
+      [{ label: t('project.newFile'), icon: 'i-lucide-plus', children: newItemsIn(path) }],
+      [
+        { label: t('project.rename'), icon: 'i-lucide-pencil', onSelect: () => openDialog({ mode: 'renameFolder', path }) },
+        { label: t('project.delete'), icon: 'i-lucide-trash-2', color: 'error', onSelect: () => removeFolder(path) },
+      ],
+    ]
+  }
+
+  // Baumansicht: Ordner zuerst, dann Dateien; zugeklappte Ordner verbergen ihren Inhalt
+  function expand(path: string) {
+    const next = new Set(collapsed.value)
+    for (let p = path; p; p = parentOf(p)) next.delete(p)
+    collapsed.value = next
+  }
+  function toggleFolder(path: string) {
+    const next = new Set(collapsed.value)
+    if (next.has(path)) next.delete(path)
+    else next.add(path)
+    collapsed.value = next
+  }
+  const tree = computed<TreeRow[]>(() => {
+    const rows: TreeRow[] = []
+    const add = (folder: string, depth: number) => {
+      for (const path of folders.value.filter(f => parentOf(f) === folder)) {
+        const open = !collapsed.value.has(path)
+        rows.push({ type: 'folder', path, name: baseName(path), depth, open })
+        if (open) add(path, depth + 1)
+      }
+      for (const file of files.value.filter(f => parentOf(f.path) === folder)) rows.push({ type: 'file', file, depth })
+    }
+    add('', 0)
+    return rows
+  })
 
   function fileActions(file: ProjectFile): DropdownMenuItem[][] {
     const edit: DropdownMenuItem[] = file.kind === 'world'
@@ -144,7 +263,9 @@ export function useProjectExplorer(options: { onOpenFile?: (file: ProjectFile) =
     proj, canFolders, canBrowser, browserProjects, recent, loadLists, fail,
     openFolder, openRecent, openBrowserProject, removeBrowserProject,
     dialog, dialogName, dialogTitle, openDialog, submitDialog,
-    remove, openFile, newItems, fileActions, kindLabel,
+    remove, openFile, newItems, newItemsIn, fileActions, kindLabel,
+    folders, tree, toggleFolder, expand, folderActions, removeFolder, move, parentOf, baseName,
+    dropTarget, onDragStart, onDragOver, onDrop,
   }
 }
 

@@ -7,18 +7,34 @@ useSeoMeta({ title: () => t('project.explorer') })
 
 const {
   proj, canFolders, canBrowser, browserProjects, recent, openFolder, openRecent, openBrowserProject, removeBrowserProject,
-  dialog, dialogName, dialogTitle, openDialog, submitDialog, openFile, newItems, fileActions, kindLabel,
+  dialog, dialogName, dialogTitle, openDialog, submitDialog, openFile, newItemsIn, fileActions, kindLabel,
+  folders, folderActions, parentOf, baseName, dropTarget, onDragStart, onDragOver, onDrop,
 } = useProjectExplorer({
   // Programme öffnen sich in der IDE, Welten werden nur als Projektwelt gewählt
   onOpenFile: file => file.kind !== 'world' && navigateTo('/'),
 })
 const { project, files, currentPath, worldPath, status } = proj
 
+// Ordner-Navigation: Kacheln zeigen den aktuellen Ordner; die Suche durchsucht das ganze Projekt
+const folder = ref('')
+watch(project, () => {
+  folder.value = ''
+})
+watch(folders, (list) => {
+  if (folder.value && !list.includes(folder.value)) folder.value = ''
+})
+const breadcrumbs = computed(() => {
+  const parts = folder.value ? folder.value.split('/') : []
+  return [{ label: t('project.root'), path: '' }, ...parts.map((name, i) => ({ label: name, path: parts.slice(0, i + 1).join('/') }))]
+})
 const search = ref('')
+const searching = computed(() => !!search.value.trim())
+const visibleFolders = computed(() => (searching.value ? [] : folders.value.filter(f => parentOf(f) === folder.value)))
 const visibleFiles = computed(() => {
   const query = search.value.trim().toLowerCase()
-  return query ? files.value.filter(f => f.path.toLowerCase().includes(query)) : files.value
+  return query ? files.value.filter(f => f.path.toLowerCase().includes(query)) : files.value.filter(f => parentOf(f.path) === folder.value)
 })
+const newItems = computed(() => newItemsIn(folder.value || undefined))
 
 const folderOf = (file: ProjectFile) => file.path.slice(0, -file.name.length - 1)
 const isActive = (source: 'folder' | 'browser', name: string) => project.value?.source === source && project.value.name === name
@@ -169,17 +185,82 @@ const isActive = (source: 'folder' | 'browser', name: string) => project.value?.
           </div>
 
           <div class="min-h-0 flex-1 overflow-y-auto p-4">
+            <nav
+              v-if="!searching"
+              class="mb-3 flex flex-wrap items-center gap-1 text-sm"
+              data-testid="explorer-breadcrumbs"
+            >
+              <template
+                v-for="(crumb, i) in breadcrumbs"
+                :key="crumb.path"
+              >
+                <UIcon
+                  v-if="i > 0"
+                  name="i-lucide-chevron-right"
+                  class="size-4 text-(--ui-text-dimmed)"
+                />
+                <UButton
+                  variant="ghost"
+                  :color="crumb.path === folder ? 'primary' : 'neutral'"
+                  size="sm"
+                  :icon="i === 0 ? 'i-lucide-house' : undefined"
+                  :label="crumb.label"
+                  :class="dropTarget === crumb.path && crumb.path !== folder ? 'ring-1 ring-(--ui-primary)' : ''"
+                  @click="folder = crumb.path"
+                  @dragover="crumb.path !== folder && onDragOver($event, crumb.path)"
+                  @dragleave="dropTarget = null"
+                  @drop="onDrop($event, crumb.path)"
+                />
+              </template>
+            </nav>
             <p
-              v-if="!visibleFiles.length"
+              v-if="!visibleFiles.length && !visibleFolders.length"
               class="p-6 text-center text-(--ui-text-muted)"
             >
-              {{ files.length ? t('project.noMatches') : t('project.empty') }}
+              {{ searching ? t('project.noMatches') : folder ? t('project.emptyFolder') : t('project.empty') }}
             </p>
             <ul class="grid grid-cols-[repeat(auto-fill,minmax(10rem,1fr))] gap-3">
+              <li
+                v-for="path in visibleFolders"
+                :key="`folder:${path}`"
+                class="group relative"
+                draggable="true"
+                @dragstart="onDragStart($event, path, true)"
+                @dragover="onDragOver($event, path)"
+                @dragleave="dropTarget = null"
+                @drop="onDrop($event, path)"
+              >
+                <button
+                  type="button"
+                  class="flex h-full w-full flex-col items-center gap-2 rounded-lg border bg-(--ui-bg) p-4 text-center transition hover:border-(--ui-primary) hover:shadow-sm"
+                  :class="dropTarget === path ? 'border-(--ui-primary) ring-1 ring-(--ui-primary)' : 'border-(--ui-border)'"
+                  :data-testid="`explorer-folder-${path}`"
+                  @click="folder = path"
+                >
+                  <UIcon
+                    name="i-lucide-folder"
+                    class="mt-2 size-12 text-amber-500"
+                  />
+                  <span class="w-full truncate font-medium">{{ baseName(path) }}</span>
+                  <span class="w-full truncate text-xs text-(--ui-text-muted)">{{ t('project.folder') }}</span>
+                </button>
+                <UDropdownMenu :items="folderActions(path)">
+                  <UButton
+                    variant="ghost"
+                    color="neutral"
+                    size="xs"
+                    icon="i-lucide-ellipsis-vertical"
+                    :aria-label="t('project.actions', { name: path })"
+                    class="absolute end-1 top-1 opacity-60 group-hover:opacity-100"
+                  />
+                </UDropdownMenu>
+              </li>
               <li
                 v-for="file in visibleFiles"
                 :key="file.path"
                 class="group relative"
+                draggable="true"
+                @dragstart="onDragStart($event, file.path, false)"
               >
                 <button
                   type="button"
@@ -196,7 +277,7 @@ const isActive = (source: 'folder' | 'browser', name: string) => project.value?.
                   />
                   <span class="w-full truncate font-medium">{{ file.name }}</span>
                   <span class="w-full truncate text-xs text-(--ui-text-muted)">
-                    {{ kindLabel(file.kind) }}<template v-if="folderOf(file)"> · {{ folderOf(file) }}</template>
+                    {{ kindLabel(file.kind) }}<template v-if="searching && folderOf(file)"> · {{ folderOf(file) }}</template>
                   </span>
                   <UBadge
                     v-if="file.path === worldPath"

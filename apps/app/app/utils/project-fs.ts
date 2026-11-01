@@ -60,17 +60,27 @@ export class Project {
 
   /** Alle Dateien (rekursiv, sortiert); versteckte und große Ordner werden übersprungen */
   async list(): Promise<ProjectFile[]> {
+    return (await this.scan()).files
+  }
+
+  /** Dateien und Ordner (auch leere), jeweils sortiert */
+  async scan(): Promise<{ files: ProjectFile[], folders: string[] }> {
     const files: ProjectFile[] = []
+    const folders: string[] = []
     const walk = async (dir: FileSystemDirectoryHandle, prefix: string) => {
       for await (const [name, entry] of dir as unknown as AsyncIterable<[string, FileSystemHandle]>) {
         if (files.length >= MAX_FILES || name.startsWith('.') || IGNORED.has(name)) continue
         const path = prefix ? `${prefix}/${name}` : name
-        if (entry.kind === 'directory') await walk(entry as FileSystemDirectoryHandle, path)
+        if (entry.kind === 'directory') {
+          folders.push(path)
+          await walk(entry as FileSystemDirectoryHandle, path)
+        }
         else files.push({ path, name, kind: fileKind(name) })
       }
     }
     await walk(this.handle, '')
-    return files.sort((a, b) => a.path.localeCompare(b.path, undefined, { numeric: true }))
+    const compare = (a: string, b: string) => a.localeCompare(b, undefined, { numeric: true })
+    return { files: files.sort((a, b) => compare(a.path, b.path)), folders: folders.sort(compare) }
   }
 
   async read(path: string): Promise<string> {
@@ -100,11 +110,51 @@ export class Project {
     await dir.removeEntry(name)
   }
 
-  /** Umbenennen = kopieren + löschen (funktioniert überall, auch ohne `move()`) */
+  /** Umbenennen/Verschieben = kopieren + löschen (funktioniert überall, auch ohne `move()`) */
   async rename(from: string, to: string) {
     if (await this.exists(to)) throw new Error('exists')
     await this.write(to, await this.read(from))
     await this.remove(from)
+  }
+
+  async createFolder(path: string) {
+    if (await this.exists(path) || await this.folderExists(path)) throw new Error('exists')
+    await this.directory(path, true)
+  }
+
+  async folderExists(path: string) {
+    try {
+      await this.directory(path)
+      return true
+    }
+    catch {
+      return false
+    }
+  }
+
+  async removeFolder(path: string) {
+    const { dir, name } = await this.parent(path)
+    await dir.removeEntry(name, { recursive: true })
+  }
+
+  /** Ordner umbenennen/verschieben: Inhalt rekursiv kopieren, dann löschen */
+  async renameFolder(from: string, to: string) {
+    if (to === from || to.startsWith(`${from}/`)) throw new Error('invalid_name')
+    if (await this.exists(to) || await this.folderExists(to)) throw new Error('exists')
+    const copy = async (source: FileSystemDirectoryHandle, target: string) => {
+      await this.directory(target, true)
+      for await (const [name, entry] of source as unknown as AsyncIterable<[string, FileSystemHandle]>) {
+        if (entry.kind === 'directory') await copy(entry as FileSystemDirectoryHandle, `${target}/${name}`)
+        else await this.write(`${target}/${name}`, await (await (entry as FileSystemFileHandle).getFile()).text())
+      }
+    }
+    await copy(await this.directory(from), to)
+    await this.removeFolder(from)
+  }
+
+  private async directory(path: string, create = false) {
+    const { dir, name } = await this.parent(path, create)
+    return dir.getDirectoryHandle(name, { create })
   }
 
   private async parent(path: string, create = false) {

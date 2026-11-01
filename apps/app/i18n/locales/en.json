@@ -254,7 +254,8 @@
       "world": "world",
       "python": "program",
       "java": "Main",
-      "csharp": "Program"
+      "csharp": "Program",
+      "folder": "New folder"
     },
     "confirmDelete": "Really delete “{name}”?",
     "confirmDeleteProject": "Delete browser project “{name}” with all files?",
@@ -284,7 +285,14 @@
     "activeWorld": "Project world",
     "openInIde": "Open",
     "editWorld": "Edit in world editor",
-    "otherFile": "Other file"
+    "otherFile": "Other file",
+    "newFolder": "New folder",
+    "folder": "Folder",
+    "confirmDeleteFolder": "Delete folder “{name}” and everything in it?",
+    "root": "Project",
+    "emptyFolder": "This folder is empty.",
+    "dropHere": "Move here",
+    "up": "Up one level"
   },
   "pwa": {
     "install": "Install app",

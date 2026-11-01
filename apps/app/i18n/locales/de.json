@@ -254,7 +254,8 @@
       "world": "welt",
       "python": "programm",
       "java": "Main",
-      "csharp": "Program"
+      "csharp": "Program",
+      "folder": "Neuer Ordner"
     },
     "confirmDelete": "„{name}“ wirklich löschen?",
     "confirmDeleteProject": "Browser-Projekt „{name}“ mit allen Dateien löschen?",
@@ -284,7 +285,14 @@
     "activeWorld": "Projektwelt",
     "openInIde": "Geöffnet",
     "editWorld": "Im Welt-Editor bearbeiten",
-    "otherFile": "Andere Datei"
+    "otherFile": "Andere Datei",
+    "newFolder": "Neuer Ordner",
+    "folder": "Ordner",
+    "confirmDeleteFolder": "Ordner „{name}“ mit allem Inhalt löschen?",
+    "root": "Projekt",
+    "emptyFolder": "Dieser Ordner ist leer.",
+    "dropHere": "Hierher verschieben",
+    "up": "Eine Ebene höher"
   },
   "pwa": {
     "install": "App installieren",

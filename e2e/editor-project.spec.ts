@@ -19,7 +19,11 @@ async function seedProject(page: Page, name: string, files: Record<string, strin
     await root.removeEntry(name, { recursive: true }).catch(() => {})
     const dir = await root.getDirectoryHandle(name, { create: true })
     for (const [path, content] of Object.entries(files)) {
-      const writable = await (await dir.getFileHandle(path, { create: true })).createWritable()
+      // Unterordner anlegen (`a/b.klonk`)
+      const parts = path.split('/')
+      let parent = dir
+      for (const part of parts.slice(0, -1)) parent = await parent.getDirectoryHandle(part, { create: true })
+      const writable = await (await parent.getFileHandle(parts.at(-1)!, { create: true })).createWritable()
       await writable.write(content)
       await writable.close()
     }
@@ -29,7 +33,10 @@ async function seedProject(page: Page, name: string, files: Record<string, strin
 async function readProjectFile(page: Page, name: string, path: string) {
   return page.evaluate(async ({ name, path }) => {
     const root = await (await navigator.storage.getDirectory()).getDirectoryHandle('klonk-projects')
-    const file = await (await (await root.getDirectoryHandle(name)).getFileHandle(path)).getFile()
+    let dir = await root.getDirectoryHandle(name)
+    const parts = path.split('/')
+    for (const part of parts.slice(0, -1)) dir = await dir.getDirectoryHandle(part)
+    const file = await (await dir.getFileHandle(parts.at(-1)!)).getFile()
     return file.text()
   }, { name, path })
 }
@@ -170,4 +177,66 @@ test('Vollbild-Explorer: Kacheln, Suche, Welt wählen, Programm in der IDE öffn
   await page.getByTestId('run').click()
   await expect(state(page)).toHaveAttribute('data-state', 'done', { timeout: 30_000 })
   await expect(page.getByTestId('output')).toHaveText('2')
+})
+
+test('Ordner: anlegen, Dateien darin, verschieben, umbenennen, im Explorer öffnen', async ({ page }) => {
+  await openIde(page)
+  await seedProject(page, 'Ordner', {
+    'start.klonk': 'schritt\n',
+    'welt.klonkworld.json': JSON.stringify(WORLD),
+  })
+  await page.reload()
+  await page.locator('html[data-hydrated="true"]').waitFor({ state: 'attached' })
+  await page.getByTestId('toggle-project').click()
+  await page.getByTestId('browser-project-Ordner').click()
+  await expect(page.getByTestId('project-name')).toHaveText('Ordner')
+
+  // Neuer Ordner über „Neue Datei“ ⇒ „Ordner“
+  await page.getByTestId('new-file').click()
+  await page.getByRole('menuitem', { name: 'Ordner' }).click()
+  await page.getByTestId('project-dialog-name').fill('lektion')
+  await page.getByTestId('project-dialog-submit').click()
+  await expect(page.getByTestId('folder-lektion')).toBeVisible()
+
+  // Datei im Ordner anlegen
+  await page.getByTestId('folder-actions-lektion').click()
+  await page.getByRole('menuitem', { name: 'Neue Datei' }).click()
+  await page.getByRole('menuitem', { name: 'Klonk-Script' }).click()
+  await page.getByTestId('project-dialog-name').fill('aufgabe')
+  await page.getByTestId('project-dialog-submit').click()
+  await expect(page.getByTestId('file-lektion/aufgabe.klonk')).toBeVisible()
+
+  // Zuklappen versteckt den Inhalt
+  await page.getByTestId('folder-lektion').click()
+  await expect(page.getByTestId('file-lektion/aufgabe.klonk')).toHaveCount(0)
+  await page.getByTestId('folder-lektion').click()
+
+  // start.klonk per Ziehen in den Ordner verschieben
+  await page.getByTestId('file-start.klonk').dragTo(page.getByTestId('folder-lektion'))
+  await expect(page.getByTestId('file-lektion/start.klonk')).toBeVisible()
+  expect(await readProjectFile(page, 'Ordner', 'lektion/start.klonk')).toBe('schritt\n')
+
+  // Ordner umbenennen: Dateien ziehen mit
+  await page.getByTestId('folder-actions-lektion').click()
+  await page.getByRole('menuitem', { name: 'Umbenennen' }).click()
+  await page.getByTestId('project-dialog-name').fill('kapitel')
+  await page.getByTestId('project-dialog-submit').click()
+  await expect(page.getByTestId('file-kapitel/aufgabe.klonk')).toBeVisible()
+  await expect(page.getByTestId('folder-lektion')).toHaveCount(0)
+
+  // Vollbild-Explorer: in den Ordner wechseln
+  await page.getByTestId('open-explorer').click()
+  await expect(page.getByTestId('explorer-folder-kapitel')).toBeVisible()
+  await expect(page.getByTestId('explorer-file-kapitel/aufgabe.klonk')).toHaveCount(0)
+  await page.getByTestId('explorer-folder-kapitel').click()
+  await expect(page.getByTestId('explorer-file-kapitel/aufgabe.klonk')).toBeVisible()
+  await expect(page.getByTestId('explorer-breadcrumbs')).toContainText('kapitel')
+  await page.screenshot({ path: 'test-results/explorer-folder.png' })
+
+  // Ordner löschen
+  await page.getByTestId('explorer-breadcrumbs').getByRole('button', { name: 'Projekt' }).click()
+  page.once('dialog', d => d.accept())
+  await page.getByRole('button', { name: 'Aktionen für kapitel' }).click()
+  await page.getByRole('menuitem', { name: 'Löschen' }).click()
+  await expect(page.getByTestId('explorer-folder-kapitel')).toHaveCount(0)
 })

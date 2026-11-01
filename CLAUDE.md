@@ -186,6 +186,9 @@ node scripts/build-csharp.ts        # C#-Host bauen (.NET-SDK 10 nötig; Ausgabe
   Reka-`SelectItem` erlaubt keinen leeren Wert ⇒ Platzhalterwerte verwenden. Blockly-Kontextmenü global ⇒ vor Neu-Registrierung abmelden.
   Bedienlogik gemeinsam in `useProjectExplorer()` (Seitenleiste `ProjectPanel` + Vollbild-Explorer `pages/projects.vue`),
   Datei-Symbole `FileIcon` (simple-icons für JS/TS/…, Klonk-Script als eigener Ziegel), Namensdialog `ProjectNameDialog`.
+  **Ordner:** `Project.scan()` liefert Dateien + (auch leere) Ordner; Ordner umbenennen/verschieben = rekursiv kopieren + löschen.
+  Baumansicht (`tree`, zugeklappte Ordner modulweit) und Ziehen & Ablegen (`onDragStart/onDragOver/onDrop`, `''` = oberste Ebene)
+  in `useProjectExplorer()`; Vollbild-Explorer navigiert per Pfadleiste, Suche durchsucht alles.
   IDE lädt die Projektwelt auch beim Mount (Projekt kann schon offen sein); `/world?load=1` lädt die gewählte Projektwelt.
 - **IDE** (`apps/app/app/pages/index.vue`): Monaco (`utils/monaco.ts`: Monarch ohne `\p{L}` – Monarch kennt keine Unicode-Klassen;
   Themes `klonk-light/-dark`; `acceptSuggestionOnEnter: 'smart'`, `autoIndent: 'full'`), `KlonkEditor` (Breakpoints, aktive Zeile),
