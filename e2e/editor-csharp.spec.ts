@@ -29,13 +29,14 @@ test.beforeEach(async ({ page }) => {
 })
 
 test('C# kompilieren und ausführen (Top-Level-Anweisungen)', async ({ page }) => {
-  await openIde(page, `var n = 0;
-while (!IsWall())
+  await openIde(page, `var klonk = new Klonk();
+var n = 0;
+while (!klonk.IsWall())
 {
-    TurnLeft();
-    PlaceBrick(Red);
-    TurnRight();
-    Step();
+    klonk.TurnLeft();
+    klonk.PlaceBrick(Red);
+    klonk.TurnRight();
+    klonk.Step();
     n++;
 }
 Console.WriteLine($"Steps: {n}");`)
@@ -87,20 +88,20 @@ test('Endlosschleife lässt sich pausieren und stoppen', async ({ page }) => {
 })
 
 test('Compiler- und Weltfehler mit Zeile, Autovervollständigung', async ({ page }) => {
-  await openIde(page, 'Step();\nint x = "text";')
+  await openIde(page, 'new Klonk().Step();\nint x = "text";')
   await page.getByTestId('run').click()
   await expect(state(page)).toHaveAttribute('data-state', 'error', { timeout: 90_000 })
   await expect(page.getByTestId('run-error')).toContainText('Fehler in Zeile 2')
   await expect(page.getByTestId('run-error')).toContainText('C#-Fehler')
 
-  await openIde(page, 'TurnLeft();\nTurnLeft();\nStep();')
+  await openIde(page, 'var k = new Klonk();\nk.TurnLeft();\nk.TurnLeft();\nk.Step();')
   await page.getByTestId('run').click()
   await expect(state(page)).toHaveAttribute('data-state', 'error', { timeout: 90_000 })
-  await expect(page.getByTestId('run-error')).toContainText('Fehler in Zeile 3')
+  await expect(page.getByTestId('run-error')).toContainText('Fehler in Zeile 4')
 
   await page.locator('.view-lines').click()
   await page.keyboard.press('Control+End')
-  await page.keyboard.type('\nIsW')
+  await page.keyboard.type('\nk.IsW')
   await page.keyboard.press('Control+Space')
   await expect(page.locator('.suggest-widget .monaco-list-row').first()).toContainText('IsWall', { timeout: 15_000 })
 })

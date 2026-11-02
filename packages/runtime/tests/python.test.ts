@@ -24,43 +24,53 @@ beforeEach(() => {
 })
 
 describe('Python', { timeout: 60_000 }, () => {
-  it('Roboter-API englisch in snake_case, print', async () => {
-    await run('step()\nturn_left()\nturn_right()\nstep(2)\nplace_brick(blue)\nprint(position_x(), position_y())\nprint("done", "schritt" in dir(__builtins__), "turnLeft" in dir(__builtins__))\n')
+  it('Klasse Klonk mit Methoden in snake_case, print, keine globalen Befehle', async () => {
+    await run('k = Klonk()\nk.step()\nk.turn_left()\nk.turn_right()\nk.step(2)\nk.place_brick(blue)\nprint(k.position_x(), k.position_y(), k.name, k)\nprint("done", "schritt" in dir(__builtins__), "step" in dir(__builtins__))\n')
     expect(messages.filter(m => m.type === 'command').map(m => (m as { command: { name: string } }).command.name))
       .toEqual(['step', 'turnLeft', 'turnRight', 'step', 'step', 'placeBrick'])
-    expect(messages.filter(m => m.type === 'output')).toEqual([{ type: 'output', text: '4 1' }, { type: 'output', text: 'done False False' }])
+    expect(messages.filter(m => m.type === 'output')).toEqual([{ type: 'output', text: '4 1 k Klonk(\'k\')' }, { type: 'output', text: 'done False False' }])
     expect(messages.at(-1)).toEqual({ type: 'done' })
   })
 
+  it('mehrere Figuren: Name, Nummer, alle', async () => {
+    const two: WorldData = { ...world, characters: [...world.characters, { id: 'Klara', model: 'female', x: 0, z: 2, direction: 'east' }] }
+    await run('klara = Klonk("Klara")\nklara.step(2)\nKlonk(1).step()\nprint([r.name + str(r.position_x()) for r in Klonk.all()])\n', { world: two })
+    expect(messages.filter(m => m.type === 'command').map(m => (m as { command: { id: string } }).command.id)).toEqual(['Klara', 'Klara', 'k'])
+    expect(messages.filter(m => m.type === 'output')).toEqual([{ type: 'output', text: '[\'k2\', \'Klara3\']' }])
+    messages.length = 0
+    await run('Klonk("Nobody")\n', { world: two })
+    expect(messages.at(-1)).toMatchObject({ type: 'error', error: { code: 'world', params: { worldCode: 'unknown_character' }, range: { line: 1 } } })
+  })
+
   it('Schleifen, Funktionen und Bedingungen mit Sensoren', async () => {
-    await run('def to_wall():\n    n = 0\n    while not is_wall():\n        step()\n        n += 1\n    return n\n\nprint(to_wall())\n')
+    await run('def to_wall(robot):\n    n = 0\n    while not robot.is_wall():\n        robot.step()\n        n += 1\n    return n\n\nprint(to_wall(Klonk()))\n')
     expect(messages.filter(m => m.type === 'output')).toEqual([{ type: 'output', text: '4' }])
   })
 
   it('Weltfehler werden wie in den anderen Sprachen gemeldet (mit Zeile)', async () => {
-    await run('turn_left()\nstep()\n')
-    expect(messages.at(-1)).toMatchObject({ type: 'error', error: { code: 'world', params: { worldCode: 'wall' }, range: { line: 2 } } })
+    await run('k = Klonk()\nk.turn_left()\nk.step()\n')
+    expect(messages.at(-1)).toMatchObject({ type: 'error', error: { code: 'world', params: { worldCode: 'wall' }, range: { line: 3 } } })
   })
 
   it('Laufzeit- und Syntaxfehler mit Zeile', async () => {
     await run('x = 1\nprint(y)\n')
     expect(messages.at(-1)).toMatchObject({ type: 'error', error: { code: 'py_runtime', params: { name: 'NameError' }, range: { line: 2 } } })
     messages.length = 0
-    await run('step()\nif True\n  step()\n')
+    await run('x = 1\nif True\n  x = 2\n')
     expect(messages.at(-1)).toMatchObject({ type: 'error', error: { code: 'py_runtime', params: { name: 'SyntaxError' }, range: { line: 2 } } })
   })
 
   it('falsche Farbe', async () => {
-    await run('place_brick("rot")\n')
+    await run('Klonk().place_brick("rot")\n')
     expect(messages.at(-1)).toMatchObject({ type: 'error', error: { code: 'invalid_color', range: { line: 1 } } })
   })
 
   it('Projektdateien nur mit Bibliotheken importierbar', async () => {
-    const files = { 'helfer.py': 'def two():\n    step()\n    step()\n' }
-    await run('import helfer\nhelfer.two()\n', { files })
+    const files = { 'helfer.py': 'def two(robot):\n    robot.step()\n    robot.step()\n' }
+    await run('import helfer\nhelfer.two(Klonk())\n', { files })
     expect(messages.at(-1)).toMatchObject({ type: 'error', error: { code: 'py_runtime', params: { name: 'ModuleNotFoundError' } } })
     messages.length = 0
-    await run('import helfer\nhelfer.two()\nprint(position_x())\n', { files, allowImports: true })
+    await run('import helfer\nk = Klonk()\nhelfer.two(k)\nprint(k.position_x())\n', { files, allowImports: true })
     expect(messages.filter(m => m.type === 'output')).toEqual([{ type: 'output', text: '3' }])
   })
 })

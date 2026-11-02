@@ -358,9 +358,7 @@ export class Interpreter {
           return null
         }
         case 'selectCharacter': {
-          const target = String(args[0])
-          world.getCharacter(target)
-          this.character = target
+          this.character = world.findCharacter(String(args[0])).id
           return null
         }
         case 'isWall': return world.isWall(id)

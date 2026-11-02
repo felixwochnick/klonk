@@ -1,10 +1,12 @@
-// Roboter-API für C# – wird mit dem Nutzerprogramm kompiliert und per `using static Klonk.Robot;` eingebunden.
-// Englische Namen in C#-Schreibweise (Step, IsWall, PlaceBrick(Red) …). Die Aufrufe gehen über Delegaten,
-// die der Host (Host.cs) im AppDomain hinterlegt, an die JS-Roboter-API im Worker.
+// Roboter-API für C# – wird mit dem Nutzerprogramm kompiliert und per `using KlonkLib;` +
+// `using static KlonkLib.Klonk;` (Farben, Print, Wait, Random) eingebunden. Jede Figur ist ein Objekt:
+// `var karl = new Klonk("Karl"); karl.Step();`. Englische Namen in C#-Schreibweise (Step, IsWall, PlaceBrick(Red) …).
+// Die Aufrufe gehen über Delegaten, die der Host (Host.cs) im AppDomain hinterlegt, an die JS-Roboter-API im Worker.
+// Namensraum KlonkLib (nicht Klonk), sonst kollidieren Namensraum und Klasse.
 #nullable enable
-namespace Klonk
+namespace KlonkLib
 {
-    public static class Robot
+    public sealed class Klonk
     {
         private static readonly System.Func<string, string[], string> CallHost =
             (System.Func<string, string[], string>)System.AppDomain.CurrentDomain.GetData("klonk.call")!;
@@ -28,26 +30,57 @@ namespace Klonk
         private static string N(double value) => "n:" + value.ToString(System.Globalization.CultureInfo.InvariantCulture);
         private static string S(string value) => "s:" + value;
 
-        public static void Step(int count = 1) => Call("step", N(count));
-        public static void TurnLeft() => Call("turnLeft");
-        public static void TurnRight() => Call("turnRight");
-        public static void PlaceBrick(string color = Red) => Call("placeBrick", S(color));
-        public static void PickBrick() => Call("pickBrick");
-        public static void SetMark(string color = Yellow) => Call("setMark", S(color));
-        public static void RemoveMark() => Call("removeMark");
-        public static void SelectCharacter(string name) => Call("selectCharacter", S(name));
-        public static bool IsWall() => Call("isWall") == "true";
-        public static bool IsBrick() => Call("isBrick") == "true";
-        public static bool IsBrick(string color) => Call("isBrick", S(color)) == "true";
-        public static bool IsMark() => Call("isMark") == "true";
-        public static bool IsMark(string color) => Call("isMark", S(color)) == "true";
-        public static bool IsFacingNorth() => Call("isFacingNorth") == "true";
-        public static bool IsFacingEast() => Call("isFacingEast") == "true";
-        public static bool IsFacingSouth() => Call("isFacingSouth") == "true";
-        public static bool IsFacingWest() => Call("isFacingWest") == "true";
-        public static int BrickCount() => int.Parse(Call("brickCount"));
-        public static int PositionX() => int.Parse(Call("positionX"));
-        public static int PositionY() => int.Parse(Call("positionY"));
+        /// <summary>Name der Figur (wie im Welt-Editor)</summary>
+        public string Name { get; }
+
+        /// <summary>Die erste Figur der Welt</summary>
+        public Klonk() => Name = Call("$robot");
+        /// <summary>Die Figur mit diesem Namen</summary>
+        public Klonk(string name) => Name = Call("$robot", S(name));
+        /// <summary>Die n-te Figur (ab 1)</summary>
+        public Klonk(int number) => Name = Call("$robot", N(number));
+
+        /// <summary>Alle Figuren der Welt</summary>
+        public static Klonk[] All()
+        {
+            var names = Call("$names");
+            if (names.Length == 0) return System.Array.Empty<Klonk>();
+            var parts = names.Split('\n');
+            var result = new Klonk[parts.Length];
+            for (var i = 0; i < parts.Length; i++) result[i] = new Klonk(parts[i]);
+            return result;
+        }
+
+        public override string ToString() => "Klonk(\"" + Name + "\")";
+
+        private string Do(string method, params string[] args)
+        {
+            var all = new string[args.Length + 1];
+            all[0] = S(Name);
+            args.CopyTo(all, 1);
+            return Call(method, all);
+        }
+
+        public void Step(int count = 1) => Do("step", N(count));
+        public void TurnLeft() => Do("turnLeft");
+        public void TurnRight() => Do("turnRight");
+        public void PlaceBrick(string color = Red) => Do("placeBrick", S(color));
+        public void PickBrick() => Do("pickBrick");
+        public void SetMark(string color = Yellow) => Do("setMark", S(color));
+        public void RemoveMark() => Do("removeMark");
+        public bool IsWall() => Do("isWall") == "true";
+        public bool IsBrick() => Do("isBrick") == "true";
+        public bool IsBrick(string color) => Do("isBrick", S(color)) == "true";
+        public bool IsMark() => Do("isMark") == "true";
+        public bool IsMark(string color) => Do("isMark", S(color)) == "true";
+        public bool IsFacingNorth() => Do("isFacingNorth") == "true";
+        public bool IsFacingEast() => Do("isFacingEast") == "true";
+        public bool IsFacingSouth() => Do("isFacingSouth") == "true";
+        public bool IsFacingWest() => Do("isFacingWest") == "true";
+        public int BrickCount() => int.Parse(Do("brickCount"));
+        public int PositionX() => int.Parse(Do("positionX"));
+        public int PositionY() => int.Parse(Do("positionY"));
+
         public static int Random(int min, int max) => int.Parse(Call("random", N(min), N(max)));
         public static void Wait(double seconds = 1) => Call("wait", N(seconds));
 

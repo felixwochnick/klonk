@@ -45,7 +45,13 @@ const tools = computed<{ value: EditorTool, icon: string, label: string }[]>(() 
 ])
 
 const characterItems = computed(() => editor.CHARACTER_MODELS.map(m => ({ label: t(`world.characters.${m}`), value: m })))
-const selectedItems = computed(() => characters.value.map(c => ({ label: `${t(`world.characters.${c.model}`)} (${c.id})`, value: c.id })))
+const selectedItems = computed(() => characters.value.map(c => ({ label: c.id, value: c.id })))
+
+// Namen der Figuren (Eingabe wird beim Verlassen/Enter übernommen; ungültig ⇒ alter Name)
+function rename(id: string, event: Event) {
+  const input = event.target as HTMLInputElement
+  if (!editor.renameCharacter(id, input.value)) input.value = id
+}
 
 // Neue Welt
 const sizeOpen = ref(false)
@@ -166,6 +172,32 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey))
             class="w-full"
           />
         </UFormField>
+
+        <div
+          v-if="characters.length"
+          data-testid="character-names"
+        >
+          <p class="mb-1 text-sm font-semibold">
+            {{ t('world.names') }}
+          </p>
+          <p class="mb-2 text-xs text-(--ui-text-muted)">
+            {{ t('world.namesHelp') }}
+          </p>
+          <div class="space-y-1">
+            <UInput
+              v-for="c in characters"
+              :key="c.id"
+              :model-value="c.id"
+              :icon="c.model === 'female' ? 'i-lucide-user-round' : c.model === 'diverse' ? 'i-lucide-user-round-cog' : 'i-lucide-user'"
+              size="sm"
+              class="w-full"
+              :aria-label="t('world.nameOf', { model: t(`world.characters.${c.model}`) })"
+              :data-testid="`character-name-${c.id}`"
+              @change="rename(c.id, $event)"
+              @keydown.enter="($event.target as HTMLInputElement).blur()"
+            />
+          </div>
+        </div>
 
         <USeparator />
 

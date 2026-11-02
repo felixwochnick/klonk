@@ -26,7 +26,7 @@ public static partial class Host
 
     const string UserFile = "Program.cs";
     // Wie implizite Usings im SDK, dazu die Roboter-API ohne Präfix
-    const string GlobalUsings = "global using System; global using System.Collections.Generic; global using System.Linq; global using static Klonk.Robot;";
+    const string GlobalUsings = "global using System; global using System.Collections.Generic; global using System.Linq; global using KlonkLib; global using static KlonkLib.Klonk;";
 
     static List<MetadataReference>? references;
     static SyntaxTree? robotTree;
@@ -119,7 +119,7 @@ public static partial class Host
     }
 
     /// <summary>
-    /// Vor jede Anweisung: <c>if (Klonk.Robot.__cp(zeile)) { Klonk.Robot.__v("x", x); …; Klonk.Robot.__pause(); }</c>.
+    /// Vor jede Anweisung: <c>if (KlonkLib.Klonk.__cp(zeile)) { KlonkLib.Klonk.__v("x", x); …; KlonkLib.Klonk.__pause(); }</c>.
     /// Rümpfe ohne Klammern (if/else/Schleifen) werden geklammert, Schleifenrümpfe bekommen einen Prüfpunkt je Durchlauf.
     /// Variablen: sicher zugewiesene lokale Variablen/Parameter der umgebenden Methode (Datenflussanalyse).
     /// </summary>
@@ -149,10 +149,10 @@ public static partial class Host
                     };
                     if (type is null || refKind != RefKind.None || type.IsRefLikeType || type.TypeKind == TypeKind.Pointer) continue;
                     if (symbol.Name.StartsWith("<") || symbol.Name == "args" && symbol is IParameterSymbol { ContainingSymbol.Name: "<Main>$" }) continue;
-                    vars.Append($"global::Klonk.Robot.__v(\"{symbol.Name}\", {symbol.Name}); ");
+                    vars.Append($"global::KlonkLib.Klonk.__v(\"{symbol.Name}\", {symbol.Name}); ");
                 }
             }
-            return $"if (global::Klonk.Robot.__cp({line})) {{ {vars}global::Klonk.Robot.__pause(); }} ";
+            return $"if (global::KlonkLib.Klonk.__cp({line})) {{ {vars}global::KlonkLib.Klonk.__pause(); }} ";
         }
         int LineOf(SyntaxNode node) => node.GetLocation().GetLineSpan().StartLinePosition.Line + 1;
         void Wrap(StatementSyntax body, StatementSyntax anchor)

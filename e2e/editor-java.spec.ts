@@ -34,12 +34,13 @@ test.beforeEach(async ({ page }) => {
 })
 
 test('Java kompilieren und ausführen', async ({ page }) => {
-  await openIde(page, main(`        int n = 0;
-        while (!isWall()) {
-            turnLeft();
-            placeBrick(RED);
-            turnRight();
-            step();
+  await openIde(page, main(`        Klonk klonk = new Klonk();
+        int n = 0;
+        while (!klonk.isWall()) {
+            klonk.turnLeft();
+            klonk.placeBrick(RED);
+            klonk.turnRight();
+            klonk.step();
             n++;
         }
         System.out.println("Steps: " + n);`))
@@ -94,14 +95,14 @@ test('Compiler- und Laufzeitfehler mit Zeile, Autovervollständigung', async ({ 
   await expect(page.getByTestId('run-error')).toContainText('Fehler in Zeile 3')
   await expect(page.getByTestId('run-error')).toContainText('Java-Fehler')
 
-  await openIde(page, main('        turnLeft();\n        turnLeft();\n        step();'))
+  await openIde(page, main('        Klonk k = new Klonk();\n        k.turnLeft();\n        k.turnLeft();\n        k.step();'))
   await page.getByTestId('run').click()
   await expect(state(page)).toHaveAttribute('data-state', 'error', { timeout: 60_000 })
-  await expect(page.getByTestId('run-error')).toContainText('Fehler in Zeile 5')
+  await expect(page.getByTestId('run-error')).toContainText('Fehler in Zeile 6')
 
   await page.locator('.view-lines').click()
   await page.keyboard.press('Control+End')
-  await page.keyboard.type('\nisW')
+  await page.keyboard.type('\nk.isW')
   await page.keyboard.press('Control+Space')
   await expect(page.locator('.suggest-widget .monaco-list-row').first()).toContainText('isWall', { timeout: 15_000 })
 })

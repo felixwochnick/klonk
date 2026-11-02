@@ -1,10 +1,10 @@
 import { parse } from 'java-parser'
 import MagicString from 'magic-string'
 
-/** Prüfpunkt-Aufrufe (Klasse `klonk.Robot`, siehe robot.ts) */
-const CP = 'klonk.Robot.__cp'
-const VAR = 'klonk.Robot.__v'
-const WAIT = 'klonk.Robot.__pause'
+/** Prüfpunkt-Aufrufe (statisch importiert aus `klonk.Klonk`, siehe robot.ts) */
+const CP = '__cp'
+const VAR = '__v'
+const WAIT = '__pause'
 
 type CstNode = {
   name: string
@@ -48,7 +48,7 @@ function identifiers(node: CstNode | undefined): string[] {
 
 /**
  * Fügt in Java-Quelltext vor jeder Anweisung einen Prüfpunkt ein:
- * `if (klonk.Robot.__cp(zeile)) { klonk.Robot.__v("x", x); …; klonk.Robot.__pause(); }`.
+ * `if (__cp(zeile)) { __v("x", x); …; __pause(); }`.
  * Schleifen- und if-Rümpfe ohne Klammern werden geklammert. Nur Einfügungen ⇒ Zeilen bleiben gleich.
  * Gibt `null` zurück, wenn der Quelltext nicht geparst werden kann (dann meldet javac den Fehler).
  */

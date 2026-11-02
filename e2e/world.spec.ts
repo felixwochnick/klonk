@@ -95,3 +95,22 @@ test('Editor: Welt bauen, speichern und laden', async ({ page }) => {
   await gotoHydrated(page, `${APP_URL}/world`)
   await expect(page.getByTestId('status-front')).toHaveText('1 Ziegel voraus')
 })
+
+test('Figuren benennen (Name für die Objekt-API)', async ({ page }) => {
+  await loginWithPassword(page, `${APP_URL}/login`, 'admin@gym-muster.de', 'admin-passwort')
+  await page.evaluate(() => localStorage.setItem('klonk:world', JSON.stringify({
+    version: 1, size: { width: 4, depth: 4, height: 3 }, cells: [], characters: [{ id: 'klonk', model: 'female', x: 0, z: 0, direction: 'south' }],
+  })))
+  await gotoHydrated(page, `${APP_URL}/world`)
+  const name = page.getByTestId('character-names').getByRole('textbox')
+  await expect(name).toHaveValue('klonk')
+  await name.fill('Karla')
+  await name.press('Enter')
+  await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem('klonk:world')!).characters[0].id)).toBe('Karla')
+
+  // Ungültig ⇒ Meldung, alter Name bleibt
+  await name.fill('a/b')
+  await name.press('Enter')
+  await expect(page.getByText('„a/b“ ist kein gültiger Name', { exact: false })).toBeVisible()
+  await expect(name).toHaveValue('Karla')
+})

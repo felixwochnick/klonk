@@ -51,85 +51,93 @@ function codeSample(language: 'javascript' | 'typescript' | 'python' | 'java' | 
   const k = (name: Parameters<typeof spell>[0]) => spell(name, 'en')
   if (language === 'csharp') {
     const c = (name: Parameters<typeof spell>[0]) => csharpName(spell(name, 'en'))
-    return `// Walks to the wall and places bricks on its left
-int Row(string color)
+    return `// Klonk walks to the wall and places bricks on its left
+var klonk = new Klonk();
+
+int Row(Klonk robot, string color)
 {
     var count = 0;
-    while (!${c('isWall')}())
+    while (!robot.${c('isWall')}())
     {
-        ${c('turnLeft')}();
-        ${c('placeBrick')}(color);
-        ${c('turnRight')}();
-        ${c('step')}();
+        robot.${c('turnLeft')}();
+        robot.${c('placeBrick')}(color);
+        robot.${c('turnRight')}();
+        robot.${c('step')}();
         count++;
     }
     return count;
 }
 
-var placed = Row(${c('blue')});
-${c('setMark')}();
-Console.WriteLine($"Bricks placed: {placed}");
+var placed = Row(klonk, ${c('blue')});
+klonk.${c('setMark')}();
+Console.WriteLine($"{klonk.Name} placed {placed} bricks");
 `
   }
   if (language === 'java') {
-    return `// Walks to the wall and places bricks on its left
+    return `// Klonk walks to the wall and places bricks on its left
 public class Main {
-    static int row(String color) {
+    static int row(Klonk robot, String color) {
         int count = 0;
-        while (!${k('isWall')}()) {
-            ${k('turnLeft')}();
-            ${k('placeBrick')}(color);
-            ${k('turnRight')}();
-            ${k('step')}();
+        while (!robot.${k('isWall')}()) {
+            robot.${k('turnLeft')}();
+            robot.${k('placeBrick')}(color);
+            robot.${k('turnRight')}();
+            robot.${k('step')}();
             count++;
         }
         return count;
     }
 
     public static void main(String[] args) {
-        int placed = row(${k('blue').toUpperCase()});
-        ${k('setMark')}();
-        System.out.println("Bricks placed: " + placed);
+        Klonk klonk = new Klonk();
+        int placed = row(klonk, ${k('blue').toUpperCase()});
+        klonk.${k('setMark')}();
+        System.out.println(klonk.name + " placed " + placed + " bricks");
     }
 }
 `
   }
   if (language === 'python') {
     const p = (name: Parameters<typeof spell>[0]) => pythonName(spell(name, 'en'))
-    return `# Walks to the wall and places bricks on its left
-def row(color):
+    return `# Klonk walks to the wall and places bricks on its left
+klonk = Klonk()
+
+
+def row(robot, color):
     count = 0
-    while not ${p('isWall')}():
-        ${p('turnLeft')}()
-        ${p('placeBrick')}(color)
-        ${p('turnRight')}()
-        ${p('step')}()
+    while not robot.${p('isWall')}():
+        robot.${p('turnLeft')}()
+        robot.${p('placeBrick')}(color)
+        robot.${p('turnRight')}()
+        robot.${p('step')}()
         count += 1
     return count
 
 
-placed = row(${p('blue')})
-${p('setMark')}()
-print("Bricks placed:", placed)
+placed = row(klonk, ${p('blue')})
+klonk.${p('setMark')}()
+print(klonk.name, "placed", placed, "bricks")
 `
   }
   const ts = language === 'typescript'
-  return `// Walks to the wall and places bricks on its left
-function row(color${ts ? ': KlonkColor' : ''})${ts ? ': number' : ''} {
+  return `// Klonk walks to the wall and places bricks on its left
+const klonk = new Klonk()
+
+function row(robot${ts ? ': Klonk' : ''}, color${ts ? ': KlonkColor' : ''})${ts ? ': number' : ''} {
   let count = 0
-  while (!${k('isWall')}()) {
-    ${k('turnLeft')}()
-    ${k('placeBrick')}(color)
-    ${k('turnRight')}()
-    ${k('step')}()
+  while (!robot.${k('isWall')}()) {
+    robot.${k('turnLeft')}()
+    robot.${k('placeBrick')}(color)
+    robot.${k('turnRight')}()
+    robot.${k('step')}()
     count++
   }
   return count
 }
 
-const placed = row(${k('blue')})
-${k('setMark')}()
-${k('print')}("Bricks placed:", placed)
+const placed = row(klonk, ${k('blue')})
+klonk.${k('setMark')}()
+${k('print')}(klonk.name, "placed", placed, "bricks")
 `
 }
 

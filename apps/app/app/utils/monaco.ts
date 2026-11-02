@@ -1,4 +1,4 @@
-import { robotApiDeclarations } from './js-api-types'
+import { KLONK_CLASS_DOC, robotApiDeclarations } from './js-api-types'
 import { BUILTINS, KEYWORDS, check, spell, tokenize, type Builtin, type BuiltinName, type ScriptLanguage } from '@klonk/klonk-script'
 
 export type Monaco = typeof import('monaco-editor')
@@ -165,22 +165,29 @@ type ApiStyle = {
   name: (name: BuiltinName, builtin: Builtin) => string | null
   param: (name: string) => string
   optional: string
+  /** Figur erzeugen (`new Klonk` bzw. `Klonk` in Python) und Name der Klassenmethode für alle Figuren */
+  newKlonk: string
+  all: string
 }
 
 const PYTHON_STYLE: ApiStyle = {
   keywords: PYTHON_KEYWORDS,
   // print bleibt Pythons eigenes
-  name: (name, builtin) => (name === 'print' ? null : builtin.kind === 'constant' ? spell(name, 'en') : pythonName(spell(name, 'en'))),
+  name: (name, builtin) => (name === 'print' || name === 'selectCharacter' ? null : builtin.kind === 'constant' ? spell(name, 'en') : pythonName(spell(name, 'en'))),
   param: pythonName,
   optional: '=…',
+  newKlonk: 'Klonk',
+  all: 'all',
 }
 
 const JAVA_STYLE: ApiStyle = {
   keywords: JAVA_KEYWORDS,
   // Konstanten in Java-Schreibweise; wait heißt sleep (Object.wait() verdeckt sonst den statischen Import)
-  name: (name, builtin) => (builtin.kind === 'constant' ? spell(name, 'en').toUpperCase() : name === 'wait' ? 'sleep' : spell(name, 'en')),
+  name: (name, builtin) => (name === 'selectCharacter' ? null : builtin.kind === 'constant' ? spell(name, 'en').toUpperCase() : name === 'wait' ? 'sleep' : spell(name, 'en')),
   param: name => name,
   optional: '?',
+  newKlonk: 'new Klonk',
+  all: 'all',
 }
 
 const CSHARP_KEYWORDS = ['var', 'int', 'double', 'bool', 'string', 'if', 'else', 'while', 'for', 'foreach', 'in', 'do', 'return', 'break', 'continue', 'new', 'true', 'false', 'null', 'const', 'static', 'void', 'class', 'Console.WriteLine']
@@ -188,9 +195,11 @@ const CSHARP_KEYWORDS = ['var', 'int', 'double', 'bool', 'string', 'if', 'else',
 const CSHARP_STYLE: ApiStyle = {
   keywords: CSHARP_KEYWORDS,
   // PascalCase wie in C# üblich (IsWall, PlaceBrick, Red)
-  name: name => csharpName(spell(name, 'en')),
+  name: name => (name === 'selectCharacter' ? null : csharpName(spell(name, 'en'))),
   param: name => name,
   optional: '?',
+  newKlonk: 'new Klonk',
+  all: 'All',
 }
 
 /** Python, Java und C# (Syntaxfarben bringt Monaco mit): Roboter-API vervollständigen und erklären */
@@ -211,12 +220,31 @@ function registerApiLanguage(monaco: Monaco, id: string, style: ApiStyle) {
       const suggestions: import('monaco-editor').languages.CompletionItem[] = style.keywords.map(k => ({
         label: k, kind: Kind.Keyword, insertText: k, range, sortText: `2${k}`,
       }))
+      suggestions.push({
+        label: 'Klonk',
+        kind: Kind.Class,
+        detail: `${style.newKlonk}(name?)`,
+        documentation: { value: KLONK_CLASS_DOC.class[lang] },
+        insertText: `${style.newKlonk}(\${1})`,
+        insertTextRules: Rule.InsertAsSnippet,
+        range,
+        sortText: '0Klonk',
+      }, {
+        label: style.all,
+        kind: Kind.Method,
+        detail: `Klonk.${style.all}()`,
+        documentation: { value: KLONK_CLASS_DOC.all[lang] },
+        insertText: `${style.all}()`,
+        range,
+        sortText: `1${style.all}`,
+      })
       for (const { builtin, label } of entries()) {
         const params = (builtin.params ?? []).filter(p => !p.optional)
+        const method = builtin.kind === 'command' || builtin.kind === 'sensor'
         suggestions.push({
           label,
-          kind: builtin.kind === 'constant' ? Kind.Constant : builtin.kind === 'sensor' ? Kind.Property : Kind.Function,
-          detail: signature(label, builtin),
+          kind: builtin.kind === 'constant' ? Kind.Constant : method ? Kind.Method : Kind.Function,
+          detail: method ? `Klonk.${signature(label, builtin)}` : signature(label, builtin),
           documentation: { value: builtin.doc[lang] },
           insertText: builtin.kind === 'constant' ? label : `${label}(${params.map((p, i) => `\${${i + 1}:${style.param(p.name.en[0]!)}}`).join(', ')})`,
           insertTextRules: Rule.InsertAsSnippet,
@@ -230,12 +258,14 @@ function registerApiLanguage(monaco: Monaco, id: string, style: ApiStyle) {
   monaco.languages.registerHoverProvider(id, {
     provideHover(model, position) {
       const word = model.getWordAtPosition(position)
-      const entry = word && entries().find(e => e.label === word.word)
-      if (!word || !entry) return null
-      return {
-        range: new monaco.Range(position.lineNumber, word.startColumn, position.lineNumber, word.endColumn),
-        contents: [{ value: `\`${signature(entry.label, entry.builtin)}\`` }, { value: entry.builtin.doc[translator?.lang() ?? 'de'] }],
-      }
+      if (!word) return null
+      const lang = translator?.lang() ?? 'de'
+      const range = new monaco.Range(position.lineNumber, word.startColumn, position.lineNumber, word.endColumn)
+      if (word.word === 'Klonk') return { range, contents: [{ value: `\`${style.newKlonk}(name?)\`` }, { value: KLONK_CLASS_DOC.class[lang] }] }
+      const entry = entries().find(e => e.label === word.word)
+      if (!entry) return null
+      const method = entry.builtin.kind === 'command' || entry.builtin.kind === 'sensor'
+      return { range, contents: [{ value: `\`${method ? 'Klonk.' : ''}${signature(entry.label, entry.builtin)}\`` }, { value: entry.builtin.doc[lang] }] }
     },
   })
 }

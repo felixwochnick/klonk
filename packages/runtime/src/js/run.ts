@@ -1,7 +1,7 @@
 import type { RobotCommand, SourceRange } from '@klonk/klonk-script'
 import { World } from '@klonk/world'
 import type { FromWorker, ToWorker } from '../protocol'
-import { ApiError, createApi, display } from './api'
+import { ApiError, createApi, createKlonkClass, display } from './api'
 import { CHECKPOINT, InstrumentationError, instrument } from './instrument'
 import { CONTROL, views } from './shared'
 import { stripTypes } from './transpile'
@@ -55,14 +55,12 @@ export function runJavaScript(message: Extract<ToWorker, { type: 'run' }>, post:
     if (/^\s*(import|export)\b/m.test(source) && !message.allowImports) throw new ApiError('feature_libraries')
 
     const world = new World(message.world)
-    const host = {
+    const api = createApi({
       world,
-      character: message.characterId ?? world.getCharacters()[0]?.id ?? '',
       command: (command: RobotCommand) => post({ type: 'command', command }),
       print: (text: string) => post({ type: 'output', text }),
       sleep,
-    }
-    const api = createApi(host)
+    })
 
     // Nutzercode bekommt nur die Roboter-API und Standard-JavaScript
     const scope = globalThis as unknown as Record<string, unknown>
@@ -74,8 +72,10 @@ export function runJavaScript(message: Extract<ToWorker, { type: 'run' }>, post:
         // nicht überschreibbar – egal
       }
     }
-    for (const [name, value] of Object.entries(api)) scope[name] = value
-    scope.console = { log: api.print, info: api.print, warn: api.print, error: api.print }
+    for (const [name, value] of Object.entries(api.globals)) scope[name] = value
+    scope.Klonk = createKlonkClass(api)
+    const print = api.globals.print
+    scope.console = { log: print, info: print, warn: print, error: print }
 
     new Function(CHECKPOINT, `'use strict';${code}`)(checkpoint)
     post({ type: 'done' })

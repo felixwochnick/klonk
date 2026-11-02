@@ -11,6 +11,9 @@ export type WorldErrorCode
     | 'no_brick'
     | 'no_mark'
     | 'unknown_character'
+    | 'no_character'
+    | 'invalid_name'
+    | 'duplicate_name'
     | 'character_limit'
     | 'invalid_world'
 

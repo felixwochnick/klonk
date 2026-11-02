@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { World, WorldError, type WorldData, type WorldEvent } from '../src'
+import { World, WorldError, nextCharacterName, type WorldData, type WorldEvent } from '../src'
 
 const base = (extra: Partial<WorldData> = {}): WorldData => ({
   version: 1,
@@ -142,5 +142,25 @@ describe('Ereignisse, Editor und Format', () => {
     w.placeBrick('k')
     w.reset(start)
     expect(w.toJSON()).toEqual({ ...start, maxJump: 1 })
+  })
+
+  it('Figuren über Namen finden und umbenennen', () => {
+    const w = new World(base())
+    w.addCharacter({ id: 'Klara', model: 'female', x: 2, z: 2, direction: 'north' })
+    expect(w.findCharacter().id).toBe('k')
+    expect(w.findCharacter('klara').id).toBe('Klara')
+    expect(w.findCharacter(2).id).toBe('Klara')
+    expectError(() => w.findCharacter('Kurt'), 'unknown_character')
+    expectError(() => w.findCharacter(3), 'unknown_character')
+
+    const events: WorldEvent[] = []
+    w.on(e => events.push(e))
+    w.renameCharacter('k', 'Karl')
+    expect(w.getCharacters().map(c => c.id)).toEqual(['Karl', 'Klara'])
+    expect(events.map(e => e.type)).toEqual(['character-removed', 'character-added'])
+    expectError(() => w.renameCharacter('Karl', 'KLARA'), 'duplicate_name')
+    expectError(() => w.renameCharacter('Karl', 'a/b'), 'invalid_name')
+    expect(nextCharacterName(w)).toBe('Klonk')
+    expectError(() => new World(base({ characters: [] })).findCharacter(), 'no_character')
   })
 })

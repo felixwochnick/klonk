@@ -1,4 +1,4 @@
-import { BRICK_COLORS, CHARACTER_MODELS, MARK_COLORS, World, WorldError, parseWorld, type BrickColor, type CharacterModel, type MarkColor, type Position, type WorldData } from '@klonk/world'
+import { BRICK_COLORS, CHARACTER_MODELS, MARK_COLORS, World, WorldError, nextCharacterName, parseWorld, type BrickColor, type CharacterModel, type MarkColor, type Position, type WorldData } from '@klonk/world'
 
 export type EditorTool = 'brick' | 'mark' | 'block' | 'character' | 'erase'
 
@@ -104,7 +104,7 @@ export function useWorldEditor() {
             else w.turnRight(character.id)
           }
           else if (!remove) {
-            const id = uniqueId(w, characterModel.value)
+            const id = nextCharacterName(w)
             w.addCharacter({ id, model: characterModel.value, x: position.x, z: position.z, direction: 'south' }, maxCharacters.value)
             selectedCharacter.value ||= id
           }
@@ -122,7 +122,7 @@ export function useWorldEditor() {
   }
 
   function newWorld(width: number, depth: number, height: number) {
-    setStart(new World({ version: 1, size: { width, depth, height }, cells: [], characters: [{ id: 'klonk', model: characterModel.value, x: 0, z: 0, direction: 'south' }] }))
+    setStart(new World({ version: 1, size: { width, depth, height }, cells: [], characters: [{ id: 'Klonk', model: characterModel.value, x: 0, z: 0, direction: 'south' }] }))
   }
 
   function exportJson() {
@@ -187,6 +187,14 @@ export function useWorldEditor() {
     return world.value.getCharacters().map(c => ({ ...c }))
   })
 
+  /** Figur umbenennen – der Name ist der, über den Programme sie ansprechen */
+  function renameCharacter(id: string, name: string) {
+    return attempt(() => {
+      start.value.renameCharacter(id, name)
+      if (selectedCharacter.value === id) selectedCharacter.value = name.trim()
+    })
+  }
+
   /** Welt aus einer Datei/einem Projekt als Startwelt übernehmen */
   function loadData(data: WorldData) {
     return attempt(() => {
@@ -198,14 +206,7 @@ export function useWorldEditor() {
   return {
     loadData,
     world, start, mode, tool, brickColor, markColor, characterModel, selectedCharacter, status, characters, maxCharacters,
-    applyTool, newWorld, exportJson, importJson, play, edit, resetRun, command,
+    applyTool, newWorld, exportJson, importJson, play, edit, resetRun, command, renameCharacter,
     BRICK_COLORS, MARK_COLORS, CHARACTER_MODELS,
   }
-}
-
-function uniqueId(world: World, model: CharacterModel) {
-  const ids = new Set(world.getCharacters().map(c => c.id))
-  let i = 1
-  while (ids.has(`${model}-${i}`)) i++
-  return `${model}-${i}`
 }

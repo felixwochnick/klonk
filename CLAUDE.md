@@ -125,6 +125,15 @@ node scripts/build-csharp.ts        # C#-Host bauen (.NET-SDK 10 nötig; Ausgabe
 - **Sprachen mit englischen Schlüsselwörtern (JS, TS, Python, Java, C#) nutzen nur die englische Roboter-API** (vom User so
   festgelegt): keine deutschen Befehle/Farben, Beispiele und Parameternamen englisch; nur Doku/Hover folgen der UI-Sprache.
   Mehrsprachig ist nur Klonk-Script (und damit die Blöcke).
+- **Objekt-API in JS/TS/Python/Java/C#** (vom User so festgelegt): keine globalen Roboterbefehle, jede Figur ist ein Objekt
+  `new Klonk()` (erste) / `new Klonk("Klara")` (Name, ohne Groß-/Kleinschreibung) / `new Klonk(2)` / `Klonk.all()`; Befehle und
+  Sensoren sind Methoden, global bleiben nur `print`, `wait` (Java `sleep`), `random` und Farben. **Klonk-Script und Blöcke steuern
+  immer nur eine Figur** (`wähleFigur` wechselt). Gemeinsame Basis `createApi()` in `runtime/src/js/api.ts` (`robot()`, `names()`,
+  `globals`, `ROBOT_METHODS`, `onError`); JS-Klasse `createKlonkClass()`, Python-Klasse im Vorspann, Java `klonk.Klonk`
+  (Instrumentierung ruft `__cp` unqualifiziert über `import static klonk.Klonk.*` – eine Variable `klonk` würde `klonk.X` verdecken;
+  JSO-Strings vor `toString()` per Verkettung kopieren), C# `KlonkLib.Klonk` (Namensraum ≠ Klasse; Aufrufe `call(method, ["s:<Name>", …])`).
+- **Figurennamen** = `CharacterData.id` (`isValidCharacterName`, `World.findCharacter/renameCharacter`, Vorschläge `nextCharacterName`),
+  umbenennen im Welt-Editor (Abschnitt „Namen der Figuren“).
 - **Klonk-Script ist mehrsprachig:** Schlüsselwörter und Befehle pro Sprache (anfangs Deutsch + Englisch) über
   Schlüsselworttabellen, gemeinsamer AST. Autocomplete, Breakpoints, Schrittmodus.
 - **i18n:** App und Docs zunächst Deutsch + Englisch, weitere Sprachen müssen leicht ergänzbar sein.

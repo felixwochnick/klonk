@@ -75,7 +75,7 @@ export async function runJava(
         errors.push({ type: read(() => d.type, ''), severity: 'error', fileName: read(() => d.fileName, ''), lineNumber: read(() => d.lineNumber, 0), message: read(() => d.message, '') })
       }
     })
-    compiler.addSourceFile('Robot.java', ROBOT_JAVA)
+    compiler.addSourceFile('Klonk.java', ROBOT_JAVA)
     for (const [name, source] of Object.entries(files)) compiler.addSourceFile(name, source)
     const compileError = (): RunError => {
       const first = errors.find(e => e.fileName.endsWith(main)) ?? errors[0]
@@ -86,7 +86,7 @@ export async function runJava(
       post({ type: 'error', error: compileError() })
       return
     }
-    const mainClass = Array.from(compiler.detectMainClasses()).find(c => c !== 'klonk.Robot')
+    const mainClass = Array.from(compiler.detectMainClasses()).find(c => c !== 'klonk.Klonk')
     if (!mainClass) {
       post({ type: 'error', error: { code: 'java_no_main', params: {} } })
       return
@@ -119,26 +119,24 @@ export async function runJava(
   const world = new World(message.world)
   const api = createApi({
     world,
-    character: message.characterId ?? world.getCharacters()[0]?.id ?? '',
     command: (command: RobotCommand) => post({ type: 'command', command }),
     print: (text: string) => post({ type: 'output', text }),
     sleep,
+    onError: (error) => {
+      apiError = error
+    },
   })
-  const robot: Record<string, unknown> = {}
-  for (const [name, value] of Object.entries(api)) {
-    robot[name] = typeof value !== 'function'
-      ? value
-      : (...args: unknown[]) => {
-          try {
-            return (value as (...a: unknown[]) => unknown)(...args)
-          }
-          catch (error) {
-            if (error instanceof ApiError) apiError = error
-            throw error
-          }
-        }
+  // Gegenstück zu den JSO-Schnittstellen in Klonk.java
+  const robot: Record<string, unknown> = {
+    robot: (name: string) => api.robot(name),
+    robotAt: (number: number) => api.robot(number),
+    first: () => api.robot(),
+    count: () => api.names().length,
+    nameAt: (index: number) => api.names()[index],
+    print: api.globals.print,
+    sleepSeconds: api.globals.wait,
+    random: api.globals.random,
   }
-  robot.sleepSeconds = robot.wait
   // Prüfpunkt: true ⇒ anhalten (Variablen folgen über variable(), dann pause())
   robot.checkpoint = (current: number) => {
     line = current
@@ -186,7 +184,7 @@ export async function runJava(
         imports.teavmConsole!.putcharStderr = putchar
       },
     })
-    // Robot.java liest `window.klonk` (JSO kennt im Worker kein anderes globales Objekt)
+    // Klonk.java liest `window.klonk` (JSO kennt im Worker kein anderes globales Objekt)
     scope.window = globalThis
     scope.klonk = robot
     for (const name of BLOCKED_GLOBALS) {
@@ -207,7 +205,7 @@ export async function runJava(
   }
 }
 
-/** Hauptdatei (+ mit Lizenz weitere .java-Dateien des Projekts), instrumentiert, mit Import der Roboter-API */
+/** Hauptdatei (+ mit Lizenz weitere .java-Dateien des Projekts, auch aus Unterordnern – der Compiler sieht sie flach), instrumentiert, mit Import der Roboter-API */
 function javaFiles(message: Extract<ToWorker, { type: 'run' }>) {
   const prepare = (source: string) => {
     const instrumented = instrumentJava(source) ?? source
@@ -220,8 +218,8 @@ function javaFiles(message: Extract<ToWorker, { type: 'run' }>) {
   const files: Record<string, string> = { [main]: prepare(message.source) }
   if (message.allowImports) {
     for (const [path, source] of Object.entries(message.files)) {
-      if (!path.endsWith('.java') || path.includes('/')) continue
-      const name = `${publicClass(source) ?? path.slice(0, -5)}.java`
+      if (!path.endsWith('.java')) continue
+      const name = `${publicClass(source) ?? path.slice(path.lastIndexOf('/') + 1, -5)}.java`
       if (name !== main) files[name] = prepare(source)
     }
   }

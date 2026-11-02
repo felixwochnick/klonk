@@ -2,7 +2,8 @@ import type { RobotCommand, SourceRange } from '@klonk/klonk-script'
 import { World } from '@klonk/world'
 import type { PyodideInterface } from 'pyodide'
 import type { FromWorker, ToWorker } from '../protocol'
-import { ApiError, createApi } from '../js/api'
+import type { ApiError } from '../js/api'
+import { ROBOT_METHODS, createApi } from '../js/api'
 import { CONTROL, views } from '../js/shared'
 import { PRELUDE, USER_FILE } from './prelude'
 
@@ -70,27 +71,15 @@ export async function runPython(
     const world = new World(message.world)
     const api = createApi({
       world,
-      character: message.characterId ?? world.getCharacters()[0]?.id ?? '',
       command: (command: RobotCommand) => post({ type: 'command', command }),
       print: (text: string) => post({ type: 'output', text }),
       sleep,
+      // API-Fehler merken, damit sie wie in den anderen Sprachen übersetzt werden
+      onError: (error) => {
+        apiError = error
+      },
     })
-    // API-Fehler merken, damit sie wie in den anderen Sprachen übersetzt werden
-    const robot: Record<string, unknown> = {}
-    for (const [name, value] of Object.entries(api)) {
-      robot[name] = typeof value !== 'function'
-        ? value
-        : (...args: unknown[]) => {
-            try {
-              return (value as (...a: unknown[]) => unknown)(...args)
-            }
-            catch (error) {
-              if (error instanceof ApiError) apiError = error
-              throw error
-            }
-          }
-    }
-    pyodide.registerJsModule('klonk', robot)
+    pyodide.registerJsModule('klonk', { ...api.globals, globals: Object.keys(api.globals), robot: api.robot, names: api.names, methods: ROBOT_METHODS })
     pyodide.registerJsModule('_klonk_debug', {
       // Variablen erst beim Anhalten auslesen (Python-Funktion ⇒ Dict mit Darstellungen)
       checkpoint: (current: number, variables: { (): { toJs: (o: object) => Record<string, string>, destroy: () => void } }) =>

@@ -2,8 +2,9 @@
 export const USER_FILE = '<klonk>'
 
 /**
- * Python-Vorspann: Roboter-API als Builtins in Python-Schreibweise (`turn_left`, `is_wall`, nur Englisch),
- * Tracing für Prüfpunkte (nur Zeilen der Nutzerdatei) und Variablenansicht.
+ * Python-Vorspann: Klasse `Klonk` (eine Figur je Objekt, Methoden in Python-Schreibweise wie `turn_left`,
+ * `is_wall`) und globale Funktionen/Farben als Builtins (nur Englisch), Tracing für Prüfpunkte
+ * (nur Zeilen der Nutzerdatei) und Variablenansicht.
  */
 export const PRELUDE = String.raw`
 import sys, re, builtins
@@ -16,14 +17,36 @@ _klonk_names = {}
 def _klonk_snake(name):
     return re.sub(r'(?<=[a-zäöüß0-9])([A-ZÄÖÜ])', lambda m: '_' + m.group(1).lower(), name)
 
-for _name in dir(_klonk_api):
-    if _name.startswith('_'):
-        continue
-    _value = getattr(_klonk_api, _name)
-    _spelling = _klonk_snake(_name)
+class Klonk:
+    """Eine Figur der Welt: Klonk() ist die erste, Klonk("Klara") die mit diesem Namen, Klonk(2) die zweite."""
+    __slots__ = ('_robot', 'name')
+
+    def __init__(self, name=None):
+        self._robot = _klonk_api.robot(name)
+        self.name = self._robot.name
+
+    def __repr__(self):
+        return 'Klonk(' + repr(self.name) + ')'
+
+    @staticmethod
+    def all():
+        """Alle Figuren der Welt"""
+        return [Klonk(n) for n in _klonk_api.names()]
+
+def _klonk_method(js_name):
+    def method(self, *args):
+        return getattr(self._robot, js_name)(*args)
+    method.__name__ = _klonk_snake(js_name)
+    return method
+
+for _js_name in _klonk_api.methods:
+    setattr(Klonk, _klonk_snake(_js_name), _klonk_method(_js_name))
+
+_klonk_names['Klonk'] = Klonk
+for _name in _klonk_api.globals:
     # print bleibt Pythons eigenes print (gleiche Ausgabe)
-    if _spelling != 'print':
-        _klonk_names[_spelling] = _value
+    if _name != 'print':
+        _klonk_names[_klonk_snake(_name)] = getattr(_klonk_api, _name)
 
 # Als Builtins: sichtbar im Programm und in importierten Projektdateien, trotzdem überschreibbar
 for _name, _value in _klonk_names.items():

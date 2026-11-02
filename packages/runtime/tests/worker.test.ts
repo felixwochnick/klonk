@@ -90,12 +90,25 @@ describe('Worker: JavaScript/TypeScript', () => {
     return buffer
   }
 
-  it('führt JS mit der englischen Roboter-API aus, deutsche Namen gibt es nicht', async () => {
-    run('while (!isWall()) { step() }\nturnRight()\nplaceBrick("Red")\nprint("x =", positionX(), typeof schritt)', { language: 'javascript', shared: shared() })
+  it('führt JS mit der englischen Objekt-API aus, globale Befehle und deutsche Namen gibt es nicht', async () => {
+    run('const k = new Klonk()\nwhile (!k.isWall()) { k.step() }\nk.turnRight()\nk.placeBrick("Red")\nprint("x =", k.positionX(), k.name, typeof step, typeof schritt, k)', { language: 'javascript', shared: shared() })
     await until(() => last()?.type === 'done')
     expect(messages.filter(m => m.type === 'command')).toHaveLength(6)
     expect(messages).toContainEqual({ type: 'command', command: { name: 'placeBrick', id: 'k', color: 'red' } })
-    expect(messages).toContainEqual({ type: 'output', text: 'x = 5 undefined' })
+    expect(messages).toContainEqual({ type: 'output', text: 'x = 5 k undefined undefined Klonk("k")' })
+  })
+
+  it('mehrere Figuren gleichzeitig steuern (Name, Nummer, alle)', async () => {
+    const two: WorldData = { ...world, characters: [...world.characters, { id: 'Klara', model: 'female', x: 0, z: 2, direction: 'east' }] }
+    run('const karl = new Klonk(1)\nconst klara = new Klonk("klara")\nkarl.step()\nklara.step(2)\nprint(Klonk.all().map(r => r.name + "@" + r.positionX()).join(" "))', { language: 'javascript', shared: shared(), world: two })
+    await until(() => last()?.type === 'done')
+    expect(messages.filter(m => m.type === 'command').map(m => m.type === 'command' && m.command.id)).toEqual(['k', 'Klara', 'Klara'])
+    expect(messages).toContainEqual({ type: 'output', text: 'k@2 Klara@3' })
+
+    messages.length = 0
+    run('new Klonk("Nobody")', { language: 'javascript', shared: shared(), world: two })
+    await until(() => last()?.type === 'error')
+    expect(last()).toMatchObject({ error: { code: 'world', params: { worldCode: 'unknown_character', id: 'Nobody' }, range: { line: 1 } } })
   })
 
   it('TypeScript mit Typen läuft', async () => {
@@ -105,9 +118,9 @@ describe('Worker: JavaScript/TypeScript', () => {
   })
 
   it('Fehler mit Zeile: Welt, Laufzeit, Syntax, falsche Farbe', async () => {
-    run('turnLeft()\nstep()', { language: 'javascript', shared: shared() })
+    run('const k = new Klonk()\nk.turnLeft()\nk.step()', { language: 'javascript', shared: shared() })
     await until(() => last()?.type === 'error')
-    expect(last()).toMatchObject({ error: { code: 'world', params: { worldCode: 'wall' }, range: { line: 2 } } })
+    expect(last()).toMatchObject({ error: { code: 'world', params: { worldCode: 'wall' }, range: { line: 3 } } })
 
     messages.length = 0
     run('let a = 1\nundefinedFunction()', { language: 'javascript', shared: shared() })
@@ -120,7 +133,7 @@ describe('Worker: JavaScript/TypeScript', () => {
     expect(last()).toMatchObject({ error: { code: 'js_syntax', range: { line: 1 } } })
 
     messages.length = 0
-    run('placeBrick("rot")', { language: 'javascript', shared: shared() })
+    run('new Klonk().placeBrick("rot")', { language: 'javascript', shared: shared() })
     await until(() => last()?.type === 'error')
     expect(last()).toMatchObject({ error: { code: 'invalid_color' } })
   })
@@ -132,7 +145,7 @@ describe('Worker: JavaScript/TypeScript', () => {
   })
 
   it('ohne gemeinsamen Speicher gibt es eine verständliche Meldung', async () => {
-    run('step()', { language: 'javascript' })
+    run('new Klonk().step()', { language: 'javascript' })
     await until(() => last()?.type === 'error')
     expect(last()).toMatchObject({ error: { code: 'isolation_required' } })
   })

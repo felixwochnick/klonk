@@ -84,10 +84,16 @@
       "stack_full": "Der Stapel ist schon so hoch wie die Welt.",
       "no_brick": "Da liegt kein Ziegel.",
       "no_mark": "Hier ist keine Marke.",
-      "unknown_character": "Diese Figur gibt es nicht.",
+      "unknown_character": "Es gibt keine Figur „{id}“.",
       "character_limit": "Deine Lizenz erlaubt höchstens {max} Figur(en).",
-      "invalid_world": "Die Weltdatei ist ungültig."
-    }
+      "invalid_world": "Die Weltdatei ist ungültig.",
+      "no_character": "In der Welt steht keine Figur.",
+      "invalid_name": "„{name}“ ist kein gültiger Name (1–32 Buchstaben, Ziffern, Leerzeichen, _ oder -).",
+      "duplicate_name": "Es gibt schon eine Figur „{name}“."
+    },
+    "names": "Namen der Figuren",
+    "namesHelp": "Über diesen Namen sprechen Programme eine Figur an, z. B. new Klonk(\"Klara\").",
+    "nameOf": "Name ({model})"
   },
   "nav": {
     "world": "Welt",
@@ -187,7 +193,9 @@
       "cs_compile": "C#-Fehler: {message}",
       "cs_runtime": "{name}: {message}",
       "cs_no_main": "Kein Programm gefunden (Anweisungen oder eine Methode Main).",
-      "cs_load": "C# konnte nicht geladen werden ({message}). Beim ersten Mal ist eine Internetverbindung nötig."
+      "cs_load": "C# konnte nicht geladen werden ({message}). Beim ersten Mal ist eine Internetverbindung nötig.",
+      "expected_robot_name": "Eine Figur wird über ihren Namen (Text) oder ihre Nummer angesprochen, nicht über „{value}“.",
+      "expected_robot": "Diese Methode gehört zu einer Figur, z. B. new Klonk().step()."
     }
   },
   "blocks": {

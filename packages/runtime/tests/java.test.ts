@@ -18,20 +18,20 @@ describe('Java: Instrumentierung', () => {
   public static void main(String[] args) {
     int total = 0;
     for (int i = 0; i < 3; i++) total += twice(i);
-    if (total > 2) step(); else { turnLeft(); }
-    while (!isWall());
+    if (total > 2) k.step(); else { k.turnLeft(); }
+    while (!k.isWall());
   }
 }`
     const out = instrumentJava(source)!
     expect(out.split('\n')).toHaveLength(source.split('\n').length)
     const lines = out.split('\n')
-    expect(lines[2]).toContain('if (klonk.Robot.__cp(3)) { klonk.Robot.__v("x", x); klonk.Robot.__pause(); } int y')
-    expect(lines[3]).toContain('klonk.Robot.__v("x", x); klonk.Robot.__v("y", y);')
+    expect(lines[2]).toContain('if (__cp(3)) { __v("x", x); __pause(); } int y')
+    expect(lines[3]).toContain('__v("x", x); __v("y", y);')
     // Schleifenrumpf ohne Klammern wird geklammert, Schleifenvariable sichtbar
-    expect(lines[7]).toMatch(/i\+\+\) \{ if \(klonk\.Robot\.__cp\(8\)\) \{ .*__v\("i", i\).* total \+= twice\(i\); \}/)
-    expect(lines[8]).toMatch(/if \(total > 2\) \{ if \(klonk\.Robot\.__cp\(9\)\).* step\(\); \} else \{/)
+    expect(lines[7]).toMatch(/i\+\+\) \{ if \(__cp\(8\)\) \{ .*__v\("i", i\).* total \+= twice\(i\); \}/)
+    expect(lines[8]).toMatch(/if \(total > 2\) \{ if \(__cp\(9\)\).* k\.step\(\); \} else \{/)
     // Leere Schleife: Prüfpunkt je Durchlauf
-    expect(lines[9]).toMatch(/while \(!isWall\(\)\)\{ if \(klonk\.Robot\.__cp\(10\)\).*; \}/)
+    expect(lines[9]).toMatch(/while \(!k\.isWall\(\)\)\{ if \(__cp\(10\)\).*; \}/)
     // Parameter von main, aber nicht von twice
     expect(lines[6]).toContain('__v("args", args)')
     expect(lines[6]).not.toContain('"x"')
@@ -44,11 +44,13 @@ describe('Java: Instrumentierung', () => {
     expect(instrumentJava('class A { void f() { int = ; } }')).toBeNull()
   })
 
-  it('Robot.java enthält die englische Roboter-API', () => {
+  it('Klonk.java enthält die englische Roboter-API (Befehle/Sensoren als Methoden)', () => {
     for (const [name, builtin] of Object.entries(BUILTINS)) {
-      if (builtin.kind === 'constant') expect(ROBOT_JAVA).toContain(`String ${name.toUpperCase()} =`)
+      if (name === 'selectCharacter') expect(ROBOT_JAVA).not.toContain(name)
+      else if (builtin.kind === 'constant') expect(ROBOT_JAVA).toContain(`String ${name.toUpperCase()} =`)
       else if (name === 'wait') expect(ROBOT_JAVA).toContain('static void sleep(double seconds)')
-      else expect(ROBOT_JAVA).toMatch(new RegExp(`public static \\w+ ${name}\\(`))
+      else if (builtin.kind === 'function') expect(ROBOT_JAVA).toMatch(new RegExp(`public static \\w+ ${name}\\(`))
+      else expect(ROBOT_JAVA).toMatch(new RegExp(`public (?!static)\\w+ ${name}\\(`))
     }
   })
 })
@@ -75,28 +77,43 @@ describe('Java: Ausführen', { timeout: 120_000 }, () => {
     messages.length = 0
   })
 
-  it('Roboter-API, Ausgabe, Ende', async () => {
+  it('Roboter-API als Objekt, Ausgabe, Ende', async () => {
     await run(`public class Main {
   public static void main(String[] args) {
+    Klonk klonk = new Klonk();
     int n = 0;
-    while (!isWall()) { step(); n++; }
-    turnRight();
-    placeBrick(BLUE);
+    while (!klonk.isWall()) { klonk.step(); n++; }
+    klonk.turnRight();
+    klonk.placeBrick(BLUE);
     System.out.println("steps " + n);
-    print("x", positionX(), isWall());
+    print("x", klonk.positionX(), klonk.isWall(), klonk);
   }
 }`)
     expect(messages.filter(m => m.type === 'command')).toHaveLength(6)
-    expect(messages.filter(m => m.type === 'output')).toEqual([{ type: 'output', text: 'steps 4' }, { type: 'output', text: 'x 5 false' }])
+    expect(messages.filter(m => m.type === 'output')).toEqual([{ type: 'output', text: 'steps 4' }, { type: 'output', text: 'x 5 false Klonk("k")' }])
     expect(messages.at(-1)).toEqual({ type: 'done' })
+  })
+
+  it('mehrere Figuren: Name, Nummer, alle', async () => {
+    const two: WorldData = { ...world, characters: [...world.characters, { id: 'Klara', model: 'female', x: 0, z: 2, direction: 'east' }] }
+    await run(`public class Main {
+  public static void main(String[] args) {
+    Klonk klara = new Klonk("klara");
+    klara.step(2);
+    new Klonk(1).step();
+    for (Klonk r : Klonk.all()) print(r.name, r.positionX());
+  }
+}`, { world: two })
+    expect(messages.filter(m => m.type === 'command').map(m => (m as { command: { id: string } }).command.id)).toEqual(['Klara', 'Klara', 'k'])
+    expect(messages.filter(m => m.type === 'output')).toEqual([{ type: 'output', text: 'k 2' }, { type: 'output', text: 'Klara 3' }])
   })
 
   it('Compiler-, Welt- und Laufzeitfehler mit Zeile', async () => {
     await run('public class Main {\n  public static void main(String[] args) {\n    int x = "a";\n  }\n}')
     expect(messages.at(-1)).toMatchObject({ type: 'error', error: { code: 'java_compile', range: { line: 3 } } })
     messages.length = 0
-    await run('public class Main {\n  public static void main(String[] args) {\n    turnLeft();\n    step();\n  }\n}')
-    expect(messages.at(-1)).toMatchObject({ type: 'error', error: { code: 'world', params: { worldCode: 'wall' }, range: { line: 4 } } })
+    await run('public class Main {\n  public static void main(String[] args) {\n    Klonk klonk = new Klonk();\n    klonk.turnLeft();\n    klonk.step();\n  }\n}')
+    expect(messages.at(-1)).toMatchObject({ type: 'error', error: { code: 'world', params: { worldCode: 'wall' }, range: { line: 5 } } })
     messages.length = 0
     await run('public class Main {\n  public static void main(String[] args) {\n    int a = 0;\n    System.out.println(1 / a);\n  }\n}')
     expect(messages.at(-1)).toMatchObject({ type: 'error', error: { code: 'java_runtime', range: { line: 4 } } })

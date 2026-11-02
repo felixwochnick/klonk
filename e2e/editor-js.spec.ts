@@ -33,13 +33,14 @@ test('Seite ist cross-origin-isoliert (Voraussetzung für JS/TS)', async ({ page
   expect(await page.evaluate(() => crossOriginIsolated)).toBe(true)
 })
 
-test('JavaScript ausführen mit der englischen API', async ({ page }) => {
-  await openIde(page, 'javascript', `let n = 0
-while (!isWall()) {
-  turnLeft()
-  placeBrick(red)
-  turnRight()
-  step()
+test('JavaScript ausführen mit der englischen Objekt-API', async ({ page }) => {
+  await openIde(page, 'javascript', `const klonk = new Klonk()
+let n = 0
+while (!klonk.isWall()) {
+  klonk.turnLeft()
+  klonk.placeBrick(red)
+  klonk.turnRight()
+  klonk.step()
   n++
 }
 print('Schritte:', n, [1, 2])`)
@@ -88,7 +89,7 @@ test('Endlosschleife ohne Befehle lässt sich pausieren und stoppen', async ({ p
 })
 
 test('Laufzeitfehler mit Zeile', async ({ page }) => {
-  await openIde(page, 'javascript', 'step()\nconst a = null\na.x = 1')
+  await openIde(page, 'javascript', 'new Klonk().step()\nconst a = null\na.x = 1')
   await page.getByTestId('run').click()
   await expect(state(page)).toHaveAttribute('data-state', 'error', { timeout: 15_000 })
   await expect(page.getByTestId('run-error')).toContainText('Fehler in Zeile 3')
@@ -100,8 +101,24 @@ test('TypeScript: Typfehler und Autovervollständigung der Roboter-API', async (
   await expect(page.locator('.squiggly-error')).toHaveCount(1, { timeout: 20_000 })
   await page.locator('.view-lines').click()
   await page.keyboard.press('Control+End')
-  await page.keyboard.type('isW')
+  await page.keyboard.type('\nnew Klonk().isW')
   await page.waitForTimeout(500)
   await page.keyboard.press('Control+Space')
   await expect(page.locator('.suggest-widget .monaco-list-row').first()).toContainText('isWall', { timeout: 15_000 })
+})
+
+test('Zwei Figuren gleichzeitig steuern', async ({ page }) => {
+  await page.evaluate(() => localStorage.setItem('klonk:program', JSON.stringify({
+    language: 'javascript',
+    programs: { javascript: { source: 'const klonk = new Klonk()\nconst klara = new Klonk("Klara")\nfor (let i = 0; i < 3; i++) {\n  klonk.step()\n  klara.step()\n}\nprint(Klonk.all().map(k => k.name + ": " + k.positionY()).join(", "))', breakpoints: [] } },
+  })))
+  await page.evaluate(world => localStorage.setItem('klonk:world', JSON.stringify(world)), {
+    ...WORLD,
+    characters: [...WORLD.characters, { id: 'Klara', model: 'female', x: 2, z: 0, direction: 'south' }],
+  })
+  await gotoHydrated(page, `${APP_URL}/`)
+  await expect(page.getByTestId('code-editor')).toHaveAttribute('data-ready', 'true', { timeout: 20_000 })
+  await page.getByTestId('run').click()
+  await expect(state(page)).toHaveAttribute('data-state', 'done', { timeout: 30_000 })
+  await expect(page.getByTestId('output')).toHaveText('klonk: 4, Klara: 4')
 })

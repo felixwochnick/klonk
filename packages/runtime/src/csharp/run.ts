@@ -1,7 +1,8 @@
 import type { RobotCommand, SourceRange, Value } from '@klonk/klonk-script'
 import { World } from '@klonk/world'
 import type { FromWorker, RunError, ToWorker } from '../protocol'
-import { ApiError, createApi } from '../js/api'
+import type { ApiError } from '../js/api'
+import { ROBOT_METHODS, createApi } from '../js/api'
 import { CONTROL, views } from '../js/shared'
 
 /** Wo der C#-Host liegt (Roslyn auf .NET-WebAssembly, `node scripts/build-csharp.ts`; eigene Origin wegen COEP) */
@@ -55,25 +56,27 @@ export async function runCSharp(
   const world = new World(message.world)
   const api = createApi({
     world,
-    character: message.characterId ?? world.getCharacters()[0]?.id ?? '',
     command: (command: RobotCommand) => post({ type: 'command', command }),
     print: (text: string) => post({ type: 'output', text }),
     sleep,
+    onError: (error) => {
+      apiError = error
+    },
   })
+  // Argumente kodiert: "n:1.5" (Zahl) oder "s:text"; Ergebnis als Text
+  const decode = (a: string) => (a.startsWith('n:') ? Number(a.slice(2)) : a.slice(2))
+  const methods = new Set<string>(ROBOT_METHODS)
 
   bindImports(host, {
-    // Argumente kodiert: "n:1.5" (Zahl) oder "s:text"; Ergebnis als Text
     call: (name: string, args: string[]) => {
-      const fn = api[name] as ((...a: unknown[]) => unknown) | undefined
-      if (typeof fn !== 'function') throw new Error(`unknown command ${name}`)
-      try {
-        const result = fn(...args.map(a => (a.startsWith('n:') ? Number(a.slice(2)) : a.slice(2))))
-        return result === undefined ? '' : String(result)
-      }
-      catch (error) {
-        if (error instanceof ApiError) apiError = error
-        throw error
-      }
+      const values = args.map(decode)
+      let result: unknown
+      if (name === '$robot') result = api.robot(values[0]).name
+      else if (name === '$names') result = api.names().join('\n')
+      else if (methods.has(name)) result = api.robot(values[0])[name]!(...values.slice(1))
+      else if (typeof api.globals[name] === 'function') result = (api.globals[name] as (...a: unknown[]) => unknown)(...values)
+      else throw new Error(`unknown command ${name}`)
+      return result === undefined ? '' : String(result)
     },
     checkpoint: (current: number) => {
       line = current

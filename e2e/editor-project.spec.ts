@@ -74,7 +74,7 @@ test('Dateien wechseln, automatisch speichern, Welt aus dem Projekt', async ({ p
   await openIde(page)
   await seedProject(page, 'Speichern', {
     'start.klonk': 'schritt\nausgabe(positionX)\n',
-    'zweites.js': 'step(); step()\nprint(positionX())\n',
+    'zweites.js': 'const k = new Klonk()\nk.step(); k.step()\nprint(k.positionX())\n',
     'klein.klonkworld.json': JSON.stringify(WORLD),
     'notizen.txt': 'nicht editierbar',
   })
@@ -154,7 +154,7 @@ test('Vollbild-Explorer: Kacheln, Suche, Welt wählen, Programm in der IDE öffn
   await gotoHydrated(page, `${APP_URL}/projects`)
   await seedProject(page, 'Explorer', {
     'start.klonk': 'schritt\nausgabe(positionX)\n',
-    'hilfe.ts': 'step()\n',
+    'hilfe.ts': 'new Klonk().step()\n',
     'welt.klonkworld.json': JSON.stringify(WORLD),
   })
   await page.reload()

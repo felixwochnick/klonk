@@ -54,7 +54,7 @@ export class World {
       version: 1,
       size: { width, depth, height },
       cells: [],
-      characters: [{ id: 'klonk', model: 'male', x: 0, z: 0, direction: 'south' }],
+      characters: [{ id: 'Klonk', model: 'male', x: 0, z: 0, direction: 'south' }],
     })
   }
 
@@ -145,6 +145,41 @@ export class World {
     const character = this.characters.get(id)
     if (!character) throw new WorldError('unknown_character', { id })
     return character
+  }
+
+  /**
+   * Figur über ihren Namen (= ID): erst exakt, dann ohne Groß-/Kleinschreibung; Zahl ⇒ n-te Figur (ab 1).
+   * Ohne Angabe die erste Figur.
+   */
+  findCharacter(name?: string | number): Readonly<CharacterData> {
+    const all = [...this.characters.values()]
+    if (name === undefined) {
+      if (!all[0]) throw new WorldError('no_character')
+      return all[0]
+    }
+    if (typeof name === 'number') {
+      const character = Number.isInteger(name) ? all[name - 1] : undefined
+      if (!character) throw new WorldError('unknown_character', { id: String(name) })
+      return character
+    }
+    const exact = this.characters.get(name)
+    if (exact) return exact
+    const matches = all.filter(c => c.id.toLowerCase() === name.toLowerCase())
+    if (matches.length !== 1) throw new WorldError('unknown_character', { id: name })
+    return matches[0]!
+  }
+
+  /** Figur umbenennen (Reihenfolge bleibt); für die Darstellung als entfernt + neu hinzugefügt gemeldet */
+  renameCharacter(id: string, name: string) {
+    const character = this.getCharacter(id)
+    const trimmed = name.trim()
+    if (trimmed === id) return
+    if (!isValidCharacterName(trimmed)) throw new WorldError('invalid_name', { name })
+    if ([...this.characters.keys()].some(k => k !== id && k.toLowerCase() === trimmed.toLowerCase())) throw new WorldError('duplicate_name', { name: trimmed })
+    const renamed = { ...character, id: trimmed }
+    this.characters = new Map([...this.characters].map(([k, c]) => (k === id ? [trimmed, renamed] : [k, c])))
+    this.emit({ type: 'character-removed', id })
+    this.emit({ type: 'character-added', character: { ...renamed } })
   }
 
   characterAt(position: Position) {
@@ -325,6 +360,24 @@ export class World {
   private assertInside(position: Position) {
     if (!this.isInside(position)) throw new WorldError('wall', { x: position.x, z: position.z })
   }
+}
+
+/** Figurennamen: 1–32 Zeichen, Buchstaben, Ziffern, Leerzeichen, `_` und `-` */
+export function isValidCharacterName(name: string) {
+  return /^[\p{L}\p{N}_ -]{1,32}$/u.test(name) && name.trim() === name
+}
+
+/** Vorschläge für neue Figuren (danach „Klonk 2“, „Klonk 3“ …) */
+const CHARACTER_NAMES = ['Klonk', 'Klara', 'Kalle', 'Kim', 'Kai', 'Kira', 'Karl', 'Kiki', 'Kurt', 'Karla', 'Kofi', 'Kaya']
+
+/** Erster freier Name für eine neue Figur */
+export function nextCharacterName(world: World) {
+  const taken = new Set(world.getCharacters().map(c => c.id.toLowerCase()))
+  const free = CHARACTER_NAMES.find(n => !taken.has(n.toLowerCase()))
+  if (free) return free
+  let i = 2
+  while (taken.has(`klonk ${i}`)) i++
+  return `Klonk ${i}`
 }
 
 export function createCharacter(model: CharacterModel, position: Position, direction: Direction = 'south', id?: string): CharacterData {
