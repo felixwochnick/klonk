@@ -14,7 +14,7 @@ export const KLONK_CLASS_DOC = {
 
 /**
  * TypeScript-Deklarationen der Roboter-API (für Autovervollständigung und Typprüfung in Monaco):
- * Klasse `Klonk` mit den Befehlen/Sensoren als Methoden, dazu globale Funktionen und Farben.
+ * Modul `klonk` mit Klasse `Klonk` (Befehle/Sensoren als Methoden), Funktionen und Farben.
  * Erzeugt aus denselben Tabellen wie Klonk-Script; Dokumentation in der UI-Sprache.
  */
 export function robotApiDeclarations(lang: ScriptLanguage) {
@@ -24,9 +24,9 @@ export function robotApiDeclarations(lang: ScriptLanguage) {
   const doc = (text: string, indent = '') => `${indent}/** ${text.replace(/\*\//g, '')} */`
 
   const lines = [
-    '// Roboter-API von Klonk (englische Namen)',
-    `type KlonkColor = ${colorType}`,
-    `type KlonkMarkColor = ${markColorType}`,
+    '// Roboter-API von Klonk (englische Namen) – nur per import aus "klonk" verfügbar',
+    `export type KlonkColor = ${colorType}`,
+    `export type KlonkMarkColor = ${markColorType}`,
   ]
   const methods: string[] = []
 
@@ -34,7 +34,7 @@ export function robotApiDeclarations(lang: ScriptLanguage) {
     if (name === 'selectCharacter') continue
     for (const spelling of builtin.names.en) {
       if (builtin.kind === 'constant') {
-        lines.push(doc(builtin.doc[lang]), `declare const ${spelling}: '${name}'`)
+        lines.push(doc(builtin.doc[lang]), `export const ${spelling}: '${name}'`)
         continue
       }
       const params = (builtin.params ?? []).map((p) => {
@@ -42,14 +42,14 @@ export function robotApiDeclarations(lang: ScriptLanguage) {
         return name === 'print' ? `...${p.name.en[0]}: unknown[]` : `${p.name.en[0]}${p.optional ? '?' : ''}: ${type}`
       })
       const returns = builtin.kind === 'sensor' ? (RETURNS[name] ?? 'boolean') : (RETURNS[name] ?? 'void')
-      if (builtin.kind === 'function') lines.push(doc(builtin.doc[lang]), `declare function ${spelling}(${params.join(', ')}): ${returns}`)
+      if (builtin.kind === 'function') lines.push(doc(builtin.doc[lang]), `export function ${spelling}(${params.join(', ')}): ${returns}`)
       else methods.push(doc(builtin.doc[lang], '  '), `  ${spelling}(${params.join(', ')}): ${returns}`)
     }
   }
 
   lines.push(
     doc(KLONK_CLASS_DOC.class[lang]),
-    'declare class Klonk {',
+    'export class Klonk {',
     '  constructor(name?: string | number)',
     doc(KLONK_CLASS_DOC.name[lang], '  '),
     '  readonly name: string',
@@ -58,5 +58,7 @@ export function robotApiDeclarations(lang: ScriptLanguage) {
     ...methods,
     '}',
   )
-  return lines.join('\n')
+  // console schreibt wie print in die Ausgabe (ohne DOM-Typen sonst unbekannt)
+  const console = 'declare const console: { log(...values: unknown[]): void, info(...values: unknown[]): void, warn(...values: unknown[]): void, error(...values: unknown[]): void }'
+  return `declare module 'klonk' {\n${lines.map(l => `  ${l}`).join('\n')}\n}\n${console}\n`
 }

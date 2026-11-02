@@ -29,7 +29,7 @@ test.beforeEach(async ({ page }) => {
 })
 
 test('Python ausführen mit der englischen Objekt-API', async ({ page }) => {
-  await openIde(page, `klonk = Klonk()
+  await openIde(page, `from klonk import *; klonk = Klonk()
 n = 0
 while not klonk.is_wall():
     klonk.turn_left()
@@ -79,7 +79,7 @@ test('Endlosschleife lässt sich pausieren und stoppen', async ({ page }) => {
 })
 
 test('Fehler mit Zeile und Autovervollständigung', async ({ page }) => {
-  await openIde(page, 'k = Klonk()\nk.turn_left()\nk.turn_left()\nk.step()\n')
+  await openIde(page, 'from klonk import *; k = Klonk()\nk.turn_left()\nk.turn_left()\nk.step()\n')
   await page.getByTestId('run').click()
   await expect(state(page)).toHaveAttribute('data-state', 'error', { timeout: 60_000 })
   await expect(page.getByTestId('run-error')).toContainText('Fehler in Zeile 4')
@@ -93,12 +93,12 @@ test('Fehler mit Zeile und Autovervollständigung', async ({ page }) => {
 })
 
 test('Syntaxfehler beim Tippen, Laufzeitfehler als Markierung in der Zeile', async ({ page }) => {
-  await openIde(page, 'k = Klonk()\nif True\n    k.step()\n')
+  await openIde(page, 'from klonk import *; k = Klonk()\nif True\n    k.step()\n')
   // Prüfung im Hintergrund (Pyodide) – rote Wellenlinie in Zeile 2, Meldung beim Darüberfahren
   await expect(page.locator('.squiggly-error')).toHaveCount(1, { timeout: 60_000 })
   await page.locator('.view-lines').click()
   await page.keyboard.press('Control+A')
-  await page.keyboard.type('k = Klonk()\nk.turn_left()\nk.turn_left()\nk.step()\n')
+  await page.keyboard.type('from klonk import *; k = Klonk()\nk.turn_left()\nk.turn_left()\nk.step()\n')
   await expect(page.locator('.squiggly-error')).toHaveCount(0, { timeout: 30_000 })
 
   await page.getByTestId('run').click()

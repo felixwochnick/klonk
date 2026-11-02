@@ -21,8 +21,10 @@ const createHost = () => {
   host ??= import(new URL('dotnet.js', dir).href).then(m => m.dotnet.create())
   return host as ReturnType<Parameters<typeof runCSharp>[2] & object>
 }
-const run = (source: string, extra: Partial<Extract<ToWorker, { type: 'run' }>> = {}) =>
-  runCSharp({ type: 'run', language: 'csharp', source, world, breakpoints: [], delay: 0, allowImports: false, files: {}, shared: createSharedState(), ...extra }, m => messages.push(m), createHost)
+// Roboter-API in Zeile 1 einbinden (Zeilennummern bleiben gleich)
+const USING = 'using klonk; using static klonk.Klonk; '
+const run = (source: string, extra: Partial<Extract<ToWorker, { type: 'run' }>> = {}, using = USING) =>
+  runCSharp({ type: 'run', language: 'csharp', source: using + source, world, breakpoints: [], delay: 0, allowImports: false, files: {}, shared: createSharedState(), ...extra }, m => messages.push(m), createHost)
 
 describe.skipIf(!built)('C#', { timeout: 180_000 }, () => {
   it('Prüfpunkte in Methoden und Schleifen (Zeilen werden gemeldet)', async () => {
@@ -86,12 +88,17 @@ Print("x", klonk.PositionX(), klonk.IsWall(), new[] { 1, 2 }, klonk);`)
   })
 
   it('Projektdateien nur mit Bibliotheken (Lizenz)', async () => {
-    const source = 'var k = new Klonk();\nHelper.Two(k);\nPrint(k.PositionX());'
-    const files = { 'Program.cs': source, 'Helper.cs': 'static class Helper { public static void Two(Klonk k) { k.Step(); k.Step(); } }' }
+    const source = 'var k = new Klonk();\nTools.Helper.Two(k);\nPrint(k.PositionX());'
+    const files = { 'Program.cs': USING + source, 'Helper.cs': 'using klonk;\nnamespace Tools;\nstatic class Helper { public static void Two(Klonk k) { k.Step(); k.Step(); } }' }
     await run(source, { files })
     expect(messages.at(-1)).toMatchObject({ type: 'error', error: { code: 'cs_compile' } })
     messages.length = 0
     await run(source, { files, allowImports: true })
     expect(messages.filter(m => m.type === 'output')).toEqual([{ type: 'output', text: '3' }])
+  })
+
+  it('ohne using gibt es keine Roboter-API', async () => {
+    await run('var k = new Klonk();', {}, '')
+    expect(messages.at(-1)).toMatchObject({ type: 'error', error: { code: 'cs_compile', range: { line: 1 } } })
   })
 })

@@ -80,6 +80,7 @@ export function useProjectExplorer(options: { onOpenFile?: (file: ProjectFile) =
   // Dialoge: neues Projekt, neue Datei, umbenennen
   const dialog = ref<ProjectDialog | null>(null)
   const dialogName = ref('')
+  const dialogLanguage = ref<ProgramLanguage>('blocks')
   const dialogTitle = computed(() => {
     const mode = dialog.value?.mode
     if (mode === 'project') return t('project.newBrowserProject')
@@ -87,8 +88,11 @@ export function useProjectExplorer(options: { onOpenFile?: (file: ProjectFile) =
     return mode === 'rename' || mode === 'renameFolder' ? t('project.rename') : t('project.newFile')
   })
 
+  const program = useProgram()
   function openDialog(value: ProjectDialog) {
     dialog.value = value
+    // Neues Projekt: zuletzt in der IDE genutzte Sprache vorschlagen
+    if (value.mode === 'project') dialogLanguage.value = program.language.value
     dialogName.value = value.mode === 'rename'
       ? value.file.path
       : value.mode === 'renameFolder'
@@ -106,14 +110,18 @@ export function useProjectExplorer(options: { onOpenFile?: (file: ProjectFile) =
     try {
       if (d.mode === 'project') {
         await proj.openBrowserProject(name, true)
-        // Ein neues Projekt bekommt gleich ein Programm und eine Welt
+        // Ein neues Projekt bekommt seine Sprache, gleich ein Programm und eine Welt
         if (!files.value.length) {
+          const language = dialogLanguage.value
+          await proj.setLanguage(language)
           await proj.create(t('project.defaultName.world'), 'world', `${JSON.stringify(start.value.toJSON(), null, 2)}\n`)
-          await proj.create(t('project.defaultName.blocks'), 'blocks', programSample('blocks', lang))
+          await proj.create(language === 'java' ? 'src/Main' : t(`project.defaultName.${language}`), language, programSample(language, lang))
         }
       }
       else if (d.mode === 'file') {
-        const initial = d.kind === 'world' ? `${JSON.stringify(World.empty().toJSON(), null, 2)}\n` : programSample(d.kind, lang)
+        const initial = d.kind === 'world'
+          ? `${JSON.stringify(World.empty().toJSON(), null, 2)}\n`
+          : d.kind === 'java' ? javaClassSource(name.replace(/\.java$/i, ''), javaPackage(d.folder ?? '')) : programSample(d.kind, lang)
         await proj.create(join(d.folder, name), d.kind, initial)
         if (d.folder) expand(d.folder)
       }
@@ -192,7 +200,8 @@ export function useProjectExplorer(options: { onOpenFile?: (file: ProjectFile) =
   /** Menü „Neu“: Programme, Welt, Ordner – optional in einem Ordner */
   function newItemsIn(folder?: string): DropdownMenuItem[][] {
     return [
-      PROGRAM_KINDS.map(kind => ({
+      // Im Projekt mit fester Sprache nur diese (plus Welten und Ordner)
+      PROGRAM_KINDS.filter(kind => !proj.language.value || kind === proj.language.value).map(kind => ({
         label: t(`editor.languages.${kind}`), icon: KIND_ICON[kind], onSelect: () => openDialog({ mode: 'file', kind, folder }),
       })),
       [
@@ -262,7 +271,7 @@ export function useProjectExplorer(options: { onOpenFile?: (file: ProjectFile) =
   return {
     proj, canFolders, canBrowser, browserProjects, recent, loadLists, fail,
     openFolder, openRecent, openBrowserProject, removeBrowserProject,
-    dialog, dialogName, dialogTitle, openDialog, submitDialog,
+    dialog, dialogName, dialogLanguage, dialogTitle, openDialog, submitDialog,
     remove, openFile, newItems, newItemsIn, fileActions, kindLabel,
     folders, tree, toggleFolder, expand, folderActions, removeFolder, move, parentOf, baseName,
     dropTarget, onDragStart, onDragOver, onDrop,

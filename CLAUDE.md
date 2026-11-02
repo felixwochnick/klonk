@@ -127,11 +127,22 @@ node scripts/build-csharp.ts        # C#-Host bauen (.NET-SDK 10 nötig; Ausgabe
   Mehrsprachig ist nur Klonk-Script (und damit die Blöcke).
 - **Objekt-API in JS/TS/Python/Java/C#** (vom User so festgelegt): keine globalen Roboterbefehle, jede Figur ist ein Objekt
   `new Klonk()` (erste) / `new Klonk("Klara")` (Name, ohne Groß-/Kleinschreibung) / `new Klonk(2)` / `Klonk.all()`; Befehle und
-  Sensoren sind Methoden, global bleiben nur `print`, `wait` (Java `sleep`), `random` und Farben. **Klonk-Script und Blöcke steuern
-  immer nur eine Figur** (`wähleFigur` wechselt). Gemeinsame Basis `createApi()` in `runtime/src/js/api.ts` (`robot()`, `names()`,
-  `globals`, `ROBOT_METHODS`, `onError`); JS-Klasse `createKlonkClass()`, Python-Klasse im Vorspann, Java `klonk.Klonk`
-  (Instrumentierung ruft `__cp` unqualifiziert über `import static klonk.Klonk.*` – eine Variable `klonk` würde `klonk.X` verdecken;
-  JSO-Strings vor `toString()` per Verkettung kopieren), C# `KlonkLib.Klonk` (Namensraum ≠ Klasse; Aufrufe `call(method, ["s:<Name>", …])`).
+  Sensoren sind Methoden; dazu `print`, `wait` (Java `sleep`), `random` und Farben. **Alles nur per Import** (vom User so festgelegt):
+  JS/TS `import { Klonk } from 'klonk'`, Python `from klonk import Klonk`, Java `import klonk.Klonk;` (+ `import static klonk.Klonk.*;`),
+  C# `using klonk;` (+ `using static klonk.Klonk;`). **Klonk-Script und Blöcke steuern immer nur eine Figur** (`wähleFigur`), ohne Import.
+  Gemeinsame Basis `createApi()` in `runtime/src/js/api.ts` (`robot()`, `names()`, `globals`, `ROBOT_METHODS`, `onError`).
+  - JS/TS: `js/modules.ts` schreibt `import`/`export` zeilentreu in `__klonk_import`/`__klonk_export` um (Exporte als Getter vorne,
+    `export *` über Proxy-Namespace); `"klonk"` = API-Modul, relative Pfade = Projektdateien (Lizenz `libraries`, ohne Prüfpunkte).
+    Monaco: `declare module 'klonk'` in `js-api-types.ts`.
+  - Python: Modul `klonk` per `sys.modules` im Vorspann (JS-Brücke `_klonk_js`), Projektdateien mit Ordnern (Pakete), Ordner der Hauptdatei in `sys.path`.
+  - Java: `klonk.Klonk` + Debugger-Klasse `klonk.Debug` (unsichtbarer Import `import static klonk.Debug.*;` in Zeile 1, `__cp` unqualifiziert –
+    eine Variable `klonk` würde `klonk.X` verdecken). Browser-javac kann **keine Unterordner** in Dateinamen ⇒ alle Dateien flach nach Klassenname;
+    fehlt `import klonk.Klonk;`, meldet javac „bad source file: Klonk.java“ ⇒ `friendlyJavacMessage()`. `detectMainClasses()` liefert `a/b/C` ⇒
+    in Punkte umwandeln; Startklasse = Package + öffentliche Klasse der geöffneten Datei. JSO-Strings vor `toString()` per Verkettung kopieren.
+  - C#: Namensraum `klonk` (klein, `Klonk` würde die Klasse verdecken), Instrumentierung `global::klonk.Klonk.__cp`; Aufrufe `call(method, ["s:<Name>", …])`.
+- **Projektsprache:** `klonk.json` (`{ "language": "java" }`, nicht in der Dateiliste) – Dialog „Neues Browser-Projekt“ fragt sie ab,
+  Startdateien je Sprache (Java `src/Main.java`), „Neue Datei“ nur in dieser Sprache, Java-Vorlage mit Package aus dem Ordner
+  (`javaPackage()`, `javaClassSource()`). Ohne Manifest = gemischt. Der Runner bekommt `path` der geöffneten Datei.
 - **Figurennamen** = `CharacterData.id` (`isValidCharacterName`, `World.findCharacter/renameCharacter`, Vorschläge `nextCharacterName`),
   umbenennen im Welt-Editor (Abschnitt „Namen der Figuren“).
 - **Klonk-Script ist mehrsprachig:** Schlüsselwörter und Befehle pro Sprache (anfangs Deutsch + Englisch) über

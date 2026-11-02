@@ -52,6 +52,9 @@ function codeSample(language: 'javascript' | 'typescript' | 'python' | 'java' | 
   if (language === 'csharp') {
     const c = (name: Parameters<typeof spell>[0]) => csharpName(spell(name, 'en'))
     return `// Klonk walks to the wall and places bricks on its left
+using klonk;
+using static klonk.Klonk;
+
 var klonk = new Klonk();
 
 int Row(Klonk robot, string color)
@@ -75,6 +78,9 @@ Console.WriteLine($"{klonk.Name} placed {placed} bricks");
   }
   if (language === 'java') {
     return `// Klonk walks to the wall and places bricks on its left
+import klonk.Klonk;
+import static klonk.Klonk.*;
+
 public class Main {
     static int row(Klonk robot, String color) {
         int count = 0;
@@ -100,6 +106,8 @@ public class Main {
   if (language === 'python') {
     const p = (name: Parameters<typeof spell>[0]) => pythonName(spell(name, 'en'))
     return `# Klonk walks to the wall and places bricks on its left
+from klonk import Klonk, ${p('blue')}
+
 klonk = Klonk()
 
 
@@ -121,6 +129,8 @@ print(klonk.name, "placed", placed, "bricks")
   }
   const ts = language === 'typescript'
   return `// Klonk walks to the wall and places bricks on its left
+import { Klonk, ${k('blue')}, ${k('print')}${ts ? ', type KlonkColor' : ''} } from 'klonk'
+
 const klonk = new Klonk()
 
 function row(robot${ts ? ': Klonk' : ''}, color${ts ? ': KlonkColor' : ''})${ts ? ': number' : ''} {
@@ -213,4 +223,23 @@ export function pythonName(name: string) {
 /** C#-Schreibweise der Roboter-API (`isWall` ⇒ `IsWall`, `red` ⇒ `Red`, wie in packages/csharp/RobotApi.txt) */
 export function csharpName(name: string) {
   return name.charAt(0).toUpperCase() + name.slice(1)
+}
+
+/** Package aus dem Ordner einer Java-Datei (`src/de/app/X.java` ⇒ `de.app`; Maven-Layout wird erkannt) */
+export function javaPackage(folder: string) {
+  const parts = folder.replace(/^(src\/main\/java|src)(\/|$)/, '').split('/').filter(Boolean)
+  return parts.length && parts.every(p => /^[a-z_]\w*$/i.test(p)) ? parts.join('.') : null
+}
+
+/** Neue Java-Datei: Klasse heißt wie die Datei, Package passend zum Ordner */
+export function javaClassSource(className: string, pkg: string | null) {
+  return `${pkg ? `package ${pkg};\n\n` : ''}import klonk.Klonk;
+
+public class ${className} {
+    public static void main(String[] args) {
+        Klonk klonk = new Klonk();
+        klonk.step();
+    }
+}
+`
 }

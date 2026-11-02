@@ -134,6 +134,7 @@ async function run(pauseOnStart = false) {
   runner.run(world.value, {
     language: runLanguage.value,
     source: runSource.value,
+    path: inProject.value ? proj.currentPath.value ?? undefined : undefined,
     breakpoints: runBreakpoints.value,
     delay: speed.value,
     allowImports: can('libraries'),

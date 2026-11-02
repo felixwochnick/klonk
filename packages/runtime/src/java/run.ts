@@ -4,7 +4,7 @@ import type { FromWorker, RunError, ToWorker } from '../protocol'
 import { ApiError, createApi } from '../js/api'
 import { CONTROL, views } from '../js/shared'
 import { instrumentJava } from './instrument'
-import { ROBOT_IMPORT, ROBOT_JAVA } from './robot'
+import { DEBUG_IMPORT, DEBUG_JAVA, ROBOT_JAVA } from './robot'
 
 /** Wo teavm-javac liegt (eigene Origin wegen COEP; siehe apps/app/nuxt.config.ts) */
 export const TEAVM_URL = '/teavm/'
@@ -76,17 +76,22 @@ export async function runJava(
       }
     })
     compiler.addSourceFile('Klonk.java', ROBOT_JAVA)
+    compiler.addSourceFile('Debug.java', DEBUG_JAVA)
     for (const [name, source] of Object.entries(files)) compiler.addSourceFile(name, source)
     const compileError = (): RunError => {
       const first = errors.find(e => e.fileName.endsWith(main)) ?? errors[0]
       const line = first?.lineNumber || 1
-      return { code: 'java_compile', params: { message: first?.message ?? '' }, range: first?.fileName.endsWith(main) ? lineRange(line) : undefined }
+      return { code: 'java_compile', params: { message: friendlyJavacMessage(first?.message ?? '') }, range: first?.fileName.endsWith(main) ? lineRange(line) : undefined }
     }
     if (!compiler.compile()) {
       post({ type: 'error', error: compileError() })
       return
     }
-    const mainClass = Array.from(compiler.detectMainClasses()).find(c => c !== 'klonk.Klonk')
+    // Startklasse: die der geöffneten Datei (mit Package), sonst die erste mit main()
+    const mains = Array.from(compiler.detectMainClasses(), c => c.replace(/\//g, '.')).filter(c => !c.startsWith('klonk.'))
+    const own = publicClass(message.source) ?? main.slice(0, -5)
+    const pkg = packageOf(message.source)
+    const mainClass = mains.find(c => c === (pkg ? `${pkg}.${own}` : own)) ?? mains[0]
     if (!mainClass) {
       post({ type: 'error', error: { code: 'java_no_main', params: {} } })
       return
@@ -212,7 +217,7 @@ function javaFiles(message: Extract<ToWorker, { type: 'run' }>) {
     // Import nach einer package-Anweisung, sonst ganz vorne – in derselben Zeile
     const pkg = /^\s*package\s+[\w.]+\s*;/.exec(instrumented)
     const at = pkg ? pkg[0].length : 0
-    return `${instrumented.slice(0, at)}${at ? ' ' : ''}${ROBOT_IMPORT}${instrumented.slice(at)}`
+    return `${instrumented.slice(0, at)}${at ? ' ' : ''}${DEBUG_IMPORT}${instrumented.slice(at)}`
   }
   const main = `${publicClass(message.source) ?? 'Main'}.java`
   const files: Record<string, string> = { [main]: prepare(message.source) }
@@ -224,6 +229,19 @@ function javaFiles(message: Extract<ToWorker, { type: 'run' }>) {
     }
   }
   return { main, files }
+}
+
+/**
+ * Klonk.java liegt (mangels Unterordnern im Browser-javac) flach im Quellpfad. Fehlt `import klonk.Klonk;`, meldet
+ * javac deshalb „bad source file: Klonk.java …“ – stattdessen den eigentlichen Grund nennen.
+ */
+export function friendlyJavacMessage(message: string) {
+  return /bad source file: (Klonk|Debug)\.java/.test(message) ? 'cannot find symbol: class Klonk (missing import klonk.Klonk;?)' : message
+}
+
+/** Package einer Java-Datei (`package de.schule.aufgabe;`) */
+export function packageOf(source: string) {
+  return /^\s*(?:\/\/[^\n]*\n\s*|\/\*[\s\S]*?\*\/\s*)*package\s+([\w.]+)\s*;/.exec(source)?.[1]
 }
 
 export function publicClass(source: string) {

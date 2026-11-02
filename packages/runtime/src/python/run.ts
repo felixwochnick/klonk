@@ -79,7 +79,7 @@ export async function runPython(
         apiError = error
       },
     })
-    pyodide.registerJsModule('klonk', { ...api.globals, globals: Object.keys(api.globals), robot: api.robot, names: api.names, methods: ROBOT_METHODS })
+    pyodide.registerJsModule('_klonk_js', { ...api.globals, globals: Object.keys(api.globals), robot: api.robot, names: api.names, methods: ROBOT_METHODS })
     pyodide.registerJsModule('_klonk_debug', {
       // Variablen erst beim Anhalten auslesen (Python-Funktion ⇒ Dict mit Darstellungen)
       checkpoint: (current: number, variables: { (): { toJs: (o: object) => Record<string, string>, destroy: () => void } }) =>
@@ -93,12 +93,21 @@ export async function runPython(
     pyodide.setStdout({ batched: text => post({ type: 'output', text }) })
     pyodide.setStderr({ batched: text => post({ type: 'output', text }) })
 
-    // Eigene Dateien aus dem Projekt nur mit Lizenz (Bibliotheken) importierbar
+    // Eigene Dateien aus dem Projekt nur mit Lizenz (Bibliotheken) importierbar – mit Ordnern (Pakete),
+    // gesucht wird neben der Hauptdatei und im Projektordner
+    const home = '/home/pyodide'
+    const mainDir = message.path?.includes('/') ? message.path.slice(0, message.path.lastIndexOf('/')) : ''
     if (message.allowImports) {
       for (const [path, content] of Object.entries(message.files)) {
-        if (!path.endsWith('.py') || path.includes('/')) continue
-        pyodide.FS.writeFile(`/home/pyodide/${path}`, content)
+        if (!path.endsWith('.py') || path === message.path) continue
+        const parts = path.split('/')
+        for (let i = 1; i < parts.length; i++) {
+          const dir = `${home}/${parts.slice(0, i).join('/')}`
+          if (!pyodide.FS.analyzePath(dir).exists) pyodide.FS.mkdir(dir)
+        }
+        pyodide.FS.writeFile(`${home}/${path}`, content)
       }
+      if (mainDir) pyodide.runPython(`import sys\nsys.path.insert(0, ${JSON.stringify(`${home}/${mainDir}`)})`)
     }
 
     // Sandbox: kein Netz, kein Nachladen von Paketen

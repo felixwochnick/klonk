@@ -3,7 +3,7 @@
 const { t } = useI18n()
 const {
   proj, canFolders, canBrowser, browserProjects, recent, openFolder, openRecent, openBrowserProject, removeBrowserProject,
-  dialog, dialogName, dialogTitle, openDialog, submitDialog, openFile, newItems, fileActions,
+  dialog, dialogName, dialogLanguage, dialogTitle, openDialog, submitDialog, openFile, newItems, fileActions,
   tree, toggleFolder, folderActions, parentOf, dropTarget, onDragStart, onDragOver, onDrop,
 } = useProjectExplorer()
 const { project, currentPath, worldPath, status } = proj
@@ -137,7 +137,8 @@ const selectedWorld = computed({
         data-testid="save-status"
         :data-status="status"
       >
-        {{ t(`project.status.${status}`) }}
+        <span data-testid="project-language">{{ proj.language.value ? t(`editor.languages.${proj.language.value}`) : t('project.mixed') }}</span>
+        · {{ t(`project.status.${status}`) }}
       </p>
 
       <UDropdownMenu :items="newItems">
@@ -254,6 +255,8 @@ const selectedWorld = computed({
 
     <ProjectNameDialog
       v-model:name="dialogName"
+      v-model:language="dialogLanguage"
+      :with-language="dialog?.mode === 'project'"
       :open="!!dialog"
       :title="dialogTitle"
       @close="dialog = null"

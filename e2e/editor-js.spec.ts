@@ -34,7 +34,7 @@ test('Seite ist cross-origin-isoliert (Voraussetzung für JS/TS)', async ({ page
 })
 
 test('JavaScript ausführen mit der englischen Objekt-API', async ({ page }) => {
-  await openIde(page, 'javascript', `const klonk = new Klonk()
+  await openIde(page, 'javascript', `import { Klonk, print, red } from 'klonk'; const klonk = new Klonk()
 let n = 0
 while (!klonk.isWall()) {
   klonk.turnLeft()
@@ -53,7 +53,7 @@ print('Schritte:', n, [1, 2])`)
 })
 
 test('Debugger in TypeScript: Haltepunkt in Funktion, Variablen, Einzelschritt', async ({ page }) => {
-  await openIde(page, 'typescript', `function doppelt(x: number): number {
+  await openIde(page, 'typescript', `import { print } from 'klonk'; function doppelt(x: number): number {
   const y = x * 2
   return y
 }
@@ -89,7 +89,7 @@ test('Endlosschleife ohne Befehle lässt sich pausieren und stoppen', async ({ p
 })
 
 test('Laufzeitfehler mit Zeile', async ({ page }) => {
-  await openIde(page, 'javascript', 'new Klonk().step()\nconst a = null\na.x = 1')
+  await openIde(page, 'javascript', "import { Klonk } from 'klonk'; new Klonk().step()\nconst a = null\na.x = 1")
   await page.getByTestId('run').click()
   await expect(state(page)).toHaveAttribute('data-state', 'error', { timeout: 15_000 })
   await expect(page.getByTestId('run-error')).toContainText('Fehler in Zeile 3')
@@ -101,7 +101,7 @@ test('TypeScript: Typfehler und Autovervollständigung der Roboter-API', async (
   await expect(page.locator('.squiggly-error')).toHaveCount(1, { timeout: 20_000 })
   await page.locator('.view-lines').click()
   await page.keyboard.press('Control+End')
-  await page.keyboard.type('\nnew Klonk().isW')
+  await page.keyboard.type('\nimport { Klonk } from "klonk"\nnew Klonk().isW')
   await page.waitForTimeout(500)
   await page.keyboard.press('Control+Space')
   await expect(page.locator('.suggest-widget .monaco-list-row').first()).toContainText('isWall', { timeout: 15_000 })
@@ -110,7 +110,7 @@ test('TypeScript: Typfehler und Autovervollständigung der Roboter-API', async (
 test('Zwei Figuren gleichzeitig steuern', async ({ page }) => {
   await page.evaluate(() => localStorage.setItem('klonk:program', JSON.stringify({
     language: 'javascript',
-    programs: { javascript: { source: 'const klonk = new Klonk()\nconst klara = new Klonk("Klara")\nfor (let i = 0; i < 3; i++) {\n  klonk.step()\n  klara.step()\n}\nprint(Klonk.all().map(k => k.name + ": " + k.positionY()).join(", "))', breakpoints: [] } },
+    programs: { javascript: { source: 'import { Klonk, print } from "klonk"; const klonk = new Klonk()\nconst klara = new Klonk("Klara")\nfor (let i = 0; i < 3; i++) {\n  klonk.step()\n  klara.step()\n}\nprint(Klonk.all().map(k => k.name + ": " + k.positionY()).join(", "))', breakpoints: [] } },
   })))
   await page.evaluate(world => localStorage.setItem('klonk:world', JSON.stringify(world)), {
     ...WORLD,
@@ -124,7 +124,7 @@ test('Zwei Figuren gleichzeitig steuern', async ({ page }) => {
 })
 
 test('JavaScript: Tippfehler in Methoden werden markiert', async ({ page }) => {
-  await openIde(page, 'javascript', 'const k = new Klonk()\nk.stepp()\n')
+  await openIde(page, 'javascript', "import { Klonk } from 'klonk'; const k = new Klonk()\nk.stepp()\n")
   await expect(page.locator('.squiggly-error')).toHaveCount(1, { timeout: 20_000 })
   await page.locator('.view-lines').getByText('stepp').hover()
   await expect(page.locator('.monaco-hover-content').filter({ hasText: 'stepp' }).first()).toBeVisible({ timeout: 10_000 })

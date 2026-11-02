@@ -18,6 +18,8 @@ export type RunnerSnapshot = {
 export type RunOptions = {
   language: RunLanguage
   source: string
+  /** Pfad der Datei im Projekt */
+  path?: string
   breakpoints?: number[]
   delay?: number
   allowImports?: boolean
@@ -76,6 +78,7 @@ export class ProgramRunner {
       type: 'run',
       language: options.language,
       source: options.source,
+      path: options.path,
       world: world.toJSON(),
       characterId: options.characterId,
       breakpoints: options.breakpoints ?? [],

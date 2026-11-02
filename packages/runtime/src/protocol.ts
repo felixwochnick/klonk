@@ -10,6 +10,8 @@ export type ToWorker
     type: 'run'
     language: RunLanguage
     source: string
+    /** Pfad der Datei im Projekt (für relative Importe, Java-Packages, Python-Module) */
+    path?: string
     world: WorldData
     characterId?: string
     breakpoints: number[]

@@ -1,7 +1,7 @@
 import type { PyodideInterface } from 'pyodide'
 import { loadFromOrigin as loadDotnet, type DotnetHost } from './csharp/run'
-import { loadFromOrigin as loadJava, publicClass, type Compiler, type Diagnostic as JavacDiagnostic, type JavaToolchain } from './java/run'
-import { ROBOT_IMPORT, ROBOT_JAVA } from './java/robot'
+import { friendlyJavacMessage, loadFromOrigin as loadJava, publicClass, type Compiler, type Diagnostic as JavacDiagnostic, type JavaToolchain } from './java/run'
+import { DEBUG_JAVA, ROBOT_JAVA } from './java/robot'
 import { loadFromOrigin as loadPython } from './python/run'
 
 /**
@@ -76,6 +76,7 @@ def _klonk_check(source):
       c.setSdk(tools.sdk)
       c.setTeaVMClasslib(tools.classlib)
       c.addSourceFile('Klonk.java', ROBOT_JAVA)
+      c.addSourceFile('Debug.java', DEBUG_JAVA)
       return { compiler: c, added: new Set<string>(), diagnostics: [] as JavacDiagnostic[], listening: false }
     })
     const c = compiler.compiler
@@ -97,12 +98,12 @@ def _klonk_check(source):
       })
       compiler.listening = true
     }
-    // Dateien wie beim Ausführen: Import in Zeile 1, Dateiname nach der öffentlichen Klasse
+    // Dateien wie beim Ausführen (Dateiname nach der öffentlichen Klasse), aber ohne Prüfpunkte
     const main = `${publicClass(source) ?? 'Main'}.java`
-    const current: Record<string, string> = { [main]: ROBOT_IMPORT + source }
+    const current: Record<string, string> = { [main]: source }
     for (const [path, text] of Object.entries(files)) {
       const name = `${publicClass(text) ?? path.slice(path.lastIndexOf('/') + 1, -5)}.java`
-      if (path.endsWith('.java') && name !== main) current[name] = ROBOT_IMPORT + text
+      if (path.endsWith('.java') && name !== main) current[name] = text
     }
     // Nicht mehr vorhandene Dateien leeren (der Compiler kennt kein Entfernen)
     for (const name of compiler.added) if (!(name in current)) c.addSourceFile(name, '')
@@ -116,7 +117,7 @@ def _klonk_check(source):
     const lineStarts = [0]
     for (let i = 0; i < source.length; i++) if (source[i] === '\n') lineStarts.push(i + 1)
     const toPosition = (offset: number) => {
-      const o = Math.max(0, offset - ROBOT_IMPORT.length)
+      const o = Math.max(0, offset)
       let line = 0
       while (line + 1 < lineStarts.length && lineStarts[line + 1]! <= o) line++
       return { line: line + 1, column: o - lineStarts[line]! + 1 }
@@ -127,7 +128,7 @@ def _klonk_check(source):
       .map((d) => {
         const start = d.startPosition !== undefined && d.startPosition >= 0 ? toPosition(d.startPosition) : { line: d.lineNumber || 1, column: 1 }
         const end = d.endPosition !== undefined && d.endPosition > (d.startPosition ?? -1) ? toPosition(d.endPosition) : { line: start.line, column: start.column + 1 }
-        return { severity: d.severity === 'error' ? 'error' : 'warning', message: d.message, line: start.line, column: start.column, endLine: end.line, endColumn: end.column }
+        return { severity: d.severity === 'error' ? 'error' : 'warning', message: friendlyJavacMessage(d.message), line: start.line, column: start.column, endLine: end.line, endColumn: end.column }
       })
   }
 

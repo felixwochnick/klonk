@@ -45,7 +45,10 @@ export function isValidName(name: string) {
   return !!name && name.length <= 120 && !/[/\\:*?"<>|]/.test(name) && name !== '.' && name !== '..' && !name.startsWith('.')
 }
 
-const IGNORED = new Set(['node_modules', '.git', '.DS_Store'])
+/** Projekteinstellungen (Sprache) – liegt im Projektordner, erscheint nicht in der Dateiliste */
+export const MANIFEST = 'klonk.json'
+
+const IGNORED = new Set(['node_modules', '.git', '.DS_Store', MANIFEST])
 const MAX_FILES = 500
 
 export class Project {

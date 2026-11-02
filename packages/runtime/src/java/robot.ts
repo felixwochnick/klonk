@@ -1,6 +1,6 @@
 /**
- * Roboter-API für Java: Klasse `klonk.Klonk`, wird mitkompiliert und per `import klonk.Klonk;` +
- * `import static klonk.Klonk.*;` (Farben, `print`, `sleep`, `random`) eingebunden. Jede Figur ist ein Objekt:
+ * Roboter-API für Java: Klasse `klonk.Klonk`, wird mitkompiliert; Programme importieren sie selbst mit
+ * `import klonk.Klonk;` (+ `import static klonk.Klonk.*;` für Farben, `print`, `sleep`, `random`). Jede Figur ist ein Objekt:
  * `Klonk karl = new Klonk("Karl"); karl.step();`. Die Methoden rufen über JSO (Schnittstellen auf `JSObject`)
  * die JS-Roboter-API im Worker (`globalThis.klonk`). Englische Namen wie in JS/TS; Farben als Konstanten in
  * Java-Schreibweise (`RED`). `wait` heißt `sleep`, weil jede Klasse `Object.wait()` erbt und das den
@@ -57,8 +57,8 @@ public final class Klonk {
         int positionY();
     }
 
-    // Im Worker zeigt \`window\` auf das globale Objekt (siehe java/run.ts)
-    private static final Api API = Window.current().<Global>cast().getKlonk();
+    // Im Worker zeigt \`window\` auf das globale Objekt (siehe java/run.ts); Debug.java nutzt es mit
+    static final Api API = Window.current().<Global>cast().getKlonk();
 
     public static final String RED = "red";
     public static final String BLUE = "blue";
@@ -130,19 +130,7 @@ public final class Klonk {
         API.print(text.toString());
     }
 
-    // Debugger (vom Instrumentierer eingefügt, unqualifiziert über den statischen Import – eine Variable
-    // namens \`klonk\` würde einen voll qualifizierten Aufruf verdecken)
-    public static boolean __cp(int line) { return API.checkpoint(line); }
-    public static void __pause() { API.pause(); }
-    public static void __v(String name, int value) { API.variable(name, String.valueOf(value)); }
-    public static void __v(String name, long value) { API.variable(name, String.valueOf(value)); }
-    public static void __v(String name, double value) { API.variable(name, String.valueOf(value)); }
-    public static void __v(String name, float value) { API.variable(name, String.valueOf(value)); }
-    public static void __v(String name, boolean value) { API.variable(name, String.valueOf(value)); }
-    public static void __v(String name, char value) { API.variable(name, "'" + value + "'"); }
-    public static void __v(String name, Object value) { API.variable(name, value instanceof String ? "\\"" + value + "\\"" : show(value)); }
-
-    private static String show(Object value) {
+    static String show(Object value) {
         if (value instanceof Object[]) return java.util.Arrays.deepToString((Object[]) value);
         if (value instanceof int[]) return java.util.Arrays.toString((int[]) value);
         if (value instanceof double[]) return java.util.Arrays.toString((double[]) value);
@@ -154,5 +142,27 @@ public final class Klonk {
 }
 `
 
-/** Import der Roboter-API – wird in Zeile 1 eingefügt (Zeilennummern bleiben gleich) */
-export const ROBOT_IMPORT = 'import klonk.Klonk; import static klonk.Klonk.*; '
+/**
+ * Debugger-Aufrufe für den Instrumentierer (`__cp`, `__v`, `__pause`). Eigene Klasse, damit der unsichtbare
+ * Import in Zeile 1 nicht die Roboter-API mitbringt – die importiert das Programm selbst (`import klonk.Klonk;`).
+ * Unqualifiziert über den statischen Import – eine Variable namens `klonk` würde `klonk.Debug.__cp` verdecken.
+ */
+export const DEBUG_JAVA = `package klonk;
+
+public final class Debug {
+    private Debug() {}
+
+    public static boolean __cp(int line) { return Klonk.API.checkpoint(line); }
+    public static void __pause() { Klonk.API.pause(); }
+    public static void __v(String name, int value) { Klonk.API.variable(name, String.valueOf(value)); }
+    public static void __v(String name, long value) { Klonk.API.variable(name, String.valueOf(value)); }
+    public static void __v(String name, double value) { Klonk.API.variable(name, String.valueOf(value)); }
+    public static void __v(String name, float value) { Klonk.API.variable(name, String.valueOf(value)); }
+    public static void __v(String name, boolean value) { Klonk.API.variable(name, String.valueOf(value)); }
+    public static void __v(String name, char value) { Klonk.API.variable(name, "'" + value + "'"); }
+    public static void __v(String name, Object value) { Klonk.API.variable(name, value instanceof String ? "\\"" + value + "\\"" : Klonk.show(value)); }
+}
+`
+
+/** Unsichtbarer Import des Debuggers – wird in Zeile 1 eingefügt (Zeilennummern bleiben gleich) */
+export const DEBUG_IMPORT = 'import static klonk.Debug.*; '

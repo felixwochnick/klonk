@@ -4,6 +4,7 @@ import type { FromWorker, ToWorker } from '../protocol'
 import { ApiError, createApi, createKlonkClass, display } from './api'
 import { CHECKPOINT, InstrumentationError, instrument } from './instrument'
 import { CONTROL, views } from './shared'
+import { EXPORT, IMPORT, createNamespace, resolveImport, transformModule, type ModuleNamespace } from './modules'
 import { stripTypes } from './transpile'
 
 /** Zugriffe, die Nutzercode nicht braucht und die er nicht haben soll (Netzwerk, Speicher, weitere Skripte) */
@@ -50,9 +51,9 @@ export function runJavaScript(message: Extract<ToWorker, { type: 'run' }>, post:
   }
 
   try {
-    const source = message.language === 'typescript' ? stripTypes(message.source) : message.source
-    const code = instrument(source)
-    if (/^\s*(import|export)\b/m.test(source) && !message.allowImports) throw new ApiError('feature_libraries')
+    const main = message.path ?? (message.language === 'typescript' ? 'main.ts' : 'main.js')
+    const toScript = (path: string, text: string) => transformModule(/\.ts$/.test(path) || (path === main && message.language === 'typescript') ? stripTypes(text) : text)
+    const code = instrument(toScript(main, message.source))
 
     const world = new World(message.world)
     const api = createApi({
@@ -61,8 +62,29 @@ export function runJavaScript(message: Extract<ToWorker, { type: 'run' }>, post:
       print: (text: string) => post({ type: 'output', text }),
       sleep,
     })
+    // Bibliothek "klonk": Klasse Klonk, print/wait/random und Farben – nur per import verfügbar
+    const klonk: ModuleNamespace = { ...api.globals, Klonk: createKlonkClass(api) }
+    klonk.default = klonk
 
-    // Nutzercode bekommt nur die Roboter-API und Standard-JavaScript
+    // Projektdateien (nur mit Lizenz): ohne Prüfpunkte, je Datei einmal ausgeführt
+    const modules = new Map<string, ModuleNamespace>()
+    const load = (from: string) => (specifier: string): ModuleNamespace => {
+      if (specifier === 'klonk') return klonk
+      if (!specifier.startsWith('.')) throw new ApiError('js_module_not_found', { name: specifier })
+      if (!message.allowImports) throw new ApiError('feature_libraries')
+      const path = resolveImport(from, specifier, message.files)
+      if (!path) throw new ApiError('js_module_not_found', { name: specifier })
+      const cached = modules.get(path)
+      if (cached) return cached
+      const { namespace, register } = createNamespace()
+      modules.set(path, namespace)
+      new Function(IMPORT, EXPORT, `'use strict';${toScript(path, message.files[path]!)}`)(load(path), register)
+      return namespace
+    }
+    const { namespace, register } = createNamespace()
+    modules.set(main, namespace)
+
+    // Nutzercode bekommt nur Standard-JavaScript (die Roboter-API kommt über import)
     const scope = globalThis as unknown as Record<string, unknown>
     for (const name of BLOCKED_GLOBALS) {
       try {
@@ -72,12 +94,10 @@ export function runJavaScript(message: Extract<ToWorker, { type: 'run' }>, post:
         // nicht überschreibbar – egal
       }
     }
-    for (const [name, value] of Object.entries(api.globals)) scope[name] = value
-    scope.Klonk = createKlonkClass(api)
     const print = api.globals.print
     scope.console = { log: print, info: print, warn: print, error: print }
 
-    new Function(CHECKPOINT, `'use strict';${code}`)(checkpoint)
+    new Function(CHECKPOINT, IMPORT, EXPORT, `'use strict';${code}`)(checkpoint, load(main), register)
     post({ type: 'done' })
   }
   catch (error) {

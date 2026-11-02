@@ -1,11 +1,13 @@
 import { parseWorld, type WorldData } from '@klonk/world'
-import { KIND_EXTENSION, fileKind, isValidName, openBrowserProject, rememberProject } from '~/utils/project-fs'
+import { KIND_EXTENSION, MANIFEST, fileKind, isValidName, openBrowserProject, rememberProject } from '~/utils/project-fs'
 import type { FileKind, Project, ProjectFile } from '~/utils/project-fs'
 
 // Zustand außerhalb von Komponenten: Datei-Handles sind nicht serialisierbar (kein useState)
 const project = shallowRef<Project | null>(null)
 const files = ref<ProjectFile[]>([])
 const folders = ref<string[]>([])
+/** Sprache des Projekts aus klonk.json (`null` = gemischt, z. B. ältere Projekte oder fremde Ordner) */
+const language = ref<ProgramLanguage | null>(null)
 const currentPath = ref<string | null>(null)
 const content = ref('')
 const worldPath = ref<string | null>(null)
@@ -38,6 +40,7 @@ export function useProject() {
     currentPath.value = null
     content.value = ''
     breakpointsByFile.value = {}
+    language.value = await readManifest(next)
     await refresh()
     void rememberProject(next).catch(() => {})
 
@@ -53,6 +56,7 @@ export function useProject() {
     project.value = null
     files.value = []
     folders.value = []
+    language.value = null
     currentPath.value = null
     content.value = ''
     worldPath.value = null
@@ -95,6 +99,13 @@ export function useProject() {
     breakpointsByFile.value[to] = breakpointsByFile.value[from] ?? []
     await refresh()
     rememberSelection()
+  }
+
+  /** Projektsprache festlegen (neues Projekt) */
+  async function setLanguage(value: ProgramLanguage | null) {
+    if (!project.value) return
+    language.value = value
+    await project.value.write(MANIFEST, `${JSON.stringify({ language: value }, null, 2)}\n`)
   }
 
   /** Neuer Ordner (Pfad mit `/` für Unterordner) */
@@ -182,12 +193,12 @@ export function useProject() {
     await refresh()
   }
 
-  /** Bibliotheken: Klonk-Script-Dateien (`importiere`), Python-Module, Java-Klassen und C#-Dateien */
+  /** Bibliotheken: Klonk-Script-Dateien (`importiere`), JS/TS- und Python-Module, Java-Klassen und C#-Dateien */
   async function importableFiles(): Promise<Record<string, string>> {
     if (!project.value) return {}
     await flush()
     const result: Record<string, string> = {}
-    for (const file of files.value.filter(f => f.kind === 'klonk' || f.kind === 'python' || f.kind === 'java' || f.kind === 'csharp')) result[file.path] = await project.value.read(file.path)
+    for (const file of files.value.filter(f => f.kind !== 'world' && f.kind !== 'other' && f.kind !== 'blocks')) result[file.path] = await project.value.read(file.path)
     return result
   }
 
@@ -210,9 +221,19 @@ export function useProject() {
   })
 
   return {
-    project, files, folders, programFiles, worldFiles, currentPath, content, kind, worldPath, status, breakpoints,
-    open, close, select, create, rename, remove, createFolder, renameFolder, removeFolder, update, flush, refresh, readWorld, writeWorld, importableFiles, selectWorld,
+    project, files, folders, language, programFiles, worldFiles, currentPath, content, kind, worldPath, status, breakpoints,
+    open, close, select, create, rename, remove, setLanguage, createFolder, renameFolder, removeFolder, update, flush, refresh, readWorld, writeWorld, importableFiles, selectWorld,
     openBrowserProject: async (name: string, createIt = false) => open(await openBrowserProject(name, createIt)),
+  }
+}
+
+async function readManifest(project: Project): Promise<ProgramLanguage | null> {
+  try {
+    const data = JSON.parse(await project.read(MANIFEST)) as { language?: unknown }
+    return (PROGRAM_LANGUAGES as readonly string[]).includes(String(data.language)) ? data.language as ProgramLanguage : null
+  }
+  catch {
+    return null
   }
 }
 

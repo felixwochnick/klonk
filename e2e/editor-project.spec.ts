@@ -74,7 +74,7 @@ test('Dateien wechseln, automatisch speichern, Welt aus dem Projekt', async ({ p
   await openIde(page)
   await seedProject(page, 'Speichern', {
     'start.klonk': 'schritt\nausgabe(positionX)\n',
-    'zweites.js': 'const k = new Klonk()\nk.step(); k.step()\nprint(k.positionX())\n',
+    'zweites.js': 'import { Klonk, print } from "klonk"; const k = new Klonk()\nk.step(); k.step()\nprint(k.positionX())\n',
     'klein.klonkworld.json': JSON.stringify(WORLD),
     'notizen.txt': 'nicht editierbar',
   })
@@ -154,7 +154,7 @@ test('Vollbild-Explorer: Kacheln, Suche, Welt wählen, Programm in der IDE öffn
   await gotoHydrated(page, `${APP_URL}/projects`)
   await seedProject(page, 'Explorer', {
     'start.klonk': 'schritt\nausgabe(positionX)\n',
-    'hilfe.ts': 'new Klonk().step()\n',
+    'hilfe.ts': 'import { Klonk } from "klonk"\nnew Klonk().step()\n',
     'welt.klonkworld.json': JSON.stringify(WORLD),
   })
   await page.reload()
@@ -239,4 +239,40 @@ test('Ordner: anlegen, Dateien darin, verschieben, umbenennen, im Explorer öffn
   await page.getByRole('button', { name: 'Aktionen für kapitel' }).click()
   await page.getByRole('menuitem', { name: 'Löschen' }).click()
   await expect(page.getByTestId('explorer-folder-kapitel')).toHaveCount(0)
+})
+
+test('Neues Java-Projekt: Sprache, Startdatei in src/, Package aus dem Ordner', async ({ page }) => {
+  await openIde(page)
+  await page.evaluate(async () => {
+    const root = await (await navigator.storage.getDirectory()).getDirectoryHandle('klonk-projects', { create: true })
+    await root.removeEntry('JavaProjekt', { recursive: true }).catch(() => {})
+  })
+  await page.getByTestId('new-browser-project').click()
+  await page.getByTestId('project-dialog-name').fill('JavaProjekt')
+  await page.getByTestId('project-dialog-language').click()
+  await page.getByRole('option', { name: 'Java', exact: true }).click()
+  await page.getByTestId('project-dialog-submit').click()
+  await expect(page.getByTestId('project-language')).toHaveText('Java')
+  await expect(page.getByTestId('file-src/Main.java')).toBeVisible()
+  await expect(page.getByTestId('code-editor')).toHaveAttribute('data-ready', 'true', { timeout: 20_000 })
+  expect(await readProjectFile(page, 'JavaProjekt', 'klonk.json')).toContain('"java"')
+
+  // „Neue Datei“ bietet nur Java (plus Welt und Ordner)
+  await page.getByTestId('new-file').click()
+  await expect(page.getByRole('menuitem', { name: 'Python' })).toHaveCount(0)
+  await page.getByRole('menuitem', { name: 'Ordner' }).click()
+  await page.getByTestId('project-dialog-name').fill('src/de/tools')
+  await page.getByTestId('project-dialog-submit').click()
+  await page.getByTestId('folder-actions-src/de/tools').click()
+  await page.getByRole('menuitem', { name: 'Neue Datei' }).click()
+  await page.getByRole('menuitem', { name: 'Java' }).click()
+  await page.getByTestId('project-dialog-name').fill('Walker')
+  await page.getByTestId('project-dialog-submit').click()
+  await expect(page.getByTestId('file-src/de/tools/Walker.java')).toBeVisible()
+  expect(await readProjectFile(page, 'JavaProjekt', 'src/de/tools/Walker.java')).toMatch(/^package de\.tools;[\s\S]*public class Walker/)
+
+  // Startdatei läuft
+  await page.getByTestId('file-src/Main.java').click()
+  await page.getByTestId('run').click()
+  await expect(state(page)).toHaveAttribute('data-state', 'done', { timeout: 60_000 })
 })

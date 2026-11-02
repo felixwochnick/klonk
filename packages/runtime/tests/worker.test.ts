@@ -91,7 +91,7 @@ describe('Worker: JavaScript/TypeScript', () => {
   }
 
   it('führt JS mit der englischen Objekt-API aus, globale Befehle und deutsche Namen gibt es nicht', async () => {
-    run('const k = new Klonk()\nwhile (!k.isWall()) { k.step() }\nk.turnRight()\nk.placeBrick("Red")\nprint("x =", k.positionX(), k.name, typeof step, typeof schritt, k)', { language: 'javascript', shared: shared() })
+    run(`import { Klonk, print } from 'klonk'; const k = new Klonk()\nwhile (!k.isWall()) { k.step() }\nk.turnRight()\nk.placeBrick("Red")\nprint("x =", k.positionX(), k.name, typeof step, typeof schritt, k)`, { language: 'javascript', shared: shared() })
     await until(() => last()?.type === 'done')
     expect(messages.filter(m => m.type === 'command')).toHaveLength(6)
     expect(messages).toContainEqual({ type: 'command', command: { name: 'placeBrick', id: 'k', color: 'red' } })
@@ -100,25 +100,25 @@ describe('Worker: JavaScript/TypeScript', () => {
 
   it('mehrere Figuren gleichzeitig steuern (Name, Nummer, alle)', async () => {
     const two: WorldData = { ...world, characters: [...world.characters, { id: 'Klara', model: 'female', x: 0, z: 2, direction: 'east' }] }
-    run('const karl = new Klonk(1)\nconst klara = new Klonk("klara")\nkarl.step()\nklara.step(2)\nprint(Klonk.all().map(r => r.name + "@" + r.positionX()).join(" "))', { language: 'javascript', shared: shared(), world: two })
+    run('import { Klonk, print } from "klonk"; const karl = new Klonk(1)\nconst klara = new Klonk("klara")\nkarl.step()\nklara.step(2)\nprint(Klonk.all().map(r => r.name + "@" + r.positionX()).join(" "))', { language: 'javascript', shared: shared(), world: two })
     await until(() => last()?.type === 'done')
     expect(messages.filter(m => m.type === 'command').map(m => m.type === 'command' && m.command.id)).toEqual(['k', 'Klara', 'Klara'])
     expect(messages).toContainEqual({ type: 'output', text: 'k@2 Klara@3' })
 
     messages.length = 0
-    run('new Klonk("Nobody")', { language: 'javascript', shared: shared(), world: two })
+    run('import { Klonk } from "klonk"; new Klonk("Nobody")', { language: 'javascript', shared: shared(), world: two })
     await until(() => last()?.type === 'error')
     expect(last()).toMatchObject({ error: { code: 'world', params: { worldCode: 'unknown_character', id: 'Nobody' }, range: { line: 1 } } })
   })
 
   it('TypeScript mit Typen läuft', async () => {
-    run('function n(x: number): number {\n  return x + 1\n}\nconst y: number = n(2)\nprint(y)', { language: 'typescript', shared: shared() })
+    run('import { print } from "klonk"; function n(x: number): number {\n  return x + 1\n}\nconst y: number = n(2)\nprint(y)', { language: 'typescript', shared: shared() })
     await until(() => last()?.type === 'done')
     expect(messages).toContainEqual({ type: 'output', text: '3' })
   })
 
   it('Fehler mit Zeile: Welt, Laufzeit, Syntax, falsche Farbe', async () => {
-    run('const k = new Klonk()\nk.turnLeft()\nk.step()', { language: 'javascript', shared: shared() })
+    run('import { Klonk } from "klonk"; const k = new Klonk()\nk.turnLeft()\nk.step()', { language: 'javascript', shared: shared() })
     await until(() => last()?.type === 'error')
     expect(last()).toMatchObject({ error: { code: 'world', params: { worldCode: 'wall' }, range: { line: 3 } } })
 
@@ -133,13 +133,13 @@ describe('Worker: JavaScript/TypeScript', () => {
     expect(last()).toMatchObject({ error: { code: 'js_syntax', range: { line: 1 } } })
 
     messages.length = 0
-    run('new Klonk().placeBrick("rot")', { language: 'javascript', shared: shared() })
+    run('import { Klonk } from "klonk"; new Klonk().placeBrick("rot")', { language: 'javascript', shared: shared() })
     await until(() => last()?.type === 'error')
     expect(last()).toMatchObject({ error: { code: 'invalid_color' } })
   })
 
   it('Nutzercode hat keinen Netzwerkzugriff', async () => {
-    run('print(typeof fetch, typeof XMLHttpRequest, typeof WebSocket)', { language: 'javascript', shared: shared() })
+    run('import { print } from "klonk"; print(typeof fetch, typeof XMLHttpRequest, typeof WebSocket)', { language: 'javascript', shared: shared() })
     await until(() => last()?.type === 'done')
     expect(messages).toContainEqual({ type: 'output', text: 'undefined undefined undefined' })
   })
@@ -148,5 +148,24 @@ describe('Worker: JavaScript/TypeScript', () => {
     run('new Klonk().step()', { language: 'javascript' })
     await until(() => last()?.type === 'error')
     expect(last()).toMatchObject({ error: { code: 'isolation_required' } })
+  })
+
+  it('Roboter-API nur per import; Projektdateien als Module (mit Lizenz)', async () => {
+    run('new Klonk().step()', { language: 'javascript', shared: shared() })
+    await until(() => last()?.type === 'error')
+    expect(last()).toMatchObject({ error: { code: 'js_runtime', params: { name: 'ReferenceError' } } })
+
+    messages.length = 0
+    run('import * as klonk from "klonk"\nimport walk, { twice } from "./lib/walk"\nconst k = new klonk.Klonk()\nwalk(k)\nklonk.print(twice(k.positionX()))', {
+      language: 'typescript', shared: shared(), path: 'src/main.ts', allowImports: true,
+      files: { 'src/lib/walk.ts': 'import type { Klonk } from "klonk"\nexport * from "./math"\nexport default function walk(k: Klonk) {\n  k.step(2)\n}', 'src/lib/math.js': 'export const twice = (x) => 2 * x' },
+    })
+    await until(() => last()?.type === 'done')
+    expect(messages).toContainEqual({ type: 'output', text: '6' })
+
+    messages.length = 0
+    run('import walk from "./lib/walk"', { language: 'javascript', shared: shared(), path: 'src/main.js', files: { 'src/lib/walk.js': '' } })
+    await until(() => last()?.type === 'error')
+    expect(last()).toMatchObject({ error: { code: 'feature_libraries' } })
   })
 })

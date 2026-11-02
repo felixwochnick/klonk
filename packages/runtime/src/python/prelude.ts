@@ -2,17 +2,16 @@
 export const USER_FILE = '<klonk>'
 
 /**
- * Python-Vorspann: Klasse `Klonk` (eine Figur je Objekt, Methoden in Python-Schreibweise wie `turn_left`,
- * `is_wall`) und globale Funktionen/Farben als Builtins (nur Englisch), Tracing für Prüfpunkte
- * (nur Zeilen der Nutzerdatei) und Variablenansicht.
+ * Python-Vorspann: Modul `klonk` (Klasse `Klonk` – eine Figur je Objekt, Methoden in Python-Schreibweise wie
+ * `turn_left`, `is_wall` – dazu `wait`, `random` und Farben; nur Englisch, nur per import), Tracing für
+ * Prüfpunkte (nur Zeilen der Nutzerdatei) und Variablenansicht.
  */
 export const PRELUDE = String.raw`
-import sys, re, builtins
-import klonk as _klonk_api
+import sys, re, types
+import _klonk_js as _klonk_api
 from _klonk_debug import checkpoint as _klonk_checkpoint
 
 _KLONK_FILE = ${JSON.stringify(USER_FILE)}
-_klonk_names = {}
 
 def _klonk_snake(name):
     return re.sub(r'(?<=[a-zäöüß0-9])([A-ZÄÖÜ])', lambda m: '_' + m.group(1).lower(), name)
@@ -42,15 +41,15 @@ def _klonk_method(js_name):
 for _js_name in _klonk_api.methods:
     setattr(Klonk, _klonk_snake(_js_name), _klonk_method(_js_name))
 
-_klonk_names['Klonk'] = Klonk
+# Modul "klonk": nur per import verfügbar (from klonk import Klonk, red …); print bleibt Pythons eigenes
+_klonk_module = types.ModuleType('klonk', 'Roboter-API von Klonk')
+Klonk.__module__ = 'klonk'
+_klonk_module.Klonk = Klonk
 for _name in _klonk_api.globals:
-    # print bleibt Pythons eigenes print (gleiche Ausgabe)
     if _name != 'print':
-        _klonk_names[_klonk_snake(_name)] = getattr(_klonk_api, _name)
-
-# Als Builtins: sichtbar im Programm und in importierten Projektdateien, trotzdem überschreibbar
-for _name, _value in _klonk_names.items():
-    setattr(builtins, _name, _value)
+        setattr(_klonk_module, _klonk_snake(_name), getattr(_klonk_api, _name))
+_klonk_module.__all__ = [n for n in vars(_klonk_module) if not n.startswith('_')]
+sys.modules['klonk'] = _klonk_module
 
 def _klonk_user_globals():
     return {'__name__': '__main__'}
@@ -58,7 +57,7 @@ def _klonk_user_globals():
 def _klonk_variables(frame):
     result = {}
     for name, value in frame.f_locals.items():
-        if name.startswith('__') or name in _klonk_names and _klonk_names[name] is value:
+        if name.startswith('__') or value is _klonk_module or getattr(_klonk_module, name, None) is value:
             continue
         if callable(value) or type(value).__name__ == 'module':
             continue

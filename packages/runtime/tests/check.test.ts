@@ -18,25 +18,28 @@ const checker = createChecker({
 
 describe('Prüfen im Editor', { timeout: 120_000 }, () => {
   it('Python: Syntaxfehler mit Position, gültiger Code ohne Fehler', async () => {
-    expect(await checker.check('python', 'k = Klonk()\nk.step()\n')).toEqual([])
+    expect(await checker.check('python', 'from klonk import Klonk\nk = Klonk()\nk.step()\n')).toEqual([])
     const [error] = await checker.check('python', 'x = 1\nif x\n  x = 2\n')
     expect(error).toMatchObject({ severity: 'error', line: 2 })
     expect(error!.message).toContain('SyntaxError')
   })
 
-  it('Java: Compilerfehler mit Zeile und Spalte (Import in Zeile 1 herausgerechnet)', async () => {
-    const ok = 'public class Main {\n  public static void main(String[] a) {\n    new Klonk().step();\n  }\n}'
+  it('Java: Compilerfehler mit Zeile und Spalte', async () => {
+    const ok = 'import klonk.Klonk;\npublic class Main {\n  public static void main(String[] a) {\n    new Klonk().step();\n  }\n}'
     expect(await checker.check('java', ok)).toEqual([])
-    const diagnostics = await checker.check('java', 'public class Main {\n  public static void main(String[] a) {\n    int x = "s";\n    new Klonk().stepp();\n  }\n}')
+    const diagnostics = await checker.check('java', 'import klonk.Klonk; public class Main {\n  public static void main(String[] a) {\n    int x = "s";\n    new Klonk().stepp();\n  }\n}')
     expect(diagnostics.map(d => [d.line, d.column])).toEqual([[3, 13], [4, 5]])
     expect(diagnostics[1]!.message).toContain('stepp')
     // Fehler in Zeile 1 (dort steht der unsichtbare Import)
     expect((await checker.check('java', 'public class Main { int x = "s"; }'))[0]).toMatchObject({ line: 1, column: 29 })
+    // Import vergessen ⇒ verständliche Meldung
+    const missing = await checker.check('java', 'public class Main { Klonk k = new Klonk(); }')
+    expect(missing[0]!.message).toContain('missing import klonk.Klonk')
   })
 
   it.skipIf(!existsSync(new URL('dotnet.js', dotnet)))('C#: Fehler und Warnungen der Nutzerdatei', async () => {
-    expect(await checker.check('csharp', 'var k = new Klonk();\nk.Step();\n')).toEqual([])
-    const diagnostics = await checker.check('csharp', 'var k = new Klonk();\nk.Stepp();\nint unused;\n')
+    expect(await checker.check('csharp', 'using klonk;\nvar k = new Klonk();\nk.Step();\n')).toEqual([])
+    const diagnostics = await checker.check('csharp', 'using klonk; var k = new Klonk();\nk.Stepp();\nint unused;\n')
     expect(diagnostics[0]).toMatchObject({ severity: 'error', line: 2, column: 3 })
     expect(diagnostics[0]!.message).toContain('Stepp')
     expect(diagnostics.some(d => d.severity === 'warning' && d.line === 3)).toBe(true)

@@ -23,7 +23,7 @@ async function openIde(page: Page, source: string, breakpoints: number[] = []) {
 }
 
 const state = (page: Page) => page.getByTestId('run-state')
-const main = (body: string, extra = '') => `public class Main {${extra}
+const main = (body: string, extra = '') => `import klonk.Klonk; import static klonk.Klonk.*; public class Main {${extra}
     public static void main(String[] args) {
 ${body}
     }

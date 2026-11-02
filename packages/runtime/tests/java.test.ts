@@ -4,7 +4,7 @@ import { BUILTINS } from '@klonk/klonk-script'
 import { beforeEach, describe, expect, it } from 'vitest'
 import type { FromWorker, ToWorker } from '../src/protocol'
 import { instrumentJava } from '../src/java/instrument'
-import { ROBOT_JAVA } from '../src/java/robot'
+import { DEBUG_JAVA, ROBOT_JAVA } from '../src/java/robot'
 import { runJava } from '../src/java/run'
 import { createSharedState } from '../src/js/shared'
 
@@ -44,7 +44,9 @@ describe('Java: Instrumentierung', () => {
     expect(instrumentJava('class A { void f() { int = ; } }')).toBeNull()
   })
 
-  it('Klonk.java enthält die englische Roboter-API (Befehle/Sensoren als Methoden)', () => {
+  it('Klonk.java enthält die englische Roboter-API (Befehle/Sensoren als Methoden), Debug.java den Debugger', () => {
+    expect(ROBOT_JAVA).not.toContain('__cp')
+    expect(DEBUG_JAVA).toContain('public static boolean __cp(int line)')
     for (const [name, builtin] of Object.entries(BUILTINS)) {
       if (name === 'selectCharacter') expect(ROBOT_JAVA).not.toContain(name)
       else if (builtin.kind === 'constant') expect(ROBOT_JAVA).toContain(`String ${name.toUpperCase()} =`)
@@ -69,8 +71,10 @@ const world: WorldData = {
   characters: [{ id: 'k', model: 'male', x: 0, z: 0, direction: 'east' }],
 }
 const messages: FromWorker[] = []
-const run = (source: string, extra: Partial<Extract<ToWorker, { type: 'run' }>> = {}) =>
-  runJava({ type: 'run', language: 'java', source, world, breakpoints: [], delay: 0, allowImports: false, files: {}, shared: createSharedState(), ...extra }, m => messages.push(m), toolchain)
+// Roboter-API in Zeile 1 importieren (Zeilennummern bleiben gleich)
+const IMPORT = 'import klonk.Klonk; import static klonk.Klonk.*; '
+const run = (source: string, extra: Partial<Extract<ToWorker, { type: 'run' }>> = {}, prefix = IMPORT) =>
+  runJava({ type: 'run', language: 'java', source: prefix + source, world, breakpoints: [], delay: 0, allowImports: false, files: {}, shared: createSharedState(), ...extra }, m => messages.push(m), toolchain)
 
 describe('Java: Ausführen', { timeout: 120_000 }, () => {
   beforeEach(() => {
@@ -117,5 +121,15 @@ describe('Java: Ausführen', { timeout: 120_000 }, () => {
     messages.length = 0
     await run('public class Main {\n  public static void main(String[] args) {\n    int a = 0;\n    System.out.println(1 / a);\n  }\n}')
     expect(messages.at(-1)).toMatchObject({ type: 'error', error: { code: 'java_runtime', range: { line: 4 } } })
+  })
+
+  it('ohne import keine Roboter-API; Packages und Startklasse der geöffneten Datei', async () => {
+    await run('public class Main {\n  public static void main(String[] args) {\n    new Klonk().step();\n  }\n}', {}, '')
+    expect(messages.at(-1)).toMatchObject({ type: 'error', error: { code: 'java_compile', range: { line: 3 } } })
+    messages.length = 0
+    const tool = 'package de.tools;\nimport klonk.Klonk;\npublic class Walker {\n  public static void two(Klonk k) { k.step(); k.step(); }\n  public static void main(String[] a) {}\n}'
+    const main = 'package de.app;\nimport klonk.Klonk;\nimport de.tools.Walker;\npublic class App {\n  public static void main(String[] args) {\n    Klonk k = new Klonk();\n    Walker.two(k);\n    System.out.println(k.positionX());\n  }\n}'
+    await run(main, { path: 'src/de/app/App.java', allowImports: true, files: { 'src/de/tools/Walker.java': tool, 'src/de/app/App.java': main } }, '')
+    expect(messages.filter(m => m.type === 'output')).toEqual([{ type: 'output', text: '3' }])
   })
 })

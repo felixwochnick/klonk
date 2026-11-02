@@ -7,7 +7,7 @@ useSeoMeta({ title: () => t('project.explorer') })
 
 const {
   proj, canFolders, canBrowser, browserProjects, recent, openFolder, openRecent, openBrowserProject, removeBrowserProject,
-  dialog, dialogName, dialogTitle, openDialog, submitDialog, openFile, newItemsIn, fileActions, kindLabel,
+  dialog, dialogName, dialogLanguage, dialogTitle, openDialog, submitDialog, openFile, newItemsIn, fileActions, kindLabel,
   folders, folderActions, parentOf, baseName, dropTarget, onDragStart, onDragOver, onDrop,
 } = useProjectExplorer({
   // Programme öffnen sich in der IDE, Welten werden nur als Projektwelt gewählt
@@ -150,7 +150,7 @@ const isActive = (source: 'folder' | 'browser', name: string) => project.value?.
                 class="text-xs"
                 :class="status === 'error' ? 'text-(--ui-error)' : 'text-(--ui-text-muted)'"
               >
-                {{ t('project.fileCount', files.length) }} · {{ t(`project.status.${status}`) }}
+                {{ proj.language.value ? t(`editor.languages.${proj.language.value}`) : t('project.mixed') }} · {{ t('project.fileCount', files.length) }} · {{ t(`project.status.${status}`) }}
               </p>
             </div>
             <UInput
@@ -311,6 +311,8 @@ const isActive = (source: 'folder' | 'browser', name: string) => project.value?.
 
     <ProjectNameDialog
       v-model:name="dialogName"
+      v-model:language="dialogLanguage"
+      :with-language="dialog?.mode === 'project'"
       :open="!!dialog"
       :title="dialogTitle"
       @close="dialog = null"

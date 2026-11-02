@@ -260,10 +260,10 @@
     "defaultName": {
       "blocks": "program",
       "klonk": "program",
-      "javascript": "program",
-      "typescript": "program",
+      "javascript": "main",
+      "typescript": "main",
       "world": "world",
-      "python": "program",
+      "python": "main",
       "java": "Main",
       "csharp": "Program",
       "folder": "New folder"
@@ -303,7 +303,10 @@
     "root": "Project",
     "emptyFolder": "This folder is empty.",
     "dropHere": "Move here",
-    "up": "Up one level"
+    "up": "Up one level",
+    "language": "Language",
+    "languageHelp": "The project's programs use this language. Imports, packages and modules between files work.",
+    "mixed": "Mixed"
   },
   "pwa": {
     "install": "Install app",

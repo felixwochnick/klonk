@@ -29,7 +29,7 @@ test.beforeEach(async ({ page }) => {
 })
 
 test('C# kompilieren und ausführen (Top-Level-Anweisungen)', async ({ page }) => {
-  await openIde(page, `var klonk = new Klonk();
+  await openIde(page, `using klonk; using static klonk.Klonk; var klonk = new Klonk();
 var n = 0;
 while (!klonk.IsWall())
 {
@@ -88,13 +88,13 @@ test('Endlosschleife lässt sich pausieren und stoppen', async ({ page }) => {
 })
 
 test('Compiler- und Weltfehler mit Zeile, Autovervollständigung', async ({ page }) => {
-  await openIde(page, 'new Klonk().Step();\nint x = "text";')
+  await openIde(page, 'using klonk; using static klonk.Klonk; new Klonk().Step();\nint x = "text";')
   await page.getByTestId('run').click()
   await expect(state(page)).toHaveAttribute('data-state', 'error', { timeout: 90_000 })
   await expect(page.getByTestId('run-error')).toContainText('Fehler in Zeile 2')
   await expect(page.getByTestId('run-error')).toContainText('C#-Fehler')
 
-  await openIde(page, 'var k = new Klonk();\nk.TurnLeft();\nk.TurnLeft();\nk.Step();')
+  await openIde(page, 'using klonk; using static klonk.Klonk; var k = new Klonk();\nk.TurnLeft();\nk.TurnLeft();\nk.Step();')
   await page.getByTestId('run').click()
   await expect(state(page)).toHaveAttribute('data-state', 'error', { timeout: 90_000 })
   await expect(page.getByTestId('run-error')).toContainText('Fehler in Zeile 4')
@@ -107,7 +107,7 @@ test('Compiler- und Weltfehler mit Zeile, Autovervollständigung', async ({ page
 })
 
 test('Compilerfehler und Warnungen schon beim Tippen', async ({ page }) => {
-  await openIde(page, 'var k = new Klonk();\nk.Stepp();\nint unused;')
+  await openIde(page, 'using klonk; using static klonk.Klonk; var k = new Klonk();\nk.Stepp();\nint unused;')
   await expect(page.locator('.squiggly-error')).toHaveCount(1, { timeout: 90_000 })
   await expect(page.locator('.squiggly-warning')).toHaveCount(1)
   await page.locator('.view-lines').getByText('Stepp').hover()

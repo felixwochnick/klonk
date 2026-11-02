@@ -1,10 +1,10 @@
-// Roboter-API für C# – wird mit dem Nutzerprogramm kompiliert und per `using KlonkLib;` +
-// `using static KlonkLib.Klonk;` (Farben, Print, Wait, Random) eingebunden. Jede Figur ist ein Objekt:
+// Roboter-API für C# – wird mit dem Nutzerprogramm kompiliert; Programme binden sie selbst ein:
+// `using klonk;` (+ `using static klonk.Klonk;` für Farben, Print, Wait, Random). Jede Figur ist ein Objekt:
 // `var karl = new Klonk("Karl"); karl.Step();`. Englische Namen in C#-Schreibweise (Step, IsWall, PlaceBrick(Red) …).
 // Die Aufrufe gehen über Delegaten, die der Host (Host.cs) im AppDomain hinterlegt, an die JS-Roboter-API im Worker.
-// Namensraum KlonkLib (nicht Klonk), sonst kollidieren Namensraum und Klasse.
+// Namensraum `klonk` klein (wie das Modul in JS/Python/Java) – `Klonk` hieße wie die Klasse und verdeckte sie.
 #nullable enable
-namespace KlonkLib
+namespace klonk
 {
     public sealed class Klonk
     {

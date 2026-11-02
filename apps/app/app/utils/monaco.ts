@@ -319,6 +319,8 @@ function configureTypeScript(monaco: Monaco) {
   const ts = monaco.typescript
   const options = {
     target: ts.ScriptTarget.ESNext,
+    module: ts.ModuleKind.ESNext,
+    moduleResolution: ts.ModuleResolutionKind.NodeJs,
     lib: ['esnext'],
     allowNonTsExtensions: true,
     strict: true,

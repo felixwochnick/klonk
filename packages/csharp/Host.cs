@@ -25,8 +25,8 @@ public static partial class Host
     [JSImport("print", "klonk")] internal static partial void JsPrint(string text);
 
     const string UserFile = "Program.cs";
-    // Wie implizite Usings im SDK, dazu die Roboter-API ohne Präfix
-    const string GlobalUsings = "global using System; global using System.Collections.Generic; global using System.Linq; global using KlonkLib; global using static KlonkLib.Klonk;";
+    // Wie implizite Usings im SDK; die Roboter-API bindet das Programm selbst ein (`using klonk;`)
+    const string GlobalUsings = "global using System; global using System.Collections.Generic; global using System.Linq;";
 
     static List<MetadataReference>? references;
     static SyntaxTree? robotTree;
@@ -146,7 +146,7 @@ public static partial class Host
     }
 
     /// <summary>
-    /// Vor jede Anweisung: <c>if (KlonkLib.Klonk.__cp(zeile)) { KlonkLib.Klonk.__v("x", x); …; KlonkLib.Klonk.__pause(); }</c>.
+    /// Vor jede Anweisung: <c>if (klonk.Klonk.__cp(zeile)) { klonk.Klonk.__v("x", x); …; klonk.Klonk.__pause(); }</c>.
     /// Rümpfe ohne Klammern (if/else/Schleifen) werden geklammert, Schleifenrümpfe bekommen einen Prüfpunkt je Durchlauf.
     /// Variablen: sicher zugewiesene lokale Variablen/Parameter der umgebenden Methode (Datenflussanalyse).
     /// </summary>
@@ -176,10 +176,10 @@ public static partial class Host
                     };
                     if (type is null || refKind != RefKind.None || type.IsRefLikeType || type.TypeKind == TypeKind.Pointer) continue;
                     if (symbol.Name.StartsWith("<") || symbol.Name == "args" && symbol is IParameterSymbol { ContainingSymbol.Name: "<Main>$" }) continue;
-                    vars.Append($"global::KlonkLib.Klonk.__v(\"{symbol.Name}\", {symbol.Name}); ");
+                    vars.Append($"global::klonk.Klonk.__v(\"{symbol.Name}\", {symbol.Name}); ");
                 }
             }
-            return $"if (global::KlonkLib.Klonk.__cp({line})) {{ {vars}global::KlonkLib.Klonk.__pause(); }} ";
+            return $"if (global::klonk.Klonk.__cp({line})) {{ {vars}global::klonk.Klonk.__pause(); }} ";
         }
         int LineOf(SyntaxNode node) => node.GetLocation().GetLineSpan().StartLinePosition.Line + 1;
         void Wrap(StatementSyntax body, StatementSyntax anchor)
