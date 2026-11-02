@@ -264,6 +264,10 @@ node scripts/build-csharp.ts        # C#-Host bauen (.NET-SDK 10 nötig; Ausgabe
   gegen den Stack (Chromium mit `--ignore-certificate-errors`, sonst registriert sich der SW bei selbst signierten Zertifikaten nicht).
   Lokales Dateisystem über File System Access API (Projektordner öffnen).
 - **Auth:** siehe „Konten & Anmeldung“. Schulen und Unternehmen wählen selbst OIDC, LDAP und/oder lokale Konten.
+- **Unterricht (Docs):** `apps/docs/content/{de,en}/5.teaching/` gegliedert **Land → Bundesland → Schulform → Klasse**
+  (`2.germany/2.bavaria/2.gymnasium/N.grade-X.md`, je Ebene `.navigation.yml` + `1.overview.md`). Je Klasse: Lernbereiche mit
+  Eignung (★★★/★★/★/–), Link zum Lehrplan-Volltext, Unterrichtsideen; Codebeispiele müssen mit der echten API laufen.
+  Quelle Bayern: LehrplanPLUS (Excel-Auswertung Gymnasium). Weitere Bundesländer/Schulformen/Länder als neue Ordner.
 - **KI:** Schulen binden ihr eigenes LLM ein (OpenAI-kompatible API), optional WebLLM im Browser.
 
 ## Lizenzmodell (Open Core, wie evcc)
