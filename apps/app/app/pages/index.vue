@@ -112,6 +112,16 @@ const errorMessage = computed(() => {
   return error ? scriptErrorMessage(t, te, error.code, error.params) : null
 })
 
+// Bibliotheken des Projekts für die Prüfung im Editor (Compiler sollen eigene Klassen/Module kennen)
+const checkFiles = shallowRef<Record<string, string>>({})
+watch([proj.currentPath, proj.files], async () => {
+  checkFiles.value = inProject.value && can('libraries') ? await proj.importableFiles().catch(() => ({})) : {}
+}, { immediate: true })
+
+// „Fehler in Zeile …“ anklicken ⇒ Zeile im Editor zeigen
+const codeEditor = useTemplateRef<{ revealLine: (line: number) => void }>('codeEditor')
+const errorLine = computed(() => (snapshot.value.state === 'error' ? snapshot.value.error?.range?.line ?? null : null))
+
 function resetWorld() {
   world.value = new World(startData())
 }
@@ -400,12 +410,15 @@ const paneStyle = computed(() => ({
         </ClientOnly>
         <ClientOnly v-if="hasDocument && !isBlocks">
           <KlonkEditor
+            ref="codeEditor"
             v-model="source"
             v-model:breakpoints="breakpoints"
             :language="runLanguage"
             :read-only="running"
             :active-line="running ? snapshot.line : null"
-            :error-line="snapshot.state === 'error' ? snapshot.error?.range?.line : null"
+            :error-line="errorLine"
+            :error-message="errorMessage"
+            :files="checkFiles"
           />
         </ClientOnly>
       </section>
@@ -462,6 +475,7 @@ const paneStyle = computed(() => ({
             icon="i-lucide-octagon-alert"
             :title="snapshot.error?.range ? t('editor.errorAt', { line: snapshot.error.range.line }) : t('editor.error')"
             :description="errorMessage"
+            :actions="errorLine && !isBlocks ? [{ label: t('editor.showErrorLine'), icon: 'i-lucide-locate', variant: 'outline', color: 'error', size: 'xs', onClick: () => codeEditor?.revealLine(errorLine!) }] : undefined"
             class="mb-3"
             data-testid="run-error"
           />

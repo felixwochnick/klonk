@@ -327,7 +327,9 @@ function configureTypeScript(monaco: Monaco) {
     checkJs: false,
   }
   ts.typescriptDefaults.setCompilerOptions(options)
-  ts.javascriptDefaults.setCompilerOptions(options)
+  // JS: Tippfehler wie `klonk.stepp()` auch ohne Typen melden, aber nachsichtig (kein strict)
+  ts.javascriptDefaults.setCompilerOptions({ ...options, checkJs: true, strict: false })
+  ts.javascriptDefaults.setDiagnosticsOptions({ noSemanticValidation: false, noSyntaxValidation: false })
   updateRobotApi(monaco)
 }
 

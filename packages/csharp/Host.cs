@@ -96,6 +96,33 @@ public static partial class Host
         }
     }
 
+    /// <summary>Nur prüfen (für den Editor): Fehler und Warnungen der Nutzerdatei als JSON-Liste.</summary>
+    [JSExport]
+    public static string Check(string source, string[] files)
+    {
+        Prepare();
+        var parse = new CSharpParseOptions(LanguageVersion.Latest);
+        var tree = CSharpSyntaxTree.ParseText(source, parse, UserFile);
+        libraries = files.Select((f, i) => CSharpSyntaxTree.ParseText(f, parse, $"Library{i}.cs")).ToArray();
+        var result = new JsonArray();
+        foreach (var d in Compile(tree).GetDiagnostics())
+        {
+            if (d.Location.SourceTree != tree || d.Severity < DiagnosticSeverity.Warning) continue;
+            var span = d.Location.GetLineSpan();
+            result.Add(new JsonObject
+            {
+                ["severity"] = d.Severity == DiagnosticSeverity.Error ? "error" : "warning",
+                ["message"] = $"{d.Id}: {d.GetMessage()}",
+                ["line"] = span.StartLinePosition.Line + 1,
+                ["column"] = span.StartLinePosition.Character + 1,
+                ["endLine"] = span.EndLinePosition.Line + 1,
+                ["endColumn"] = span.EndLinePosition.Character + 1,
+            });
+            if (result.Count >= 100) break;
+        }
+        return result.ToJsonString();
+    }
+
     static CSharpCompilation Compile(SyntaxTree tree) =>
         CSharpCompilation.Create("Program", new[] { robotTree!, usingsTree!, tree }.Concat(libraries), references,
             // Ohne Threads (Single-Thread-WebAssembly): nicht parallel übersetzen

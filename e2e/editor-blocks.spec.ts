@@ -114,9 +114,13 @@ test('Fehler wird am Block markiert', async ({ page }) => {
 test('Blöcke sprechen die UI-Sprache', async ({ page }) => {
   await openBlocks(page, LOOP)
   await expect(page.locator('.blocklyText').filter({ hasText: 'wiederhole' }).first()).toBeVisible()
-  await page.getByRole('combobox').filter({ hasText: 'Deutsch' }).click()
+  // Sprache über die Einstellungen (Kontomenü) wechseln und zurück in die IDE
+  await page.getByTestId('user-menu').click()
+  await page.getByRole('menuitem', { name: 'Einstellungen' }).click()
+  await page.getByTestId('settings-language').click()
   await page.getByRole('option', { name: 'English' }).click()
-  await expect(page.locator('.blocklyText').filter({ hasText: 'repeat' }).first()).toBeVisible()
+  await page.getByRole('link', { name: 'Code' }).click()
+  await expect(page.locator('.blocklyText').filter({ hasText: 'repeat' }).first()).toBeVisible({ timeout: 20_000 })
   await page.getByTestId('toggle-code').click()
   await expect(page.getByTestId('generated-code')).toHaveText(/repeat while not isWall\s*step\s*end\s*setMark\(yellow\)/)
 })

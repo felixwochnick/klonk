@@ -12,8 +12,8 @@ export const TEAVM_URL = '/teavm/'
 /** Zugriffe, die Nutzercode nicht braucht (über JSO erreichbar) */
 const BLOCKED_GLOBALS = ['fetch', 'XMLHttpRequest', 'WebSocket', 'EventSource', 'importScripts', 'indexedDB', 'caches', 'BroadcastChannel', 'WebTransport', 'postMessage', 'onmessage', 'close']
 
-type Diagnostic = { type: string, severity: string, fileName: string, lineNumber: number, message: string }
-type Compiler = {
+export type Diagnostic = { type: string, severity: string, fileName: string, lineNumber: number, columnNumber?: number, startPosition?: number, endPosition?: number, message: string }
+export type Compiler = {
   setSdk(content: Int8Array): void
   setTeaVMClasslib(content: Int8Array): void
   addSourceFile(path: string, content: string): void
@@ -226,7 +226,7 @@ function javaFiles(message: Extract<ToWorker, { type: 'run' }>) {
   return { main, files }
 }
 
-function publicClass(source: string) {
+export function publicClass(source: string) {
   return /\bpublic\s+(?:final\s+|abstract\s+)*(?:class|interface|enum|record)\s+(\w+)/.exec(source)?.[1]
 }
 
@@ -238,7 +238,7 @@ function toRunError(error: unknown, apiError: ApiError | undefined, line: number
   return { code: 'java_runtime', params: { message: text }, range: lineRange(line) }
 }
 
-async function loadFromOrigin(): Promise<JavaToolchain> {
+export async function loadFromOrigin(): Promise<JavaToolchain> {
   const { load } = await import(/* @vite-ignore */ `${TEAVM_URL}compiler.wasm-runtime.js`) as { load: TeaVMLoad }
   const bin = async (name: string) => {
     const response = await fetch(`${TEAVM_URL}${name}`)

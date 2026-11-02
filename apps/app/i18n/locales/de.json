@@ -139,7 +139,8 @@
     "language": "Programmiersprache",
     "resizeProject": "Breite des Projekts ändern",
     "resizeCode": "Breite des Codes ändern",
-    "resizeOutput": "Höhe der Ausgabe ändern"
+    "resizeOutput": "Höhe der Ausgabe ändern",
+    "showErrorLine": "Zur Zeile"
   },
   "script": {
     "errors": {

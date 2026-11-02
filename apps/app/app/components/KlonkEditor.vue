@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { spell } from '@klonk/klonk-script'
 import type { editor as MonacoEditor } from 'monaco-editor'
+import type { CheckLanguage } from '@klonk/runtime'
+import { CHECKED_LANGUAGES, checkProgram } from '~/utils/checker'
 import { KLONK_LANGUAGE, loadMonaco, updateRobotApi, validate, type Monaco } from '~/utils/monaco'
 
 const monacoLanguage = (language: string) => (language === 'klonk' ? KLONK_LANGUAGE : language)
@@ -15,7 +17,11 @@ const props = withDefaults(defineProps<{
   activeLine?: number | null
   /** Zeile mit Laufzeitfehler */
   errorLine?: number | null
-}>(), { language: 'klonk', readOnly: false, activeLine: null, errorLine: null })
+  /** Meldung zum Laufzeitfehler (als Markierung in der Zeile) */
+  errorMessage?: string | null
+  /** Weitere Projektdateien, die der Compiler beim Prüfen kennen soll (Bibliotheken) */
+  files?: Record<string, string>
+}>(), { language: 'klonk', readOnly: false, activeLine: null, errorLine: null, errorMessage: null, files: () => ({}) })
 
 const source = defineModel<string>({ required: true })
 const breakpoints = defineModel<number[]>('breakpoints', { default: () => [] })
@@ -29,6 +35,10 @@ let editor: MonacoEditor.IStandaloneCodeEditor | undefined
 let monaco: Monaco | undefined
 let decorations: MonacoEditor.IEditorDecorationsCollection | undefined
 let stopLanguageWatch: (() => void) | undefined
+let stopFilesWatch: (() => void) | undefined
+/** Marker-Quellen: Prüf-Worker (Python/Java/C#) und Laufzeitfehler */
+const CHECK_OWNER = 'klonk-check'
+const RUNTIME_OWNER = 'klonk-runtime'
 
 const translator = {
   lang: () => (locale.value === 'en' ? 'en' : 'de') as 'de' | 'en',
@@ -71,22 +81,39 @@ onMounted(async () => {
   decorations = editor.createDecorationsCollection()
 
   const model = editor.getModel()!
-  const check = () => {
-    // JS/TS prüft der TypeScript-Worker von Monaco selbst
-    if (props.language === 'klonk' && monaco) validate(monaco, model)
+  const check = async () => {
+    if (!monaco) return
+    // JS/TS prüft der TypeScript-Worker von Monaco selbst, Klonk-Script der eigene Parser
+    if (props.language === 'klonk') return validate(monaco, model)
+    if (!CHECKED_LANGUAGES.includes(props.language)) return
+    // Python/Java/C#: Compiler im Prüf-Worker; veraltete Antworten verwerfen
+    const version = model.getVersionId()
+    const language = props.language
+    const diagnostics = await checkProgram(language as CheckLanguage, model.getValue(), props.files)
+    if (!diagnostics || model.isDisposed() || model.getVersionId() !== version || props.language !== language) return
+    monaco.editor.setModelMarkers(model, CHECK_OWNER, diagnostics.map(d => ({
+      severity: d.severity === 'error' ? monaco!.MarkerSeverity.Error : monaco!.MarkerSeverity.Warning,
+      message: d.message,
+      startLineNumber: d.line,
+      startColumn: d.column,
+      endLineNumber: d.endLine,
+      endColumn: d.endLine === d.line && d.endColumn <= d.column ? d.column + 1 : d.endColumn,
+    })))
   }
-  check()
+  void check()
   let timer: ReturnType<typeof setTimeout> | undefined
   editor.onDidChangeModelContent(() => {
     source.value = editor!.getValue()
     clearTimeout(timer)
-    timer = setTimeout(check, 250)
+    timer = setTimeout(check, props.language === 'klonk' ? 250 : 600)
   })
   stopLanguageWatch = watch(() => props.language, (language) => {
     monaco!.editor.setModelMarkers(model, KLONK_LANGUAGE, [])
+    monaco!.editor.setModelMarkers(model, CHECK_OWNER, [])
     monaco!.editor.setModelLanguage(model, monacoLanguage(language))
-    check()
+    void check()
   })
+  stopFilesWatch = watch(() => props.files, () => void check())
 
   // Klick auf den Rand setzt/entfernt Breakpoints
   editor.onMouseDown((event) => {
@@ -100,11 +127,13 @@ onMounted(async () => {
   })
 
   updateDecorations()
+  updateRuntimeMarker()
   ready.value = true
 })
 
 onBeforeUnmount(() => {
   stopLanguageWatch?.()
+  stopFilesWatch?.()
   editor?.dispose()
 })
 
@@ -120,6 +149,25 @@ watch(locale, () => {
   updateRobotApi(monaco)
 })
 watch([breakpoints, () => props.activeLine, () => props.errorLine], updateDecorations)
+watch([() => props.errorLine, () => props.errorMessage], updateRuntimeMarker)
+
+/** Laufzeitfehler als Markierung mit Meldung (Hover) in der betroffenen Zeile */
+function updateRuntimeMarker() {
+  const model = editor?.getModel()
+  if (!monaco || !model) return
+  const line = props.errorLine
+  if (!line || line > model.getLineCount()) return monaco.editor.setModelMarkers(model, RUNTIME_OWNER, [])
+  const text = model.getLineContent(line)
+  const first = text.length - text.trimStart().length + 1
+  monaco.editor.setModelMarkers(model, RUNTIME_OWNER, [{
+    severity: monaco.MarkerSeverity.Error,
+    message: props.errorMessage ?? t('editor.error'),
+    startLineNumber: line,
+    startColumn: first,
+    endLineNumber: line,
+    endColumn: Math.max(first + 1, text.length + 1),
+  }])
+}
 
 function updateDecorations() {
   if (!editor || !monaco) return
@@ -138,7 +186,16 @@ function updateDecorations() {
   decorations?.set(items)
 }
 
-defineExpose({ focus: () => editor?.focus() })
+defineExpose({
+  focus: () => editor?.focus(),
+  /** Zeile zeigen und Cursor dorthin setzen (z. B. Klick auf „Fehler in Zeile …“) */
+  revealLine: (line: number) => {
+    if (!editor) return
+    editor.revealLineInCenter(line)
+    editor.setPosition({ lineNumber: line, column: 1 })
+    editor.focus()
+  },
+})
 </script>
 
 <template>

@@ -4,7 +4,8 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
-    "./worker": "./src/worker.ts"
+    "./worker": "./src/worker.ts",
+    "./check-worker": "./src/check-worker.ts"
   },
   "scripts": {
     "test": "vitest run",

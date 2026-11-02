@@ -122,3 +122,10 @@ test('Zwei Figuren gleichzeitig steuern', async ({ page }) => {
   await expect(state(page)).toHaveAttribute('data-state', 'done', { timeout: 30_000 })
   await expect(page.getByTestId('output')).toHaveText('klonk: 4, Klara: 4')
 })
+
+test('JavaScript: Tippfehler in Methoden werden markiert', async ({ page }) => {
+  await openIde(page, 'javascript', 'const k = new Klonk()\nk.stepp()\n')
+  await expect(page.locator('.squiggly-error')).toHaveCount(1, { timeout: 20_000 })
+  await page.locator('.view-lines').getByText('stepp').hover()
+  await expect(page.locator('.monaco-hover-content').filter({ hasText: 'stepp' }).first()).toBeVisible({ timeout: 10_000 })
+})

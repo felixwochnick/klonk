@@ -130,7 +130,7 @@ export async function runPython(
 }
 
 /** Pyodide von der eigenen Origin laden (nicht gebündelt – die App liefert die Dateien unter /pyodide/ aus) */
-async function loadFromOrigin() {
+export async function loadFromOrigin() {
   const { loadPyodide } = await import(/* @vite-ignore */ `${PYODIDE_URL}pyodide.mjs`) as typeof import('pyodide')
   return loadPyodide({ indexURL: PYODIDE_URL })
 }

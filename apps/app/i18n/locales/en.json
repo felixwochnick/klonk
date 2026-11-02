@@ -139,7 +139,8 @@
     "language": "Programming language",
     "resizeProject": "Resize project",
     "resizeCode": "Resize code",
-    "resizeOutput": "Resize output"
+    "resizeOutput": "Resize output",
+    "showErrorLine": "Go to line"
   },
   "script": {
     "errors": {

@@ -106,3 +106,10 @@ test('Compiler- und Laufzeitfehler mit Zeile, Autovervollständigung', async ({ 
   await page.keyboard.press('Control+Space')
   await expect(page.locator('.suggest-widget .monaco-list-row').first()).toContainText('isWall', { timeout: 15_000 })
 })
+
+test('Compilerfehler schon beim Tippen', async ({ page }) => {
+  await openIde(page, main('        Klonk k = new Klonk();\n        k.stepp();\n        int x = "a";'))
+  await expect(page.locator('.squiggly-error')).toHaveCount(2, { timeout: 60_000 })
+  await page.locator('.view-lines').getByText('stepp').hover()
+  await expect(page.locator('.monaco-hover-content').filter({ hasText: 'stepp' }).first()).toBeVisible({ timeout: 10_000 })
+})

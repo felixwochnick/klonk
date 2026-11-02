@@ -91,3 +91,20 @@ test('Fehler mit Zeile und Autovervollständigung', async ({ page }) => {
   await page.keyboard.press('Control+Space')
   await expect(page.locator('.suggest-widget .monaco-list-row').first()).toContainText('is_', { timeout: 15_000 })
 })
+
+test('Syntaxfehler beim Tippen, Laufzeitfehler als Markierung in der Zeile', async ({ page }) => {
+  await openIde(page, 'k = Klonk()\nif True\n    k.step()\n')
+  // Prüfung im Hintergrund (Pyodide) – rote Wellenlinie in Zeile 2, Meldung beim Darüberfahren
+  await expect(page.locator('.squiggly-error')).toHaveCount(1, { timeout: 60_000 })
+  await page.locator('.view-lines').click()
+  await page.keyboard.press('Control+A')
+  await page.keyboard.type('k = Klonk()\nk.turn_left()\nk.turn_left()\nk.step()\n')
+  await expect(page.locator('.squiggly-error')).toHaveCount(0, { timeout: 30_000 })
+
+  await page.getByTestId('run').click()
+  await expect(state(page)).toHaveAttribute('data-state', 'error', { timeout: 60_000 })
+  await expect(page.locator('.squiggly-error')).toHaveCount(1)
+  await page.getByRole('button', { name: 'Zur Zeile' }).click()
+  await page.locator('.view-lines').getByText('k.step()').hover()
+  await expect(page.locator('.monaco-hover-content').filter({ hasText: 'Wand' }).first()).toBeVisible({ timeout: 10_000 })
+})

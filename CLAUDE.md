@@ -203,6 +203,11 @@ node scripts/build-csharp.ts        # C#-Host bauen (.NET-SDK 10 nötig; Ausgabe
   Themes `klonk-light/-dark`; `acceptSuggestionOnEnter: 'smart'`, `autoIndent: 'full'`), `KlonkEditor` (Breakpoints, aktive Zeile),
   Programme je Sprache + Breakpoints in localStorage (`klonk:program`: `{ language, programs }`). An Worker nur Plain-Daten senden (Vue-Proxys ⇒ DataCloneError).
   Befehlsreferenz der Docs: `node scripts/gen-script-docs.ts` nach Änderungen an `languages.ts`.
+- **Fehler im Editor:** Klonk-Script prüft `validate()` (Hauptthread), JS/TS der Monaco-TS-Worker (JS mit `checkJs`, nicht strict),
+  Python/Java/C# ein eigener **Prüf-Worker** (`@klonk/runtime/check-worker?worker`, `src/check.ts`, Client `utils/checker.ts`):
+  Pyodide `compile()`, javac (gleiche Dateien wie beim Lauf, Import-Präfix aus Positionen herausgerechnet; Compiler wird
+  wiederverwendet, entfernte Dateien leer überschreiben), C# `[JSExport] Host.Check`. Marker-Owner `klonk-check`; Laufzeitfehler als
+  Marker `klonk-runtime` mit Meldung, „Zur Zeile“ im Fehlerkasten (`KlonkEditor.revealLine`). Projekt-Bibliotheken gehen mit (Prop `files`).
 - **IDE-Layout:** Trenner `SplitHandle` (Zeigen + Pfeiltasten) zwischen Projekt/Code/Welt/Ausgabe, Größen in `klonk:layout` (localStorage), nur ab `lg`.
 - **Einstellungen:** `SettingsForm` (core) unter `/settings` in app und admin (Kontomenü über „Abmelden“): Sprache + Hell/Dunkel/System.
   Angemeldet blendet der Kopf die Schnellschalter aus; Login-Seiten behalten sie. Nuxt-UI-Radius = Standard (kein `--ui-radius`).

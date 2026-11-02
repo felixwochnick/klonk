@@ -12,9 +12,9 @@ export const DOTNET_URL = '/dotnet/'
 const BLOCKED_GLOBALS = ['fetch', 'XMLHttpRequest', 'WebSocket', 'EventSource', 'importScripts', 'indexedDB', 'caches', 'BroadcastChannel', 'WebTransport', 'postMessage', 'onmessage', 'close']
 
 type HostResult = { ok?: boolean, error?: string, message?: string, line?: number, name?: string }
-type DotnetHost = {
+export type DotnetHost = {
   setModuleImports(module: string, imports: Record<string, unknown>): void
-  getAssemblyExports(assembly: string): Promise<{ Host: { Run(source: string, files: string[]): string } }>
+  getAssemblyExports(assembly: string): Promise<{ Host: { Run(source: string, files: string[]): string, Check(source: string, files: string[]): string } }>
 }
 
 /**
@@ -161,7 +161,7 @@ function bindImports(host: DotnetHost, imports: Imports) {
   entry.current = imports
 }
 
-async function loadFromOrigin(): Promise<DotnetHost> {
+export async function loadFromOrigin(): Promise<DotnetHost> {
   // dotnet.js hält einen Worker mit `importScripts` für einen von .NET selbst gestarteten Worker und wartet dann
   // vergeblich auf Daten vom Hauptthread. In Modul-Workern ist importScripts ohnehin unbenutzbar ⇒ ausblenden
   // und die Laufzeit wie im Browserfenster starten lassen.
