@@ -73,6 +73,11 @@ node scripts/build-csharp.ts        # C#-Host bauen (.NET-SDK 10 nötig; Ausgabe
 - Self-Hosting: `docker/docker-compose.yml` (proxy + app + admin + auth + Postgres, Variablen aus `docker/.env`, Vorlage
   `docker/.env.example`), ein Image pro App aus `docker/Dockerfile` (`--build-arg APP=app|admin|auth`, Build-Kontext = Repo-Root),
   `NUXT_MIGRATIONS_DIR=/app/migrations` im Image. Alle öffentlichen URLs/Cookie-Domain werden aus `KLONK_DOMAIN` abgeleitet.
+- **Releases** (`.github/workflows/release.yml`): Tag `vX.Y.Z` pushen ⇒ Images `ghcr.io/felixwochnick/klonk-{app,admin,auth,proxy}`
+  (amd64 + arm64, Tags `X.Y.Z`, `X.Y`, `X` ab 1.0, `latest`) + GitHub-Release mit generierten Notizen. Vorher `version` in der Root-`package.json`
+  anheben. Compose nutzt `image:` mit `KLONK_VERSION` (Standard `latest`, lokaler Stack `local`) und behält `build:` für eigene Builds.
+  Build-Stufen laufen auf `$BUILDPLATFORM` (Ausgabe ist reines JS/WASM, kein QEMU für Nuxt/.NET); der Proxy erzeugt die Docs mit der
+  Platzhalter-Adresse `docs.klonk-domain.invalid`, `entrypoint.sh` ersetzt sie beim Start durch `docs.$KLONK_DOMAIN`.
 - **Proxy** `docker/proxy/` (Caddy mit IONOS-DNS-Modul + statisch erzeugte Docs): `*.KLONK_DOMAIN` ⇒ app/admin/auth/docs,
   Hauptdomain ⇒ App. TLS über `KLONK_TLS`: `internal` (lokale CA), `http` (Let's Encrypt HTTP-01), `ionos` (DNS-01 via
   `IONOS_API_TOKEN`), `off`. Zusätzliche Sites über `/etc/caddy/sites/*.caddy`.

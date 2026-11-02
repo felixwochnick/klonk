@@ -61,13 +61,13 @@ x-app: &app
 
 services:
   proxy:
+    image: ghcr.io/felixwochnick/klonk-proxy:${KLONK_VERSION:-latest}
     build:
       context: ..
       dockerfile: docker/proxy/Dockerfile
-      args:
-        KLONK_DOMAIN: ${KLONK_DOMAIN}
     environment:
       KLONK_DOMAIN: ${KLONK_DOMAIN}
+      KLONK_PUBLIC_SCHEME: ${KLONK_PUBLIC_SCHEME:-}
       # internal | http | ionos | off
       KLONK_TLS: ${KLONK_TLS:-internal}
       KLONK_ACME_EMAIL: ${KLONK_ACME_EMAIL:-}
@@ -90,6 +90,7 @@ services:
 
   app:
     <<: *app
+    image: ghcr.io/felixwochnick/klonk-app:${KLONK_VERSION:-latest}
     build:
       context: ..
       dockerfile: docker/Dockerfile
@@ -98,6 +99,7 @@ services:
 
   admin:
     <<: *app
+    image: ghcr.io/felixwochnick/klonk-admin:${KLONK_VERSION:-latest}
     build:
       context: ..
       dockerfile: docker/Dockerfile
@@ -106,6 +108,7 @@ services:
 
   auth:
     <<: *app
+    image: ghcr.io/felixwochnick/klonk-auth:${KLONK_VERSION:-latest}
     build:
       context: ..
       dockerfile: docker/Dockerfile
