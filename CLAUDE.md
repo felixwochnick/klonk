@@ -144,6 +144,17 @@ node scripts/build-csharp.ts        # C#-Host bauen (.NET-SDK 10 nötig; Ausgabe
   Startdateien je Sprache (Java `src/Main.java`), „Neue Datei“ nur in dieser Sprache, Java-Vorlage mit Package aus dem Ordner
   (`javaPackage()`, `javaClassSource()`), weitere C#-Dateien als Klasse im Namespace des Ordners (`csharpNamespace()`, `csharpClassSource()`).
   Ohne Manifest = gemischt; leerer Ordner/leeres Browser-Projekt ⇒ Dialog „Projekt einrichten“ (`offerSetup`, `createStarterFiles`). Der Runner bekommt `path` der geöffneten Datei.
+- **Figuren erstellen/wechseln** (vom User so festgelegt): Klonk-Script/Blöcke `erstelle(name, aussehen?, x?, y?)` (en `create`) und
+  `wechsle(name)` (en `switch`, alte Schreibweise `wähleFigur`/`selectCharacter` bleibt); danach wird die neue/gewählte Figur gesteuert.
+  Objekt-Sprachen: `Klonk.create(...)` (C# `Klonk.Create`). Gemeinsam: `World.spawnCharacter()` (Feld 1-basiert im Programm, sonst
+  nächstes freies neben der zuletzt genutzten Figur, deren Blickrichtung), `resolveLook()` (männlich/weiblich/divers bzw. male/… oder
+  Projektdesign), Lizenzgrenze `maxCharacters` im Run-Request, Befehl `createCharacter` (Runner fügt die Figur der angezeigten Welt hinzu).
+  `createCharacter`/`selectCharacter` sind keine Methoden einer Figur (`CLASS_COMMANDS`).
+- **Designs** (Lizenz-Feature `models`): `RobotDesign` (Grundform + Farben + Zubehör, `designSchema`, `DEFAULT_DESIGNS`), Dateien
+  `*.klonkdesign.json` (Dateiart `design`) öffnen sich immer im `DesignEditor` (in der IDE statt Code, Live-Vorschau mit `KlonkWorld`).
+  Figuren betten ihr Design ein (`CharacterData.design`), Welten bleiben eigenständig. Renderer: `utils/character-look.ts`
+  (`applyDesign` färbt Materialien `<modell>-skin|shirt|pants|hair`/`eye` um, Zubehör als three.js-Geometrie; `nameLabel` = Sprite mit
+  Namen über jeder Figur, `showNames`). Projektdesigns gehen als `designs` (Dateiname ⇒ Design) an den Runner.
 - **Figurennamen** = `CharacterData.id` (`isValidCharacterName`, `World.findCharacter/renameCharacter`, Vorschläge `nextCharacterName`),
   umbenennen im Welt-Editor (Abschnitt „Namen der Figuren“).
 - **Klonk-Script ist mehrsprachig:** Schlüsselwörter und Befehle pro Sprache (anfangs Deutsch + Englisch) über

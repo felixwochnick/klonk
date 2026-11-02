@@ -1,4 +1,4 @@
-import type { WorldData } from '@klonk/world'
+import type { RobotDesign, WorldData } from '@klonk/world'
 import type { RobotCommand, SourceRange, Value } from '@klonk/klonk-script'
 
 /** Sprachen, die der Runner ausführen kann */
@@ -20,6 +20,10 @@ export type ToWorker
     /** Bibliotheken erlaubt (Lizenz) und verfügbare Dateien */
     allowImports: boolean
     files: Record<string, string>
+    /** Eigene Designs für neue Figuren (Name ⇒ Design, nur mit Lizenz) */
+    designs?: Record<string, RobotDesign>
+    /** Höchstzahl der Figuren (Lizenz) */
+    maxCharacters?: number
     /** Gleich in der ersten Zeile anhalten */
     pauseOnStart?: boolean
     /** JS/TS/Python/Java/C#: gemeinsamer Speicher für Pause/Haltepunkte/Tempo (siehe js/shared.ts) */

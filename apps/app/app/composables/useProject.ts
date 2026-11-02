@@ -1,4 +1,4 @@
-import { parseWorld, type WorldData } from '@klonk/world'
+import { parseDesign, parseWorld, type RobotDesign, type WorldData } from '@klonk/world'
 import { KIND_EXTENSION, MANIFEST, fileKind, isValidName, openBrowserProject, rememberProject } from '~/utils/project-fs'
 import type { FileKind, Project, ProjectFile } from '~/utils/project-fs'
 
@@ -24,7 +24,8 @@ const LAST_FILE_KEY = (p: Project) => `klonk:project:${p.source}:${p.name}`
  */
 export function useProject() {
   const kind = computed<FileKind | null>(() => (currentPath.value ? fileKind(currentPath.value) : null))
-  const programFiles = computed(() => files.value.filter(f => f.kind !== 'world' && f.kind !== 'other'))
+  const programFiles = computed(() => files.value.filter(f => f.kind !== 'world' && f.kind !== 'design' && f.kind !== 'other'))
+  const designFiles = computed(() => files.value.filter(f => f.kind === 'design'))
   const worldFiles = computed(() => files.value.filter(f => f.kind === 'world'))
 
   async function refresh() {
@@ -198,7 +199,23 @@ export function useProject() {
     if (!project.value) return {}
     await flush()
     const result: Record<string, string> = {}
-    for (const file of files.value.filter(f => f.kind !== 'world' && f.kind !== 'other' && f.kind !== 'blocks')) result[file.path] = await project.value.read(file.path)
+    for (const file of files.value.filter(f => f.kind !== 'world' && f.kind !== 'design' && f.kind !== 'other' && f.kind !== 'blocks')) result[file.path] = await project.value.read(file.path)
+    return result
+  }
+
+  /** Eigene Designs des Projekts: Dateiname ohne Endung ⇒ Design (ungültige Dateien werden übersprungen) */
+  async function readDesigns(): Promise<Record<string, RobotDesign>> {
+    if (!project.value) return {}
+    await flush()
+    const result: Record<string, RobotDesign> = {}
+    for (const file of designFiles.value) {
+      try {
+        result[file.name.replace(/\.klonkdesign\.json$/i, '')] = parseDesign(JSON.parse(await project.value.read(file.path)))
+      }
+      catch {
+        // kaputte Datei – im Design-Editor sichtbar
+      }
+    }
     return result
   }
 
@@ -221,8 +238,8 @@ export function useProject() {
   })
 
   return {
-    project, files, folders, language, programFiles, worldFiles, currentPath, content, kind, worldPath, status, breakpoints,
-    open, close, select, create, rename, remove, setLanguage, createFolder, renameFolder, removeFolder, update, flush, refresh, readWorld, writeWorld, importableFiles, selectWorld,
+    project, files, folders, language, programFiles, designFiles, worldFiles, currentPath, content, kind, worldPath, status, breakpoints,
+    open, close, select, create, rename, remove, setLanguage, createFolder, renameFolder, removeFolder, update, flush, refresh, readWorld, writeWorld, importableFiles, readDesigns, selectWorld,
     openBrowserProject: async (name: string, createIt = false) => open(await openBrowserProject(name, createIt)),
   }
 }

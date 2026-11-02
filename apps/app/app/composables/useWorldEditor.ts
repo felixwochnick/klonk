@@ -1,4 +1,4 @@
-import { BRICK_COLORS, CHARACTER_MODELS, MARK_COLORS, World, WorldError, nextCharacterName, parseWorld, type BrickColor, type CharacterModel, type MarkColor, type Position, type WorldData } from '@klonk/world'
+import { BRICK_COLORS, CHARACTER_MODELS, MARK_COLORS, World, WorldError, nextCharacterName, parseWorld, type BrickColor, type CharacterModel, type MarkColor, type Position, type RobotDesign, type WorldData } from '@klonk/world'
 
 export type EditorTool = 'brick' | 'mark' | 'block' | 'character' | 'erase'
 
@@ -22,6 +22,8 @@ export function useWorldEditor() {
   const brickColor = ref<BrickColor>('red')
   const markColor = ref<MarkColor>('yellow')
   const characterModel = ref<CharacterModel>('male')
+  /** Eigenes Design für neue Figuren (Lizenz); `null` = Standardmodell */
+  const characterDesign = shallowRef<RobotDesign | null>(null)
   const selectedCharacter = ref(start.value.getCharacters()[0]?.id ?? '')
 
   // Änderungen für Statusanzeige sichtbar machen (World ist nicht reaktiv)
@@ -105,7 +107,8 @@ export function useWorldEditor() {
           }
           else if (!remove) {
             const id = nextCharacterName(w)
-            w.addCharacter({ id, model: characterModel.value, x: position.x, z: position.z, direction: 'south' }, maxCharacters.value)
+            const design = characterDesign.value
+            w.addCharacter({ id, model: design?.base ?? characterModel.value, ...(design ? { design } : {}), x: position.x, z: position.z, direction: 'south' }, maxCharacters.value)
             selectedCharacter.value ||= id
           }
           break
@@ -205,7 +208,7 @@ export function useWorldEditor() {
 
   return {
     loadData,
-    world, start, mode, tool, brickColor, markColor, characterModel, selectedCharacter, status, characters, maxCharacters,
+    world, start, mode, tool, brickColor, markColor, characterModel, characterDesign, selectedCharacter, status, characters, maxCharacters,
     applyTool, newWorld, exportJson, importJson, play, edit, resetRun, command, renameCharacter,
     BRICK_COLORS, MARK_COLORS, CHARACTER_MODELS,
   }

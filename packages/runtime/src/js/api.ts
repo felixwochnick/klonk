@@ -1,11 +1,14 @@
 import { BUILTINS, show, type BuiltinName, type RobotCommand, type Value } from '@klonk/klonk-script'
-import { BRICK_COLORS, MARK_COLORS, WorldError, type World } from '@klonk/world'
+import { BRICK_COLORS, MARK_COLORS, WorldError, resolveLook, type RobotDesign, type World } from '@klonk/world'
 
 export type ApiHost = {
   world: World
   command: (command: RobotCommand) => void
   print: (text: string) => void
   sleep: (ms: number) => void
+  /** Eigene Designs für `create` (nur mit Lizenz) und Höchstzahl der Figuren */
+  designs?: Record<string, RobotDesign>
+  maxCharacters?: number
   /** Jeder API-Fehler, bevor er geworfen wird (Sprachen, deren Laufzeit JS-Fehler umverpackt, merken ihn sich) */
   onError?: (error: ApiError) => void
 }
@@ -42,9 +45,12 @@ export function display(value: unknown, depth = 0): string {
   }
 }
 
-/** Methoden einer Figur: Befehle und Sensoren (ohne `selectCharacter` – mehrere Figuren gibt es als Objekte) */
+/** Befehle, die in den Objekt-Sprachen keine Methoden einer Figur sind (`Klonk.create`, Wechseln = anderes Objekt) */
+export const CLASS_COMMANDS: readonly BuiltinName[] = ['selectCharacter', 'createCharacter']
+
+/** Methoden einer Figur: Befehle und Sensoren */
 export const ROBOT_METHODS = (Object.keys(BUILTINS) as BuiltinName[])
-  .filter(name => (BUILTINS[name].kind === 'command' || BUILTINS[name].kind === 'sensor') && name !== 'selectCharacter')
+  .filter(name => (BUILTINS[name].kind === 'command' || BUILTINS[name].kind === 'sensor') && !CLASS_COMMANDS.includes(name))
 
 /** Globale Funktionen und Farbkonstanten (`print`, `wait`, `random`, `red` …) */
 export const GLOBAL_NAMES = (Object.keys(BUILTINS) as BuiltinName[])
@@ -59,6 +65,8 @@ export type RobotApi = {
   robot: (name?: unknown) => RobotHandle
   /** Namen aller Figuren in Weltreihenfolge */
   names: () => string[]
+  /** Neue Figur (Aussehen: Standardmodell oder eigenes Design; Feld 1-basiert, sonst neben der zuletzt genutzten) */
+  create: (name: unknown, look?: unknown, x?: unknown, y?: unknown) => RobotHandle
 }
 
 /**
@@ -122,6 +130,7 @@ export function createApi(host: ApiHost): RobotApi {
   }
 
   const robots = new Map<string, RobotHandle>()
+  let lastUsed: string | undefined
   function robot(name?: unknown): RobotHandle {
     return run(() => {
       if (name !== undefined && name !== null && typeof name !== 'string' && typeof name !== 'number') throw new ApiError('expected_robot_name', { value: String(name) })
@@ -134,8 +143,20 @@ export function createApi(host: ApiHost): RobotApi {
         }
         robots.set(id, Object.freeze(handle))
       }
+      lastUsed = id
       return handle
     })
+  }
+
+  function create(name: unknown, look?: unknown, x?: unknown, y?: unknown): RobotHandle {
+    const character = run(() => {
+      if (typeof name !== 'string') throw new ApiError('expected_robot_name', { value: String(name) })
+      const position = (value: unknown) => (value === undefined || value === null || value === -1 ? undefined : Number(value) - 1)
+      return w().spawnCharacter(name, resolveLook(look, host.designs), { near: lastUsed, x: position(x), z: position(y), maxCharacters: host.maxCharacters })
+    })
+    host.command({ name: 'createCharacter', id: character.id, character })
+    delay()
+    return robot(character.id)
   }
 
   const globals: Record<string, unknown> = {
@@ -145,7 +166,7 @@ export function createApi(host: ApiHost): RobotApi {
   }
   for (const c of BRICK_COLORS) globals[c] = c
 
-  return { globals, robot, names: () => w().getCharacters().map(c => c.id) }
+  return { globals, robot, create, names: () => w().getCharacters().map(c => c.id) }
 }
 
 /** Darstellung einer Figur in Ausgabe und Variablenansicht */
@@ -167,6 +188,11 @@ export function createKlonkClass(api: RobotApi) {
 
     static all() {
       return api.names().map(name => new Klonk(name))
+    }
+
+    /** Neue Figur erstellen: `Klonk.create("Kim", "female", 3, 1)` */
+    static create(name: string, look?: string, x?: number, y?: number) {
+      return new Klonk(api.create(name, look, x, y).name)
     }
 
     [ROBOT_DISPLAY]() {

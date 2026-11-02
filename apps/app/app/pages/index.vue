@@ -19,6 +19,7 @@ watch(inProject, (open) => {
 
 const KIND_LANGUAGE = { blocks: 'blocks', klonk: 'klonk', javascript: 'javascript', typescript: 'typescript', python: 'python', java: 'java', csharp: 'csharp' } as const
 /** Im Projekt: Datei der passenden Art geöffnet? (Welten/Sonstiges sind keine Programme) */
+const isDesign = computed(() => inProject.value && proj.kind.value === 'design')
 const hasDocument = computed(() => !inProject.value || (!!proj.kind.value && proj.kind.value in KIND_LANGUAGE))
 
 // Dokument: Projektdatei oder (ohne Projekt) das im Browser gemerkte Programm
@@ -73,7 +74,7 @@ const runSource = computed(() => (isBlocks.value ? blocksProgram.value.code : so
 const runBreakpoints = computed(() => (isBlocks.value ? blockBreakpointLines.value : breakpoints.value))
 const languageItems = computed(() => PROGRAM_LANGUAGES.map(l => ({ label: t(`editor.languages.${l}`), value: l })))
 const { start } = useWorldEditor()
-const { can } = useLicense()
+const { can, maxCharacters } = useLicense()
 
 // Startwelt: aus dem Projekt (falls gewählt) oder die im Welt-Editor gemerkte
 const projectWorld = shallowRef<WorldData | null>(null)
@@ -131,7 +132,11 @@ async function run(pauseOnStart = false) {
   resetWorld()
   // Bibliotheken: Klonk-Script-/Python-Dateien des Projekts (nur mit Lizenz)
   const files = inProject.value && can('libraries') ? await proj.importableFiles() : {}
+  // Eigene Designs für erstelle/Klonk.create nur mit Lizenz
+  const designs = inProject.value && can('models') ? await proj.readDesigns() : {}
   runner.run(world.value, {
+    designs,
+    maxCharacters: maxCharacters.value,
     language: runLanguage.value,
     source: runSource.value,
     path: inProject.value ? proj.currentPath.value ?? undefined : undefined,
@@ -278,6 +283,7 @@ const paneStyle = computed(() => ({
         v-if="!running"
         icon="i-lucide-play"
         :label="t('editor.run')"
+        :disabled="!hasDocument"
         data-testid="run"
         @click="run()"
       />
@@ -413,8 +419,11 @@ const paneStyle = computed(() => ({
         :class="focus ? '' : 'lg:w-(--pane-code) lg:max-w-[calc(100%-20rem)] lg:flex-none'"
         data-testid="code-pane"
       >
+        <ClientOnly v-if="isDesign">
+          <DesignEditor v-model="source" />
+        </ClientOnly>
         <div
-          v-if="!hasDocument"
+          v-else-if="!hasDocument"
           class="flex flex-1 items-center justify-center p-6 text-center text-(--ui-text-muted)"
           data-testid="no-document"
         >

@@ -136,6 +136,7 @@ export async function runJava(
     robot: (name: string) => api.robot(name),
     robotAt: (number: number) => api.robot(number),
     first: () => api.robot(),
+    create: (name: string, look: string | null, x: number, y: number) => api.create(name, look ?? undefined, x, y),
     count: () => api.names().length,
     nameAt: (index: number) => api.names()[index],
     print: api.globals.print,

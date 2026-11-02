@@ -73,6 +73,7 @@ export async function runCSharp(
       let result: unknown
       if (name === '$robot') result = api.robot(values[0]).name
       else if (name === '$names') result = api.names().join('\n')
+      else if (name === '$create') result = api.create(values[0], values[1] || undefined, values[2], values[3]).name
       else if (methods.has(name)) result = api.robot(values[0])[name]!(...values.slice(1))
       else if (typeof api.globals[name] === 'function') result = (api.globals[name] as (...a: unknown[]) => unknown)(...values)
       else throw new Error(`unknown command ${name}`)

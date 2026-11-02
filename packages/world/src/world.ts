@@ -1,5 +1,5 @@
 import { WorldError } from './errors'
-import type { BrickColor, CellData, CharacterData, CharacterModel, Direction, MarkColor, Position, WorldData } from './types'
+import type { BrickColor, CellData, CharacterData, CharacterModel, Direction, MarkColor, Position, RobotDesign, WorldData } from './types'
 import { DIRECTIONS } from './types'
 import { parseWorld } from './schema'
 
@@ -86,7 +86,7 @@ export class World {
     }
     for (const character of data.characters) {
       this.assertInside(character)
-      if (this.characters.has(character.id)) throw new WorldError('invalid_world', { reason: 'duplicate_character' })
+      if ([...this.characters.keys()].some(k => k.toLowerCase() === character.id.toLowerCase())) throw new WorldError('invalid_world', { reason: 'duplicate_character' })
       this.characters.set(character.id, { ...character })
     }
   }
@@ -167,6 +167,40 @@ export class World {
     const matches = all.filter(c => c.id.toLowerCase() === name.toLowerCase())
     if (matches.length !== 1) throw new WorldError('unknown_character', { id: name })
     return matches[0]!
+  }
+
+  /**
+   * Neue Figur während eines Programms (`erstelle` / `Klonk.create`): auf `x|z` (0-basiert) oder dem nächsten freien Feld
+   * neben der Figur `near`, mit deren Blickrichtung. Grenze der Figurenzahl aus der Lizenz.
+   */
+  spawnCharacter(name: string, look: { model: CharacterModel, design?: RobotDesign }, options: { near?: string, x?: number, z?: number, maxCharacters?: number } = {}): CharacterData {
+    const near = options.near && this.characters.has(options.near) ? this.getCharacter(options.near) : undefined
+    let position: Position | null
+    if (options.x !== undefined || options.z !== undefined) {
+      position = { x: options.x ?? near?.x ?? 0, z: options.z ?? near?.z ?? 0 }
+      this.assertInside(position)
+    }
+    else position = this.freeCellNear(near)
+    if (!position) throw new WorldError('no_space')
+    const character: CharacterData = { id: String(name).trim(), model: look.model, ...(look.design ? { design: look.design } : {}), direction: near?.direction ?? 'south', ...position }
+    this.addCharacter(character, options.maxCharacters)
+    return { ...character }
+  }
+
+  /** Nächstes freies Feld (Spirale um `around`, sonst ab 0|0) für eine neue Figur */
+  freeCellNear(around?: Position): Position | null {
+    const free = (p: Position) => this.isInside(p) && !this.cell(p).block && !this.characterAt(p)
+    const center = around ?? { x: 0, z: 0 }
+    for (let r = around ? 1 : 0; r < Math.max(this.width, this.depth) * 2; r++) {
+      for (let dz = -r; dz <= r; dz++) {
+        for (let dx = -r; dx <= r; dx++) {
+          if (Math.max(Math.abs(dx), Math.abs(dz)) !== r) continue
+          const p = { x: center.x + dx, z: center.z + dz }
+          if (free(p)) return p
+        }
+      }
+    }
+    return null
   }
 
   /** Figur umbenennen (Reihenfolge bleibt); für die Darstellung als entfernt + neu hinzugefügt gemeldet */
@@ -328,9 +362,11 @@ export class World {
   addCharacter(character: CharacterData, maxCharacters = Infinity) {
     this.assertInside(character)
     if (this.characters.size >= maxCharacters) throw new WorldError('character_limit', { max: maxCharacters })
-    if (this.characters.has(character.id)) throw new WorldError('invalid_world', { reason: 'duplicate_character' })
-    if (this.cell(character).block) throw new WorldError('block', character)
-    if (this.characterAt(character)) throw new WorldError('occupied', character)
+    // Namen identifizieren Figuren: nie zwei gleiche (auch nicht in anderer Schreibweise)
+    if (!isValidCharacterName(character.id)) throw new WorldError('invalid_name', { name: character.id })
+    if ([...this.characters.keys()].some(k => k.toLowerCase() === character.id.toLowerCase())) throw new WorldError('duplicate_name', { name: character.id })
+    if (this.cell(character).block) throw new WorldError('block', { x: character.x, z: character.z })
+    if (this.characterAt(character)) throw new WorldError('occupied', { x: character.x, z: character.z })
     this.characters.set(character.id, { ...character })
     this.emit({ type: 'character-added', character: { ...character } })
   }
@@ -360,6 +396,24 @@ export class World {
   private assertInside(position: Position) {
     if (!this.isInside(position)) throw new WorldError('wall', { x: position.x, z: position.z })
   }
+}
+
+/** Namen der Standardmodelle in Programmen (`erstelle("Kim", "weiblich")`) – Deutsch und Englisch */
+const MODEL_NAMES: Record<string, CharacterModel> = {
+  male: 'male', männlich: 'male', maennlich: 'male',
+  female: 'female', weiblich: 'female',
+  diverse: 'diverse', divers: 'diverse',
+}
+
+/** Aussehen aus einer Angabe im Programm: Standardmodell oder (über `designs`) eigenes Design */
+export function resolveLook(name: unknown, designs: Record<string, RobotDesign> = {}): { model: CharacterModel, design?: RobotDesign } {
+  if (name === undefined || name === null || name === '') return { model: 'male' }
+  const text = String(name).trim()
+  const model = MODEL_NAMES[text.toLowerCase()]
+  if (model) return { model }
+  const key = Object.keys(designs).find(k => k.toLowerCase() === text.toLowerCase())
+  if (key) return { model: designs[key]!.base, design: designs[key] }
+  throw new WorldError('unknown_design', { name: text })
 }
 
 /** Figurennamen: 1–32 Zeichen, Buchstaben, Ziffern, Leerzeichen, `_` und `-` */

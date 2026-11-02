@@ -9,6 +9,7 @@ export const CATEGORY_COLORS = {
   movement: '#0055bf',
   bricks: '#c91a09',
   sensors: '#237841',
+  characters: '#008f9b',
   control: '#f2a900',
   logic: '#5a8f29',
   math: '#7b2d8e',
@@ -155,6 +156,30 @@ export function defineKlonkBlocks(Blockly: Blockly, lang: ScriptLanguage, t: T) 
       style: 'control_blocks',
       tooltip: t('blocks.tooltips.wait'),
     },
+    // Figuren
+    {
+      type: 'klonk_create',
+      message0: `${k('createCharacter')} %1 %2`,
+      args0: [
+        { type: 'input_value', name: 'NAME', check: 'String' },
+        { type: 'field_dropdown', name: 'LOOK', options: (['male', 'female', 'diverse'] as const).map(m => [t(`world.characters.${m}`), m]) },
+      ],
+      inputsInline: true,
+      previousStatement: null,
+      nextStatement: null,
+      style: 'characters_blocks',
+      tooltip: t('blocks.tooltips.create'),
+    },
+    {
+      type: 'klonk_switch',
+      message0: `${k('selectCharacter')} %1`,
+      args0: [{ type: 'input_value', name: 'NAME', check: 'String' }],
+      inputsInline: true,
+      previousStatement: null,
+      nextStatement: null,
+      style: 'characters_blocks',
+      tooltip: t('blocks.tooltips.switch'),
+    },
     { type: 'klonk_stop', message0: k('stop'), previousStatement: null, style: 'control_blocks', tooltip: t('blocks.tooltips.stop') },
 
     // Mathe & Text
@@ -223,6 +248,15 @@ export function toolbox(t: T) {
       },
       {
         kind: 'category',
+        name: t('blocks.categories.characters'),
+        categorystyle: 'characters_category', toolboxitemid: 'characters',
+        contents: [
+          { kind: 'block', type: 'klonk_create', inputs: { NAME: { shadow: { type: 'text', fields: { TEXT: 'Kim' } } } } },
+          { kind: 'block', type: 'klonk_switch', inputs: { NAME: { shadow: { type: 'text', fields: { TEXT: 'Klonk' } } } } },
+        ],
+      },
+      {
+        kind: 'category',
         name: t('blocks.categories.control'),
         categorystyle: 'control_category', toolboxitemid: 'control',
         contents: [
@@ -282,6 +316,7 @@ export function klonkTheme(Blockly: Blockly, dark: boolean) {
       movement_blocks: style(CATEGORY_COLORS.movement),
       bricks_blocks: style(CATEGORY_COLORS.bricks),
       sensors_blocks: style(CATEGORY_COLORS.sensors),
+      characters_blocks: style(CATEGORY_COLORS.characters),
       control_blocks: style(CATEGORY_COLORS.control),
       loop_blocks: style(CATEGORY_COLORS.control),
       logic_blocks: style(CATEGORY_COLORS.logic),

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type { RobotDesign } from '@klonk/world'
 import type { EditorTool } from '~/composables/useWorldEditor'
 
 const { t } = useI18n()
@@ -44,7 +45,26 @@ const tools = computed<{ value: EditorTool, icon: string, label: string }[]>(() 
   { value: 'erase', icon: 'i-lucide-eraser', label: t('world.tools.erase') },
 ])
 
-const characterItems = computed(() => editor.CHARACTER_MODELS.map(m => ({ label: t(`world.characters.${m}`), value: m })))
+// Aussehen neuer Figuren: Standardmodelle und (mit Lizenz) die Designs des Projekts
+const { can } = useLicense()
+const designs = shallowRef<Record<string, RobotDesign>>({})
+watch([proj.project, proj.files], async () => {
+  designs.value = proj.project.value && can('models') ? await proj.readDesigns() : {}
+}, { immediate: true })
+const characterItems = computed(() => [
+  ...editor.CHARACTER_MODELS.map(m => ({ label: t(`world.characters.${m}`), value: m as string })),
+  ...Object.keys(designs.value).map(name => ({ label: `${t('project.design')}: ${name}`, value: `design:${name}` })),
+])
+const characterLook = computed({
+  get: () => (editor.characterDesign.value ? `design:${Object.keys(designs.value).find(k => designs.value[k] === editor.characterDesign.value) ?? ''}` : characterModel.value),
+  set: (value: string) => {
+    if (value.startsWith('design:')) editor.characterDesign.value = designs.value[value.slice(7)] ?? null
+    else {
+      editor.characterDesign.value = null
+      characterModel.value = value as typeof characterModel.value
+    }
+  },
+})
 const selectedItems = computed(() => characters.value.map(c => ({ label: c.id, value: c.id })))
 
 // Namen der Figuren (Eingabe wird beim Verlassen/Enter übernommen; ungültig ⇒ alter Name)
@@ -167,9 +187,10 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey))
           :help="maxCharacters === Infinity ? undefined : t('world.characterLimit', { max: maxCharacters })"
         >
           <USelect
-            v-model="characterModel"
+            v-model="characterLook"
             :items="characterItems"
             class="w-full"
+            data-testid="character-look"
           />
         </UFormField>
 

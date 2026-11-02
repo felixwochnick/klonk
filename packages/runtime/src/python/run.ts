@@ -79,7 +79,7 @@ export async function runPython(
         apiError = error
       },
     })
-    pyodide.registerJsModule('_klonk_js', { ...api.globals, globals: Object.keys(api.globals), robot: api.robot, names: api.names, methods: ROBOT_METHODS })
+    pyodide.registerJsModule('_klonk_js', { ...api.globals, globals: Object.keys(api.globals), robot: api.robot, create: api.create, names: api.names, methods: ROBOT_METHODS })
     pyodide.registerJsModule('_klonk_debug', {
       // Variablen erst beim Anhalten auslesen (Python-Funktion ⇒ Dict mit Darstellungen)
       checkpoint: (current: number, variables: { (): { toJs: (o: object) => Record<string, string>, destroy: () => void } }) =>

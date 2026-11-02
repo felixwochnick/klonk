@@ -94,6 +94,8 @@ async function run(message: Extract<ToWorker, { type: 'run' }>) {
       wait: seconds => sleep(seconds * 1000),
       allowImports: message.allowImports,
       resolveImport: path => message.files[path],
+      designs: message.designs,
+      maxCharacters: message.maxCharacters,
     }, message.characterId)
     await interpreter.run()
     post({ type: 'done' })

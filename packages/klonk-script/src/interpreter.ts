@@ -1,4 +1,4 @@
-import { BRICK_COLORS, MARK_COLORS, WorldError, type BrickColor, type MarkColor, type World } from '@klonk/world'
+import { BRICK_COLORS, MARK_COLORS, WorldError, resolveLook, type BrickColor, type CharacterData, type MarkColor, type RobotDesign, type World } from '@klonk/world'
 import type { Expression, Program, Statement } from './ast'
 import { KlonkError, type SourceRange } from './errors'
 import { BUILTINS, type BuiltinName, type BuiltinParam } from './languages'
@@ -11,6 +11,7 @@ export type RobotCommand
   = | { name: 'step' | 'turnLeft' | 'turnRight' | 'pickBrick' | 'removeMark', id: string }
     | { name: 'placeBrick', id: string, color: BrickColor }
     | { name: 'setMark', id: string, color: MarkColor }
+    | { name: 'createCharacter', id: string, character: CharacterData }
 
 export type InterpreterHooks = {
   /** Vor jeder Anweisung – hier halten Breakpoints, Einzelschritt und Tempo an */
@@ -24,6 +25,10 @@ export type InterpreterHooks = {
   /** Quelltext einer importierten Datei */
   resolveImport?: (path: string) => string | undefined | Promise<string | undefined>
   random?: () => number
+  /** Eigene Designs für `erstelle` (Name ⇒ Design; nur mit Lizenz gefüllt) */
+  designs?: Record<string, RobotDesign>
+  /** Höchstzahl der Figuren (Lizenz) */
+  maxCharacters?: number
 }
 
 const MAX_DEPTH = 200
@@ -359,6 +364,16 @@ export class Interpreter {
         }
         case 'selectCharacter': {
           this.character = world.findCharacter(String(args[0])).id
+          return null
+        }
+        case 'createCharacter': {
+          const position = (index: number) => (args.length > index ? this.number(args[index]!, range) - 1 : undefined)
+          const character = world.spawnCharacter(String(args[0]), resolveLook(args[1], this.hooks.designs), {
+            near: id || undefined, x: position(2), z: position(3), maxCharacters: this.hooks.maxCharacters,
+          })
+          await this.hooks.command?.({ name: 'createCharacter', id: character.id, character })
+          // Ab jetzt wird die neue Figur gesteuert
+          this.character = character.id
           return null
         }
         case 'isWall': return world.isWall(id)

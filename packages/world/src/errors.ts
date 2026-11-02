@@ -14,6 +14,9 @@ export type WorldErrorCode
     | 'no_character'
     | 'invalid_name'
     | 'duplicate_name'
+    | 'invalid_design'
+    | 'unknown_design'
+    | 'no_space'
     | 'character_limit'
     | 'invalid_world'
 

@@ -89,7 +89,10 @@
       "invalid_world": "Die Weltdatei ist ungültig.",
       "no_character": "In der Welt steht keine Figur.",
       "invalid_name": "„{name}“ ist kein gültiger Name (1–32 Buchstaben, Ziffern, Leerzeichen, _ oder -).",
-      "duplicate_name": "Es gibt schon eine Figur „{name}“."
+      "duplicate_name": "Es gibt schon eine Figur „{name}“.",
+      "invalid_design": "Das Design ist ungültig ({reason}).",
+      "unknown_design": "Es gibt kein Aussehen „{name}“ (männlich, weiblich, divers oder ein Design des Projekts – mit Lizenz).",
+      "no_space": "Kein freies Feld mehr für eine neue Figur."
     },
     "names": "Namen der Figuren",
     "namesHelp": "Über diesen Namen sprechen Programme eine Figur an, z. B. new Klonk(\"Klara\").",
@@ -211,7 +214,8 @@
       "math": "Zahlen",
       "text": "Text",
       "variables": "Variablen",
-      "procedures": "Eigene Blöcke"
+      "procedures": "Eigene Blöcke",
+      "characters": "Figuren"
     },
     "anyColor": "(beliebig)",
     "hello": "Hallo!",
@@ -237,7 +241,9 @@
       "wait": "Kurz warten",
       "stop": "Programm beenden",
       "print": "In die Ausgabe schreiben",
-      "join": "Texte oder Zahlen zusammensetzen"
+      "join": "Texte oder Zahlen zusammensetzen",
+      "create": "Neue Figur erstellen – ab jetzt wird sie gesteuert",
+      "switch": "Ab jetzt die Figur mit diesem Namen steuern"
     }
   },
   "project": {
@@ -266,7 +272,8 @@
       "python": "main",
       "java": "Main",
       "csharp": "Program",
-      "folder": "Neuer Ordner"
+      "folder": "Neuer Ordner",
+      "design": "Roboter"
     },
     "confirmDelete": "„{name}“ wirklich löschen?",
     "confirmDeleteProject": "Browser-Projekt „{name}“ mit allen Dateien löschen?",
@@ -307,10 +314,36 @@
     "language": "Sprache",
     "languageHelp": "Programme des Projekts sind in dieser Sprache. Imports, Packages und Module zwischen den Dateien funktionieren.",
     "mixed": "Gemischt",
-    "setup": "Projekt einrichten"
+    "setup": "Projekt einrichten",
+    "design": "Roboter-Design"
   },
   "pwa": {
     "install": "App installieren",
     "offline": "Offline"
+  },
+  "design": {
+    "name": "Name des Designs",
+    "base": "Grundform",
+    "colors": "Farben",
+    "accessory": "Zubehör",
+    "invalid": "Die Datei ist kein gültiges Design – Änderungen speichern ein neues.",
+    "licenseTitle": "Eigene Designs brauchen eine Lizenz",
+    "licenseHint": "Ohne Lizenz kannst du Designs ansehen, aber nicht bearbeiten oder verwenden.",
+    "usage": "Verwenden: im Welt-Editor beim Setzen einer Figur oder im Programm mit erstelle(\"Name\", \"Dateiname\") bzw. Klonk.create(\"Name\", \"Dateiname\").",
+    "parts": {
+      "skin": "Haut",
+      "shirt": "Oberteil",
+      "pants": "Hose",
+      "hair": "Haare",
+      "eyes": "Augen",
+      "accessory": "Farbe des Zubehörs"
+    },
+    "accessories": {
+      "none": "Keins",
+      "cap": "Kappe",
+      "hat": "Hut",
+      "helmet": "Helm",
+      "crown": "Krone"
+    }
   }
 }

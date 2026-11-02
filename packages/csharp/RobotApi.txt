@@ -40,6 +40,9 @@ namespace klonk
         /// <summary>Die n-te Figur (ab 1)</summary>
         public Klonk(int number) => Name = Call("$robot", N(number));
 
+        /// <summary>Neue Figur: Aussehen "male", "female", "diverse" oder eigenes Design, optional auf Feld x|y (sonst neben der zuletzt genutzten)</summary>
+        public static Klonk Create(string name, string? look = null, int x = -1, int y = -1) => new Klonk(Call("$create", S(name), S(look ?? ""), N(x), N(y)));
+
         /// <summary>Alle Figuren der Welt</summary>
         public static Klonk[] All()
         {

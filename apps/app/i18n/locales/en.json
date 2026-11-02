@@ -89,7 +89,10 @@
       "invalid_world": "The world file is invalid.",
       "no_character": "There is no character in the world.",
       "invalid_name": "“{name}” is not a valid name (1–32 letters, digits, spaces, _ or -).",
-      "duplicate_name": "There already is a character “{name}”."
+      "duplicate_name": "There already is a character “{name}”.",
+      "invalid_design": "The design is invalid ({reason}).",
+      "unknown_design": "There is no look “{name}” (male, female, diverse or a design of the project – with a license).",
+      "no_space": "No free cell left for a new character."
     },
     "names": "Character names",
     "namesHelp": "Programs address a character by this name, e.g. new Klonk(\"Klara\").",
@@ -211,7 +214,8 @@
       "math": "Numbers",
       "text": "Text",
       "variables": "Variables",
-      "procedures": "My blocks"
+      "procedures": "My blocks",
+      "characters": "Characters"
     },
     "anyColor": "(any)",
     "hello": "Hello!",
@@ -237,7 +241,9 @@
       "wait": "Wait a moment",
       "stop": "End the program",
       "print": "Write to the output",
-      "join": "Join texts or numbers"
+      "join": "Join texts or numbers",
+      "create": "Create a new character – it is controlled from now on",
+      "switch": "From now on control the character with this name"
     }
   },
   "project": {
@@ -266,7 +272,8 @@
       "python": "main",
       "java": "Main",
       "csharp": "Program",
-      "folder": "New folder"
+      "folder": "New folder",
+      "design": "robot"
     },
     "confirmDelete": "Really delete “{name}”?",
     "confirmDeleteProject": "Delete browser project “{name}” with all files?",
@@ -307,10 +314,36 @@
     "language": "Language",
     "languageHelp": "The project's programs use this language. Imports, packages and modules between files work.",
     "mixed": "Mixed",
-    "setup": "Set up project"
+    "setup": "Set up project",
+    "design": "Robot design"
   },
   "pwa": {
     "install": "Install app",
     "offline": "Offline"
+  },
+  "design": {
+    "name": "Design name",
+    "base": "Base shape",
+    "colors": "Colors",
+    "accessory": "Accessory",
+    "invalid": "This file is not a valid design – changes save a new one.",
+    "licenseTitle": "Custom designs need a license",
+    "licenseHint": "Without a license you can view designs but not edit or use them.",
+    "usage": "Use it: in the world editor when placing a character, or in a program with create(\"Name\", \"file name\") or Klonk.create(\"Name\", \"file name\").",
+    "parts": {
+      "skin": "Skin",
+      "shirt": "Top",
+      "pants": "Pants",
+      "hair": "Hair",
+      "eyes": "Eyes",
+      "accessory": "Accessory color"
+    },
+    "accessories": {
+      "none": "None",
+      "cap": "Cap",
+      "hat": "Hat",
+      "helmet": "Helmet",
+      "crown": "Crown"
+    }
   }
 }

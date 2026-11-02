@@ -1,8 +1,24 @@
 import { z } from 'zod'
 import { WorldError } from './errors'
-import { BRICK_COLORS, CHARACTER_MODELS, DIRECTIONS, MARK_COLORS, type WorldData } from './types'
+import { ACCESSORIES, BRICK_COLORS, CHARACTER_MODELS, DIRECTIONS, MARK_COLORS, type RobotDesign, type WorldData } from './types'
 
 const coordinate = z.number().int().min(0).max(255)
+const hex = z.string().regex(/^#[0-9a-f]{6}$/i)
+
+export const designSchema = z.object({
+  version: z.literal(1),
+  name: z.string().max(64).optional(),
+  base: z.enum(CHARACTER_MODELS),
+  colors: z.object({ skin: hex, shirt: hex, pants: hex, hair: hex, eyes: hex, accessory: hex.optional() }),
+  accessory: z.enum(ACCESSORIES).optional(),
+})
+
+/** Prüft ein Design (z. B. aus einer Datei) */
+export function parseDesign(data: unknown): RobotDesign {
+  const result = designSchema.safeParse(data)
+  if (!result.success) throw new WorldError('invalid_design', { reason: result.error.issues[0]?.path.join('.') ?? '' })
+  return result.data as RobotDesign
+}
 
 export const worldSchema = z.object({
   version: z.literal(1),
@@ -22,6 +38,7 @@ export const worldSchema = z.object({
   characters: z.array(z.object({
     id: z.string().min(1).max(64),
     model: z.enum(CHARACTER_MODELS),
+    design: designSchema.optional(),
     x: coordinate,
     z: coordinate,
     direction: z.enum(DIRECTIONS),

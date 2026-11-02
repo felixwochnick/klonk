@@ -1,3 +1,4 @@
+import { applyDesign, nameLabel } from './character-look'
 import type { BrickColor, CharacterData, CharacterModel, Direction, MarkColor, Position, World, WorldEvent } from '@klonk/world'
 import * as THREE from 'three'
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
@@ -98,6 +99,11 @@ export class WorldRenderer {
   private dirty = true
   private resizeObserver: ResizeObserver
   private raycaster = new THREE.Raycaster()
+
+  /** Namensschilder über den Figuren (aus z. B. in der Design-Vorschau) */
+  showNames = true
+  /** Dunkles Farbschema (Namensschilder) */
+  dark = false
 
   constructor(private container: HTMLElement) {
     this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: true })
@@ -361,10 +367,17 @@ export class WorldRenderer {
     this.invalidate()
     // Füße auf Noppen: seitlich passt die Mitte schon (±½ Raster), in Blickrichtung um ½ Raster nach hinten
     // (4×4 Noppen ⇒ die Feldmitte liegt zwischen zwei Noppenreihen; vorne bleibt so etwas mehr Platz)
-    const model = this.models!.characters[character.model].clone(true)
+    const model = this.models!.characters[character.design?.base ?? character.model].clone(true)
+    if (character.design) applyDesign(model, character.design)
     model.position.z = -STUD_PITCH / 2
     const root = new THREE.Group()
     root.add(model)
+    // Name über der Figur – er identifiziert sie (Programme sprechen sie darüber an)
+    if (this.showNames) {
+      const label = nameLabel(character.id, this.dark)
+      label.position.y = 1.55
+      root.add(label)
+    }
     const view: CharacterView = {
       root,
       limbs: {

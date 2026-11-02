@@ -27,6 +27,11 @@ export function pythonStub(lang: ScriptLanguage) {
     '    def all() -> list["Klonk"]:',
     doc(de ? 'Alle Figuren der Welt' : 'All characters in the world', '        '),
     '        return []',
+    '',
+    '    @staticmethod',
+    '    def create(name: str, look: str | None = None, x: int | None = None, y: int | None = None) -> "Klonk":',
+    doc(BUILTINS.createCharacter.doc[lang], '        '),
+    '        return Klonk()',
   ]
   for (const name of ROBOT_METHODS) {
     const builtin: Builtin = BUILTINS[name]

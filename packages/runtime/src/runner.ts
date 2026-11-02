@@ -1,5 +1,5 @@
 import type { RobotCommand, SourceRange, Value } from '@klonk/klonk-script'
-import type { World } from '@klonk/world'
+import type { World, RobotDesign } from '@klonk/world'
 import { CONTROL, createSharedState, views, writeBreakpoints } from './js/shared'
 import type { FromWorker, RunError, RunLanguage, ToWorker } from './protocol'
 
@@ -26,6 +26,8 @@ export type RunOptions = {
   files?: Record<string, string>
   characterId?: string
   pauseOnStart?: boolean
+  designs?: Record<string, RobotDesign>
+  maxCharacters?: number
 }
 
 /**
@@ -86,6 +88,8 @@ export class ProgramRunner {
       allowImports: options.allowImports ?? false,
       files: options.files ?? {},
       pauseOnStart: options.pauseOnStart,
+      designs: options.designs,
+      maxCharacters: Number.isFinite(options.maxCharacters) ? options.maxCharacters : undefined,
     }, this.shared)
   }
 
@@ -186,6 +190,9 @@ export function applyCommand(world: World, command: RobotCommand) {
       break
     case 'setMark':
       world.setMark(command.id, command.color)
+      break
+    case 'createCharacter':
+      world.addCharacter(command.character)
       break
     default:
       world[command.name](command.id)

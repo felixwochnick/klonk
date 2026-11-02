@@ -1,5 +1,5 @@
 import type { DropdownMenuItem } from '@nuxt/ui'
-import { World } from '@klonk/world'
+import { DEFAULT_DESIGNS, World } from '@klonk/world'
 import {
   deleteBrowserProject, ensurePermission, forgetProject, listBrowserProjects, pickFolder, recentProjects,
   supportsBrowserProjects, supportsFolders, Project, type FileKind, type ProjectFile, type RecentProject,
@@ -135,12 +135,14 @@ export function useProjectExplorer(options: { onOpenFile?: (file: ProjectFile) =
       else if (d.mode === 'file') {
         const initial = d.kind === 'world'
           ? `${JSON.stringify(World.empty().toJSON(), null, 2)}\n`
-          : d.kind === 'java'
-            ? javaClassSource(name.replace(/\.java$/i, ''), javaPackage(d.folder ?? ''))
+          : d.kind === 'design'
+            ? `${JSON.stringify({ ...DEFAULT_DESIGNS.male, name }, null, 2)}\n`
+            : d.kind === 'java'
+              ? javaClassSource(name.replace(/\.java$/i, ''), javaPackage(d.folder ?? ''))
             // C#: weitere Dateien als Klasse im Namespace des Ordners (Anweisungen gibt es nur in einer Datei)
-            : d.kind === 'csharp' && files.value.some(f => f.kind === 'csharp')
-              ? csharpClassSource(name.replace(/\.cs$/i, ''), csharpNamespace(d.folder ?? ''))
-              : programSample(d.kind, lang)
+              : d.kind === 'csharp' && files.value.some(f => f.kind === 'csharp')
+                ? csharpClassSource(name.replace(/\.cs$/i, ''), csharpNamespace(d.folder ?? ''))
+                : programSample(d.kind, lang)
         await proj.create(join(d.folder, name), d.kind, initial)
         if (d.folder) expand(d.folder)
       }
@@ -225,6 +227,7 @@ export function useProjectExplorer(options: { onOpenFile?: (file: ProjectFile) =
       })),
       [
         { label: t('project.world'), icon: KIND_ICON.world, onSelect: () => openDialog({ mode: 'file', kind: 'world', folder }) },
+        { label: t('project.design'), icon: KIND_ICON.design, onSelect: () => openDialog({ mode: 'file', kind: 'design', folder }) },
         { label: t('project.folder'), icon: 'i-lucide-folder-plus', onSelect: () => openDialog({ mode: 'folder', parent: folder }) },
       ],
     ]
@@ -285,7 +288,7 @@ export function useProjectExplorer(options: { onOpenFile?: (file: ProjectFile) =
   }
 
   /** Bezeichnung der Dateiart */
-  const kindLabel = (kind: FileKind) => (kind === 'world' ? t('project.world') : kind === 'other' ? t('project.otherFile') : t(`editor.languages.${kind}`))
+  const kindLabel = (kind: FileKind) => (kind === 'world' ? t('project.world') : kind === 'design' ? t('project.design') : kind === 'other' ? t('project.otherFile') : t(`editor.languages.${kind}`))
 
   return {
     proj, canFolders, canBrowser, browserProjects, recent, loadLists, fail,
@@ -307,5 +310,6 @@ const KIND_ICON: Record<FileKind, string> = {
   java: 'i-simple-icons-openjdk',
   csharp: 'i-simple-icons-dotnet',
   world: 'i-lucide-boxes',
+  design: 'i-lucide-palette',
   other: 'i-lucide-file',
 }

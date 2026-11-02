@@ -24,6 +24,7 @@ public final class Klonk {
         Robot robot(String name);
         Robot robotAt(int number);
         Robot first();
+        Robot create(String name, String look, int x, int y);
         int count();
         String nameAt(int index);
         void print(String text);
@@ -84,6 +85,12 @@ public final class Klonk {
         // Kopie über Verkettung: aus JSO kommende Strings liefern bei toString() sonst \`java.lang.String@…\`
         this.name = "" + robot.getName();
     }
+
+    /** Neue Figur (Aussehen "male", "female", "diverse" oder eigenes Design), neben der zuletzt genutzten */
+    public static Klonk create(String name) { return new Klonk(API.create(name, null, -1, -1)); }
+    public static Klonk create(String name, String look) { return new Klonk(API.create(name, look, -1, -1)); }
+    /** Neue Figur auf Feld x|y */
+    public static Klonk create(String name, String look, int x, int y) { return new Klonk(API.create(name, look, x, y)); }
 
     /** Alle Figuren der Welt */
     public static Klonk[] all() {

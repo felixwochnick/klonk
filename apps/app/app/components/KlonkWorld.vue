@@ -2,16 +2,20 @@
 import type { Position, World } from '@klonk/world'
 
 // 3D-Ansicht einer Welt; meldet Klicks auf Felder (für den Editor). Nur im Browser verwenden (<ClientOnly>).
-const props = withDefaults(defineProps<{ world: World, speed?: number, editable?: boolean }>(), { speed: 350, editable: false })
+const props = withDefaults(defineProps<{ world: World, speed?: number, editable?: boolean, showNames?: boolean }>(), { speed: 350, editable: false, showNames: true })
 const emit = defineEmits<{ cellClick: [position: Position, event: MouseEvent], ready: [] }>()
 
 const container = ref<HTMLDivElement>()
 let renderer: WorldRenderer | undefined
 const ready = ref(false)
 
+const colorMode = useColorMode()
+
 onMounted(async () => {
   renderer = new WorldRenderer(container.value!)
   renderer.speed = props.speed
+  renderer.showNames = props.showNames
+  renderer.dark = colorMode.value === 'dark'
   await renderer.setWorld(props.world)
   ready.value = true
   emit('ready')
@@ -20,6 +24,12 @@ onMounted(async () => {
 onBeforeUnmount(() => renderer?.dispose())
 
 watch(() => props.world, world => renderer?.setWorld(world))
+// Namensschilder passend zum Farbschema neu zeichnen
+watch(() => colorMode.value, (mode) => {
+  if (!renderer) return
+  renderer.dark = mode === 'dark'
+  void renderer.setWorld(props.world)
+})
 watch(() => props.speed, (speed) => {
   if (renderer) renderer.speed = speed
 })

@@ -82,6 +82,35 @@ describe('Worker', () => {
   })
 })
 
+describe('Worker: Figuren erstellen und wechseln', () => {
+  it('erstelle(name, aussehen, x, y) steuert ab sofort die neue Figur, wechsle schaltet zurück', async () => {
+    run('erstelle("Kim", "weiblich", 1, 3)\nschritt\nwechsle("k")\nschritt\nausgabe(positionX)')
+    await until(() => last()?.type === 'done')
+    const commands = messages.filter(m => m.type === 'command').map(m => (m as { command: { name: string, id: string } }).command)
+    expect(commands.map(c => `${c.name}:${c.id}`)).toEqual(['createCharacter:Kim', 'step:Kim', 'step:k'])
+    expect(messages).toContainEqual(expect.objectContaining({ command: expect.objectContaining({ character: expect.objectContaining({ id: 'Kim', model: 'female', x: 0, z: 2 }) }) }))
+    // angezeigte Welt spielt das nach
+    const shown = new World(world)
+    for (const c of commands) applyCommand(shown, (messages.find(m => m.type === 'command' && (m as { command: { name: string, id: string } }).command === c) as { command: Parameters<typeof applyCommand>[1] }).command)
+    expect(shown.getCharacter('Kim').z).toBe(2)
+  })
+
+  it('Name doppelt, Lizenzgrenze, eigenes Design', async () => {
+    run('erstelle("K")')
+    await until(() => last()?.type === 'error')
+    expect(last()).toMatchObject({ error: { code: 'world', params: { worldCode: 'duplicate_name' } } })
+    messages.length = 0
+    run('erstelle("Kim")', { maxCharacters: 1 })
+    await until(() => last()?.type === 'error')
+    expect(last()).toMatchObject({ error: { code: 'world', params: { worldCode: 'character_limit' } } })
+    messages.length = 0
+    const design = { version: 1 as const, base: 'diverse' as const, colors: { skin: '#ffffff', shirt: '#000000', pants: '#000000', hair: '#000000', eyes: '#000000' } }
+    run('erstelle("Robo", "ritter")', { designs: { Ritter: design } })
+    await until(() => last()?.type === 'done')
+    expect(messages[0]).toMatchObject({ command: { character: { id: 'Robo', model: 'diverse', design } } })
+  })
+})
+
 describe('Worker: JavaScript/TypeScript', () => {
   // Die Steuerung läuft über SharedArrayBuffer; Atomics.wait blockiert den Testthread nicht,
   // solange keine Pause angefordert wird (Delay 0, keine Haltepunkte).
@@ -167,5 +196,11 @@ describe('Worker: JavaScript/TypeScript', () => {
     run('import walk from "./lib/walk"', { language: 'javascript', shared: shared(), path: 'src/main.js', files: { 'src/lib/walk.js': '' } })
     await until(() => last()?.type === 'error')
     expect(last()).toMatchObject({ error: { code: 'feature_libraries' } })
+  })
+
+  it('Klonk.create', async () => {
+    run('import { Klonk, print } from "klonk"; const kim = Klonk.create("Kim", "female", 3, 1)\nkim.step()\nprint(kim.name, kim.positionX(), kim.positionY(), Klonk.all().length)', { language: 'javascript', shared: shared() })
+    await until(() => last()?.type === 'done')
+    expect(messages).toContainEqual({ type: 'output', text: 'Kim 3 2 2' })
   })
 })

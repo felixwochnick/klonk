@@ -32,6 +32,7 @@ function klonkType(lang: ScriptLanguage): TypeInfo {
     return { name, kind: 'method', type, detail: `${type} ${name}(${params})`, isStatic: false, documentation: builtin.doc[lang] }
   })
   members.push({ name: 'name', kind: 'field', type: 'String', detail: 'String name', isStatic: false, documentation: lang === 'de' ? 'Name der Figur' : 'Name of the character' })
+  members.push({ name: 'create', kind: 'method', type: 'Klonk', detail: 'static Klonk create(String name, String look, int x, int y)', isStatic: true, documentation: BUILTINS.createCharacter.doc[lang] })
   members.push({ name: 'all', kind: 'method', type: 'Klonk[]', detail: 'static Klonk[] all()', isStatic: true, documentation: lang === 'de' ? 'Alle Figuren der Welt' : 'All characters in the world' })
   for (const name of Object.keys(BUILTINS) as BuiltinName[]) {
     const builtin: Builtin = BUILTINS[name]

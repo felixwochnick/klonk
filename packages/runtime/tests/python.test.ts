@@ -83,4 +83,9 @@ describe('Python', { timeout: 60_000 }, () => {
     await run('import klonk\nklonk.Klonk().step()\nprint(klonk.red)\n', {}, '')
     expect(messages.filter(m => m.type === 'output')).toEqual([{ type: 'output', text: 'red' }])
   })
+
+  it('Klonk.create', async () => {
+    await run('kim = Klonk.create("Kim", "female", 3, 1)\nkim.turn_right()\nkim.step()\nprint(kim.name, kim.position_x(), kim.position_y())\n')
+    expect(messages.filter(m => m.type === 'output')).toEqual([{ type: 'output', text: 'Kim 2 1' }])
+  })
 })

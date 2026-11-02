@@ -32,6 +32,11 @@ class Klonk:
         """Alle Figuren der Welt"""
         return [Klonk(n) for n in _klonk_api.names()]
 
+    @staticmethod
+    def create(name, look=None, x=None, y=None):
+        """Neue Figur: Aussehen "male"/"female"/"diverse" oder eigenes Design, optional auf Feld x|y"""
+        return Klonk(_klonk_api.create(name, look, x, y).name)
+
 def _klonk_method(js_name):
     def method(self, *args):
         return getattr(self._robot, js_name)(*args)

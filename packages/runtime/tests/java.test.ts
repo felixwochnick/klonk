@@ -49,6 +49,7 @@ describe('Java: Instrumentierung', () => {
     expect(DEBUG_JAVA).toContain('public static boolean __cp(int line)')
     for (const [name, builtin] of Object.entries(BUILTINS)) {
       if (name === 'selectCharacter') expect(ROBOT_JAVA).not.toContain(name)
+      else if (name === 'createCharacter') expect(ROBOT_JAVA).toContain('public static Klonk create(String name)')
       else if (builtin.kind === 'constant') expect(ROBOT_JAVA).toContain(`String ${name.toUpperCase()} =`)
       else if (name === 'wait') expect(ROBOT_JAVA).toContain('static void sleep(double seconds)')
       else if (builtin.kind === 'function') expect(ROBOT_JAVA).toMatch(new RegExp(`public static \\w+ ${name}\\(`))
@@ -131,5 +132,10 @@ describe('Java: Ausführen', { timeout: 120_000 }, () => {
     const main = 'package de.app;\nimport klonk.Klonk;\nimport de.tools.Walker;\npublic class App {\n  public static void main(String[] args) {\n    Klonk k = new Klonk();\n    Walker.two(k);\n    System.out.println(k.positionX());\n  }\n}'
     await run(main, { path: 'src/de/app/App.java', allowImports: true, files: { 'src/de/tools/Walker.java': tool, 'src/de/app/App.java': main } }, '')
     expect(messages.filter(m => m.type === 'output')).toEqual([{ type: 'output', text: '3' }])
+  })
+
+  it('Klonk.create', async () => {
+    await run('public class Main {\n  public static void main(String[] args) {\n    Klonk kim = Klonk.create("Kim", "female", 3, 1);\n    kim.step();\n    Klonk.create("Robo");\n    print(kim.name, kim.positionX(), Klonk.all().length);\n  }\n}')
+    expect(messages.filter(m => m.type === 'output')).toEqual([{ type: 'output', text: 'Kim 3 3' }])
   })
 })

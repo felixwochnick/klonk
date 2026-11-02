@@ -72,6 +72,10 @@ export function generateKlonkScript(Blockly: Blockly, workspace: BlocklyType.Wor
   f.klonk_repeat_forever = block => `${k('repeat')} ${k('forever')}\n${statements(block, 'DO')}${k('end')}\n`
   f.klonk_wait = block => `${k('wait')}(${value(block, 'SECONDS', ORDER.NONE, '1')})\n`
   f.klonk_stop = () => `${k('stop')}\n`
+  // Aussehen als Text in der Sprache des Programms (erstelle("Kim", "weiblich"))
+  const LOOKS = { de: { male: 'männlich', female: 'weiblich', diverse: 'divers' }, en: { male: 'male', female: 'female', diverse: 'diverse' } } as const
+  f.klonk_create = block => `${k('createCharacter')}(${value(block, 'NAME', ORDER.NONE, '""')}, "${LOOKS[lang][block.getFieldValue('LOOK') as 'male']}")\n`
+  f.klonk_switch = block => `${k('selectCharacter')}(${value(block, 'NAME', ORDER.NONE, '""')})\n`
   f.klonk_print = block => `${k('print')}(${value(block, 'VALUE', ORDER.NONE, '""')})\n`
   f.klonk_join = block => [`${value(block, 'A', ORDER.ADD, '""')} + ${value(block, 'B', ORDER.MULTIPLY, '""')}`, ORDER.ADD]
   f.klonk_arithmetic = (block) => {

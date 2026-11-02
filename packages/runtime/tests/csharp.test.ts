@@ -101,4 +101,9 @@ Print("x", klonk.PositionX(), klonk.IsWall(), new[] { 1, 2 }, klonk);`)
     await run('var k = new Klonk();', {}, '')
     expect(messages.at(-1)).toMatchObject({ type: 'error', error: { code: 'cs_compile', range: { line: 1 } } })
   })
+
+  it('Klonk.Create', async () => {
+    await run('var kim = Klonk.Create("Kim", "female", 3, 1);\nkim.Step();\nKlonk.Create("Robo");\nPrint(kim.Name, kim.PositionX(), Klonk.All().Length);')
+    expect(messages.filter(m => m.type === 'output')).toEqual([{ type: 'output', text: 'Kim 3 3' }])
+  })
 })

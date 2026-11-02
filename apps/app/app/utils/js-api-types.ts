@@ -31,7 +31,7 @@ export function robotApiDeclarations(lang: ScriptLanguage) {
   const methods: string[] = []
 
   for (const [name, builtin] of Object.entries(BUILTINS) as [string, Builtin][]) {
-    if (name === 'selectCharacter') continue
+    if (name === 'selectCharacter' || name === 'createCharacter') continue
     for (const spelling of builtin.names.en) {
       if (builtin.kind === 'constant') {
         lines.push(doc(builtin.doc[lang]), `export const ${spelling}: '${name}'`)
@@ -55,6 +55,8 @@ export function robotApiDeclarations(lang: ScriptLanguage) {
     '  readonly name: string',
     doc(KLONK_CLASS_DOC.all[lang], '  '),
     '  static all(): Klonk[]',
+    doc(BUILTINS.createCharacter.doc[lang], '  '),
+    '  static create(name: string, look?: \'male\' | \'female\' | \'diverse\' | (string & {}), x?: number, y?: number): Klonk',
     ...methods,
     '}',
   )

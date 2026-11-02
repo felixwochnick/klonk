@@ -12,6 +12,7 @@ const ICONS: Record<Exclude<FileKind, 'klonk'>, { icon: string, color: string }>
   java: { icon: 'i-simple-icons-openjdk', color: 'text-orange-600 dark:text-orange-400' },
   csharp: { icon: 'i-simple-icons-dotnet', color: 'text-violet-600 dark:text-violet-400' },
   world: { icon: 'i-lucide-boxes', color: 'text-green-600 dark:text-green-500' },
+  design: { icon: 'i-lucide-palette', color: 'text-pink-600 dark:text-pink-400' },
   other: { icon: 'i-lucide-file', color: 'text-(--ui-text-dimmed)' },
 }
 
