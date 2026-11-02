@@ -268,7 +268,12 @@ node scripts/build-csharp.ts        # C#-Host bauen (.NET-SDK 10 nötig; Ausgabe
   `requireFeature()` absichern** und in `LICENSE_FEATURES` + Admin-i18n (`admin.license.features.*`) eintragen.
 - Produktiver Signierschlüssel liegt nur lokal unter `~/.config/klonk/license-signing-key.pem` (gehört ins private Shop-Repo/
   Secret-Store). Tokens manuell ausstellen: `node scripts/sign-license.ts --name … --features … --days …`.
-- Offen: Code-Lizenz (AGPL+kommerziell / MIT / FSL / ELv2), weitere Bezahlfunktionen, Abos für Privatkonten auf der gehosteten Plattform.
+- **Code-Lizenz (erledigt, vom User so festgelegt):** MIT für `packages/klonk-script` und `packages/world`, **Elastic License 2.0** für
+  die Plattform (apps/*, core, ui, runtime, csharp; Rest des Repos ebenfalls ELv2). Root-`LICENSE` erklärt die Aufteilung, jedes Paket
+  hat eine eigene `LICENSE`, `license`-Felder in den package.json (`MIT` / `Elastic-2.0`). Feature-Flags bleiben im selben Code (Schutz
+  über ELv2: Umgehen der Token-Prüfung und Hosting für Dritte verboten). Fremdbibliotheken in `THIRD_PARTY_NOTICES.md` – **neue
+  mitgelieferte Bibliotheken dort eintragen**. Docs-Seite `1.getting-started/2.license.md`.
+- Offen: weitere Bezahlfunktionen, Abos für Privatkonten auf der gehosteten Plattform.
 
 ## Roadmap (Status pflegen!)
 

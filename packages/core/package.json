@@ -1,6 +1,7 @@
 {
   "name": "@klonk/core",
   "private": true,
+  "license": "Elastic-2.0",
   "type": "module",
   "main": "./nuxt.config.ts",
   "exports": {

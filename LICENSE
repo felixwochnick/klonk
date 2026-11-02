@@ -1,0 +1,40 @@
+Klonk – Lizenzübersicht / License overview
+==========================================
+
+Copyright (c) 2026 Felix Wochnick
+
+Klonk ist Open Core und zweigeteilt lizenziert. Maßgeblich ist jeweils die LICENSE-Datei im Paket.
+Klonk is open core with a split license. The LICENSE file in each package is authoritative.
+
+MIT License (siehe/see packages/*/LICENSE)
+------------------------------------------
+Eigenständige Bausteine, frei nutzbar auch außerhalb von Klonk:
+Standalone building blocks, freely usable outside of Klonk as well:
+
+  packages/klonk-script   Klonk-Script (Lexer, Parser, Interpreter, Sprachtabellen)
+  packages/world          Weltmodell / world model
+
+Elastic License 2.0 (siehe/see apps/*/LICENSE, packages/*/LICENSE)
+-------------------------------------------------------------------
+Die Plattform / the platform:
+
+  apps/app, apps/admin, apps/auth, apps/docs,
+  packages/core, packages/ui, packages/runtime, packages/csharp
+
+Kurz gesagt (rechtsverbindlich ist nur der Lizenztext):
+In short (only the license text is legally binding):
+
+  - Selbst hosten, nutzen, verändern und weitergeben ist erlaubt.
+    Self-hosting, using, modifying and redistributing is allowed.
+  - Verboten ist, Klonk Dritten als gehosteten oder verwalteten Dienst anzubieten.
+    You may not provide Klonk to third parties as a hosted or managed service.
+  - Verboten ist, die Lizenz-Token-Prüfung zu umgehen, zu entfernen oder zu verändern
+    oder dadurch geschützte Funktionen freizuschalten.
+    You may not circumvent, remove or change the license key (token) check or unlock
+    the functionality it protects.
+
+Alles, was nicht unter einer der beiden Gruppen genannt ist (Skripte, Tests, Docker-Dateien, Assets),
+steht unter der Elastic License 2.0. Anything not listed above (scripts, tests, Docker files, assets)
+is licensed under the Elastic License 2.0.
+
+Fremdbibliotheken / third-party software: siehe/see THIRD_PARTY_NOTICES.md

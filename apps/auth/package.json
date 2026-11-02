@@ -1,6 +1,7 @@
 {
   "name": "@klonk/auth",
   "private": true,
+  "license": "Elastic-2.0",
   "type": "module",
   "scripts": {
     "dev": "nuxt dev --port 3003 --dotenv ../../.env",
