@@ -306,7 +306,8 @@
     "up": "Up one level",
     "language": "Language",
     "languageHelp": "The project's programs use this language. Imports, packages and modules between files work.",
-    "mixed": "Mixed"
+    "mixed": "Mixed",
+    "setup": "Set up project"
   },
   "pwa": {
     "install": "Install app",

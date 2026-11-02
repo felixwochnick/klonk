@@ -7,6 +7,8 @@ import {
 
 export type ProjectDialog
   = | { mode: 'project' }
+    /** Leerer Ordner geöffnet: Sprache wählen, Startdateien anlegen */
+    | { mode: 'init' }
     | { mode: 'file', kind: Exclude<FileKind, 'other'>, folder?: string }
     | { mode: 'folder', parent?: string }
     | { mode: 'rename', file: ProjectFile }
@@ -54,7 +56,20 @@ export function useProjectExplorer(options: { onOpenFile?: (file: ProjectFile) =
 
   async function openFolder() {
     const picked = await pickFolder()
-    if (picked) await proj.open(picked).catch(fail)
+    if (picked) await proj.open(picked).then(offerSetup, fail)
+  }
+
+  /** Leerer Ordner ohne klonk.json ⇒ wie ein neues Projekt einrichten */
+  function offerSetup() {
+    if (proj.project.value && !files.value.length && !proj.folders.value.length && !proj.language.value) openDialog({ mode: 'init' })
+  }
+
+  /** Sprache festlegen und Startdateien anlegen (Programm + Welt) */
+  async function createStarterFiles(language: ProgramLanguage) {
+    const lang = locale.value === 'en' ? 'en' : 'de'
+    await proj.setLanguage(language)
+    await proj.create(t('project.defaultName.world'), 'world', `${JSON.stringify(start.value.toJSON(), null, 2)}\n`)
+    await proj.create(language === 'java' ? 'src/Main' : t(`project.defaultName.${language}`), language, programSample(language, lang))
   }
 
   async function openRecent(item: RecentProject) {
@@ -62,13 +77,13 @@ export function useProjectExplorer(options: { onOpenFile?: (file: ProjectFile) =
       toast.add({ title: t('project.errors.permission'), color: 'error' })
       return
     }
-    await proj.open(new Project(item.handle, item.source)).catch(async (error) => {
+    await proj.open(new Project(item.handle, item.source)).then(offerSetup, async (error) => {
       await forgetProject(item.source, item.name)
       fail(error)
     })
   }
 
-  const openBrowserProject = (name: string) => proj.openBrowserProject(name).catch(fail)
+  const openBrowserProject = (name: string) => proj.openBrowserProject(name).then(offerSetup, fail)
 
   async function removeBrowserProject(name: string) {
     if (!confirm(t('project.confirmDeleteProject', { name }))) return
@@ -84,6 +99,7 @@ export function useProjectExplorer(options: { onOpenFile?: (file: ProjectFile) =
   const dialogTitle = computed(() => {
     const mode = dialog.value?.mode
     if (mode === 'project') return t('project.newBrowserProject')
+    if (mode === 'init') return t('project.setup')
     if (mode === 'folder') return t('project.newFolder')
     return mode === 'rename' || mode === 'renameFolder' ? t('project.rename') : t('project.newFile')
   })
@@ -92,13 +108,13 @@ export function useProjectExplorer(options: { onOpenFile?: (file: ProjectFile) =
   function openDialog(value: ProjectDialog) {
     dialog.value = value
     // Neues Projekt: zuletzt in der IDE genutzte Sprache vorschlagen
-    if (value.mode === 'project') dialogLanguage.value = program.language.value
+    if (value.mode === 'project' || value.mode === 'init') dialogLanguage.value = program.language.value
     dialogName.value = value.mode === 'rename'
       ? value.file.path
       : value.mode === 'renameFolder'
         ? value.path
-        : value.mode === 'project'
-          ? t('project.defaultProjectName')
+        : value.mode === 'project' || value.mode === 'init'
+          ? (value.mode === 'init' ? proj.project.value?.name ?? '' : t('project.defaultProjectName'))
           : value.mode === 'folder' ? t('project.defaultName.folder') : t(`project.defaultName.${value.kind}`)
   }
 
@@ -111,17 +127,20 @@ export function useProjectExplorer(options: { onOpenFile?: (file: ProjectFile) =
       if (d.mode === 'project') {
         await proj.openBrowserProject(name, true)
         // Ein neues Projekt bekommt seine Sprache, gleich ein Programm und eine Welt
-        if (!files.value.length) {
-          const language = dialogLanguage.value
-          await proj.setLanguage(language)
-          await proj.create(t('project.defaultName.world'), 'world', `${JSON.stringify(start.value.toJSON(), null, 2)}\n`)
-          await proj.create(language === 'java' ? 'src/Main' : t(`project.defaultName.${language}`), language, programSample(language, lang))
-        }
+        if (!files.value.length) await createStarterFiles(dialogLanguage.value)
+      }
+      else if (d.mode === 'init') {
+        await createStarterFiles(dialogLanguage.value)
       }
       else if (d.mode === 'file') {
         const initial = d.kind === 'world'
           ? `${JSON.stringify(World.empty().toJSON(), null, 2)}\n`
-          : d.kind === 'java' ? javaClassSource(name.replace(/\.java$/i, ''), javaPackage(d.folder ?? '')) : programSample(d.kind, lang)
+          : d.kind === 'java'
+            ? javaClassSource(name.replace(/\.java$/i, ''), javaPackage(d.folder ?? ''))
+            // C#: weitere Dateien als Klasse im Namespace des Ordners (Anweisungen gibt es nur in einer Datei)
+            : d.kind === 'csharp' && files.value.some(f => f.kind === 'csharp')
+              ? csharpClassSource(name.replace(/\.cs$/i, ''), csharpNamespace(d.folder ?? ''))
+              : programSample(d.kind, lang)
         await proj.create(join(d.folder, name), d.kind, initial)
         if (d.folder) expand(d.folder)
       }

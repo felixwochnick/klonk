@@ -312,7 +312,8 @@ const isActive = (source: 'folder' | 'browser', name: string) => project.value?.
     <ProjectNameDialog
       v-model:name="dialogName"
       v-model:language="dialogLanguage"
-      :with-language="dialog?.mode === 'project'"
+      :with-language="dialog?.mode === 'project' || dialog?.mode === 'init'"
+      :with-name="dialog?.mode !== 'init'"
       :open="!!dialog"
       :title="dialogTitle"
       @close="dialog = null"

@@ -243,3 +243,24 @@ public class ${className} {
 }
 `
 }
+
+/** Namespace aus dem Ordner einer C#-Datei (`Werkzeuge/Bewegung/X.cs` ⇒ `Werkzeuge.Bewegung`) */
+export function csharpNamespace(folder: string) {
+  const parts = folder.replace(/^src(\/|$)/, '').split('/').filter(Boolean)
+  return parts.length && parts.every(p => /^[A-Za-z_]\w*$/.test(p)) ? parts.join('.') : null
+}
+
+/** Neue C#-Datei neben Program.cs: statische Klasse (Name wie die Datei) im Namespace des Ordners */
+export function csharpClassSource(className: string, namespace: string | null) {
+  return `using klonk;
+${namespace ? `\nnamespace ${namespace};\n` : ''}
+public static class ${className}
+{
+    public static void TwoSteps(Klonk robot)
+    {
+        robot.Step();
+        robot.Step();
+    }
+}
+`
+}

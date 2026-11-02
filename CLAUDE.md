@@ -142,7 +142,8 @@ node scripts/build-csharp.ts        # C#-Host bauen (.NET-SDK 10 nötig; Ausgabe
   - C#: Namensraum `klonk` (klein, `Klonk` würde die Klasse verdecken), Instrumentierung `global::klonk.Klonk.__cp`; Aufrufe `call(method, ["s:<Name>", …])`.
 - **Projektsprache:** `klonk.json` (`{ "language": "java" }`, nicht in der Dateiliste) – Dialog „Neues Browser-Projekt“ fragt sie ab,
   Startdateien je Sprache (Java `src/Main.java`), „Neue Datei“ nur in dieser Sprache, Java-Vorlage mit Package aus dem Ordner
-  (`javaPackage()`, `javaClassSource()`). Ohne Manifest = gemischt. Der Runner bekommt `path` der geöffneten Datei.
+  (`javaPackage()`, `javaClassSource()`), weitere C#-Dateien als Klasse im Namespace des Ordners (`csharpNamespace()`, `csharpClassSource()`).
+  Ohne Manifest = gemischt; leerer Ordner/leeres Browser-Projekt ⇒ Dialog „Projekt einrichten“ (`offerSetup`, `createStarterFiles`). Der Runner bekommt `path` der geöffneten Datei.
 - **Figurennamen** = `CharacterData.id` (`isValidCharacterName`, `World.findCharacter/renameCharacter`, Vorschläge `nextCharacterName`),
   umbenennen im Welt-Editor (Abschnitt „Namen der Figuren“).
 - **Klonk-Script ist mehrsprachig:** Schlüsselwörter und Befehle pro Sprache (anfangs Deutsch + Englisch) über

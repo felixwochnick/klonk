@@ -1,6 +1,6 @@
 <script setup lang="ts">
 // Namensdialog für neues Projekt, neue Datei und Umbenennen
-defineProps<{ open: boolean, title: string, withLanguage?: boolean }>()
+withDefaults(defineProps<{ open: boolean, title: string, withLanguage?: boolean, withName?: boolean }>(), { withName: true })
 const name = defineModel<string>('name', { required: true })
 /** Sprache eines neuen Projekts (nur mit `withLanguage`) */
 const language = defineModel<ProgramLanguage>('language', { default: 'blocks' })
@@ -20,7 +20,10 @@ const languageItems = computed(() => PROGRAM_LANGUAGES.map(l => ({ label: t(`edi
         id="project-dialog"
         @submit.prevent="emit('submit')"
       >
-        <UFormField :label="t('project.name')">
+        <UFormField
+          v-if="withName"
+          :label="t('project.name')"
+        >
           <UInput
             v-model="name"
             class="w-full"
@@ -32,7 +35,7 @@ const languageItems = computed(() => PROGRAM_LANGUAGES.map(l => ({ label: t(`edi
           v-if="withLanguage"
           :label="t('project.language')"
           :help="t('project.languageHelp')"
-          class="mt-4"
+          :class="withName ? 'mt-4' : ''"
         >
           <USelect
             v-model="language"
