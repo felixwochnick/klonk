@@ -267,7 +267,11 @@ node scripts/build-csharp.ts        # C#-Host bauen (.NET-SDK 10 nötig; Ausgabe
 - **Unterricht (Docs):** `apps/docs/content/{de,en}/5.teaching/` gegliedert **Land → Bundesland → Schulform → Klasse**
   (`2.germany/2.bavaria/2.gymnasium/N.grade-X.md`, je Ebene `.navigation.yml` + `1.overview.md`). Je Klasse: Lernbereiche mit
   Eignung (★★★/★★/★/–), Link zum Lehrplan-Volltext, Unterrichtsideen; Codebeispiele müssen mit der echten API laufen.
-  Quelle Bayern: LehrplanPLUS (Excel-Auswertung Gymnasium). Weitere Bundesländer/Schulformen/Länder als neue Ordner.
+  Ordner alphabetisch nummeriert (`2.baden-wuerttemberg`, `3.bavaria`, `4.hesse`, `5.lower-saxony`, `6.north-rhine-westphalia`,
+  `7.saxony`), Stufenbündel als `grade-5-6.md`, Oberstufe `upper-secondary.md`. Bayern: Gymnasium, Realschule (IT modular ⇒
+  Anfangs-/Aufbauunterricht), Mittelschule, FOS/BOS (KIT/KIWI ab 2026/27); übrige Länder bisher nur Gymnasium. Neue Länder/Schulformen
+  ⇒ Tabellen in `5.teaching/1.overview.md`, `2.germany/1.overview.md` (inkl. „Wie das Fach heißt“) und der Landesübersicht ergänzen.
+  Marken gibt es nur in vier Farben (gelb/rot/blau/grün) – Beispiele dürfen keine anderen Markenfarben nutzen.
 - **KI:** Schulen binden ihr eigenes LLM ein (OpenAI-kompatible API), optional WebLLM im Browser.
 
 ## Lizenzmodell (Open Core, wie evcc)
