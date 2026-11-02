@@ -127,7 +127,7 @@ node scripts/build-csharp.ts        # C#-Host bauen (.NET-SDK 10 nötig; Ausgabe
   Mehrsprachig ist nur Klonk-Script (und damit die Blöcke).
 - **Objekt-API in JS/TS/Python/Java/C#** (vom User so festgelegt): keine globalen Roboterbefehle, jede Figur ist ein Objekt
   `new Klonk()` (erste) / `new Klonk("Klara")` (Name, ohne Groß-/Kleinschreibung) / `new Klonk(2)` / `Klonk.all()`; Befehle und
-  Sensoren sind Methoden; dazu `print`, `wait` (Java `sleep`), `random` und Farben. **Alles nur per Import** (vom User so festgelegt):
+  Sensoren sind Methoden; dazu `wait` (Java `sleep`), Farben und Designs. **Alles nur per Import** (vom User so festgelegt):
   JS/TS `import { Klonk } from 'klonk'`, Python `from klonk import Klonk`, Java `import klonk.Klonk;` (+ `import static klonk.Klonk.*;`),
   C# `using klonk;` (+ `using static klonk.Klonk;`). **Klonk-Script und Blöcke steuern immer nur eine Figur** (`wähleFigur`), ohne Import.
   Gemeinsame Basis `createApi()` in `runtime/src/js/api.ts` (`robot()`, `names()`, `globals`, `ROBOT_METHODS`, `onError`).
@@ -164,7 +164,7 @@ node scripts/build-csharp.ts        # C#-Host bauen (.NET-SDK 10 nötig; Ausgabe
   `designs` nur mit Lizenz (sonst `design_license`), `saveDesigns` = Lizenz + Projekt. **Java-Bibliotheken** `packages/runtime/src/java/lib/*.java`
   (`klonk.Json/JsonObject/JsonArray/Yaml/Xml`, per `?raw` immer mitkompiliert): eigene Klassen, weil org.json im Browser-javac nicht geht
   (kein `getClass()`/`Map.Entry`/`Throwable.getMessage()` in dessen Klassenbibliothek, Absturz bei Annotationen mit Argumenten wie
-  `@SuppressWarnings(…)`). `import klonk.*;` geht nicht (flacher Quellpfad) ⇒ `friendlyJavacMessage`. **C#:** Newtonsoft.Json 13.0.4 +
+  `@SuppressWarnings(…)`). `import klonk.*;` geht dank `package _default;` (siehe Java oben). **C#:** Newtonsoft.Json 13.0.4 +
   YamlDotNet 18.1.0 (NuGet, DLLs als Referenz eingebettet, nicht getrimmt) und System.Xml.Linq (Ref-Assemblies + `TrimmerRootAssembly`).
 - **Figurennamen** = `CharacterData.id` (`isValidCharacterName`, `World.findCharacter/renameCharacter`, Vorschläge `nextCharacterName`),
   umbenennen im Welt-Editor (Abschnitt „Namen der Figuren“).
@@ -188,26 +188,26 @@ node scripts/build-csharp.ts        # C#-Host bauen (.NET-SDK 10 nötig; Ausgabe
 - **Python** (`packages/runtime/src/python/`): Pyodide (`pyodide`-Paket, Version fest) wird **nicht gebündelt**, sondern per
   Nitro-`publicAssets` unter `/pyodide/` ausgeliefert (COEP) und im Worker per dynamischem Import geladen; PWA cacht es erst bei
   Bedarf (`CacheFirst`). Gleiche SAB-Steuerung wie JS: `prelude.ts` setzt `sys.settrace` (nur Datei `<klonk>`) ⇒ Prüfpunkt je Zeile,
-  Variablen erst beim Anhalten (`repr`). Roboter-API aus `createApi()` als **Builtins** nur in snake_case
-  (`is_wall`, `turn_left`; gleiche Regel wie `pythonName()` in `useProgram.ts`), `print` bleibt Pythons eigenes.
+  Variablen erst beim Anhalten (`repr`). Roboter-API aus `createApi()` als Modul `klonk` (Methoden nur in snake_case:
+  `is_wall`, `turn_left`; gleiche Regel wie `pythonName()` in `useProgram.ts`), `print` bleibt Pythons eigenes.
   API-Fehler kommen in Python als `JsException` an ⇒ zuletzt geworfener `ApiError` wird gemerkt und übersetzt. Projekt-`.py`-Dateien
   nur mit Lizenz (`libraries`) importierbar. Unit-Tests laufen mit Pyodide in Node (`tests/python.test.ts`, Loader injizierbar).
   Monaco: Python-Syntax eingebaut, Vervollständigung/Hover der API in `utils/monaco.ts` (`registerPython`).
 - **Java** (`packages/runtime/src/java/`): [teavm-javac](https://github.com/konsoletyper/teavm-javac) (javac + TeaVM als WebAssembly,
   Apache 2.0) liegt mit Prüfsummen in `packages/runtime/teavm/` (`node scripts/fetch-teavm-javac.ts`, Quelle teavm.org/playground/3/),
   Auslieferung per Nitro-`publicAssets` unter `/teavm/`, PWA-Cache bei Bedarf. Ablauf im Worker: `instrument.ts` (java-parser-CST,
-  nur Einfügungen) setzt vor jede Anweisung `if (klonk.Robot.__cp(zeile)) { __v("x", x)…; __pause(); }` und klammert Rümpfe von
-  Schleifen/if; `import static klonk.Robot.*;` kommt in Zeile 1. `robot.ts` = Java-Klasse `klonk.Robot`, ruft per **JSO-Schnittstellen**
+  nur Einfügungen) setzt vor jede Anweisung `if (__cp(zeile)) { __v("x", x)…; __pause(); }` und klammert Rümpfe von
+  Schleifen/if; `import static klonk.Debug.*;` kommt in Zeile 1. `robot.ts` = Java-Klassen `klonk.Klonk` + `klonk.Debug`, ruft per **JSO-Schnittstellen**
   `window.klonk` (Worker setzt `window = globalThis`). **Wichtig:** Dieser Browser-javac stürzt bei `@JSBody` und eigenen Annotationen
   ab („cyclic inheritance … Annotation“/Stack-Überlauf) – nur `@JSProperty` + JSO-Interfaces nutzen. Compiler als **Bytes** an den
-  TeaVM-Loader geben (bei URL nimmt er wegen `process` im Vite-Worker Node an). Dateinamen beim Compiler flach (`Robot.java`, nicht
-  `klonk/Robot.java`). Farben als `RED`…, `wait` ⇒ `sleep` (sonst verdeckt `Object.wait()` den statischen Import).
+  TeaVM-Loader geben (bei URL nimmt er wegen `process` im Vite-Worker Node an). Dateinamen beim Compiler flach (`Klonk.java`, nicht
+  `klonk/Klonk.java`). Farben als `RED`…, `wait` ⇒ `sleep` (sonst verdeckt `Object.wait()` den statischen Import).
   Unit-Tests kompilieren echt in Node (`tests/java.test.ts`).
 - **C#** (`packages/csharp/` = .NET-Projekt, `packages/runtime/src/csharp/run.ts`): Host (`Host.cs`, `[JSExport] Run`) kompiliert
   mit Roslyn, instrumentiert per **semantischem Modell** (Prüfpunkte wie Java, Variablen = `DefinitelyAssignedOnEntry` ∩
   `LookupSymbols` ∩ gleiche Methode, keine ref/ref-struct) und führt per `Assembly.Load` aus. Roboter-API `RobotApi.txt`
   (PascalCase, `Red`…) wird als Quelltext mitkompiliert und ruft über Delegaten in `AppDomain`-Daten → `[JSImport]`-Funktionen.
-  Implizite Usings + `using static Klonk.Robot` als eigene Datei mit `global using`. Build: `node scripts/build-csharp.ts`
+  Implizite Usings als eigene Datei mit `global using` (ohne `klonk` – das kommt per `using klonk;` im Nutzercode). Build: `node scripts/build-csharp.ts`
   ⇒ `packages/runtime/dotnet/` (**nicht im Git**; E2E baut es bei Bedarf, Docker in eigener SDK-Stage). Fallen:
   `concurrentBuild: false` (Single-Thread-WASM: „Cannot wait on monitors“); Ressource nicht `*.cs.txt` nennen (MSBuild hält
   `.cs` für eine Kultur ⇒ Satelliten-Assembly); CoreLib/System.Runtime/Console/Collections/Linq nicht trimmen (sonst
@@ -273,7 +273,18 @@ node scripts/build-csharp.ts        # C#-Host bauen (.NET-SDK 10 nötig; Ausgabe
   gegen den Stack (Chromium mit `--ignore-certificate-errors`, sonst registriert sich der SW bei selbst signierten Zertifikaten nicht).
   Lokales Dateisystem über File System Access API (Projektordner öffnen).
 - **Auth:** siehe „Konten & Anmeldung“. Schulen und Unternehmen wählen selbst OIDC, LDAP und/oder lokale Konten.
-- **KI:** Schulen binden ihr eigenes LLM ein (OpenAI-kompatible API), optional WebLLM im Browser.
+- **KI-Assistent** (Lizenz-Feature `ai`, vom User so festgelegt): Tab **KI** neben Welt | Doku (`AiChat.vue`, `useAi()`), „Fehler erklären“
+  im Fehlerkasten, Codeblöcke „Einfügen“/„Alles ersetzen“ (`KlonkEditor.insertText/replaceAll`, rückgängig machbar) nur bei voller Hilfe.
+  **Tutor-Modus:** Lernende (`role member`) bekommen je nach Einstellung nur Hinweise, Lehrkräfte/Admins/Betreiber immer volle Hilfe.
+  Konfiguration pro Organisation (admin → KI-Assistent, Tabelle `organization_ai_settings`, Schlüssel AES-verschlüsselt, Mitglieder dürfen
+  lesen, nur Admins ändern) oder `inherit` ⇒ Instanz-Standard `NUXT_AI_*` (`runtimeConfig.ai`, gilt auch für Privatkonten); `getAiConfig()`
+  in `core/server/utils/ai.ts`. Modus `server`: `/api/ai/chat` (app) setzt den Systemprompt (`aiSystemPrompt()` in `core/shared/utils/ai.ts`)
+  und streamt die OpenAI-kompatible Antwort (`/chat/completions`, SSE ⇒ reiner Text, `completionTextStream`); Schlüssel nie im Browser.
+  Modus `webllm`: `@mlc-ai/web-llm` nur im Worker `app/workers/webllm.ts` (eigenes Protokoll load/chat/stop, ~6 MB, nicht im PWA-Precache),
+  Modellgewichte von Hugging Face (CORS ⇒ mit COEP vereinbar), WebGPU nötig, Modelle `AI_WEBLLM_MODELS`. Kontext (Sprache, Referenz aus
+  `languageReferenceText()`, Code mit Zeilennummern, Fehler, Ausgabe) baut `aiContext()` in `pages/index.vue`. Antworten ohne `v-html`
+  (`utils/ai-markdown.ts`). E2E: `e2e/editor-ai.spec.ts` mit `e2e/mock-llm.ts` (Schlüssel `test-key`; im Stack nur die Einstellungen).
+  Die App merkt sich die Lizenz 60 s ⇒ Tests pollen `/api/ai/config`.
 
 ## Lizenzmodell (Open Core, wie evcc)
 
@@ -325,5 +336,5 @@ node scripts/build-csharp.ts        # C#-Host bauen (.NET-SDK 10 nötig; Ausgabe
 8. [x] Blöcke (Blockly ⇒ Klonk-Script, Debugger am Block, Haltepunkte per Rechtsklick, de/en)
 9. [x] Lokales Dateisystem: Projektordner (File System Access API) + Browser-Projekte (OPFS), Explorer, Autosave, Welten, Bibliotheken
 10. [x] PWA (Logo, Favicon, Offline)
-11. [ ] KI-Assistent (schuleigenes LLM / WebLLM)
+11. [x] KI-Assistent (schuleigenes LLM / WebLLM, Tutor-Modus, Fehler erklären, Code übernehmen)
 12. [x] Weitere Sprachen: Python (Pyodide), Java (TeaVM), C# (Roslyn/.NET-WASM)

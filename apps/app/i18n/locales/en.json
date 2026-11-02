@@ -150,7 +150,8 @@
     "focusExit": "Show all panes",
     "tabs": {
       "world": "World",
-      "docs": "Docs"
+      "docs": "Docs",
+      "ai": "AI"
     }
   },
   "script": {
@@ -377,5 +378,31 @@
     "noProject": "Robot designs belong to a project. Open or create a project first.",
     "new": "New design",
     "empty": "No designs in this project yet."
+  },
+  "ai": {
+    "tutor": "Hint mode",
+    "full": "Full help",
+    "onDevice": "runs on this device",
+    "newChat": "New chat",
+    "intro": "Ask me about your program: I know your code, the error message and the Klonk commands, and I can write or improve code.",
+    "introTutor": "Ask me about your program: I know your code and the error message and help you with explanations and tips – you find the solution yourself.",
+    "suggestions": {
+      "explain": "What does my program do?",
+      "next": "How do I continue?",
+      "loop": "How does a loop work?"
+    },
+    "copy": "Copy",
+    "copied": "Copied",
+    "insert": "Insert",
+    "replace": "Replace all",
+    "thinking": "Thinking …",
+    "loadingModel": "Loading the language model (first time only) …",
+    "placeholder": "Ask the AI assistant",
+    "send": "Send",
+    "stop": "Stop answer",
+    "disclaimer": "AI can make mistakes – check the answers.",
+    "explainError": "Explain error",
+    "explainPrompt": "Explain the error in my program. What does it mean and what causes it?",
+    "noWebGpu": "This browser does not support WebGPU – the language model cannot run here. Use e.g. Chrome or Edge."
   }
 }

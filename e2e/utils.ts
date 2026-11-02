@@ -1,4 +1,4 @@
-import type { Page } from '@playwright/test'
+import { expect, type Page } from '@playwright/test'
 
 const hydrated = (page: Page) => page.locator('html[data-hydrated="true"]').waitFor({ state: 'attached' })
 
@@ -35,4 +35,15 @@ export function browserFetch(page: Page, url: string, init: { method?: string, b
     })
     return { status: res.status, ok: res.ok }
   }, { url, method: init.method ?? 'GET', body: init.body })
+}
+
+/** Pflicht-Passwortänderung nach dem ersten Login (Startpasswort) */
+export async function changePassword(page: Page, current: string, next: string) {
+  await waitForPage(page, url => url.pathname === '/change-password')
+  await expect(page.getByRole('heading', { name: 'Passwort ändern' })).toBeVisible()
+  await page.getByLabel('Aktuelles Passwort').fill(current)
+  await page.getByLabel('Neues Passwort', { exact: true }).fill(next)
+  await page.getByLabel('Neues Passwort wiederholen').fill(next)
+  await page.getByRole('button', { name: 'Passwort speichern' }).click()
+  await waitForPage(page, url => url.pathname !== '/change-password')
 }

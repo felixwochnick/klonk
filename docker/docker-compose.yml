@@ -17,6 +17,13 @@ x-env: &env
   # Lizenz (optional, alternativ in der Verwaltung) und Link zum Shop
   NUXT_LICENSE_TOKEN: ${KLONK_LICENSE_TOKEN:-}
   NUXT_PUBLIC_SHOP_URL: ${KLONK_SHOP_URL:-}
+  # KI-Assistent: Standard für alle Organisationen ohne eigene Einstellung und für Privatkonten (optional)
+  NUXT_AI_MODE: ${KLONK_AI_MODE:-}
+  NUXT_AI_BASE_URL: ${KLONK_AI_BASE_URL:-}
+  NUXT_AI_MODEL: ${KLONK_AI_MODEL:-}
+  NUXT_AI_API_KEY: ${KLONK_AI_API_KEY:-}
+  NUXT_AI_WEBLLM_MODEL: ${KLONK_AI_WEBLLM_MODEL:-}
+  NUXT_AI_STUDENTS: ${KLONK_AI_STUDENTS:-tutor}
   # Klonk ID (Betreiberzugang, optional)
   NUXT_PLATFORM_OIDC_ISSUER: ${KLONK_ID_ISSUER:-}
   NUXT_PLATFORM_OIDC_CLIENT_ID: ${KLONK_ID_CLIENT_ID:-}

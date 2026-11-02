@@ -141,7 +141,7 @@ export default defineNuxtConfig({
     workbox: {
       globPatterns: ['**/*.{js,mjs,css,wasm,glb,png,svg,ico,woff2,json}'],
       // Pyodide (~13 MB) erst bei Bedarf, dann dauerhaft im Cache
-      globIgnores: ['**/_payload.json', 'models-preview.png', 'pyodide/**', 'teavm/**', 'pylibs/**', 'dotnet/**'],
+      globIgnores: ['**/_payload.json', 'models-preview.png', 'pyodide/**', 'teavm/**', 'pylibs/**', 'dotnet/**', '_nuxt/webllm-*.js'],
       // Monaco, three.js und Blockly sind groß
       maximumFileSizeToCacheInBytes: 16 * 1024 * 1024,
       // Alle Lern-Seiten teilen sich dieselbe SPA-Shell
@@ -155,6 +155,8 @@ export default defineNuxtConfig({
         { urlPattern: /\/teavm\//, handler: 'CacheFirst', options: { cacheName: 'teavm', expiration: { maxEntries: 400 } } },
         { urlPattern: /\/pylibs\//, handler: 'CacheFirst', options: { cacheName: 'pylibs', expiration: { maxEntries: 400 } } },
         { urlPattern: /\/dotnet\//, handler: 'CacheFirst', options: { cacheName: 'dotnet', expiration: { maxEntries: 400 } } },
+        // KI im Browser (WebLLM-Worker, ~6 MB) nur, wenn eine Organisation sie nutzt; Modellgewichte cacht WebLLM selbst
+        { urlPattern: /\/_nuxt\/webllm-[\w-]+\.js$/, handler: 'CacheFirst', options: { cacheName: 'webllm', expiration: { maxEntries: 4 } } },
       ],
       cleanupOutdatedCaches: true,
     },

@@ -150,7 +150,8 @@
     "focusExit": "Alle Bereiche zeigen",
     "tabs": {
       "world": "Welt",
-      "docs": "Doku"
+      "docs": "Doku",
+      "ai": "KI"
     }
   },
   "script": {
@@ -377,5 +378,31 @@
     "noProject": "Roboter-Designs gehören zu einem Projekt. Öffne oder erstelle zuerst ein Projekt.",
     "new": "Neues Design",
     "empty": "Noch keine Designs in diesem Projekt."
+  },
+  "ai": {
+    "tutor": "Tipp-Modus",
+    "full": "Volle Hilfe",
+    "onDevice": "läuft auf diesem Gerät",
+    "newChat": "Neuer Chat",
+    "intro": "Frag mich zu deinem Programm: Ich kenne deinen Code, die Fehlermeldung und die Klonk-Befehle und kann Code schreiben oder verbessern.",
+    "introTutor": "Frag mich zu deinem Programm: Ich kenne deinen Code und die Fehlermeldung und helfe dir mit Erklärungen und Tipps – die Lösung findest du selbst.",
+    "suggestions": {
+      "explain": "Was macht mein Programm?",
+      "next": "Wie mache ich weiter?",
+      "loop": "Wie funktioniert eine Schleife?"
+    },
+    "copy": "Kopieren",
+    "copied": "Kopiert",
+    "insert": "Einfügen",
+    "replace": "Alles ersetzen",
+    "thinking": "Denke nach …",
+    "loadingModel": "Sprachmodell wird geladen (nur beim ersten Mal) …",
+    "placeholder": "Frage an den KI-Assistenten",
+    "send": "Senden",
+    "stop": "Antwort stoppen",
+    "disclaimer": "KI kann Fehler machen – prüfe die Antworten.",
+    "explainError": "Fehler erklären",
+    "explainPrompt": "Erkläre mir den Fehler in meinem Programm. Was bedeutet er und woran liegt es?",
+    "noWebGpu": "Dieser Browser unterstützt kein WebGPU – das Sprachmodell kann hier nicht laufen. Nutze z. B. Chrome oder Edge."
   }
 }

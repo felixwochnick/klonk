@@ -5,7 +5,7 @@ import { World, type WorldData } from '@klonk/world'
 import { ProgramRunner, type RunLanguage, type RunnerSnapshot } from '@klonk/runtime'
 import RunnerWorker from '@klonk/runtime/worker?worker'
 
-const { t, te } = useI18n()
+const { t, te, locale } = useI18n()
 const toast = useToast()
 useSeoMeta({ title: () => t('editor.title') })
 
@@ -125,7 +125,7 @@ watch([proj.currentPath, proj.files], async () => {
 }, { immediate: true })
 
 // „Fehler in Zeile …“ anklicken ⇒ Zeile im Editor zeigen
-const codeEditor = useTemplateRef<{ revealLine: (line: number) => void }>('codeEditor')
+const codeEditor = useTemplateRef<{ revealLine: (line: number) => void, insertText: (text: string) => void, replaceAll: (text: string) => void }>('codeEditor')
 const errorLine = computed(() => (snapshot.value.state === 'error' ? snapshot.value.error?.range?.line ?? null : null))
 
 function resetWorld() {
@@ -203,14 +203,43 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey))
 
 const variables = computed(() => Object.entries(snapshot.value.variables))
 
+// Fehlerkasten: zur Zeile springen, vom KI-Assistenten erklären lassen
+const errorActions = computed(() => [
+  ...(errorLine.value && !isBlocks.value ? [{ label: t('editor.showErrorLine'), icon: 'i-lucide-locate', variant: 'outline' as const, color: 'error' as const, size: 'xs' as const, onClick: () => codeEditor.value?.revealLine(errorLine.value!) }] : []),
+  ...(ai.enabled.value ? [{ label: t('ai.explainError'), icon: 'i-lucide-sparkles', variant: 'outline' as const, color: 'error' as const, size: 'xs' as const, onClick: explainError }] : []),
+])
+
 // Code in voller Breite (z. B. auf dem Tablet): Projekt und Welt ausblenden, Ausgabe kompakt unter dem Code
 const focus = ref(false)
 function toggleFocus() {
   focus.value = !focus.value
 }
 
-// Rechts: 3D-Welt oder Kurzreferenz der Sprache (die Welt bleibt dabei geladen)
-const rightTab = ref<'world' | 'docs'>('world')
+// Rechts: 3D-Welt, Kurzreferenz der Sprache oder KI-Assistent (die Welt bleibt dabei geladen)
+const rightTab = ref<'world' | 'docs' | 'ai'>('world')
+const ai = useAi()
+const rightTabs = computed(() => (ai.enabled.value ? ['world', 'docs', 'ai'] as const : ['world', 'docs'] as const))
+const TAB_ICONS = { world: 'i-lucide-boxes', docs: 'i-lucide-book-open', ai: 'i-lucide-sparkles' }
+
+/** Kontext für den KI-Assistenten: Sprache, API-Referenz, Code mit Zeilennummern, letzter Fehler, Ausgabe */
+function aiContext() {
+  const lang = locale.value === 'en' ? 'en' : 'de'
+  const code = runSource.value.split('\n').map((line, i) => `${String(i + 1).padStart(3)} | ${line}`).join('\n')
+  const parts = [
+    `Language: ${t(`editor.languages.${language.value}`)}${isBlocks.value ? ' (Blockly blocks, shown as generated Klonk-Script)' : ''}`,
+    inProject.value && proj.currentPath.value ? `File: ${proj.currentPath.value}` : '',
+    `API reference:\n${languageReferenceText(language.value, lang)}`,
+    `Current program (line numbers added):\n${code}`,
+    errorMessage.value ? `Last error${snapshot.value.error?.range ? ` in line ${snapshot.value.error.range.line}` : ''}: ${errorMessage.value}` : '',
+    snapshot.value.output.length ? `Program output (last lines):\n${snapshot.value.output.slice(-20).join('\n')}` : '',
+  ]
+  return parts.filter(Boolean).join('\n\n')
+}
+
+function explainError() {
+  rightTab.value = 'ai'
+  void ai.ask(t('ai.explainPrompt'), aiContext())
+}
 
 // Fenstergrößen (ab lg): Trenner ziehen wie in Code-Editoren, im Browser gemerkt
 const LAYOUT_KEY = 'klonk:layout'
@@ -509,14 +538,14 @@ const paneStyle = computed(() => ({
           role="tablist"
         >
           <UButton
-            v-for="tab in (['world', 'docs'] as const)"
+            v-for="tab in rightTabs"
             :key="tab"
             role="tab"
             size="xs"
             :aria-selected="rightTab === tab"
             :variant="rightTab === tab ? 'soft' : 'ghost'"
             :color="rightTab === tab ? 'primary' : 'neutral'"
-            :icon="tab === 'world' ? 'i-lucide-boxes' : 'i-lucide-book-open'"
+            :icon="TAB_ICONS[tab]"
             :label="t(`editor.tabs.${tab}`)"
             :data-testid="`tab-${tab}`"
             @click="rightTab = tab"
@@ -527,6 +556,17 @@ const paneStyle = computed(() => ({
           class="min-h-64 flex-1"
         >
           <LanguageDocs :language="language" />
+        </div>
+        <div
+          v-if="rightTab === 'ai' && ai.enabled.value"
+          class="min-h-64 flex-1"
+        >
+          <AiChat
+            :context="aiContext"
+            :can-apply="hasDocument && !isBlocks && !isDesign && !running"
+            @insert="code => codeEditor?.insertText(code)"
+            @replace="code => codeEditor?.replaceAll(code)"
+          />
         </div>
         <div
           v-show="rightTab === 'world'"
@@ -570,7 +610,7 @@ const paneStyle = computed(() => ({
             icon="i-lucide-octagon-alert"
             :title="snapshot.error?.range ? t('editor.errorAt', { line: snapshot.error.range.line }) : t('editor.error')"
             :description="errorMessage"
-            :actions="errorLine && !isBlocks ? [{ label: t('editor.showErrorLine'), icon: 'i-lucide-locate', variant: 'outline', color: 'error', size: 'xs', onClick: () => codeEditor?.revealLine(errorLine!) }] : undefined"
+            :actions="errorActions"
             class="mb-3"
             data-testid="run-error"
           />

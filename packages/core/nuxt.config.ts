@@ -37,6 +37,18 @@ export default defineNuxtConfig({
       // Dokumentation (docs.klonk.*) für Links aus der App
       docsUrl: 'http://localhost:3001',
     },
+    // KI-Assistent: Standard der Instanz für Organisationen ohne eigene Einstellung und für Privatkonten
+    // (NUXT_AI_MODE = server | webllm | off; leer + NUXT_AI_BASE_URL gesetzt ⇒ server)
+    ai: {
+      mode: '',
+      // OpenAI-kompatibler Endpunkt, z. B. `https://api.openai.com/v1` oder `http://ollama:11434/v1`
+      baseUrl: '',
+      model: '',
+      apiKey: '',
+      webllmModel: '',
+      // `full` = auch Lernende bekommen volle Hilfe, sonst nur Hinweise
+      students: 'tutor',
+    },
     // Lokaler Testmodus (alles frei auf localhost/*.localhost); `off` schaltet ihn ab
     licenseLocalMode: 'on',
     session: {

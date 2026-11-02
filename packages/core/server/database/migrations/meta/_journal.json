@@ -29,6 +29,20 @@
       "when": 1793541703122,
       "tag": "0003_license_rls",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1793633911506,
+      "tag": "0004_ai",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1793633914910,
+      "tag": "0005_ai_rls",
+      "breakpoints": true
     }
   ]
 }

@@ -19,6 +19,7 @@ const items = computed<NavigationMenuItem[][]>(() => [
       ? [
           { label: t('admin.nav.organization'), icon: 'i-lucide-building-2', to: '/organization', exact: true },
           { label: t('admin.nav.login'), icon: 'i-lucide-key-round', to: '/organization/login' },
+          { label: t('admin.nav.ai'), icon: 'i-lucide-sparkles', to: '/organization/ai' },
         ]
       : []),
   ],

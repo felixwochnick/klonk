@@ -66,7 +66,10 @@
     "license_invalid": "Das Lizenz-Token ist ungültig.",
     "license_wrong_domain": "Das Lizenz-Token gilt nicht für diese Domain.",
     "license_from_env": "Die Lizenz ist per Umgebungsvariable gesetzt und kann hier nicht geändert werden.",
-    "license_instance_only": "Lizenzen werden für die gesamte Installation hinterlegt."
+    "license_instance_only": "Lizenzen werden für die gesamte Installation hinterlegt.",
+    "ai_incomplete": "Bitte API-Adresse und Modell angeben.",
+    "ai_unavailable": "Der KI-Assistent ist nicht verfügbar.",
+    "ai_upstream": "Das Sprachmodell hat nicht geantwortet. Bitte später erneut versuchen."
   },
   "settings": {
     "title": "Einstellungen",

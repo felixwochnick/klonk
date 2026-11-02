@@ -239,6 +239,23 @@ defineExpose({
     editor.setPosition({ lineNumber: line, column: 1 })
     editor.focus()
   },
+  /** Text an der Cursorstelle einfügen bzw. die Auswahl ersetzen (KI-Assistent, rückgängig machbar) */
+  insertText: (text: string) => {
+    const selection = editor?.getSelection()
+    if (!editor || !selection) return
+    editor.executeEdits('klonk-ai', [{ range: selection, text, forceMoveMarkers: true }])
+    editor.pushUndoStop()
+    editor.focus()
+  },
+  /** Ganzes Programm ersetzen (rückgängig machbar, anders als ein neuer v-model-Wert) */
+  replaceAll: (text: string) => {
+    const model = editor?.getModel()
+    if (!editor || !model) return
+    editor.pushUndoStop()
+    editor.executeEdits('klonk-ai', [{ range: model.getFullModelRange(), text }])
+    editor.pushUndoStop()
+    editor.focus()
+  },
 })
 </script>
 
