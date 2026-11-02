@@ -1,12 +1,18 @@
 import type { PyodideInterface } from 'pyodide'
 import { loadFromOrigin as loadDotnet, type DotnetHost } from './csharp/run'
 import { friendlyJavacMessage, loadFromOrigin as loadJava, publicClass, type Compiler, type Diagnostic as JavacDiagnostic, type JavaToolchain } from './java/run'
+import { createJavaService, type CompletionItem, type HoverInfo } from './java/complete'
 import { DEBUG_JAVA, ROBOT_JAVA } from './java/robot'
 import { loadFromOrigin as loadPython } from './python/run'
+import { pythonStub } from './python/stub'
+import type { ScriptLanguage } from '@klonk/klonk-script'
+
+export type { CompletionItem, HoverInfo } from './java/complete'
 
 /**
- * Prüfen ohne Ausführen (für den Editor): Syntax- und Compilerfehler für Python, Java und C#.
- * JS/TS prüft der TypeScript-Worker von Monaco, Klonk-Script der eigene Parser im Hauptthread.
+ * Sprachdienst ohne Ausführen (für den Editor): Syntax-/Compilerfehler, Vorschläge und Erklärungen für Python
+ * (Pyodide + Jedi), Java (javac + eigene Textanalyse) und C# (Roslyn). JS/TS übernimmt der TypeScript-Worker von
+ * Monaco, Klonk-Script der eigene Parser im Hauptthread.
  */
 export type CheckLanguage = 'python' | 'java' | 'csharp'
 
@@ -19,21 +25,54 @@ export type CheckDiagnostic = {
   endColumn: number
 }
 
-export type ToChecker = { id: number, language: CheckLanguage, source: string, files: Record<string, string> }
-export type FromChecker = { id: number, diagnostics: CheckDiagnostic[] } | { id: number, unavailable: true }
+/** Anfrage an den Sprachdienst; Positionen 1-basiert (Zeile/Spalte) bzw. 0-basiert (`offset`) */
+export type ToChecker = {
+  id: number
+  type: 'check' | 'complete' | 'hover'
+  language: CheckLanguage
+  source: string
+  files: Record<string, string>
+  /** Pfad der Datei im Projekt (Importe relativ dazu) */
+  path?: string
+  offset?: number
+  line?: number
+  column?: number
+  /** Sprache der Erklärungen */
+  lang?: ScriptLanguage
+}
+export type FromChecker
+  = | { id: number, diagnostics: CheckDiagnostic[] }
+    | { id: number, items: CompletionItem[] }
+    | { id: number, hover: HoverInfo | null }
+    | { id: number, unavailable: true }
 
 export type CheckLoaders = {
   python: () => Promise<PyodideInterface>
+  /** Jedi + Parso als Wheels (packages/runtime/pylibs) */
+  pythonLibs: () => Promise<ArrayBuffer[]>
   java: () => Promise<JavaToolchain>
   csharp: () => Promise<DotnetHost>
 }
 
-const ORIGIN_LOADERS: CheckLoaders = { python: loadPython, java: loadJava, csharp: loadDotnet }
+/** Wo die Python-Bibliotheken für den Editor liegen (eigene Origin wegen COEP; siehe apps/app/nuxt.config.ts) */
+export const PYLIBS_URL = '/pylibs/'
+export const PYLIBS = ['jedi-0.20.1-py2.py3-none-any.whl', 'parso-0.8.7-py2.py3-none-any.whl']
+
+const ORIGIN_LOADERS: CheckLoaders = {
+  python: loadPython,
+  pythonLibs: () => Promise.all(PYLIBS.map(async (name) => {
+    const response = await fetch(`${PYLIBS_URL}${name}`)
+    if (!response.ok) throw new Error(`${name}: ${response.status}`)
+    return response.arrayBuffer()
+  })),
+  java: loadJava,
+  csharp: loadDotnet,
+}
 
 /** Prüfer mit einmal geladenen Laufzeiten (Pyodide, javac, Roslyn) */
 export function createChecker(loaders: CheckLoaders = ORIGIN_LOADERS) {
-  const cache = new Map<CheckLanguage, Promise<unknown>>()
-  const once = <T>(language: CheckLanguage, create: () => Promise<T>): Promise<T> => {
+  const cache = new Map<string, Promise<unknown>>()
+  const once = <T>(language: string, create: () => Promise<T>): Promise<T> => {
     if (!cache.has(language)) {
       cache.set(language, create().catch((error) => {
         // Beim nächsten Mal neu versuchen (z. B. wieder online)
@@ -44,10 +83,13 @@ export function createChecker(loaders: CheckLoaders = ORIGIN_LOADERS) {
     return cache.get(language) as Promise<T>
   }
 
+  /** Ein Pyodide für Syntaxprüfung und Jedi */
+  const pyodide = () => once('python', () => loaders.python())
+
   async function python(source: string): Promise<CheckDiagnostic[]> {
     type Result = { toJs: () => [number, number, number, number, string], destroy: () => void } | undefined
-    const check = await once('python', async () => {
-      const py = await loaders.python()
+    const py = await pyodide()
+    const check = await once('pycheck', async () => {
       py.runPython(String.raw`
 def _klonk_check(source):
     try:
@@ -138,11 +180,135 @@ def _klonk_check(source):
     return JSON.parse(exports.Host.Check(source, libraries)) as CheckDiagnostic[]
   }
 
+  // --- Vorschläge und Erklärungen -------------------------------------------
+
+  const javaServices = new Map<ScriptLanguage, ReturnType<typeof createJavaService>>()
+  const javaService = (lang: ScriptLanguage) => {
+    if (!javaServices.has(lang)) javaServices.set(lang, createJavaService(lang))
+    return javaServices.get(lang)!
+  }
+
+  const csharpExports = () => once('csharp', async () => (await loaders.csharp()).getAssemblyExports('Klonk.CSharp'))
+  const csharpLibraries = (source: string, files: Record<string, string>) =>
+    Object.entries(files).filter(([path, text]) => path.endsWith('.cs') && text !== source).map(([, text]) => text)
+
+  /** Jedi im Pyodide des Prüfers: Stub für `klonk`, Projektdateien unter /klonk/project */
+  type PyCall = (...args: unknown[]) => { toJs: (o?: object) => unknown, destroy: () => void } | undefined | null
+  let stubLang: ScriptLanguage | undefined
+  let projectFiles = new Set<string>()
+  async function jedi(request: ToChecker) {
+    const py = await pyodide()
+    await once('jedi', async () => {
+      for (const wheel of await loaders.pythonLibs()) py.unpackArchive(wheel, 'wheel')
+      py.FS.mkdirTree('/klonk/stubs')
+      py.FS.mkdirTree('/klonk/project')
+      py.runPython(JEDI_SERVICE)
+    })
+    const lang = request.lang ?? 'de'
+    if (stubLang !== lang) {
+      py.FS.writeFile('/klonk/stubs/klonk.py', pythonStub(lang))
+      stubLang = lang
+      py.runPython('_klonk_jedi_reset()')
+    }
+    // Projektdateien spiegeln (für Importe zwischen Dateien)
+    const next = new Set(Object.keys(request.files).filter(p => p.endsWith('.py') && p !== request.path))
+    for (const path of projectFiles) if (!next.has(path)) py.FS.unlink(`/klonk/project/${path}`)
+    for (const path of next) {
+      const dir = path.includes('/') ? path.slice(0, path.lastIndexOf('/')) : ''
+      if (dir) py.FS.mkdirTree(`/klonk/project/${dir}`)
+      py.FS.writeFile(`/klonk/project/${path}`, request.files[path]!)
+    }
+    projectFiles = next
+    return py
+  }
+
+  async function complete(request: ToChecker): Promise<CompletionItem[]> {
+    const { language, source, files, offset = 0 } = request
+    if (language === 'java') return javaService(request.lang ?? 'de').complete(source, offset, files)
+    if (language === 'csharp') {
+      const raw = JSON.parse((await csharpExports()).Host.Complete(source, csharpLibraries(source, files), offset)) as (CompletionItem & { container?: string })[]
+      return raw
+    }
+    const py = await jedi(request)
+    const result = (py.globals.get('_klonk_complete') as PyCall)(source, request.path ?? 'main.py', request.line ?? 1, (request.column ?? 1) - 1)
+    const items = result?.toJs({ dict_converter: Object.fromEntries }) as CompletionItem[]
+    result?.destroy()
+    return items
+  }
+
+  async function hover(request: ToChecker): Promise<HoverInfo | null> {
+    const { language, source, files, offset = 0 } = request
+    if (language === 'java') return javaService(request.lang ?? 'de').hover(source, offset, files)
+    if (language === 'csharp') return JSON.parse((await csharpExports()).Host.Hover(source, csharpLibraries(source, files), offset)) as HoverInfo | null
+    const py = await jedi(request)
+    const result = (py.globals.get('_klonk_hover') as PyCall)(source, request.path ?? 'main.py', request.line ?? 1, (request.column ?? 1) - 1)
+    const info = result?.toJs({ dict_converter: Object.fromEntries }) as HoverInfo | undefined
+    result?.destroy()
+    return info ?? null
+  }
+
   return {
     check(language: CheckLanguage, source: string, files: Record<string, string> = {}) {
       if (language === 'python') return python(source)
       if (language === 'java') return java(source, files)
       return csharp(source, files)
     },
+    complete,
+    hover,
   }
 }
+
+/** Jedi-Anbindung (läuft im Pyodide des Prüfers, nie im Ausführungs-Worker) */
+const JEDI_SERVICE = String.raw`
+import jedi
+from jedi.api.environment import InterpreterEnvironment
+
+_klonk_env = InterpreterEnvironment()
+_klonk_project = None
+
+def _klonk_jedi_reset():
+    global _klonk_project
+    jedi.cache.clear_time_caches(True)
+    _klonk_project = jedi.Project('/klonk/project', added_sys_path=['/klonk/stubs'], smart_sys_path=False)
+
+_KLONK_KINDS = {'function': 'method', 'class': 'class', 'instance': 'variable', 'module': 'module', 'keyword': 'keyword',
+                'statement': 'variable', 'param': 'variable', 'property': 'property', 'path': 'module'}
+
+def _klonk_script(source, path):
+    import os
+    main_dir = os.path.dirname('/klonk/project/' + path)
+    project = jedi.Project('/klonk/project', added_sys_path=['/klonk/stubs', main_dir], smart_sys_path=False)
+    return jedi.Script(source, path='/klonk/project/' + path, project=project, environment=_klonk_env)
+
+def _klonk_complete(source, path, line, column):
+    result = []
+    for i, c in enumerate(_klonk_script(source, path).complete(line, column)):
+        if c.name.startswith('__') or i >= 150:
+            continue
+        item = {'label': c.name, 'kind': _KLONK_KINDS.get(c.type, 'text'), 'detail': c.description}
+        # Erklärungen sind teuer – nur für die ersten Vorschläge
+        if i < 40:
+            try:
+                doc = c.docstring(raw=True)
+                if doc:
+                    item['documentation'] = doc
+            except Exception:
+                pass
+        result.append(item)
+    return result
+
+def _klonk_hover(source, path, line, column):
+    names = _klonk_script(source, path).help(line, column)
+    if not names:
+        return None
+    n = names[0]
+    signatures = [s.to_string() for s in n.get_signatures()] if n.type in ('function', 'class') else []
+    detail = signatures[0] if signatures else n.description
+    result = {'detail': detail}
+    doc = n.docstring(raw=True)
+    if doc:
+        result['documentation'] = doc
+    return result
+
+_klonk_jedi_reset()
+`

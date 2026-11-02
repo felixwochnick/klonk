@@ -7,6 +7,8 @@ import { fileURLToPath } from 'node:url'
 const PYODIDE_DIR = dirname(createRequire(import.meta.url).resolve('pyodide/package.json'))
 // Java: teavm-javac (Compiler + Klassenbibliotheken) aus @klonk/runtime
 const TEAVM_DIR = fileURLToPath(new URL('../../packages/runtime/teavm', import.meta.url))
+// Python im Editor: Jedi + Parso (Vorschläge/Erklärungen im Sprachdienst-Worker)
+const PYLIBS_DIR = fileURLToPath(new URL('../../packages/runtime/pylibs', import.meta.url))
 // C#: Roslyn auf .NET-WebAssembly, gebaut mit `node scripts/build-csharp.ts` (nicht im Git)
 const DOTNET_DIR = fileURLToPath(new URL('../../packages/runtime/dotnet', import.meta.url))
 if (!existsSync(DOTNET_DIR)) console.warn('[klonk] C#-Host fehlt – `node scripts/build-csharp.ts` ausführen (C# sonst nicht verfügbar)')
@@ -43,6 +45,7 @@ export default defineNuxtConfig({
     publicAssets: [
       { dir: PYODIDE_DIR, baseURL: '/pyodide', maxAge: 60 * 60 * 24 * 30 },
       { dir: TEAVM_DIR, baseURL: '/teavm', maxAge: 60 * 60 * 24 * 30 },
+      { dir: PYLIBS_DIR, baseURL: '/pylibs', maxAge: 60 * 60 * 24 * 30 },
       ...(existsSync(DOTNET_DIR) ? [{ dir: DOTNET_DIR, baseURL: '/dotnet', maxAge: 60 * 60 * 24 * 30 }] : []),
     ],
   },
@@ -109,7 +112,7 @@ export default defineNuxtConfig({
     workbox: {
       globPatterns: ['**/*.{js,mjs,css,wasm,glb,png,svg,ico,woff2,json}'],
       // Pyodide (~13 MB) erst bei Bedarf, dann dauerhaft im Cache
-      globIgnores: ['**/_payload.json', 'models-preview.png', 'pyodide/**', 'teavm/**', 'dotnet/**'],
+      globIgnores: ['**/_payload.json', 'models-preview.png', 'pyodide/**', 'teavm/**', 'pylibs/**', 'dotnet/**'],
       // Monaco, three.js und Blockly sind groß
       maximumFileSizeToCacheInBytes: 16 * 1024 * 1024,
       // Alle Lern-Seiten teilen sich dieselbe SPA-Shell
@@ -121,6 +124,7 @@ export default defineNuxtConfig({
         { urlPattern: /\/api\/_nuxt_icon\//, handler: 'StaleWhileRevalidate', options: { cacheName: 'icons' } },
         { urlPattern: /\/pyodide\//, handler: 'CacheFirst', options: { cacheName: 'pyodide' } },
         { urlPattern: /\/teavm\//, handler: 'CacheFirst', options: { cacheName: 'teavm' } },
+        { urlPattern: /\/pylibs\//, handler: 'CacheFirst', options: { cacheName: 'pylibs' } },
         { urlPattern: /\/dotnet\//, handler: 'CacheFirst', options: { cacheName: 'dotnet' } },
       ],
       cleanupOutdatedCaches: true,

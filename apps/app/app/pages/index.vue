@@ -464,6 +464,7 @@ const paneStyle = computed(() => ({
             :error-line="errorLine"
             :error-message="errorMessage"
             :files="checkFiles"
+            :path="inProject ? proj.currentPath.value : null"
           />
         </ClientOnly>
         <!-- Vollbild: kompakte Ausgabe unter dem Code -->

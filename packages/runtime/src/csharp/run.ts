@@ -14,7 +14,7 @@ const BLOCKED_GLOBALS = ['fetch', 'XMLHttpRequest', 'WebSocket', 'EventSource', 
 type HostResult = { ok?: boolean, error?: string, message?: string, line?: number, name?: string }
 export type DotnetHost = {
   setModuleImports(module: string, imports: Record<string, unknown>): void
-  getAssemblyExports(assembly: string): Promise<{ Host: { Run(source: string, files: string[]): string, Check(source: string, files: string[]): string } }>
+  getAssemblyExports(assembly: string): Promise<{ Host: { Run(source: string, files: string[]): string, Check(source: string, files: string[]): string, Complete(source: string, files: string[], position: number): string, Hover(source: string, files: string[], position: number): string } }>
 }
 
 /**

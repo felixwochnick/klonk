@@ -1,14 +1,19 @@
 /// <reference lib="webworker" />
 import { createChecker, type FromChecker, type ToChecker } from './check'
 
-// Prüft Programme im Hintergrund, während im Editor getippt wird (eigener Worker – der Ausführungs-Worker
-// ist während eines Laufs blockiert). Pro Sprache zählt nur die neueste Anfrage.
+// Sprachdienst im Hintergrund, während im Editor getippt wird (eigener Worker – der Ausführungs-Worker
+// ist während eines Laufs blockiert). Je Art und Sprache zählt nur die neueste Anfrage.
 const checker = createChecker()
 const pending = new Map<string, ToChecker>()
 let busy = false
 
 self.onmessage = (event: MessageEvent<ToChecker>) => {
-  pending.set(event.data.language, event.data)
+  const request = event.data
+  const key = `${request.type}:${request.language}`
+  const replaced = pending.get(key)
+  // Verdrängte Anfrage beantworten, damit niemand ewig wartet
+  if (replaced) self.postMessage({ id: replaced.id, unavailable: true } satisfies FromChecker)
+  pending.set(key, request)
   void work()
 }
 
@@ -16,14 +21,18 @@ async function work() {
   if (busy) return
   busy = true
   try {
+    // Vorschläge und Erklärungen zuerst – darauf wartet jemand beim Tippen
     for (let next = first(); next; next = first()) {
-      pending.delete(next.language)
+      pending.delete(`${next.type}:${next.language}`)
       let reply: FromChecker
       try {
-        reply = { id: next.id, diagnostics: await checker.check(next.language, next.source, next.files) }
+        if (next.type === 'complete') reply = { id: next.id, items: await checker.complete(next) }
+        else if (next.type === 'hover') reply = { id: next.id, hover: await checker.hover(next) }
+        else reply = { id: next.id, diagnostics: await checker.check(next.language, next.source, next.files) }
       }
-      catch {
-        // Laufzeit nicht ladbar (offline, C#-Host nicht gebaut …) – dann eben ohne Prüfung
+      catch (error) {
+        // Laufzeit nicht ladbar (offline, C#-Host nicht gebaut …) – dann eben ohne
+        console.warn('Klonk-Sprachdienst:', error)
         reply = { id: next.id, unavailable: true }
       }
       self.postMessage(reply)
@@ -35,5 +44,6 @@ async function work() {
 }
 
 function first() {
-  return pending.values().next().value as ToChecker | undefined
+  const all = [...pending.values()]
+  return all.find(r => r.type !== 'check') ?? all[0]
 }

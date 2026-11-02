@@ -108,3 +108,19 @@ test('Syntaxfehler beim Tippen, Laufzeitfehler als Markierung in der Zeile', asy
   await page.locator('.view-lines').getByText('k.step()').hover()
   await expect(page.locator('.monaco-hover-content').filter({ hasText: 'Wand' }).first()).toBeVisible({ timeout: 10_000 })
 })
+
+test('Vorschläge von Jedi: Methoden einer Figur und eigene Variablen', async ({ page }) => {
+  // Erster Aufruf lädt Pyodide + Jedi im Sprachdienst-Worker
+  test.setTimeout(150_000)
+  await openIde(page, 'from klonk import Klonk\nanzahl = 3\nkarl = Klonk()\n')
+  await page.locator('.view-lines').click()
+  await page.keyboard.press('Control+End')
+  await page.keyboard.type('karl.')
+  await expect(page.locator('.suggest-widget .monaco-list-row').filter({ hasText: 'brick_count' })).toBeVisible({ timeout: 90_000 })
+  await page.keyboard.type('tu')
+  await expect(page.locator('.suggest-widget .monaco-list-row').filter({ hasText: 'turn_left' })).toBeVisible()
+  await page.keyboard.press('Escape')
+  await page.keyboard.type('rn_left()\nanz')
+  await page.keyboard.press('Control+Space')
+  await expect(page.locator('.suggest-widget .monaco-list-row').first()).toContainText('anzahl', { timeout: 30_000 })
+})

@@ -113,3 +113,24 @@ test('Compilerfehler schon beim Tippen', async ({ page }) => {
   await page.locator('.view-lines').getByText('stepp').hover()
   await expect(page.locator('.monaco-hover-content').filter({ hasText: 'stepp' }).first()).toBeVisible({ timeout: 10_000 })
 })
+
+test('Vorschläge: Methoden einer Figur, eigene Variablen, Import wird ergänzt', async ({ page }) => {
+  await openIde(page, 'public class Main {\n    public static void main(String[] args) {\n        int anzahl = 3;\n        \n    }\n}')
+  await page.locator('.view-lines').click()
+  // Cursor in die leere Zeile 4
+  await page.keyboard.press('Control+Home')
+  for (let i = 0; i < 3; i++) await page.keyboard.press('ArrowDown')
+  await page.keyboard.press('End')
+  await page.keyboard.type('anz')
+  await page.keyboard.press('Control+Space')
+  await expect(page.locator('.suggest-widget .monaco-list-row').first()).toContainText('anzahl', { timeout: 15_000 })
+  await page.keyboard.press('Escape')
+  await page.keyboard.type('ahl++;\n        Klo')
+  await page.keyboard.press('Control+Space')
+  await expect(page.locator('.suggest-widget .monaco-list-row').first()).toContainText('Klonk', { timeout: 15_000 })
+  await page.keyboard.press('Enter')
+  // Import oben ergänzt
+  await expect(page.locator('.view-lines')).toContainText('import klonk.Klonk;')
+  await page.keyboard.type(' k = new Klonk();\n        k.')
+  await expect(page.locator('.suggest-widget .monaco-list-row').filter({ hasText: 'turnLeft' })).toBeVisible({ timeout: 15_000 })
+})

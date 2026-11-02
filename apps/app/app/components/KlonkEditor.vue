@@ -2,7 +2,7 @@
 import { spell } from '@klonk/klonk-script'
 import type { editor as MonacoEditor } from 'monaco-editor'
 import type { CheckLanguage } from '@klonk/runtime'
-import { CHECKED_LANGUAGES, checkProgram } from '~/utils/checker'
+import { CHECKED_LANGUAGES, checkProgram, modelContexts } from '~/utils/checker'
 import { KLONK_LANGUAGE, loadMonaco, updateRobotApi, validate, type Monaco } from '~/utils/monaco'
 
 const monacoLanguage = (language: string) => (language === 'klonk' ? KLONK_LANGUAGE : language)
@@ -23,7 +23,9 @@ const props = withDefaults(defineProps<{
   errorMessage?: string | null
   /** Weitere Projektdateien, die der Compiler beim Prüfen kennen soll (Bibliotheken) */
   files?: Record<string, string>
-}>(), { language: 'klonk', readOnly: false, activeLine: null, errorLine: null, errorMessage: null, files: () => ({}) })
+  /** Pfad der Datei im Projekt (Importe relativ dazu, Vorschläge aus anderen Dateien) */
+  path?: string | null
+}>(), { path: null, language: 'klonk', readOnly: false, activeLine: null, errorLine: null, errorMessage: null, files: () => ({}) })
 
 const source = defineModel<string>({ required: true })
 const breakpoints = defineModel<number[]>('breakpoints', { default: () => [] })
@@ -63,8 +65,14 @@ onMounted(async () => {
   monaco = await loadMonaco(translator)
   // Eigenes Modell je Sprache mit passender Endung: der TypeScript-Dienst erkennt TS/JS an der Dateiendung
   // (ein gemeinsames Modell ohne Endung prüfte TypeScript als JavaScript ⇒ falsche Fehler bis zum Neuladen)
-  const createModel = (value: string, language: string) =>
-    monaco!.editor.createModel(value, monacoLanguage(language), monaco!.Uri.parse(`file:///klonk/${++modelCounter}/program.${EXTENSION[language] ?? 'txt'}`))
+  // Im Projekt liegt das Modell unter seinem Pfad (TypeScript löst `./andere` dann relativ dazu auf)
+  const createModel = (value: string, language: string) => {
+    const path = props.path && props.path.endsWith(`.${EXTENSION[language]}`) ? props.path : `program.${EXTENSION[language] ?? 'txt'}`
+    const created = monaco!.editor.createModel(value, monacoLanguage(language), monaco!.Uri.parse(`file:///${++modelCounter}/project/${path}`))
+    modelContexts.set(created.uri.toString(), { path: props.path ?? undefined, files: props.files })
+    created.onWillDispose(() => modelContexts.delete(created.uri.toString()))
+    return created
+  }
   editor = monaco.editor.create(container.value!, {
     model: createModel(source.value, props.language),
     theme: colorMode.value === 'dark' ? 'klonk-dark' : 'klonk-light',
@@ -112,16 +120,23 @@ onMounted(async () => {
     clearTimeout(timer)
     timer = setTimeout(check, props.language === 'klonk' ? 250 : 600)
   })
-  stopLanguageWatch = watch(() => props.language, (language) => {
+  stopLanguageWatch = watch([() => props.language, () => props.path], ([language]) => {
     const previous = model
     model = createModel(source.value, language)
     editor!.setModel(model)
     previous.dispose()
     updateDecorations()
     updateRuntimeMarker()
+    updateProjectLibs()
     void check()
   })
-  stopFilesWatch = watch(() => props.files, () => void check())
+  stopFilesWatch = watch(() => props.files, (files) => {
+    const context = modelContexts.get(model.uri.toString())
+    if (context) context.files = files
+    updateProjectLibs()
+    void check()
+  })
+  updateProjectLibs()
 
   // Klick auf den Rand setzt/entfernt Breakpoints
   editor.onMouseDown((event) => {
@@ -142,6 +157,7 @@ onMounted(async () => {
 onBeforeUnmount(() => {
   stopLanguageWatch?.()
   stopFilesWatch?.()
+  for (const lib of projectLibs) lib.dispose()
   editor?.getModel()?.dispose()
   editor?.dispose()
 })
@@ -159,6 +175,21 @@ watch(locale, () => {
 })
 watch([breakpoints, () => props.activeLine, () => props.errorLine], updateDecorations)
 watch([() => props.errorLine, () => props.errorMessage], updateRuntimeMarker)
+
+// JS/TS: andere Projektdateien für den TypeScript-Dienst (Importe zwischen Dateien, Vorschläge daraus)
+let projectLibs: { dispose: () => void }[] = []
+function updateProjectLibs() {
+  for (const lib of projectLibs) lib.dispose()
+  projectLibs = []
+  const model = editor?.getModel()
+  if (!monaco || !model) return
+  const root = model.uri.path.slice(0, model.uri.path.indexOf('/project/') + '/project/'.length)
+  for (const [path, text] of Object.entries(props.files)) {
+    if (!/\.(ts|js)$/.test(path) || path === props.path) continue
+    const uri = `file://${root}${path}`
+    projectLibs.push(monaco.typescript.typescriptDefaults.addExtraLib(text, uri), monaco.typescript.javascriptDefaults.addExtraLib(text, uri))
+  }
+}
 
 /** Laufzeitfehler als Markierung mit Meldung (Hover) in der betroffenen Zeile */
 function updateRuntimeMarker() {

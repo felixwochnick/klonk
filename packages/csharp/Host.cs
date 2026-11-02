@@ -123,6 +123,116 @@ public static partial class Host
         return result.ToJsonString();
     }
 
+    /// <summary>Vorschläge an einer Stelle (für den Editor): nach „ausdruck.“ dessen Mitglieder, sonst alles Sichtbare.</summary>
+    [JSExport]
+    public static string Complete(string source, string[] files, int position)
+    {
+        var (tree, model) = Analyze(source, files);
+        var root = tree.GetRoot();
+        var token = root.FindToken(Math.Max(0, position - 1));
+        // Beim Tippen steht der Cursor hinter einem Bezeichner oder direkt hinter dem Punkt
+        if (token.IsKind(SyntaxKind.IdentifierToken) && token.Span.End == position) token = token.GetPreviousToken();
+        IEnumerable<ISymbol> symbols;
+        var result = new JsonArray();
+        if (token.IsKind(SyntaxKind.DotToken) && token.Parent is MemberAccessExpressionSyntax access)
+        {
+            var target = model.GetSymbolInfo(access.Expression).Symbol;
+            if (target is INamespaceOrTypeSymbol container && target is not ILocalSymbol)
+            {
+                // Typ oder Namensraum: statische Mitglieder bzw. enthaltene Typen
+                symbols = model.LookupSymbols(position, container).Where(s => s is not IMethodSymbol { MethodKind: MethodKind.Constructor } && (container is INamespaceSymbol || s.IsStatic || s is ITypeSymbol));
+            }
+            else
+            {
+                var type = model.GetTypeInfo(access.Expression).Type;
+                symbols = type is null ? [] : model.LookupSymbols(position, type, includeReducedExtensionMethods: true).Where(s => !s.IsStatic && s is not IMethodSymbol { MethodKind: MethodKind.Constructor });
+            }
+        }
+        else
+        {
+            // Mit Platzhalter an der Cursorposition analysieren: am Ende eines Top-Level-Programms gehört die Stelle
+            // sonst zu keiner Anweisung, und die lokalen Variablen wären unsichtbar
+            var (_, placeholder) = Analyze(source.Insert(position, "_;"), files);
+            symbols = placeholder.LookupSymbols(position);
+            foreach (var keyword in Keywords) result.Add(new JsonObject { ["label"] = keyword, ["kind"] = "keyword" });
+        }
+        // Wichtiges zuerst: lokale Variablen/Parameter, eigener Code (auch Roboter-API), dann der Rest
+        static int Rank(ISymbol s) => s is ILocalSymbol or IParameterSymbol or IRangeVariableSymbol ? 0 : s.DeclaringSyntaxReferences.Length > 0 ? 1 : 2;
+        foreach (var group in symbols.Where(s => s.CanBeReferencedByName && !s.Name.StartsWith("__")).GroupBy(s => s.Name).OrderBy(g => g.Min(Rank)).ThenBy(g => g.Key).Take(1000))
+        {
+            var symbol = group.First();
+            result.Add(new JsonObject
+            {
+                ["label"] = symbol.Name,
+                ["kind"] = KindOf(symbol),
+                ["detail"] = symbol.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat) + (group.Count() > 1 ? $" (+{group.Count() - 1})" : ""),
+                ["container"] = symbol.ContainingType?.ToDisplayString(),
+                ["documentation"] = Summary(symbol),
+            });
+        }
+        return result.ToJsonString();
+    }
+
+    /// <summary>Erklärung zum Bezeichner an einer Stelle (Hover)</summary>
+    [JSExport]
+    public static string Hover(string source, string[] files, int position)
+    {
+        var (tree, model) = Analyze(source, files);
+        var token = tree.GetRoot().FindToken(position);
+        if (!token.IsKind(SyntaxKind.IdentifierToken) || token.Parent is null) return "null";
+        var symbol = model.GetSymbolInfo(token.Parent).Symbol ?? model.GetDeclaredSymbol(token.Parent) ?? model.GetSymbolInfo(token.Parent).CandidateSymbols.FirstOrDefault();
+        if (symbol is null) return "null";
+        var span = tree.GetLineSpan(token.Span);
+        return new JsonObject
+        {
+            ["detail"] = symbol.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat),
+            ["kind"] = KindOf(symbol),
+            ["name"] = symbol.Name,
+            ["container"] = symbol.ContainingType?.ToDisplayString(),
+            ["documentation"] = Summary(symbol),
+            ["line"] = span.StartLinePosition.Line + 1,
+            ["column"] = span.StartLinePosition.Character + 1,
+            ["endColumn"] = span.EndLinePosition.Character + 1,
+        }.ToJsonString();
+    }
+
+    static readonly string[] Keywords = ["var", "int", "double", "bool", "string", "if", "else", "while", "for", "foreach", "in", "do", "return", "break", "continue", "new", "true", "false", "null", "class", "static", "void", "public", "private", "using", "namespace"];
+
+    static (SyntaxTree Tree, SemanticModel Model) Analyze(string source, string[] files)
+    {
+        Prepare();
+        var parse = new CSharpParseOptions(LanguageVersion.Latest);
+        var tree = CSharpSyntaxTree.ParseText(source, parse, UserFile);
+        libraries = files.Select((f, i) => CSharpSyntaxTree.ParseText(f, parse, $"Library{i}.cs")).ToArray();
+        return (tree, Compile(tree).GetSemanticModel(tree));
+    }
+
+    static string KindOf(ISymbol symbol) => symbol switch
+    {
+        IMethodSymbol => "method",
+        IPropertySymbol => "property",
+        IFieldSymbol { IsConst: true } => "constant",
+        IFieldSymbol => "field",
+        ILocalSymbol or IParameterSymbol or IRangeVariableSymbol => "variable",
+        INamespaceSymbol => "module",
+        ITypeSymbol { TypeKind: TypeKind.Interface } => "interface",
+        ITypeSymbol { TypeKind: TypeKind.Enum } => "enum",
+        ITypeSymbol { TypeKind: TypeKind.Struct } => "struct",
+        ITypeSymbol => "class",
+        IEventSymbol => "event",
+        _ => "text",
+    };
+
+    // XML-Dokumentation (nur <summary>) – für eigene Klassen mit /// und die Roboter-API
+    static string? Summary(ISymbol symbol)
+    {
+        var xml = symbol.GetDocumentationCommentXml();
+        if (string.IsNullOrWhiteSpace(xml)) return null;
+        var start = xml.IndexOf("<summary>", StringComparison.Ordinal);
+        var end = xml.IndexOf("</summary>", StringComparison.Ordinal);
+        return start < 0 || end < start ? null : string.Join(" ", xml[(start + 9)..end].Split('\n', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries));
+    }
+
     static CSharpCompilation Compile(SyntaxTree tree) =>
         CSharpCompilation.Create("Program", new[] { robotTree!, usingsTree!, tree }.Concat(libraries), references,
             // Ohne Threads (Single-Thread-WebAssembly): nicht parallel übersetzen

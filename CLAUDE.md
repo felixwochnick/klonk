@@ -214,6 +214,14 @@ node scripts/build-csharp.ts        # C#-Host bauen (.NET-SDK 10 nötig; Ausgabe
   Themes `klonk-light/-dark`; `acceptSuggestionOnEnter: 'smart'`, `autoIndent: 'full'`), `KlonkEditor` (Breakpoints, aktive Zeile),
   Programme je Sprache + Breakpoints in localStorage (`klonk:program`: `{ language, programs }`). An Worker nur Plain-Daten senden (Vue-Proxys ⇒ DataCloneError).
   Befehlsreferenz der Docs: `node scripts/gen-script-docs.ts` nach Änderungen an `languages.ts`.
+- **Sprachdienst (Vorschläge/Hover):** derselbe Worker (`check.ts`, Anfragen `check`/`complete`/`hover`, je Art+Sprache nur die
+  neueste, Vorschläge vor Prüfung). C#: `Host.Complete/Hover` (Semantikmodell; ohne Punkt mit Platzhalter `_;` an der Cursorstelle,
+  sonst sieht Roslyn am Dateiende keine lokalen Variablen; Rang lokal > eigener Code > Rest). Python: **Jedi 0.20.1 + Parso 0.8.7**
+  (MIT, Wheels in `packages/runtime/pylibs`, `node scripts/fetch-jedi.ts`, Auslieferung `/pylibs/`), Stub `python/stub.ts` für `klonk`,
+  Projektdateien unter `/klonk/project`. Java: `java/complete.ts` (Textanalyse ohne Parser: Deklarationen, Projektklassen, bekannte
+  Typen; fehlender `import klonk.Klonk;` als `addImport`). Monaco-Provider in `utils/monaco.ts` (`registerApiLanguage`, Fallback auf
+  statische Vorschläge), Projektkontext je Modell in `modelContexts`; Modelle liegen unter `file:///<n>/project/<pfad>`,
+  JS/TS-Projektdateien als `addExtraLib` daneben (Importe zwischen Dateien).
 - **Fehler im Editor:** Klonk-Script prüft `validate()` (Hauptthread), JS/TS der Monaco-TS-Worker (JS mit `checkJs`, nicht strict),
   Python/Java/C# ein eigener **Prüf-Worker** (`@klonk/runtime/check-worker?worker`, `src/check.ts`, Client `utils/checker.ts`):
   Pyodide `compile()`, javac (gleiche Dateien wie beim Lauf, Import-Präfix aus Positionen herausgerechnet; Compiler wird

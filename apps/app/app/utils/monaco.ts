@@ -1,3 +1,4 @@
+import { completeProgram, hoverProgram, modelContexts } from './checker'
 import { KLONK_CLASS_DOC, robotApiDeclarations } from './js-api-types'
 import { BUILTINS, KEYWORDS, check, spell, tokenize, type Builtin, type BuiltinName, type ScriptLanguage } from '@klonk/klonk-script'
 
@@ -202,8 +203,12 @@ const CSHARP_STYLE: ApiStyle = {
   all: 'All',
 }
 
-/** Python, Java und C# (Syntaxfarben bringt Monaco mit): Roboter-API vervollständigen und erklären */
-function registerApiLanguage(monaco: Monaco, id: string, style: ApiStyle) {
+/**
+ * Python, Java und C# (Syntaxfarben bringt Monaco mit): Vorschläge und Erklärungen vom Sprachdienst im Worker
+ * (Jedi, eigene Java-Analyse, Roslyn). Ist er (noch) nicht verfügbar – z. B. offline –, gibt es die Roboter-API
+ * und Schlüsselwörter als einfache Vorschläge.
+ */
+function registerApiLanguage(monaco: Monaco, id: 'python' | 'java' | 'csharp', style: ApiStyle) {
   const { CompletionItemKind: Kind, CompletionItemInsertTextRule: Rule } = monaco.languages
   const entries = () => (Object.entries(BUILTINS) as [BuiltinName, Builtin][])
     .map(([name, builtin]) => ({ name, builtin, label: style.name(name, builtin) }))
@@ -211,12 +216,47 @@ function registerApiLanguage(monaco: Monaco, id: string, style: ApiStyle) {
   const signature = (label: string, builtin: Builtin) => (builtin.kind === 'constant'
     ? label
     : `${label}(${(builtin.params ?? []).map(p => style.param(p.name.en[0]!) + (p.optional ? style.optional : '')).join(', ')})`)
+  const KINDS: Record<string, import('monaco-editor').languages.CompletionItemKind> = {
+    method: Kind.Method, function: Kind.Function, property: Kind.Property, field: Kind.Field, variable: Kind.Variable, constant: Kind.Constant,
+    class: Kind.Class, interface: Kind.Interface, enum: Kind.Enum, struct: Kind.Struct, module: Kind.Module, keyword: Kind.Keyword, event: Kind.Event,
+  }
+  /** Erklärung der Roboter-API zu einem Namen (Roslyn kennt die Texte nicht, Jedi/Java bringen sie selbst mit) */
+  const robotDoc = (label: string) => entries().find(e => e.label === label)?.builtin.doc[translator?.lang() ?? 'de']
+  const request = (model: import('monaco-editor').editor.ITextModel, position: import('monaco-editor').Position) => {
+    const context = modelContexts.get(model.uri.toString())
+    return {
+      language: id, source: model.getValue(), files: context?.files ?? {}, path: context?.path,
+      offset: model.getOffsetAt(position), line: position.lineNumber, column: position.column, lang: translator?.lang() ?? 'de',
+    }
+  }
+  // Fehlende Imports oben einfügen (nach einer package-Zeile)
+  const importEdit = (model: import('monaco-editor').editor.ITextModel, text: string) => {
+    const lines = model.getLinesContent()
+    const after = lines.findIndex(l => /^\s*package\s/.test(l)) + 1
+    return [{ range: new monaco.Range(after + 1, 1, after + 1, 1), text: `${text}\n` }]
+  }
 
   monaco.languages.registerCompletionItemProvider(id, {
-    provideCompletionItems(model, position) {
+    triggerCharacters: ['.'],
+    async provideCompletionItems(model, position) {
       const lang = translator?.lang() ?? 'de'
       const word = model.getWordUntilPosition(position)
       const range = new monaco.Range(position.lineNumber, word.startColumn, position.lineNumber, word.endColumn)
+      const items = await completeProgram(request(model, position)).catch(() => null)
+      if (items) {
+        return {
+          suggestions: items.map((item, i) => ({
+            label: item.label,
+            kind: KINDS[item.kind] ?? Kind.Text,
+            detail: item.detail,
+            documentation: item.documentation ?? (item.kind === 'method' || item.kind === 'constant' ? robotDoc(item.label) : undefined),
+            insertText: item.label,
+            additionalTextEdits: item.addImport ? importEdit(model, item.addImport) : undefined,
+            range,
+            sortText: `${item.kind === 'keyword' ? 2 : 1}${String(i).padStart(4, '0')}`,
+          })),
+        }
+      }
       const suggestions: import('monaco-editor').languages.CompletionItem[] = style.keywords.map(k => ({
         label: k, kind: Kind.Keyword, insertText: k, range, sortText: `2${k}`,
       }))
@@ -229,14 +269,6 @@ function registerApiLanguage(monaco: Monaco, id: string, style: ApiStyle) {
         insertTextRules: Rule.InsertAsSnippet,
         range,
         sortText: '0Klonk',
-      }, {
-        label: style.all,
-        kind: Kind.Method,
-        detail: `Klonk.${style.all}()`,
-        documentation: { value: KLONK_CLASS_DOC.all[lang] },
-        insertText: `${style.all}()`,
-        range,
-        sortText: `1${style.all}`,
       })
       for (const { builtin, label } of entries()) {
         const params = (builtin.params ?? []).filter(p => !p.optional)
@@ -256,11 +288,17 @@ function registerApiLanguage(monaco: Monaco, id: string, style: ApiStyle) {
     },
   })
   monaco.languages.registerHoverProvider(id, {
-    provideHover(model, position) {
+    async provideHover(model, position) {
       const word = model.getWordAtPosition(position)
       if (!word) return null
       const lang = translator?.lang() ?? 'de'
       const range = new monaco.Range(position.lineNumber, word.startColumn, position.lineNumber, word.endColumn)
+      const info = await hoverProgram(request(model, position)).catch(() => undefined)
+      if (info) {
+        const documentation = info.documentation ?? robotDoc(word.word)
+        return { range, contents: [{ value: `\`${info.detail}\`` }, ...(documentation ? [{ value: documentation }] : [])] }
+      }
+      if (info === null) return null
       if (word.word === 'Klonk') return { range, contents: [{ value: `\`${style.newKlonk}(name?)\`` }, { value: KLONK_CLASS_DOC.class[lang] }] }
       const entry = entries().find(e => e.label === word.word)
       if (!entry) return null

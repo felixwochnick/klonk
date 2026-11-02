@@ -113,3 +113,19 @@ test('Compilerfehler und Warnungen schon beim Tippen', async ({ page }) => {
   await page.locator('.view-lines').getByText('Stepp').hover()
   await expect(page.locator('.monaco-hover-content').filter({ hasText: 'Stepp' }).first()).toBeVisible({ timeout: 10_000 })
 })
+
+test('Vorschläge von Roslyn: Mitglieder und eigene Variablen', async ({ page }) => {
+  // Erster Aufruf lädt .NET + Roslyn im Sprachdienst-Worker
+  test.setTimeout(150_000)
+  await openIde(page, 'using klonk;\nvar anzahl = 3;\nvar karl = new Klonk();\n')
+  await page.locator('.view-lines').click()
+  await page.keyboard.press('Control+End')
+  await page.keyboard.type('karl.')
+  await expect(page.locator('.suggest-widget .monaco-list-row').filter({ hasText: 'BrickCount' })).toBeVisible({ timeout: 90_000 })
+  await page.keyboard.type('Tu')
+  await expect(page.locator('.suggest-widget .monaco-list-row').filter({ hasText: 'TurnLeft' })).toBeVisible()
+  await page.keyboard.press('Escape')
+  await page.keyboard.type('Step();\nanz')
+  await page.keyboard.press('Control+Space')
+  await expect(page.locator('.suggest-widget .monaco-list-row').first()).toContainText('anzahl', { timeout: 30_000 })
+})

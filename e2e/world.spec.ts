@@ -111,6 +111,7 @@ test('Figuren benennen (Name für die Objekt-API)', async ({ page }) => {
   // Ungültig ⇒ Meldung, alter Name bleibt
   await name.fill('a/b')
   await name.press('Enter')
-  await expect(page.getByText('„a/b“ ist kein gültiger Name', { exact: false })).toBeVisible()
+  // Titel des Toasts (der Text steht zusätzlich in der Live-Region für Screenreader)
+  await expect(page.locator('[data-slot="title"]').filter({ hasText: '„a/b“ ist kein gültiger Name' })).toBeVisible()
   await expect(name).toHaveValue('Karla')
 })
