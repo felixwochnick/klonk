@@ -26,5 +26,15 @@ esac
 # Leere Variablen aus Compose zählen als gesetzt – Caddy-Defaults greifen dann nicht
 export KLONK_ACME_EMAIL="${KLONK_ACME_EMAIL:-admin@localhost}"
 
-echo "[klonk-proxy] Domain: $KLONK_DOMAIN, TLS: $KLONK_TLS"
+# Docs wurden mit Platzhalter-Adresse erzeugt (Sitemap, OG-Bilder, llms.txt) ⇒ echte Adresse einsetzen.
+# Schema und Host getrennt ersetzen, damit auch maskierte Varianten (\u002F, %2F) passen.
+DOCS_SCHEME="${KLONK_PUBLIC_SCHEME:-$KLONK_SCHEME}"
+grep -rlF 'docs.klonk-domain.invalid' /srv/docs 2>/dev/null | while read -r file; do
+  sed -i -E \
+    -e "s#https:(//|\\\\u002F\\\\u002F|%2F%2F)docs\\.klonk-domain\\.invalid#$DOCS_SCHEME:\\1docs.$KLONK_DOMAIN#g" \
+    -e "s#docs\\.klonk-domain\\.invalid#docs.$KLONK_DOMAIN#g" \
+    "$file"
+done
+
+echo "[klonk-proxy] Version: ${KLONK_VERSION:-dev}, Domain: $KLONK_DOMAIN, TLS: $KLONK_TLS"
 exec caddy run --config /etc/caddy/Caddyfile --adapter caddyfile
