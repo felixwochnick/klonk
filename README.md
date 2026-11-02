@@ -38,4 +38,4 @@ docker compose --env-file docker/.env -f docker/docker-compose.yml up -d --build
 pnpm stack:up   # https://app.klonk.localhost, admin., auth., docs. – selbst signiert, inkl. Test-LDAP und Test-IdP
 ```
 
-Details: [Selbst hosten](apps/docs/content/de/1.getting-started/1.self-hosting.md)
+Details: [Selbst hosten](apps/docs/content/de/6.self-hosting/1.installation.md)
