@@ -8,7 +8,7 @@ export default defineEventHandler(async (event) => {
     .refine(v => !v.ldapEnabled || v.ldap, { message: 'ldap_incomplete' }))
 
   // SSO per OIDC ist Teil der Lizenz (LDAP und lokale Konten sind kostenlos)
-  if (input.oidcEnabled) await requireFeature(organizationId, 'oidc')
+  if (input.oidcEnabled) await requireFeature(organizationId, 'oidc', event)
 
   const table = schema.organizationAuthSettings
 

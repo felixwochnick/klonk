@@ -74,7 +74,7 @@ test('Dateien wechseln, automatisch speichern, Welt aus dem Projekt', async ({ p
   await openIde(page)
   await seedProject(page, 'Speichern', {
     'start.klonk': 'schritt\nausgabe(positionX)\n',
-    'zweites.js': 'import { Klonk, print } from "klonk"; const k = new Klonk()\nk.step(); k.step()\nprint(k.positionX())\n',
+    'zweites.js': 'import { Klonk } from "klonk"; const k = new Klonk()\nk.step(); k.step()\nconsole.log(k.positionX())\n',
     'klein.klonkworld.json': JSON.stringify(WORLD),
     'notizen.txt': 'nicht editierbar',
   })
@@ -304,3 +304,33 @@ test('Leeres Projekt öffnen ⇒ einrichten mit Startdateien; C#-Klasse im Names
   await page.getByTestId('project-dialog-submit').click()
   await expect.poll(() => readProjectFile(page, 'Leer', 'Werkzeuge/Laufen.cs').catch(() => '')).toMatch(/namespace Werkzeuge;[\s\S]*public static class Laufen/)
 })
+
+test('TypeScript: Projektdatei ab dem Projektordner importieren, ohne falsche Fehler im Editor', async ({ page }) => {
+  await openIde(page)
+  await seedProject(page, 'TsImport', {
+    'klonk.json': '{ "language": "typescript" }',
+    'main.ts': 'import { zwei } from "/src/Werkzeuge/Laufen.ts"\nimport { Klonk } from "klonk"\nconst k = new Klonk()\nzwei(k)\nconsole.log(k.positionX())\n',
+    'src/Werkzeuge/Laufen.ts': 'import type { Klonk } from "klonk"\nexport function zwei(k: Klonk) {\n  k.step()\n  k.step()\n}\n',
+    'welt.klonkworld.json': JSON.stringify(WORLD),
+  })
+  await page.reload()
+  await page.locator('html[data-hydrated="true"]').waitFor({ state: 'attached' })
+  await page.getByTestId('toggle-project').click()
+  await page.getByTestId('browser-project-TsImport').click()
+  await page.getByTestId('file-main.ts').click()
+  await expect(page.getByTestId('code-editor')).toHaveAttribute('data-ready', 'true', { timeout: 20_000 })
+  // Kurz nach dem Öffnen kann die erste Prüfung noch ohne die anderen Dateien laufen – dann muss die Markierung verschwinden
+  await page.waitForTimeout(1500)
+  await expect(page.locator('.squiggly-error')).toHaveCount(0, { timeout: 15_000 })
+  const license = await page.evaluate(() => fetch('/api/license').then(r => r.json()))
+  await page.getByTestId('run').click()
+  if (license.features.includes('libraries')) {
+    await expect(state(page)).toHaveAttribute('data-state', 'done', { timeout: 30_000 })
+    await expect(page.getByTestId('output')).toHaveText('3')
+  }
+  else {
+    await expect(state(page)).toHaveAttribute('data-state', 'error', { timeout: 30_000 })
+    await expect(page.getByTestId('run-error')).toContainText('Bibliotheken')
+  }
+})
+

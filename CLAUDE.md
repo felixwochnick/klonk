@@ -127,16 +127,20 @@ node scripts/build-csharp.ts        # C#-Host bauen (.NET-SDK 10 nötig; Ausgabe
   Mehrsprachig ist nur Klonk-Script (und damit die Blöcke).
 - **Objekt-API in JS/TS/Python/Java/C#** (vom User so festgelegt): keine globalen Roboterbefehle, jede Figur ist ein Objekt
   `new Klonk()` (erste) / `new Klonk("Klara")` (Name, ohne Groß-/Kleinschreibung) / `new Klonk(2)` / `Klonk.all()`; Befehle und
-  Sensoren sind Methoden; dazu `print`, `wait` (Java `sleep`), `random` und Farben. **Alles nur per Import** (vom User so festgelegt):
+  Sensoren sind Methoden; dazu `wait` (Java `sleep`), Farben und Designs. **Alles nur per Import** (vom User so festgelegt):
   JS/TS `import { Klonk } from 'klonk'`, Python `from klonk import Klonk`, Java `import klonk.Klonk;` (+ `import static klonk.Klonk.*;`),
   C# `using klonk;` (+ `using static klonk.Klonk;`). **Klonk-Script und Blöcke steuern immer nur eine Figur** (`wähleFigur`), ohne Import.
   Gemeinsame Basis `createApi()` in `runtime/src/js/api.ts` (`robot()`, `names()`, `globals`, `ROBOT_METHODS`, `onError`).
+  - **Ausgabe/Zufall wie in der Sprache** (vom User so festgelegt): `console.log`/`Math.random`, `print`/`random`, `System.out.println`,
+    `Console.WriteLine` – die Bibliothek `klonk` hat davon nur `wait` (Java `sleep`), Farben und Designs.
   - JS/TS: `js/modules.ts` schreibt `import`/`export` zeilentreu in `__klonk_import`/`__klonk_export` um (Exporte als Getter vorne,
-    `export *` über Proxy-Namespace); `"klonk"` = API-Modul, relative Pfade = Projektdateien (Lizenz `libraries`, ohne Prüfpunkte).
-    Monaco: `declare module 'klonk'` in `js-api-types.ts`.
+    `export *` über Proxy-Namespace); `"klonk"` = API-Modul, `./x` bzw. `/src/x` = Projektdateien (Lizenz `libraries`, ohne Prüfpunkte).
+    Monaco: `declare module 'klonk'` in `js-api-types.ts`; Projektdateien als Modelle unter `file:///<pfad>` (`paths: {'/*': ['*']}`,
+    nach dem Anlegen mit `getTypeScriptWorker(...uris)` synchronisieren, sonst „Cannot find module“).
   - Python: Modul `klonk` per `sys.modules` im Vorspann (JS-Brücke `_klonk_js`), Projektdateien mit Ordnern (Pakete), Ordner der Hauptdatei in `sys.path`.
   - Java: `klonk.Klonk` + Debugger-Klasse `klonk.Debug` (unsichtbarer Import `import static klonk.Debug.*;` in Zeile 1, `__cp` unqualifiziert –
-    eine Variable `klonk` würde `klonk.X` verdecken). Browser-javac kann **keine Unterordner** in Dateinamen ⇒ alle Dateien flach nach Klassenname;
+    eine Variable `klonk` würde `klonk.X` verdecken). Browser-javac kann **keine Unterordner** in Dateinamen ⇒ alle Dateien flach nach Klassenname; Klassen ohne `package` laufen
+    intern in `package _default;` (`withPackage()`), sonst findet javac bei `import X.*;`/`import klonk.*;` die flache Datei im Standardpaket;
     fehlt `import klonk.Klonk;`, meldet javac „bad source file: Klonk.java“ ⇒ `friendlyJavacMessage()`. `detectMainClasses()` liefert `a/b/C` ⇒
     in Punkte umwandeln; Startklasse = Package + öffentliche Klasse der geöffneten Datei. JSO-Strings vor `toString()` per Verkettung kopieren.
   - C#: Namensraum `klonk` (klein, `Klonk` würde die Klasse verdecken), Instrumentierung `global::klonk.Klonk.__cp`; Aufrufe `call(method, ["s:<Name>", …])`.
@@ -160,7 +164,7 @@ node scripts/build-csharp.ts        # C#-Host bauen (.NET-SDK 10 nötig; Ausgabe
   `designs` nur mit Lizenz (sonst `design_license`), `saveDesigns` = Lizenz + Projekt. **Java-Bibliotheken** `packages/runtime/src/java/lib/*.java`
   (`klonk.Json/JsonObject/JsonArray/Yaml/Xml`, per `?raw` immer mitkompiliert): eigene Klassen, weil org.json im Browser-javac nicht geht
   (kein `getClass()`/`Map.Entry`/`Throwable.getMessage()` in dessen Klassenbibliothek, Absturz bei Annotationen mit Argumenten wie
-  `@SuppressWarnings(…)`). `import klonk.*;` geht nicht (flacher Quellpfad) ⇒ `friendlyJavacMessage`. **C#:** Newtonsoft.Json 13.0.4 +
+  `@SuppressWarnings(…)`). `import klonk.*;` geht dank `package _default;` (siehe Java oben). **C#:** Newtonsoft.Json 13.0.4 +
   YamlDotNet 18.1.0 (NuGet, DLLs als Referenz eingebettet, nicht getrimmt) und System.Xml.Linq (Ref-Assemblies + `TrimmerRootAssembly`).
 - **Figurennamen** = `CharacterData.id` (`isValidCharacterName`, `World.findCharacter/renameCharacter`, Vorschläge `nextCharacterName`),
   umbenennen im Welt-Editor (Abschnitt „Namen der Figuren“).
@@ -184,26 +188,26 @@ node scripts/build-csharp.ts        # C#-Host bauen (.NET-SDK 10 nötig; Ausgabe
 - **Python** (`packages/runtime/src/python/`): Pyodide (`pyodide`-Paket, Version fest) wird **nicht gebündelt**, sondern per
   Nitro-`publicAssets` unter `/pyodide/` ausgeliefert (COEP) und im Worker per dynamischem Import geladen; PWA cacht es erst bei
   Bedarf (`CacheFirst`). Gleiche SAB-Steuerung wie JS: `prelude.ts` setzt `sys.settrace` (nur Datei `<klonk>`) ⇒ Prüfpunkt je Zeile,
-  Variablen erst beim Anhalten (`repr`). Roboter-API aus `createApi()` als **Builtins** nur in snake_case
-  (`is_wall`, `turn_left`; gleiche Regel wie `pythonName()` in `useProgram.ts`), `print` bleibt Pythons eigenes.
+  Variablen erst beim Anhalten (`repr`). Roboter-API aus `createApi()` als Modul `klonk` (Methoden nur in snake_case:
+  `is_wall`, `turn_left`; gleiche Regel wie `pythonName()` in `useProgram.ts`), `print` bleibt Pythons eigenes.
   API-Fehler kommen in Python als `JsException` an ⇒ zuletzt geworfener `ApiError` wird gemerkt und übersetzt. Projekt-`.py`-Dateien
   nur mit Lizenz (`libraries`) importierbar. Unit-Tests laufen mit Pyodide in Node (`tests/python.test.ts`, Loader injizierbar).
   Monaco: Python-Syntax eingebaut, Vervollständigung/Hover der API in `utils/monaco.ts` (`registerPython`).
 - **Java** (`packages/runtime/src/java/`): [teavm-javac](https://github.com/konsoletyper/teavm-javac) (javac + TeaVM als WebAssembly,
   Apache 2.0) liegt mit Prüfsummen in `packages/runtime/teavm/` (`node scripts/fetch-teavm-javac.ts`, Quelle teavm.org/playground/3/),
   Auslieferung per Nitro-`publicAssets` unter `/teavm/`, PWA-Cache bei Bedarf. Ablauf im Worker: `instrument.ts` (java-parser-CST,
-  nur Einfügungen) setzt vor jede Anweisung `if (klonk.Robot.__cp(zeile)) { __v("x", x)…; __pause(); }` und klammert Rümpfe von
-  Schleifen/if; `import static klonk.Robot.*;` kommt in Zeile 1. `robot.ts` = Java-Klasse `klonk.Robot`, ruft per **JSO-Schnittstellen**
+  nur Einfügungen) setzt vor jede Anweisung `if (__cp(zeile)) { __v("x", x)…; __pause(); }` und klammert Rümpfe von
+  Schleifen/if; `import static klonk.Debug.*;` kommt in Zeile 1. `robot.ts` = Java-Klassen `klonk.Klonk` + `klonk.Debug`, ruft per **JSO-Schnittstellen**
   `window.klonk` (Worker setzt `window = globalThis`). **Wichtig:** Dieser Browser-javac stürzt bei `@JSBody` und eigenen Annotationen
   ab („cyclic inheritance … Annotation“/Stack-Überlauf) – nur `@JSProperty` + JSO-Interfaces nutzen. Compiler als **Bytes** an den
-  TeaVM-Loader geben (bei URL nimmt er wegen `process` im Vite-Worker Node an). Dateinamen beim Compiler flach (`Robot.java`, nicht
-  `klonk/Robot.java`). Farben als `RED`…, `wait` ⇒ `sleep` (sonst verdeckt `Object.wait()` den statischen Import).
+  TeaVM-Loader geben (bei URL nimmt er wegen `process` im Vite-Worker Node an). Dateinamen beim Compiler flach (`Klonk.java`, nicht
+  `klonk/Klonk.java`). Farben als `RED`…, `wait` ⇒ `sleep` (sonst verdeckt `Object.wait()` den statischen Import).
   Unit-Tests kompilieren echt in Node (`tests/java.test.ts`).
 - **C#** (`packages/csharp/` = .NET-Projekt, `packages/runtime/src/csharp/run.ts`): Host (`Host.cs`, `[JSExport] Run`) kompiliert
   mit Roslyn, instrumentiert per **semantischem Modell** (Prüfpunkte wie Java, Variablen = `DefinitelyAssignedOnEntry` ∩
   `LookupSymbols` ∩ gleiche Methode, keine ref/ref-struct) und führt per `Assembly.Load` aus. Roboter-API `RobotApi.txt`
   (PascalCase, `Red`…) wird als Quelltext mitkompiliert und ruft über Delegaten in `AppDomain`-Daten → `[JSImport]`-Funktionen.
-  Implizite Usings + `using static Klonk.Robot` als eigene Datei mit `global using`. Build: `node scripts/build-csharp.ts`
+  Implizite Usings als eigene Datei mit `global using` (ohne `klonk` – das kommt per `using klonk;` im Nutzercode). Build: `node scripts/build-csharp.ts`
   ⇒ `packages/runtime/dotnet/` (**nicht im Git**; E2E baut es bei Bedarf, Docker in eigener SDK-Stage). Fallen:
   `concurrentBuild: false` (Single-Thread-WASM: „Cannot wait on monitors“); Ressource nicht `*.cs.txt` nennen (MSBuild hält
   `.cs` für eine Kultur ⇒ Satelliten-Assembly); CoreLib/System.Runtime/Console/Collections/Linq nicht trimmen (sonst
@@ -246,8 +250,13 @@ node scripts/build-csharp.ts        # C#-Host bauen (.NET-SDK 10 nötig; Ausgabe
   Pyodide `compile()`, javac (gleiche Dateien wie beim Lauf, Import-Präfix aus Positionen herausgerechnet; Compiler wird
   wiederverwendet, entfernte Dateien leer überschreiben), C# `[JSExport] Host.Check`. Marker-Owner `klonk-check`; Laufzeitfehler als
   Marker `klonk-runtime` mit Meldung, „Zur Zeile“ im Fehlerkasten (`KlonkEditor.revealLine`). Projekt-Bibliotheken gehen mit (Prop `files`).
-- **Monaco-Modelle:** eines je Sprache mit Dateiendung (`file:///klonk/<n>/program.ts` …) – der TS-Dienst erkennt TS/JS an der Endung.
-- **Vollbild-Code:** `focus` in `index.vue` (fixed über dem Kopf + Browser-Fullscreen-API), Ausgabe kompakt unter dem Editor.
+- **Monaco-Modelle:** eines je Sprache mit Dateiendung (`file:///__klonk/<n>/program.ts`, im Projekt `file:///<pfad>`) – der TS-Dienst erkennt TS/JS an der Endung.
+- **Code in voller Breite** (`focus`, vom User so gewünscht – kein Browser-Vollbild): Projekt/Welt aus, Ausgabe kompakt unter dem Editor.
+  Rechts Tabs **Welt | Doku** (`LanguageDocs.vue`: Kurzreferenz je Sprache aus den Tabellen, Link `public.docsUrl`); Ausführen zeigt die Welt.
+- **Navigation:** Projekte · Programmieren · Kleiderschrank (`/designs`, Designs des Projekts) · Welt.
+- **Laufzeiten versioniert:** `/pyodide|teavm|pylibs|dotnet/<hash>/` (`assetVersion()` in `apps/app/nuxt.config.ts`, Vite-`define`
+  `__KLONK_ASSETS__`, `runtime/src/assets.ts`) – sonst lieferten Browser-/PWA-Cache nach einem Neubau alte Dateien (z. B. alter C#-Host).
+- **Ohne Lizenz + Projektdateien:** Runner bekommt die Dateien immer, nutzt sie nur mit `allowImports`; Java/C#/Python melden dann `feature_libraries` statt „package/namespace/module not found“.
 - **IDE-Layout:** Trenner `SplitHandle` (Zeigen + Pfeiltasten) zwischen Projekt/Code/Welt/Ausgabe, Größen in `klonk:layout` (localStorage), nur ab `lg`. Blockly folgt per `ResizeObserver` (`svgResize`), Container `absolute inset-0`.
 - **Einstellungen:** `SettingsForm` (core) unter `/settings` in app und admin (Kontomenü über „Abmelden“): Sprache + Hell/Dunkel/System.
   Angemeldet blendet der Kopf die Schnellschalter aus; Login-Seiten behalten sie. Nuxt-UI-Radius = Standard (kein `--ui-radius`).
@@ -265,14 +274,25 @@ node scripts/build-csharp.ts        # C#-Host bauen (.NET-SDK 10 nötig; Ausgabe
   Lokales Dateisystem über File System Access API (Projektordner öffnen).
 - **Auth:** siehe „Konten & Anmeldung“. Schulen und Unternehmen wählen selbst OIDC, LDAP und/oder lokale Konten.
 - **Unterricht (Docs):** `apps/docs/content/{de,en}/5.teaching/` gegliedert **Land → Bundesland → Schulform → Klasse**
-  (`2.germany/2.bavaria/2.gymnasium/N.grade-X.md`, je Ebene `.navigation.yml` + `1.overview.md`). Je Klasse: Lernbereiche mit
+  (`2.germany/3.bavaria/2.gymnasium/N.grade-X.md`, je Ebene `.navigation.yml` + `1.overview.md`). Je Klasse: Lernbereiche mit
   Eignung (★★★/★★/★/–), Link zum Lehrplan-Volltext, Unterrichtsideen; Codebeispiele müssen mit der echten API laufen.
   Ordner alphabetisch nummeriert (`2.baden-wuerttemberg`, `3.bavaria`, `4.hesse`, `5.lower-saxony`, `6.north-rhine-westphalia`,
   `7.saxony`), Stufenbündel als `grade-5-6.md`, Oberstufe `upper-secondary.md`. Bayern: Gymnasium, Realschule (IT modular ⇒
   Anfangs-/Aufbauunterricht), Mittelschule, FOS/BOS (KIT/KIWI ab 2026/27); übrige Länder bisher nur Gymnasium. Neue Länder/Schulformen
   ⇒ Tabellen in `5.teaching/1.overview.md`, `2.germany/1.overview.md` (inkl. „Wie das Fach heißt“) und der Landesübersicht ergänzen.
   Marken gibt es nur in vier Farben (gelb/rot/blau/grün) – Beispiele dürfen keine anderen Markenfarben nutzen.
-- **KI:** Schulen binden ihr eigenes LLM ein (OpenAI-kompatible API), optional WebLLM im Browser.
+- **KI-Assistent** (Lizenz-Feature `ai`, vom User so festgelegt): Tab **KI** neben Welt | Doku (`AiChat.vue`, `useAi()`), „Fehler erklären“
+  im Fehlerkasten, Codeblöcke „Einfügen“/„Alles ersetzen“ (`KlonkEditor.insertText/replaceAll`, rückgängig machbar) nur bei voller Hilfe.
+  **Tutor-Modus:** Lernende (`role member`) bekommen je nach Einstellung nur Hinweise, Lehrkräfte/Admins/Betreiber immer volle Hilfe.
+  Konfiguration pro Organisation (admin → KI-Assistent, Tabelle `organization_ai_settings`, Schlüssel AES-verschlüsselt, Mitglieder dürfen
+  lesen, nur Admins ändern) oder `inherit` ⇒ Instanz-Standard `NUXT_AI_*` (`runtimeConfig.ai`, gilt auch für Privatkonten); `getAiConfig()`
+  in `core/server/utils/ai.ts`. Modus `server`: `/api/ai/chat` (app) setzt den Systemprompt (`aiSystemPrompt()` in `core/shared/utils/ai.ts`)
+  und streamt die OpenAI-kompatible Antwort (`/chat/completions`, SSE ⇒ reiner Text, `completionTextStream`); Schlüssel nie im Browser.
+  Modus `webllm`: `@mlc-ai/web-llm` nur im Worker `app/workers/webllm.ts` (eigenes Protokoll load/chat/stop, ~6 MB, nicht im PWA-Precache),
+  Modellgewichte von Hugging Face (CORS ⇒ mit COEP vereinbar), WebGPU nötig, Modelle `AI_WEBLLM_MODELS`. Kontext (Sprache, Referenz aus
+  `languageReferenceText()`, Code mit Zeilennummern, Fehler, Ausgabe) baut `aiContext()` in `pages/index.vue`. Antworten ohne `v-html`
+  (`utils/ai-markdown.ts`). E2E: `e2e/editor-ai.spec.ts` mit `e2e/mock-llm.ts` (Schlüssel `test-key`; im Stack nur die Einstellungen).
+  Die App merkt sich die Lizenz 60 s ⇒ Tests pollen `/api/ai/config`.
 
 ## Lizenzmodell (Open Core, wie evcc)
 
@@ -293,14 +313,28 @@ node scripts/build-csharp.ts        # C#-Host bauen (.NET-SDK 10 nötig; Ausgabe
   (admin → Lizenz, nur Plattform-Admins). Feature `hosted` ⇒ Grenzen pro Organisation (`organizations.license_token`).
   Client: `useLicense()` (`can('libraries')`, `maxCharacters`). **Neue Bezahlfunktionen immer serverseitig mit
   `requireFeature()` absichern** und in `LICENSE_FEATURES` + Admin-i18n (`admin.license.features.*`) eintragen.
-- Produktiver Signierschlüssel liegt nur lokal unter `~/.config/klonk/license-signing-key.pem` (gehört ins private Shop-Repo/
-  Secret-Store). Tokens manuell ausstellen: `node scripts/sign-license.ts --name … --features … --days …`.
+- Produktiver Signierschlüssel gehört in den Secret-Store von klonk-web (`NUXT_LICENSE_SIGNING_KEY`), nie in dieses Repo.
+  Tokens manuell ausstellen: Website → Betrieb (oder `node scripts/sign-license.ts --name … --features … --days …`).
+- **Lizenzabgleich** (`server/utils/license-sync.ts`, Plugin `apps/admin/server/plugins/license-sync.ts`, alle 6 h, nur admin.*):
+  Instanz-Token über `POST <Lizenzserver>/api/v1/license/refresh` verlängern (Lizenzserver = `NUXT_LICENSE_SERVER_URL` oder
+  Origin von `NUXT_PUBLIC_SHOP_URL`; aus mit `NUXT_LICENSE_AUTO_REFRESH=false`). Token aus der Env ⇒ verlängertes Token in
+  `instance_settings.license_refreshed`, `newerLicenseToken()` wählt (gleiche `sid`, später `exp`). Gehostete Plattform mit
+  `NUXT_LICENSE_SERVER_API_KEY`: `GET /api/v1/platform/licenses` ⇒ `organizations.license_token` und `user_licenses`
+  (Privat-Abos, nur Privatkonten); Token muss `organizationId` bzw. `userId` des Ziels enthalten.
+  `getEffectiveLicense(orgId, userId)` wertet Privat-Lizenzen aus. `/api/session` liefert `organizationId` für den Shop.
+- Proxy: Hauptdomain ⇒ Website, wenn `KLONK_WEBSITE_UPSTREAM` gesetzt (sonst Weiterleitung zur App); eigene Seiten
+  (z. B. Invoice Ninja) als `docker/proxy/sites/*.caddy` (nicht eingecheckt).
 - **Code-Lizenz (erledigt, vom User so festgelegt):** MIT für `packages/klonk-script` und `packages/world`, **Elastic License 2.0** für
   die Plattform (apps/*, core, ui, runtime, csharp; Rest des Repos ebenfalls ELv2). Root-`LICENSE` erklärt die Aufteilung, jedes Paket
   hat eine eigene `LICENSE`, `license`-Felder in den package.json (`MIT` / `Elastic-2.0`). Feature-Flags bleiben im selben Code (Schutz
   über ELv2: Umgehen der Token-Prüfung und Hosting für Dritte verboten). Fremdbibliotheken in `THIRD_PARTY_NOTICES.md` – **neue
   mitgelieferte Bibliotheken dort eintragen**. Docs-Seite `1.getting-started/2.license.md`.
-- Offen: weitere Bezahlfunktionen, Abos für Privatkonten auf der gehosteten Plattform.
+- **Lokaler Testmodus** (vom User so festgelegt): auf `localhost`/`*.localhost`/`127.0.0.1` alles frei (`LOCAL_LICENSE`, Plan `local`,
+  Badge „Lokaler Testmodus“) – nur wenn Host-Header **und** der vom Browser gemeldete Hostname (`x-klonk-host`, Plugin
+  `00.client-host.client.ts` für `$fetch`, `clientHostHeaders()` für `useFetch`) lokal sind (`isLocalTest(event)`). `getEffectiveLicense`,
+  `requireFeature`, `assertUserCapacity` bekommen dafür `event`. Abschalten: `NUXT_LICENSE_LOCAL_MODE=off` bzw. Header `x-klonk-local: off`
+  (Playwright setzt ihn global – Lizenztests prüfen echte Grenzen; `e2e/local-mode.spec.ts` testet den Modus).
+- Offen: weitere Bezahlfunktionen.
 
 ## Roadmap (Status pflegen!)
 
@@ -319,5 +353,5 @@ node scripts/build-csharp.ts        # C#-Host bauen (.NET-SDK 10 nötig; Ausgabe
 8. [x] Blöcke (Blockly ⇒ Klonk-Script, Debugger am Block, Haltepunkte per Rechtsklick, de/en)
 9. [x] Lokales Dateisystem: Projektordner (File System Access API) + Browser-Projekte (OPFS), Explorer, Autosave, Welten, Bibliotheken
 10. [x] PWA (Logo, Favicon, Offline)
-11. [ ] KI-Assistent (schuleigenes LLM / WebLLM)
+11. [x] KI-Assistent (schuleigenes LLM / WebLLM, Tutor-Modus, Fehler erklären, Code übernehmen)
 12. [x] Weitere Sprachen: Python (Pyodide), Java (TeaVM), C# (Roslyn/.NET-WASM)

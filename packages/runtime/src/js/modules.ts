@@ -111,9 +111,12 @@ function patternNames(pattern: AnyNode): string[] {
   }
 }
 
-/** Pfad relativ zur importierenden Datei auflösen (`./a`, `../b/c`) – Endungen .ts/.js und index.* werden ergänzt */
+/**
+ * Pfad einer Projektdatei auflösen: relativ zur importierenden Datei (`./a`, `../b/c`) oder ab dem Projektordner
+ * (`/src/a`) – Endungen .ts/.js und index.* werden ergänzt
+ */
 export function resolveImport(from: string, specifier: string, files: Record<string, string>): string | null {
-  const base = from.includes('/') ? from.slice(0, from.lastIndexOf('/')).split('/') : []
+  const base = specifier.startsWith('/') ? [] : from.includes('/') ? from.slice(0, from.lastIndexOf('/')).split('/') : []
   const parts = [...base]
   for (const part of specifier.split('/')) {
     if (part === '..') parts.pop()

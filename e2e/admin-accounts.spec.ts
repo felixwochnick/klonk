@@ -1,21 +1,11 @@
 import { expect, test, type Page } from '@playwright/test'
 import { ADMIN_URL, APP_URL } from '../playwright.config'
-import { gotoHydrated, loginWithPassword, waitForPage } from './utils'
+import { changePassword, gotoHydrated, loginWithPassword, waitForPage } from './utils'
 
 test.use({ locale: 'de-DE' })
 
 const login = (page: Page, baseUrl: string, identifier: string, password: string) =>
   loginWithPassword(page, `${baseUrl}/login`, identifier, password)
-
-async function changePassword(page: Page, current: string, next: string) {
-  await waitForPage(page, url => url.pathname === '/change-password')
-  await expect(page.getByRole('heading', { name: 'Passwort ändern' })).toBeVisible()
-  await page.getByLabel('Aktuelles Passwort').fill(current)
-  await page.getByLabel('Neues Passwort', { exact: true }).fill(next)
-  await page.getByLabel('Neues Passwort wiederholen').fill(next)
-  await page.getByRole('button', { name: 'Passwort speichern' }).click()
-  await waitForPage(page, url => url.pathname !== '/change-password')
-}
 
 async function createAccount(page: Page, data: { name: string, username: string, role: string, password: string }) {
   await page.getByRole('button', { name: 'Konto anlegen' }).first().click()

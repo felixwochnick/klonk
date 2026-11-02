@@ -4,7 +4,7 @@ import { drizzle } from 'drizzle-orm/postgres-js'
 import { migrate } from 'drizzle-orm/postgres-js/migrator'
 import postgres from 'postgres'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { instanceSettings, organizationAuthSettings, organizations, sessions, users } from '../server/database/schema'
+import { instanceSettings, organizationAiSettings, organizationAuthSettings, organizations, sessions, userLicenses, users } from '../server/database/schema'
 import { createDb, runAsUser, type Db } from '../server/utils/db'
 
 // Integrationstest gegen eine echte Postgres-Instanz (pnpm db:up) in einer eigenen Test-Datenbank
@@ -197,5 +197,28 @@ describe('RLS: organizations & Einstellungen', () => {
     const asAdmin = await runAsUser(db, ids.adminA!, tx => tx.update(organizations)
       .set({ licenseToken: 'x' }).where(eq(organizations.id, ids.orgA!)).returning({ id: organizations.id }))
     expect(asAdmin).toHaveLength(1)
+  })
+
+  it('KI-Einstellungen: Mitglieder lesen die eigene Organisation, ändern nur Admins', async () => {
+    await runAsUser(db, ids.adminA!, tx => tx.insert(organizationAiSettings).values({ organizationId: ids.orgA!, mode: 'server', model: 'm' }))
+    await expectDbError(runAsUser(db, ids.adminA!, tx =>
+      tx.insert(organizationAiSettings).values({ organizationId: ids.orgB!, mode: 'off' })), /row-level security/)
+    await expectDbError(runAsUser(db, ids.teacherA!, tx =>
+      tx.insert(organizationAiSettings).values({ organizationId: ids.orgA!, mode: 'off' })
+        .onConflictDoUpdate({ target: organizationAiSettings.organizationId, set: { mode: 'off' } })), /row-level security/)
+
+    const asStudent = await runAsUser(db, ids.studentA!, tx => tx.select().from(organizationAiSettings))
+    expect(asStudent.map(r => [r.organizationId, r.mode])).toEqual([[ids.orgA, 'server']])
+    expect(await runAsUser(db, ids.adminB!, tx => tx.select().from(organizationAiSettings))).toEqual([])
+    expect(await runAsUser(db, ids.private!, tx => tx.select().from(organizationAiSettings))).toEqual([])
+  })
+
+  it('Privat-Lizenzen liest nur das eigene Konto, schreiben kann niemand über RLS', async () => {
+    await db.insert(userLicenses).values({ userId: ids.private!, token: 'privat-token' })
+    expect(await runAsUser(db, ids.private!, tx => tx.select().from(userLicenses))).toHaveLength(1)
+    expect(await runAsUser(db, ids.adminA!, tx => tx.select().from(userLicenses))).toEqual([])
+    expect(await runAsUser(db, ids.owner!, tx => tx.select().from(userLicenses))).toHaveLength(1)
+    await expectDbError(runAsUser(db, ids.private!, tx =>
+      tx.update(userLicenses).set({ token: 'x' }).where(eq(userLicenses.userId, ids.private!))), /permission denied/)
   })
 })

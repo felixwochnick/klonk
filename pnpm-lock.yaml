@@ -236,6 +236,9 @@ importers:
       '@klonk/world':
         specifier: workspace:*
         version: link:../../packages/world
+      '@mlc-ai/web-llm':
+        specifier: ^0.2.87
+        version: 0.2.87
       '@nuxt/ui':
         specifier: ^4.12.0
         version: 4.12.0(9c5ee1e4c8c105adb894ac702603d77a)
@@ -254,6 +257,9 @@ importers:
       three:
         specifier: ^0.187.0
         version: 0.187.0
+      zod:
+        specifier: ^4.6.7
+        version: 4.6.7
     devDependencies:
       '@iconify-json/lucide':
         specifier: ^1.2.149
@@ -2283,6 +2289,9 @@ packages:
     resolution: {integrity: sha512-JjTIaXZp9WzhUHpElrqPnl1AzBi/rvRs065F71+aTmlqvTMVkdbjZ8vfFl4nRlgJy+TPBw69ZK4pwFdmOAt4aA==}
     peerDependencies:
       rollup: ^1.20.0 || ^2.0.0 || ^3.0.0 || ^4.0.0
+
+  '@mlc-ai/web-llm@0.2.87':
+    resolution: {integrity: sha512-34N19988MdaEtzh8Mq/IOrfKCk2HRDOrXgEkLT28r3aiyAU6ZJSUB+v35t7zyU+0QEaFl91Y4U5SuPN/cwoHNw==}
 
   '@modelcontextprotocol/client@2.4.0':
     resolution: {integrity: sha512-LgrD2OphHuG12vfKFKz6SOnq7bKHQmhGJIAYdD+MZBn2npHEyry6uD8zvktodtl5CQM85MO0anUyD9JwmUmxww==}
@@ -6898,6 +6907,10 @@ packages:
   lodash@4.18.1:
     resolution: {integrity: sha512-dMInicTPVE8d1e5otfwmmjlxkZoUpiVLwyeTdUsi/Caj/gfzzblBcCE5sRHV/AsjuCmxWrte2TNGSYuCeCq+0Q==}
 
+  loglevel@1.9.2:
+    resolution: {integrity: sha512-HgMmCqIJSAKqo68l0rS2AanEWfkxaZ5wNiEFb5ggm08lDs9Xl2KxBlX3PTcaD2chBM1gXAYf491/M2Rv8Jwayg==}
+    engines: {node: '>= 0.6.0'}
+
   longest-streak@3.1.0:
     resolution: {integrity: sha512-9Ri+o0JYgehTaVBBDoMqIl8GXtbWg711O3srftcHhZ0dqnETqLaoIK0x17fUw9rFSlK/0NlsKe0Ahhyl5pXE2g==}
 
@@ -11150,6 +11163,10 @@ snapshots:
       '@rollup/pluginutils': 5.5.1(rollup@4.66.0)
       json5: 2.2.3
       rollup: 4.66.0
+
+  '@mlc-ai/web-llm@0.2.87':
+    dependencies:
+      loglevel: 1.9.2
 
   '@modelcontextprotocol/client@2.4.0':
     dependencies:
@@ -18027,6 +18044,8 @@ snapshots:
   lodash@4.17.21: {}
 
   lodash@4.18.1: {}
+
+  loglevel@1.9.2: {}
 
   longest-streak@3.1.0: {}
 

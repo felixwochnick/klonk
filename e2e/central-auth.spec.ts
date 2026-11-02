@@ -3,7 +3,8 @@ import { ADMIN_URL, APP_URL, AUTH_URL } from '../playwright.config'
 import { gotoHydrated, waitForPage } from './utils'
 
 // Zentrale Anmeldung auf auth.*: einmal anmelden, überall angemeldet. Baut auf admin-accounts.spec.ts auf.
-test.use({ locale: 'de-DE' })
+// Ohne zusätzliche Header: ein eigener Header würde bei den Cross-Origin-Abfragen einen CORS-Preflight auslösen
+test.use({ locale: 'de-DE', extraHTTPHeaders: {} })
 
 test('Einmal anmelden für App und Verwaltung, einmal abmelden für alle', async ({ page }) => {
   // App leitet zur zentralen Anmeldung und nach dem Login zurück

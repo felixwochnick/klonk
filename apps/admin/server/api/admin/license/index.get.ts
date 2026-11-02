@@ -21,7 +21,7 @@ export default defineEventHandler(async (event) => {
     const [org] = await withUserDb(user.id, tx => tx.select({ token: schema.organizations.licenseToken })
       .from(schema.organizations).where(eq(schema.organizations.id, user.organizationId!)))
     result.organization = {
-      license: await getEffectiveLicense(user.organizationId),
+      license: await getEffectiveLicense(user.organizationId, event),
       hasToken: !!org?.token,
       usage: await getUserUsage(user.organizationId),
     }

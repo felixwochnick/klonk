@@ -12,6 +12,11 @@ export default defineNuxtConfig({
     encryptionKey: '',
     // Lizenz-Token der Instanz (alternativ in der Verwaltung hinterlegen)
     licenseToken: '',
+    // Lizenzserver klonk.* (leer = Origin von public.shopUrl): Tokens automatisch verlängern
+    licenseServerUrl: '',
+    licenseAutoRefresh: true,
+    // Nur gehostete Plattform: Schlüssel für den Abgleich der Organisations- und Privat-Lizenzen mit dem Shop
+    licenseServerApiKey: '',
     // Klonk ID: plattformweiter OIDC-Anbieter (Authentik), nur für Betreiber (Entwickler:innen, Besitzer:innen)
     platformOidc: {
       name: 'Klonk ID',
@@ -34,7 +39,23 @@ export default defineNuxtConfig({
       websiteUrls: '',
       // Shop/Kundenkonto auf klonk.* für „Lizenz kaufen/verwalten“ (leer = Link ausblenden)
       shopUrl: '',
+      // Dokumentation (docs.klonk.*) für Links aus der App
+      docsUrl: 'http://localhost:3001',
     },
+    // KI-Assistent: Standard der Instanz für Organisationen ohne eigene Einstellung und für Privatkonten
+    // (NUXT_AI_MODE = server | webllm | off; leer + NUXT_AI_BASE_URL gesetzt ⇒ server)
+    ai: {
+      mode: '',
+      // OpenAI-kompatibler Endpunkt, z. B. `https://api.openai.com/v1` oder `http://ollama:11434/v1`
+      baseUrl: '',
+      model: '',
+      apiKey: '',
+      webllmModel: '',
+      // `full` = auch Lernende bekommen volle Hilfe, sonst nur Hinweise
+      students: 'tutor',
+    },
+    // Lokaler Testmodus (alles frei auf localhost/*.localhost); `off` schaltet ihn ab
+    licenseLocalMode: 'on',
     session: {
       name: 'klonk-session',
       maxAge: 60 * 60 * 24 * 14,

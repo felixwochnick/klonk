@@ -174,7 +174,7 @@ type ApiStyle = {
 const PYTHON_STYLE: ApiStyle = {
   keywords: PYTHON_KEYWORDS,
   // print bleibt Pythons eigenes
-  name: (name, builtin) => (name === 'print' || name === 'selectCharacter' || name === 'createCharacter' ? null : builtin.kind === 'constant' ? spell(name, 'en') : pythonName(spell(name, 'en'))),
+  name: (name, builtin) => (name === 'print' || name === 'random' || name === 'selectCharacter' || name === 'createCharacter' ? null : builtin.kind === 'constant' ? spell(name, 'en') : pythonName(spell(name, 'en'))),
   param: pythonName,
   optional: '=…',
   newKlonk: 'Klonk',
@@ -184,7 +184,7 @@ const PYTHON_STYLE: ApiStyle = {
 const JAVA_STYLE: ApiStyle = {
   keywords: JAVA_KEYWORDS,
   // Konstanten in Java-Schreibweise; wait heißt sleep (Object.wait() verdeckt sonst den statischen Import)
-  name: (name, builtin) => (name === 'selectCharacter' || name === 'createCharacter' ? null : builtin.kind === 'constant' ? spell(name, 'en').toUpperCase() : name === 'wait' ? 'sleep' : spell(name, 'en')),
+  name: (name, builtin) => (name === 'print' || name === 'random' || name === 'selectCharacter' || name === 'createCharacter' ? null : builtin.kind === 'constant' ? spell(name, 'en').toUpperCase() : name === 'wait' ? 'sleep' : spell(name, 'en')),
   param: name => name,
   optional: '?',
   newKlonk: 'new Klonk',
@@ -196,7 +196,7 @@ const CSHARP_KEYWORDS = ['var', 'int', 'double', 'bool', 'string', 'if', 'else',
 const CSHARP_STYLE: ApiStyle = {
   keywords: CSHARP_KEYWORDS,
   // PascalCase wie in C# üblich (IsWall, PlaceBrick, Red)
-  name: name => (name === 'selectCharacter' || name === 'createCharacter' ? null : csharpName(spell(name, 'en'))),
+  name: name => (name === 'print' || name === 'random' || name === 'selectCharacter' || name === 'createCharacter' ? null : csharpName(spell(name, 'en'))),
   param: name => name,
   optional: '?',
   newKlonk: 'new Klonk',
@@ -359,6 +359,12 @@ function configureTypeScript(monaco: Monaco) {
     target: ts.ScriptTarget.ESNext,
     module: ts.ModuleKind.ESNext,
     moduleResolution: ts.ModuleResolutionKind.NodeJs,
+    // `import … from './x.ts'` wie zur Laufzeit erlauben
+    allowImportingTsExtensions: true,
+    // Projektdateien liegen unter file:///<pfad> – `/src/x` ab dem Projektordner dorthin abbilden
+    baseUrl: 'file:///',
+    paths: { '/*': ['*'] },
+    noEmit: true,
     lib: ['esnext'],
     allowNonTsExtensions: true,
     strict: true,

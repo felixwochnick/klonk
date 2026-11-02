@@ -12,10 +12,23 @@ x-env: &env
   NUXT_PUBLIC_APP_URL: ${KLONK_PUBLIC_SCHEME:-https}://app.${KLONK_DOMAIN}
   NUXT_PUBLIC_ADMIN_URL: ${KLONK_PUBLIC_SCHEME:-https}://admin.${KLONK_DOMAIN}
   NUXT_PUBLIC_AUTH_URL: ${KLONK_PUBLIC_SCHEME:-https}://auth.${KLONK_DOMAIN}
+  NUXT_PUBLIC_DOCS_URL: ${KLONK_PUBLIC_SCHEME:-https}://docs.${KLONK_DOMAIN}
   NUXT_PUBLIC_WEBSITE_URLS: ${KLONK_WEBSITE_URLS:-}
   # Lizenz (optional, alternativ in der Verwaltung) und Link zum Shop
   NUXT_LICENSE_TOKEN: ${KLONK_LICENSE_TOKEN:-}
   NUXT_PUBLIC_SHOP_URL: ${KLONK_SHOP_URL:-}
+  # KI-Assistent: Standard für alle Organisationen ohne eigene Einstellung und für Privatkonten (optional)
+  NUXT_AI_MODE: ${KLONK_AI_MODE:-}
+  NUXT_AI_BASE_URL: ${KLONK_AI_BASE_URL:-}
+  NUXT_AI_MODEL: ${KLONK_AI_MODEL:-}
+  NUXT_AI_API_KEY: ${KLONK_AI_API_KEY:-}
+  NUXT_AI_WEBLLM_MODEL: ${KLONK_AI_WEBLLM_MODEL:-}
+  NUXT_AI_STUDENTS: ${KLONK_AI_STUDENTS:-tutor}
+  # Lizenz automatisch beim Lizenzserver (Origin von KLONK_SHOP_URL) verlängern; false = nie nach außen verbinden
+  NUXT_LICENSE_AUTO_REFRESH: ${KLONK_LICENSE_AUTO_REFRESH:-true}
+  NUXT_LICENSE_SERVER_URL: ${KLONK_LICENSE_SERVER_URL:-}
+  # Nur gehostete Plattform: Abgleich der Organisations-/Privat-Lizenzen mit dem Shop
+  NUXT_LICENSE_SERVER_API_KEY: ${KLONK_LICENSE_SERVER_API_KEY:-}
   # Klonk ID (Betreiberzugang, optional)
   NUXT_PLATFORM_OIDC_ISSUER: ${KLONK_ID_ISSUER:-}
   NUXT_PLATFORM_OIDC_CLIENT_ID: ${KLONK_ID_CLIENT_ID:-}
@@ -58,6 +71,8 @@ services:
       # internal | http | ionos | off
       KLONK_TLS: ${KLONK_TLS:-internal}
       KLONK_ACME_EMAIL: ${KLONK_ACME_EMAIL:-}
+      # Website auf der Hauptdomain (leer = Weiterleitung zur App)
+      KLONK_WEBSITE_UPSTREAM: ${KLONK_WEBSITE_UPSTREAM:-}
       IONOS_API_TOKEN: ${IONOS_API_TOKEN:-}
     ports:
       - "${KLONK_HTTP_PORT:-80}:80"
@@ -66,6 +81,7 @@ services:
     volumes:
       - caddy-data:/data
       - caddy-config:/config
+      - ./proxy/sites:/etc/caddy/sites.d:ro
     healthcheck:
       test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1:2019/config/"]
       interval: 5s

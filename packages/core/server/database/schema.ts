@@ -111,3 +111,28 @@ export const instanceSettings = pgTable('instance_settings', {
   value: jsonb().notNull(),
   updatedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
 })
+
+/** KI-Assistent: `inherit` = Standard der Instanz (NUXT_AI_*), `server` = OpenAI-kompatible API, `webllm` = Modell im Browser */
+export const aiMode = pgEnum('ai_mode', ['inherit', 'off', 'server', 'webllm'])
+
+/** KI-Einstellungen einer Organisation (Zeile entsteht beim ersten Speichern) */
+export const organizationAiSettings = pgTable('organization_ai_settings', {
+  organizationId: uuid().primaryKey().references(() => organizations.id, { onDelete: 'cascade' }),
+  mode: aiMode().notNull().default('inherit'),
+  // OpenAI-kompatibler Endpunkt, z. B. `https://llm.schule.de/v1`
+  baseUrl: text(),
+  model: text(),
+  /** AES-GCM-verschlüsselt */
+  apiKey: text(),
+  webllmModel: text(),
+  /** Lernende bekommen nur Hinweise statt fertiger Lösungen (Lehrkräfte/Admins immer volle Hilfe) */
+  tutor: boolean().notNull().default(true),
+  updatedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+})
+
+/** Lizenz-Token von Privatkonten (gehostete Plattform, Privat-Abo aus dem Shop) – schreibt nur der Abgleich mit klonk.* */
+export const userLicenses = pgTable('user_licenses', {
+  userId: uuid().primaryKey().references(() => users.id, { onDelete: 'cascade' }),
+  token: text().notNull(),
+  updatedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+})

@@ -10,7 +10,8 @@
       "organization": "Organisation",
       "login": "Anmeldung",
       "organizations": "Alle Organisationen",
-      "license": "Lizenz"
+      "license": "Lizenz",
+      "ai": "KI-Assistent"
     },
     "organizationType": {
       "school": "Schule",
@@ -124,7 +125,8 @@
         "self-hosted-enterprise": "Self-Hosted Enterprise (über 1000 Konten)",
         "school": "Schule",
         "company": "Unternehmen",
-        "private": "Privat"
+        "private": "Privat",
+        "local": "Lokaler Testmodus (localhost)"
       },
       "limit": {
         "warning": "{used} von {max} Konten belegt – die Grenze der Lizenz ist bald erreicht.",
@@ -132,6 +134,32 @@
         "blocked": "Die Grenze von {max} Konten ist erreicht – neue Konten erst nach einem Upgrade."
       },
       "upgrade": "Upgrade"
+    },
+    "ai": {
+      "description": "Der KI-Assistent hilft beim Programmieren: Er erklärt Fehler, beantwortet Fragen zum Code und gibt Hinweise. Wähle, welches Sprachmodell deine Organisation nutzt.",
+      "locked": "Der KI-Assistent ist Teil der Lizenz.",
+      "mode": "Sprachmodell",
+      "modes": {
+        "inherit": "Standard der Instanz",
+        "off": "Aus",
+        "server": "Eigener Server (OpenAI-kompatibel)",
+        "webllm": "Im Browser (WebLLM)"
+      },
+      "inheritDescription": "Einstellung des Betreibers übernehmen (zurzeit: {mode}, Modell {model}).",
+      "modeDescriptions": {
+        "off": "Kein KI-Assistent für diese Organisation.",
+        "server": "Anfragen laufen über den Klonk-Server an euren Anbieter (OpenAI, Azure, Ollama, vLLM, LM Studio …). Der Schlüssel bleibt auf dem Server.",
+        "webllm": "Das Modell läuft auf dem Gerät (WebGPU nötig, einmaliger Download von ca. 1–2 GB). Es verlassen keine Daten das Gerät."
+      },
+      "serverHelp": "Jeder Dienst mit einer OpenAI-kompatiblen Schnittstelle (/chat/completions) funktioniert.",
+      "baseUrl": "API-Adresse",
+      "baseUrlHelp": "Basis-URL inklusive /v1, z. B. https://api.openai.com/v1 oder http://ollama:11434/v1",
+      "model": "Modell",
+      "apiKey": "API-Schlüssel",
+      "apiKeyHelp": "Optional (z. B. bei Ollama nicht nötig). Wird verschlüsselt gespeichert.",
+      "webllmHelp": "Die Modellgewichte werden beim ersten Öffnen des Assistenten von Hugging Face geladen und im Browser gespeichert. Braucht einen Browser mit WebGPU (Chrome, Edge).",
+      "tutor": "Lernende bekommen nur Hinweise",
+      "tutorDescription": "Der Assistent erklärt und gibt Tipps, schreibt aber keine fertigen Lösungen. Lehrkräfte und Admins bekommen immer volle Hilfe."
     }
   },
   "errors": {

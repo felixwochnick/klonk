@@ -31,7 +31,8 @@ export function robotApiDeclarations(lang: ScriptLanguage) {
   const methods: string[] = []
 
   for (const [name, builtin] of Object.entries(BUILTINS) as [string, Builtin][]) {
-    if (name === 'selectCharacter' || name === 'createCharacter') continue
+    // Ausgabe und Zufall wie gewohnt (console.log, Math.random) – nicht in der Bibliothek
+    if (name === 'selectCharacter' || name === 'createCharacter' || name === 'print' || name === 'random') continue
     for (const spelling of builtin.names.en) {
       if (builtin.kind === 'constant') {
         lines.push(doc(builtin.doc[lang]), `export const ${spelling}: '${name}'`)

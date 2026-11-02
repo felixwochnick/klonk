@@ -65,10 +65,13 @@ onMounted(async () => {
   monaco = await loadMonaco(translator)
   // Eigenes Modell je Sprache mit passender Endung: der TypeScript-Dienst erkennt TS/JS an der Dateiendung
   // (ein gemeinsames Modell ohne Endung prüfte TypeScript als JavaScript ⇒ falsche Fehler bis zum Neuladen)
-  // Im Projekt liegt das Modell unter seinem Pfad (TypeScript löst `./andere` dann relativ dazu auf)
+  // Im Projekt liegt das Modell unter seinem Pfad ab der Wurzel (file:///src/x.ts) – TypeScript löst `./andere` und
+  // `/src/andere` dann wie zur Laufzeit auf; ohne Projekt ein eigener Ordner je Modell
   const createModel = (value: string, language: string) => {
-    const path = props.path && props.path.endsWith(`.${EXTENSION[language]}`) ? props.path : `program.${EXTENSION[language] ?? 'txt'}`
-    const created = monaco!.editor.createModel(value, monacoLanguage(language), monaco!.Uri.parse(`file:///${++modelCounter}/project/${path}`))
+    const inProject = !!props.path && props.path.endsWith(`.${EXTENSION[language]}`)
+    const uri = monaco!.Uri.parse(inProject ? `file:///${props.path}` : `file:///__klonk/${++modelCounter}/program.${EXTENSION[language] ?? 'txt'}`)
+    monaco!.editor.getModel(uri)?.dispose()
+    const created = monaco!.editor.createModel(value, monacoLanguage(language), uri)
     modelContexts.set(created.uri.toString(), { path: props.path ?? undefined, files: props.files })
     created.onWillDispose(() => modelContexts.delete(created.uri.toString()))
     return created
@@ -122,9 +125,11 @@ onMounted(async () => {
   })
   stopLanguageWatch = watch([() => props.language, () => props.path], ([language]) => {
     const previous = model
+    // Gleicher Pfad (z. B. nach Umbenennen zurück) ⇒ altes Modell zuerst freigeben
+    if (previous.uri.toString() === `file:///${props.path}`) previous.dispose()
     model = createModel(source.value, language)
     editor!.setModel(model)
-    previous.dispose()
+    if (!previous.isDisposed()) previous.dispose()
     updateDecorations()
     updateRuntimeMarker()
     updateProjectLibs()
@@ -176,17 +181,16 @@ watch(locale, () => {
 watch([breakpoints, () => props.activeLine, () => props.errorLine], updateDecorations)
 watch([() => props.errorLine, () => props.errorMessage], updateRuntimeMarker)
 
-// JS/TS: andere Projektdateien für den TypeScript-Dienst (Importe zwischen Dateien, Vorschläge daraus)
+// JS/TS: andere Projektdateien als Extra-Libs unter file:///<pfad> – der TypeScript-Worker behält sie dauerhaft
+// (Modelle verwirft er nach einer Weile). `./x` löst er relativ auf, `/src/x` über `paths` in monaco.ts.
 let projectLibs: { dispose: () => void }[] = []
 function updateProjectLibs() {
   for (const lib of projectLibs) lib.dispose()
   projectLibs = []
-  const model = editor?.getModel()
-  if (!monaco || !model) return
-  const root = model.uri.path.slice(0, model.uri.path.indexOf('/project/') + '/project/'.length)
+  if (!monaco || !props.path) return
   for (const [path, text] of Object.entries(props.files)) {
     if (!/\.(ts|js)$/.test(path) || path === props.path) continue
-    const uri = `file://${root}${path}`
+    const uri = `file:///${path}`
     projectLibs.push(monaco.typescript.typescriptDefaults.addExtraLib(text, uri), monaco.typescript.javascriptDefaults.addExtraLib(text, uri))
   }
 }
@@ -233,6 +237,23 @@ defineExpose({
     if (!editor) return
     editor.revealLineInCenter(line)
     editor.setPosition({ lineNumber: line, column: 1 })
+    editor.focus()
+  },
+  /** Text an der Cursorstelle einfügen bzw. die Auswahl ersetzen (KI-Assistent, rückgängig machbar) */
+  insertText: (text: string) => {
+    const selection = editor?.getSelection()
+    if (!editor || !selection) return
+    editor.executeEdits('klonk-ai', [{ range: selection, text, forceMoveMarkers: true }])
+    editor.pushUndoStop()
+    editor.focus()
+  },
+  /** Ganzes Programm ersetzen (rückgängig machbar, anders als ein neuer v-model-Wert) */
+  replaceAll: (text: string) => {
+    const model = editor?.getModel()
+    if (!editor || !model) return
+    editor.pushUndoStop()
+    editor.executeEdits('klonk-ai', [{ range: model.getFullModelRange(), text }])
+    editor.pushUndoStop()
     editor.focus()
   },
 })

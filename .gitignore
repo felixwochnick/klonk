@@ -26,3 +26,6 @@ docker/local/klonk-local-ca.crt
 packages/runtime/dotnet/
 packages/csharp/bin/
 packages/csharp/obj/
+
+# Eigene Proxy-Seiten des Betriebs
+docker/proxy/sites/*.caddy

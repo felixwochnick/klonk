@@ -102,7 +102,8 @@
   "nav": {
     "world": "World",
     "code": "Code",
-    "projects": "Projects"
+    "projects": "Projects",
+    "wardrobe": "Wardrobe"
   },
   "editor": {
     "title": "Code",
@@ -145,8 +146,13 @@
     "resizeCode": "Resize code",
     "resizeOutput": "Resize output",
     "showErrorLine": "Go to line",
-    "focus": "Full-screen code (e.g. on tablets)",
-    "focusExit": "Exit full screen"
+    "focus": "Code in full width",
+    "focusExit": "Show all panes",
+    "tabs": {
+      "world": "World",
+      "docs": "Docs",
+      "ai": "AI"
+    }
   },
   "script": {
     "errors": {
@@ -348,5 +354,55 @@
       "helmet": "Helmet",
       "crown": "Crown"
     }
+  },
+  "langDocs": {
+    "title": "Quick reference",
+    "full": "Full documentation",
+    "import": "Import",
+    "characters": "Characters",
+    "first": "the first character",
+    "byName": "the character with this name",
+    "all": "all characters",
+    "create": "new character (look and cell optional)",
+    "name": "name of the character",
+    "methods": "Methods of a character",
+    "commands": "Commands and sensors",
+    "colors": "Colors",
+    "more": "Also",
+    "wait": "wait (seconds)",
+    "output": "output",
+    "scriptIntro": "Keywords:"
+  },
+  "wardrobe": {
+    "title": "Wardrobe",
+    "noProject": "Robot designs belong to a project. Open or create a project first.",
+    "new": "New design",
+    "empty": "No designs in this project yet."
+  },
+  "ai": {
+    "tutor": "Hint mode",
+    "full": "Full help",
+    "onDevice": "runs on this device",
+    "newChat": "New chat",
+    "intro": "Ask me about your program: I know your code, the error message and the Klonk commands, and I can write or improve code.",
+    "introTutor": "Ask me about your program: I know your code and the error message and help you with explanations and tips – you find the solution yourself.",
+    "suggestions": {
+      "explain": "What does my program do?",
+      "next": "How do I continue?",
+      "loop": "How does a loop work?"
+    },
+    "copy": "Copy",
+    "copied": "Copied",
+    "insert": "Insert",
+    "replace": "Replace all",
+    "thinking": "Thinking …",
+    "loadingModel": "Loading the language model (first time only) …",
+    "placeholder": "Ask the AI assistant",
+    "send": "Send",
+    "stop": "Stop answer",
+    "disclaimer": "AI can make mistakes – check the answers.",
+    "explainError": "Explain error",
+    "explainPrompt": "Explain the error in my program. What does it mean and what causes it?",
+    "noWebGpu": "This browser does not support WebGPU – the language model cannot run here. Use e.g. Chrome or Edge."
   }
 }

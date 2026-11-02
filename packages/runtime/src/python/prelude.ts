@@ -3,7 +3,7 @@ export const USER_FILE = '<klonk>'
 
 /**
  * Python-Vorspann: Modul `klonk` (Klasse `Klonk` – eine Figur je Objekt, Methoden in Python-Schreibweise wie
- * `turn_left`, `is_wall` – dazu `wait`, `random` und Farben; nur Englisch, nur per import), Tracing für
+ * `turn_left`, `is_wall` – dazu `wait`, Farben und Designs; nur Englisch, nur per import; print/random wie gewohnt), Tracing für
  * Prüfpunkte (nur Zeilen der Nutzerdatei) und Variablenansicht.
  */
 export const PRELUDE = String.raw`

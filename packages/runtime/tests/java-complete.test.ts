@@ -17,12 +17,12 @@ describe('Java-Vervollständigung', () => {
     expect(items).toContain('isWall')
     expect(items).toContain('name')
     expect(items).not.toContain('all')
-    expect(labels(`${head}    Klonk.|`)).toEqual(expect.arrayContaining(['all', 'RED', 'print']))
+    expect(labels(`${head}    Klonk.|`)).toEqual(expect.arrayContaining(['all', 'RED', 'sleep', 'create']))
   })
 
   it('Variablen, Parameter, Felder, eigene Methoden, statische Importe', () => {
     const items = labels(`${head}    int anzahl = 3;\n    for (Klonk r : Klonk.all()) {\n      an|`)
-    expect(items).toEqual(expect.arrayContaining(['anzahl', 'r', 'args', 'zaehler', 'hilfe', 'RED', 'print', 'Klonk', 'while']))
+    expect(items).toEqual(expect.arrayContaining(['anzahl', 'r', 'args', 'zaehler', 'hilfe', 'RED', 'sleep', 'Klonk', 'while']))
   })
 
   it('Klassen aus anderen Projektdateien mit ihren Mitgliedern', () => {

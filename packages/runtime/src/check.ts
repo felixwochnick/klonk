@@ -1,6 +1,7 @@
 import type { PyodideInterface } from 'pyodide'
+import { assetUrl } from './assets'
 import { loadFromOrigin as loadDotnet, type DotnetHost } from './csharp/run'
-import { friendlyJavacMessage, loadFromOrigin as loadJava, publicClass, type Compiler, type Diagnostic as JavacDiagnostic, type JavaToolchain } from './java/run'
+import { friendlyJavacMessage, loadFromOrigin as loadJava, packagePrefixLength, publicClass, withPackage, type Compiler, type Diagnostic as JavacDiagnostic, type JavaToolchain } from './java/run'
 import { createJavaService, type CompletionItem, type HoverInfo } from './java/complete'
 import { JAVA_LIBRARY } from './java/lib'
 import { DEBUG_JAVA, ROBOT_JAVA } from './java/robot'
@@ -56,7 +57,7 @@ export type CheckLoaders = {
 }
 
 /** Wo die Python-Bibliotheken für den Editor liegen (eigene Origin wegen COEP; siehe apps/app/nuxt.config.ts) */
-export const PYLIBS_URL = '/pylibs/'
+export const PYLIBS_URL = assetUrl('pylibs')
 export const PYLIBS = ['jedi-0.20.1-py2.py3-none-any.whl', 'parso-0.8.7-py2.py3-none-any.whl']
 
 const ORIGIN_LOADERS: CheckLoaders = {
@@ -144,11 +145,12 @@ def _klonk_check(source):
     }
     // Dateien wie beim Ausführen (Dateiname nach der öffentlichen Klasse), aber ohne Prüfpunkte
     const main = `${publicClass(source) ?? 'Main'}.java`
-    const current: Record<string, string> = { [main]: source }
+    const current: Record<string, string> = { [main]: withPackage(source) }
     for (const [path, text] of Object.entries(files)) {
       const name = `${publicClass(text) ?? path.slice(path.lastIndexOf('/') + 1, -5)}.java`
-      if (path.endsWith('.java') && name !== main) current[name] = text
+      if (path.endsWith('.java') && name !== main) current[name] = withPackage(text)
     }
+    const prefix = packagePrefixLength(source)
     // Nicht mehr vorhandene Dateien leeren (der Compiler kennt kein Entfernen)
     for (const name of compiler.added) if (!(name in current)) c.addSourceFile(name, '')
     for (const [name, text] of Object.entries(current)) {
@@ -161,7 +163,7 @@ def _klonk_check(source):
     const lineStarts = [0]
     for (let i = 0; i < source.length; i++) if (source[i] === '\n') lineStarts.push(i + 1)
     const toPosition = (offset: number) => {
-      const o = Math.max(0, offset)
+      const o = Math.max(0, offset - prefix)
       let line = 0
       while (line + 1 < lineStarts.length && lineStarts[line + 1]! <= o) line++
       return { line: line + 1, column: o - lineStarts[line]! + 1 }

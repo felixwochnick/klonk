@@ -15,7 +15,7 @@ const toast = useToast()
 const apiError = useApiError()
 const { user } = useAuth()
 
-const { data, refresh } = await useFetch<Overview>('/api/admin/license')
+const { data, refresh } = await useFetch<Overview>('/api/admin/license', { headers: clientHostHeaders() })
 
 async function save(scope: 'instance' | 'organization', token: string | null) {
   try {

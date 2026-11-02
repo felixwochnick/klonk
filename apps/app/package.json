@@ -18,12 +18,14 @@
     "@klonk/runtime": "workspace:*",
     "@klonk/ui": "workspace:*",
     "@klonk/world": "workspace:*",
+    "@mlc-ai/web-llm": "^0.2.87",
     "@nuxt/ui": "^4.12.0",
     "blockly": "^13.4.0",
     "monaco-editor": "^0.57.0",
     "nuxt": "^4.6.3",
     "pyodide": "314.0.7",
-    "three": "^0.187.0"
+    "three": "^0.187.0",
+    "zod": "^4.6.7"
   },
   "devDependencies": {
     "@iconify-json/lucide": "^1.2.149",

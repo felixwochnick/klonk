@@ -41,10 +41,9 @@ function klonkType(lang: ScriptLanguage): TypeInfo {
   for (const name of Object.keys(BUILTINS) as BuiltinName[]) {
     const builtin: Builtin = BUILTINS[name]
     if (builtin.kind === 'constant') members.push({ name: name.toUpperCase(), kind: 'constant', type: 'String', detail: `static String ${name.toUpperCase()}`, isStatic: true, documentation: builtin.doc[lang] })
-    else if (builtin.kind === 'function') {
-      const java = name === 'wait' ? 'sleep' : name
-      const params = name === 'print' ? 'Object... values' : name === 'wait' ? 'double seconds' : 'int min, int max'
-      members.push({ name: java, kind: 'method', type: RETURNS[name] ?? 'void', detail: `static ${RETURNS[name] ?? 'void'} ${java}(${params})`, isStatic: true, documentation: builtin.doc[lang] })
+    else if (builtin.kind === 'function' && name === 'wait') {
+      // wait heißt in Java sleep (Object.wait() verdeckt sonst den statischen Import)
+      members.push({ name: 'sleep', kind: 'method', type: 'void', detail: 'static void sleep(double seconds)', isStatic: true, documentation: builtin.doc[lang] })
     }
   }
   return { name: 'Klonk', members }
@@ -200,7 +199,7 @@ export function createJavaService(lang: ScriptLanguage) {
       for (const t of [...ctx.own, ...ctx.project]) items.push({ label: t.name, kind: 'class', detail: `class ${t.name}` })
       for (const name of ['String', 'System', 'Math', 'Integer']) items.push({ label: name, kind: 'class', detail: `class java.lang.${name}` })
       for (const t of LIBRARY_CLASSES) {
-        const imported = new RegExp(String.raw`\bimport\s+klonk\.${t.name}\s*;`).test(ctx.text)
+        const imported = new RegExp(String.raw`\bimport\s+klonk\.(${t.name}|\*)\s*;`).test(ctx.text)
         items.push({ label: t.name, kind: 'class', detail: `class klonk.${t.name}`, addImport: imported ? undefined : `import klonk.${t.name};` })
       }
       items.push({ label: 'Klonk', kind: 'class', detail: 'class klonk.Klonk', documentation: lang === 'de' ? 'Eine Figur der Welt' : 'A character in the world', addImport: ctx.imported ? undefined : 'import klonk.Klonk;' })

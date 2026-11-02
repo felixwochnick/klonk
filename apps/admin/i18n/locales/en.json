@@ -10,7 +10,8 @@
       "organization": "Organization",
       "login": "Sign-in",
       "organizations": "All organizations",
-      "license": "License"
+      "license": "License",
+      "ai": "AI assistant"
     },
     "organizationType": {
       "school": "School",
@@ -124,7 +125,8 @@
         "self-hosted-enterprise": "Self-Hosted Enterprise (more than 1000 accounts)",
         "school": "School",
         "company": "Company",
-        "private": "Private"
+        "private": "Private",
+        "local": "Local test mode (localhost)"
       },
       "limit": {
         "warning": "{used} of {max} accounts used – the license limit will be reached soon.",
@@ -132,6 +134,32 @@
         "blocked": "The limit of {max} accounts has been reached – new accounts only after an upgrade."
       },
       "upgrade": "Upgrade"
+    },
+    "ai": {
+      "description": "The AI assistant helps with programming: it explains errors, answers questions about the code and gives hints. Choose which language model your organization uses.",
+      "locked": "The AI assistant is part of the license.",
+      "mode": "Language model",
+      "modes": {
+        "inherit": "Instance default",
+        "off": "Off",
+        "server": "Own server (OpenAI-compatible)",
+        "webllm": "In the browser (WebLLM)"
+      },
+      "inheritDescription": "Use the operator's setting (currently: {mode}, model {model}).",
+      "modeDescriptions": {
+        "off": "No AI assistant for this organization.",
+        "server": "Requests go through the Klonk server to your provider (OpenAI, Azure, Ollama, vLLM, LM Studio …). The key stays on the server.",
+        "webllm": "The model runs on the device (requires WebGPU, one-time download of about 1–2 GB). No data leaves the device."
+      },
+      "serverHelp": "Any service with an OpenAI-compatible interface (/chat/completions) works.",
+      "baseUrl": "API address",
+      "baseUrlHelp": "Base URL including /v1, e.g. https://api.openai.com/v1 or http://ollama:11434/v1",
+      "model": "Model",
+      "apiKey": "API key",
+      "apiKeyHelp": "Optional (e.g. not needed for Ollama). Stored encrypted.",
+      "webllmHelp": "The model weights are downloaded from Hugging Face the first time the assistant is opened and stored in the browser. Requires a browser with WebGPU (Chrome, Edge).",
+      "tutor": "Learners only get hints",
+      "tutorDescription": "The assistant explains and gives tips but does not write finished solutions. Teachers and admins always get full help."
     }
   },
   "errors": {

@@ -120,7 +120,7 @@ describe('Worker: JavaScript/TypeScript', () => {
   }
 
   it('führt JS mit der englischen Objekt-API aus, globale Befehle und deutsche Namen gibt es nicht', async () => {
-    run(`import { Klonk, print } from 'klonk'; const k = new Klonk()\nwhile (!k.isWall()) { k.step() }\nk.turnRight()\nk.placeBrick("Red")\nprint("x =", k.positionX(), k.name, typeof step, typeof schritt, k)`, { language: 'javascript', shared: shared() })
+    run(`import { Klonk } from 'klonk'; const k = new Klonk()\nwhile (!k.isWall()) { k.step() }\nk.turnRight()\nk.placeBrick("Red")\nconsole.log("x =", k.positionX(), k.name, typeof step, typeof schritt, k)`, { language: 'javascript', shared: shared() })
     await until(() => last()?.type === 'done')
     expect(messages.filter(m => m.type === 'command')).toHaveLength(6)
     expect(messages).toContainEqual({ type: 'command', command: { name: 'placeBrick', id: 'k', color: 'red' } })
@@ -129,7 +129,7 @@ describe('Worker: JavaScript/TypeScript', () => {
 
   it('mehrere Figuren gleichzeitig steuern (Name, Nummer, alle)', async () => {
     const two: WorldData = { ...world, characters: [...world.characters, { id: 'Klara', model: 'female', x: 0, z: 2, direction: 'east' }] }
-    run('import { Klonk, print } from "klonk"; const karl = new Klonk(1)\nconst klara = new Klonk("klara")\nkarl.step()\nklara.step(2)\nprint(Klonk.all().map(r => r.name + "@" + r.positionX()).join(" "))', { language: 'javascript', shared: shared(), world: two })
+    run('import { Klonk } from "klonk"; const karl = new Klonk(1)\nconst klara = new Klonk("klara")\nkarl.step()\nklara.step(2)\nconsole.log(Klonk.all().map(r => r.name + "@" + r.positionX()).join(" "))', { language: 'javascript', shared: shared(), world: two })
     await until(() => last()?.type === 'done')
     expect(messages.filter(m => m.type === 'command').map(m => m.type === 'command' && m.command.id)).toEqual(['k', 'Klara', 'Klara'])
     expect(messages).toContainEqual({ type: 'output', text: 'k@2 Klara@3' })
@@ -141,7 +141,7 @@ describe('Worker: JavaScript/TypeScript', () => {
   })
 
   it('TypeScript mit Typen läuft', async () => {
-    run('import { print } from "klonk"; function n(x: number): number {\n  return x + 1\n}\nconst y: number = n(2)\nprint(y)', { language: 'typescript', shared: shared() })
+    run('function n(x: number): number {\n  return x + 1\n}\nconst y: number = n(2)\nconsole.log(y)', { language: 'typescript', shared: shared() })
     await until(() => last()?.type === 'done')
     expect(messages).toContainEqual({ type: 'output', text: '3' })
   })
@@ -168,7 +168,7 @@ describe('Worker: JavaScript/TypeScript', () => {
   })
 
   it('Nutzercode hat keinen Netzwerkzugriff', async () => {
-    run('import { print } from "klonk"; print(typeof fetch, typeof XMLHttpRequest, typeof WebSocket)', { language: 'javascript', shared: shared() })
+    run('console.log(typeof fetch, typeof XMLHttpRequest, typeof WebSocket)', { language: 'javascript', shared: shared() })
     await until(() => last()?.type === 'done')
     expect(messages).toContainEqual({ type: 'output', text: 'undefined undefined undefined' })
   })
@@ -185,7 +185,7 @@ describe('Worker: JavaScript/TypeScript', () => {
     expect(last()).toMatchObject({ error: { code: 'js_runtime', params: { name: 'ReferenceError' } } })
 
     messages.length = 0
-    run('import * as klonk from "klonk"\nimport walk, { twice } from "./lib/walk"\nconst k = new klonk.Klonk()\nwalk(k)\nklonk.print(twice(k.positionX()))', {
+    run('import * as klonk from "klonk"\nimport walk, { twice } from "./lib/walk"\nconst k = new klonk.Klonk()\nwalk(k)\nconsole.log(twice(k.positionX()))', {
       language: 'typescript', shared: shared(), path: 'src/main.ts', allowImports: true,
       files: { 'src/lib/walk.ts': 'import type { Klonk } from "klonk"\nexport * from "./math"\nexport default function walk(k: Klonk) {\n  k.step(2)\n}', 'src/lib/math.js': 'export const twice = (x) => 2 * x' },
     })
@@ -199,7 +199,7 @@ describe('Worker: JavaScript/TypeScript', () => {
   })
 
   it('Klonk.create', async () => {
-    run('import { Klonk, print } from "klonk"; const kim = Klonk.create("Kim", "female", 3, 1)\nkim.step()\nprint(kim.name, kim.positionX(), kim.positionY(), Klonk.all().length)', { language: 'javascript', shared: shared() })
+    run('import { Klonk } from "klonk"; const kim = Klonk.create("Kim", "female", 3, 1)\nkim.step()\nconsole.log(kim.name, kim.positionX(), kim.positionY(), Klonk.all().length)', { language: 'javascript', shared: shared() })
     await until(() => last()?.type === 'done')
     expect(messages).toContainEqual({ type: 'output', text: 'Kim 3 2 2' })
   })
@@ -215,5 +215,14 @@ describe('Worker: JavaScript/TypeScript', () => {
     run('import { loadDesign } from "klonk"\nloadDesign("ritter")', { language: 'javascript', shared: shared() })
     await until(() => last()?.type === 'error')
     expect(last()).toMatchObject({ error: { code: 'world', params: { worldCode: 'design_license' } } })
+  })
+
+  it('Projektdateien auch ab dem Projektordner (/src/…) und mit Endung importieren', async () => {
+    run('import { zwei } from "/src/Werkzeuge/Laufen.ts"\nimport { Klonk } from "klonk"\nconst k = new Klonk()\nzwei(k)\nconsole.log(k.positionX())', {
+      language: 'typescript', shared: shared(), path: 'main.ts', allowImports: true,
+      files: { 'src/Werkzeuge/Laufen.ts': 'import type { Klonk } from "klonk"\nexport function zwei(k: Klonk) { k.step(); k.step() }' },
+    })
+    await until(() => last()?.type === 'done')
+    expect(messages).toContainEqual({ type: 'output', text: '3' })
   })
 })

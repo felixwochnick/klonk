@@ -1,5 +1,5 @@
 // Roboter-API für C# – wird mit dem Nutzerprogramm kompiliert; Programme binden sie selbst ein:
-// `using klonk;` (+ `using static klonk.Klonk;` für Farben, Print, Wait, Random). Jede Figur ist ein Objekt:
+// `using klonk;` (+ `using static klonk.Klonk;` für Farben und Wait; Ausgabe wie gewohnt mit Console.WriteLine). Jede Figur ist ein Objekt:
 // `var karl = new Klonk("Karl"); karl.Step();`. Englische Namen in C#-Schreibweise (Step, IsWall, PlaceBrick(Red) …).
 // Die Aufrufe gehen über Delegaten, die der Host (Host.cs) im AppDomain hinterlegt, an die JS-Roboter-API im Worker.
 // Namensraum `klonk` klein (wie das Modul in JS/Python/Java) – `Klonk` hieße wie die Klasse und verdeckte sie.
@@ -89,15 +89,7 @@ namespace klonk
         public int PositionX() => int.Parse(Do("positionX"));
         public int PositionY() => int.Parse(Do("positionY"));
 
-        public static int Random(int min, int max) => int.Parse(Call("random", N(min), N(max)));
         public static void Wait(double seconds = 1) => Call("wait", N(seconds));
-
-        public static void Print(params object?[] values)
-        {
-            var parts = new string[values.Length];
-            for (var i = 0; i < values.Length; i++) parts[i] = Show(values[i], false);
-            Call("print", S(string.Join(" ", parts)));
-        }
 
         // Debugger (vom Instrumentierer eingefügt)
         public static bool __cp(int line) => CheckpointHost(line);
