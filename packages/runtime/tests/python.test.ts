@@ -88,4 +88,13 @@ describe('Python', { timeout: 60_000 }, () => {
     await run('kim = Klonk.create("Kim", "female", 3, 1)\nkim.turn_right()\nkim.step()\nprint(kim.name, kim.position_x(), kim.position_y())\n')
     expect(messages.filter(m => m.type === 'output')).toEqual([{ type: 'output', text: 'Kim 2 1' }])
   })
+
+  it('Designs als dict laden und speichern', async () => {
+    const design = { version: 1 as const, base: 'female' as const, colors: { skin: '#e8b48a', shirt: '#aa0000', pants: '#000000', hair: '#000000', eyes: '#000000' }, accessory: 'none' as const }
+    await run('d = load_design("ritter")\nd["colors"]["shirt"] = "#00ff00"\nsave_design("gruen", d)\nKlonk.create("G", d)\nprint(d["base"])\n', { designs: { ritter: design }, saveDesigns: true })
+    expect(messages.filter(m => m.type === 'output')).toEqual([{ type: 'output', text: 'female' }])
+    const saved = messages.find(m => m.type === 'saveDesign') as { name: string, design: { colors: { shirt: string } } } | undefined
+    expect(saved).toMatchObject({ name: 'gruen', design: { colors: { shirt: '#00ff00' } } })
+    expect(messages).toContainEqual(expect.objectContaining({ command: expect.objectContaining({ name: 'createCharacter', character: expect.objectContaining({ id: 'G', design: expect.objectContaining({ colors: expect.objectContaining({ shirt: '#00ff00' }) }) }) }) }))
+  })
 })

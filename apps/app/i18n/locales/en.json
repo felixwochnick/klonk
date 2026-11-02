@@ -92,7 +92,8 @@
       "duplicate_name": "There already is a character “{name}”.",
       "invalid_design": "The design is invalid ({reason}).",
       "unknown_design": "There is no look “{name}” (male, female, diverse or a design of the project – with a license).",
-      "no_space": "No free cell left for a new character."
+      "no_space": "No free cell left for a new character.",
+      "design_license": "Custom designs need a license."
     },
     "names": "Character names",
     "namesHelp": "Programs address a character by this name, e.g. new Klonk(\"Klara\").",
@@ -201,7 +202,9 @@
       "cs_no_main": "No program found (statements or a Main method).",
       "cs_load": "C# could not be loaded ({message}). The first time requires an internet connection.",
       "expected_robot_name": "A character is addressed by its name (text) or number, not by “{value}”.",
-      "expected_robot": "This method belongs to a character, e.g. new Klonk().step()."
+      "expected_robot": "This method belongs to a character, e.g. new Klonk().step().",
+      "design_no_project": "Designs can only be saved in an open project.",
+      "design_name": "“{name}” is not a valid design name."
     }
   },
   "blocks": {

@@ -106,4 +106,35 @@ Print("x", klonk.PositionX(), klonk.IsWall(), new[] { 1, 2 }, klonk);`)
     await run('var kim = Klonk.Create("Kim", "female", 3, 1);\nkim.Step();\nKlonk.Create("Robo");\nPrint(kim.Name, kim.PositionX(), Klonk.All().Length);')
     expect(messages.filter(m => m.type === 'output')).toEqual([{ type: 'output', text: 'Kim 3 3' }])
   })
+
+  it('Bibliotheken: Newtonsoft.Json, YamlDotNet, System.Xml.Linq', async () => {
+    await run(`using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
+using YamlDotNet.Serialization;
+using System.Xml.Linq;
+var o = JObject.Parse("{ \\"base\\": \\"female\\", \\"colors\\": { \\"shirt\\": \\"#aa0000\\" } }");
+Print((string)o["colors"]!["shirt"]!);
+Print(JsonConvert.SerializeObject(new { Name = "Kim", Steps = 3 }));
+var yaml = new SerializerBuilder().Build().Serialize(new Dictionary<string, object> { ["name"] = "Kim", ["steps"] = 3 });
+var back = new DeserializerBuilder().Build().Deserialize<Dictionary<string, string>>(yaml);
+Print(back["name"], back["steps"]);
+var xml = new XElement("robot", new XAttribute("name", "Kim"), new XElement("color", "red"));
+Print(xml.ToString(SaveOptions.DisableFormatting), XElement.Parse("<a><b>1</b></a>").Element("b")!.Value);`)
+    expect(messages.at(-1)).toEqual({ type: 'done' })
+    expect(messages.filter(m => m.type === 'output')).toEqual([
+      { type: 'output', text: '#aa0000' },
+      { type: 'output', text: '{"Name":"Kim","Steps":3}' },
+      { type: 'output', text: 'Kim 3' },
+      { type: 'output', text: '<robot name="Kim"><color>red</color></robot> 1' },
+    ])
+  })
+
+  it('Designs mit Newtonsoft laden, ändern, speichern', async () => {
+    const design = { version: 1 as const, base: 'female' as const, colors: { skin: '#e8b48a', shirt: '#aa0000', pants: '#000000', hair: '#000000', eyes: '#000000' }, accessory: 'none' as const }
+    await run('var d = Newtonsoft.Json.Linq.JObject.Parse(Klonk.LoadDesign("ritter"));\nd["colors"]!["shirt"] = "#00ff00";\nKlonk.SaveDesign("gruen", d.ToString());\nKlonk.Create("G", "gruen");\nPrint((string)d["base"]!);', { designs: { ritter: design }, saveDesigns: true })
+    expect(messages.filter(m => m.type === 'output')).toEqual([{ type: 'output', text: 'female' }])
+    const saved = messages.find(m => m.type === 'saveDesign') as { name: string, design: { colors: { shirt: string } } } | undefined
+    expect(saved).toMatchObject({ name: 'gruen', design: { colors: { shirt: '#00ff00' } } })
+    expect(messages).toContainEqual(expect.objectContaining({ command: expect.objectContaining({ name: 'createCharacter', character: expect.objectContaining({ id: 'G', design: expect.objectContaining({ colors: expect.objectContaining({ shirt: '#00ff00' }) }) }) }) }))
+  })
 })

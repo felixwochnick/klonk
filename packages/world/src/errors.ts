@@ -17,6 +17,7 @@ export type WorldErrorCode
     | 'invalid_design'
     | 'unknown_design'
     | 'no_space'
+    | 'design_license'
     | 'character_limit'
     | 'invalid_world'
 

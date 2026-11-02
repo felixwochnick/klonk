@@ -92,7 +92,8 @@
       "duplicate_name": "Es gibt schon eine Figur „{name}“.",
       "invalid_design": "Das Design ist ungültig ({reason}).",
       "unknown_design": "Es gibt kein Aussehen „{name}“ (männlich, weiblich, divers oder ein Design des Projekts – mit Lizenz).",
-      "no_space": "Kein freies Feld mehr für eine neue Figur."
+      "no_space": "Kein freies Feld mehr für eine neue Figur.",
+      "design_license": "Eigene Designs brauchen eine Lizenz."
     },
     "names": "Namen der Figuren",
     "namesHelp": "Über diesen Namen sprechen Programme eine Figur an, z. B. new Klonk(\"Klara\").",
@@ -201,7 +202,9 @@
       "cs_no_main": "Kein Programm gefunden (Anweisungen oder eine Methode Main).",
       "cs_load": "C# konnte nicht geladen werden ({message}). Beim ersten Mal ist eine Internetverbindung nötig.",
       "expected_robot_name": "Eine Figur wird über ihren Namen (Text) oder ihre Nummer angesprochen, nicht über „{value}“.",
-      "expected_robot": "Diese Methode gehört zu einer Figur, z. B. new Klonk().step()."
+      "expected_robot": "Diese Methode gehört zu einer Figur, z. B. new Klonk().step().",
+      "design_no_project": "Designs lassen sich nur in einem geöffneten Projekt speichern.",
+      "design_name": "„{name}“ ist kein gültiger Name für ein Design."
     }
   },
   "blocks": {

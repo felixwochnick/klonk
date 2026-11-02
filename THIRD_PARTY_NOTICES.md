@@ -32,6 +32,8 @@ Their licenses apply unchanged; the license texts are included with the packages
 | OpenJDK javac (in teavm-javac) | – | GPL-2.0 with Classpath Exception | https://openjdk.org |
 | .NET Runtime (WebAssembly) | 10 | MIT | https://github.com/dotnet/runtime |
 | Roslyn (Microsoft.CodeAnalysis.CSharp) | 4.14 | MIT | https://github.com/dotnet/roslyn |
+| Newtonsoft.Json (für C#-Programme) | 13.0.4 | MIT | https://github.com/JamesNK/Newtonsoft.Json |
+| YamlDotNet (für C#-Programme) | 18.1.0 | MIT | https://github.com/aaubry/YamlDotNet |
 | Workbox (über @vite-pwa/nuxt) | 7 | MIT | https://github.com/GoogleChrome/workbox |
 | Lucide Icons | – | ISC | https://github.com/lucide-icons/lucide |
 | Simple Icons | – | CC0-1.0 | https://github.com/simple-icons/simple-icons |

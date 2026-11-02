@@ -56,9 +56,17 @@ export function robotApiDeclarations(lang: ScriptLanguage) {
     doc(KLONK_CLASS_DOC.all[lang], '  '),
     '  static all(): Klonk[]',
     doc(BUILTINS.createCharacter.doc[lang], '  '),
-    '  static create(name: string, look?: \'male\' | \'female\' | \'diverse\' | (string & {}), x?: number, y?: number): Klonk',
+    '  static create(name: string, look?: \'male\' | \'female\' | \'diverse\' | (string & {}) | KlonkDesign, x?: number, y?: number): Klonk',
     ...methods,
     '}',
+  )
+  lines.push(
+    '/** Eigenes Design (Datei *.klonkdesign.json) */',
+    'export type KlonkDesign = { version: 1, name?: string, base: \'male\' | \'female\' | \'diverse\', colors: { skin: string, shirt: string, pants: string, hair: string, eyes: string, accessory?: string }, accessory?: \'none\' | \'cap\' | \'hat\' | \'helmet\' | \'crown\' }',
+    doc(lang === 'de' ? 'Design des Projekts als JSON-Text (Lizenz) – mit JSON.parse lesen' : 'Design of the project as JSON text (license) – read it with JSON.parse'),
+    'export function loadDesign(name: string): string',
+    doc(lang === 'de' ? 'Design ins Projekt speichern (Datei name.klonkdesign.json, Lizenz)' : 'Save a design to the project (file name.klonkdesign.json, license)'),
+    'export function saveDesign(name: string, design: KlonkDesign | string): void',
   )
   // console schreibt wie print in die Ausgabe (ohne DOM-Typen sonst unbekannt)
   const console = 'declare const console: { log(...values: unknown[]): void, info(...values: unknown[]): void, warn(...values: unknown[]): void, error(...values: unknown[]): void }'

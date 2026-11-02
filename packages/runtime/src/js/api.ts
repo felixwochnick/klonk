@@ -1,5 +1,5 @@
 import { BUILTINS, show, type BuiltinName, type RobotCommand, type Value } from '@klonk/klonk-script'
-import { BRICK_COLORS, MARK_COLORS, WorldError, resolveLook, type RobotDesign, type World } from '@klonk/world'
+import { BRICK_COLORS, MARK_COLORS, WorldError, parseDesign, resolveLook, type RobotDesign, type World } from '@klonk/world'
 
 export type ApiHost = {
   world: World
@@ -9,6 +9,8 @@ export type ApiHost = {
   /** Eigene Designs für `create` (nur mit Lizenz) und Höchstzahl der Figuren */
   designs?: Record<string, RobotDesign>
   maxCharacters?: number
+  /** Design ins Projekt speichern (nur mit Lizenz und geöffnetem Projekt) */
+  saveDesign?: (name: string, design: RobotDesign) => void
   /** Jeder API-Fehler, bevor er geworfen wird (Sprachen, deren Laufzeit JS-Fehler umverpackt, merken ihn sich) */
   onError?: (error: ApiError) => void
 }
@@ -165,6 +167,33 @@ export function createApi(host: ApiHost): RobotApi {
     random: (min: number, max: number) => Math.ceil(min) + Math.floor(Math.random() * (Math.floor(max) - Math.ceil(min) + 1)),
   }
   for (const c of BRICK_COLORS) globals[c] = c
+
+  // Designs als JSON laden und speichern (Lizenz) – bearbeitbar mit den JSON-/YAML-/XML-Werkzeugen der Sprache
+  const designKey = (name: unknown) => Object.keys(host.designs ?? {}).find(k => k.toLowerCase() === String(name).trim().toLowerCase())
+  globals.loadDesign = (name: unknown) => run(() => {
+    if (!host.designs) throw new WorldError('design_license')
+    const key = designKey(name)
+    if (!key) throw new WorldError('unknown_design', { name: String(name) })
+    return JSON.stringify(host.designs[key], null, 2)
+  })
+  globals.saveDesign = (name: unknown, design: unknown) => run(() => {
+    if (!host.designs) throw new WorldError('design_license')
+    if (!host.saveDesign) throw new ApiError('design_no_project')
+    const text = String(name ?? '').trim()
+    if (!/^[\p{L}\p{N}_ -]{1,64}$/u.test(text)) throw new ApiError('design_name', { name: text })
+    let data: unknown = design
+    if (typeof design === 'string') {
+      try {
+        data = JSON.parse(design)
+      }
+      catch {
+        throw new WorldError('invalid_design', { reason: 'json' })
+      }
+    }
+    const parsed = parseDesign(data)
+    host.designs[designKey(text) ?? text] = parsed
+    host.saveDesign(text, parsed)
+  })
 
   return { globals, robot, create, names: () => w().getCharacters().map(c => c.id) }
 }

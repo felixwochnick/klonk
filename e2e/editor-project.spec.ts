@@ -96,7 +96,7 @@ test('Dateien wechseln, automatisch speichern, Welt aus dem Projekt', async ({ p
   await page.keyboard.press('Control+End')
   await page.keyboard.type('// geändert')
   await expect(page.getByTestId('save-status')).toHaveAttribute('data-status', 'saved', { timeout: 5_000 })
-  await expect.poll(() => readProjectFile(page, 'Speichern', 'start.klonk')).toContain('// geändert')
+  await expect.poll(() => readProjectFile(page, 'Speichern', 'start.klonk').catch(() => '')).toContain('// geändert')
 
   // Andere Datei: Sprache folgt der Endung
   await page.getByTestId('file-zweites.js').click()
@@ -269,7 +269,7 @@ test('Neues Java-Projekt: Sprache, Startdatei in src/, Package aus dem Ordner', 
   await page.getByTestId('project-dialog-name').fill('Walker')
   await page.getByTestId('project-dialog-submit').click()
   await expect(page.getByTestId('file-src/de/tools/Walker.java')).toBeVisible()
-  await expect.poll(() => readProjectFile(page, 'JavaProjekt', 'src/de/tools/Walker.java')).toMatch(/^package de\.tools;[\s\S]*public class Walker/)
+  await expect.poll(() => readProjectFile(page, 'JavaProjekt', 'src/de/tools/Walker.java').catch(() => '')).toMatch(/^package de\.tools;[\s\S]*public class Walker/)
 
   // Startdatei läuft
   await page.getByTestId('file-src/Main.java').click()
@@ -302,5 +302,5 @@ test('Leeres Projekt öffnen ⇒ einrichten mit Startdateien; C#-Klasse im Names
   await page.getByRole('menuitem', { name: 'C#' }).click()
   await page.getByTestId('project-dialog-name').fill('Laufen')
   await page.getByTestId('project-dialog-submit').click()
-  await expect.poll(() => readProjectFile(page, 'Leer', 'Werkzeuge/Laufen.cs')).toMatch(/namespace Werkzeuge;[\s\S]*public static class Laufen/)
+  await expect.poll(() => readProjectFile(page, 'Leer', 'Werkzeuge/Laufen.cs').catch(() => '')).toMatch(/namespace Werkzeuge;[\s\S]*public static class Laufen/)
 })

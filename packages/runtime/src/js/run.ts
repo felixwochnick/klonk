@@ -61,6 +61,9 @@ export function runJavaScript(message: Extract<ToWorker, { type: 'run' }>, post:
       command: (command: RobotCommand) => post({ type: 'command', command }),
       print: (text: string) => post({ type: 'output', text }),
       sleep,
+      designs: message.designs,
+      maxCharacters: message.maxCharacters,
+      saveDesign: message.saveDesigns ? (name, design) => post({ type: 'saveDesign', name, design }) : undefined,
     })
     // Bibliothek "klonk": Klasse Klonk, print/wait/random und Farben – nur per import verfügbar
     const klonk: ModuleNamespace = { ...api.globals, Klonk: createKlonkClass(api) }

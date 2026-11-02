@@ -138,4 +138,30 @@ describe('Java: Ausführen', { timeout: 120_000 }, () => {
     await run('public class Main {\n  public static void main(String[] args) {\n    Klonk kim = Klonk.create("Kim", "female", 3, 1);\n    kim.step();\n    Klonk.create("Robo");\n    print(kim.name, kim.positionX(), Klonk.all().length);\n  }\n}')
     expect(messages.filter(m => m.type === 'output')).toEqual([{ type: 'output', text: 'Kim 3 3' }])
   })
+
+  it('Bibliotheken JSON/YAML/XML und Designs laden/speichern', async () => {
+    const design = { version: 1 as const, base: 'female' as const, colors: { skin: '#e8b48a', shirt: '#aa0000', pants: '#000000', hair: '#000000', eyes: '#000000' }, accessory: 'none' as const }
+    await run(`import klonk.JsonObject;
+import klonk.Yaml;
+import klonk.Xml;
+public class Main {
+  public static void main(String[] args) {
+    JsonObject d = new JsonObject(Klonk.loadDesign("ritter"));
+    d.getJsonObject("colors").put("shirt", "#00ff00");
+    Klonk.saveDesign("gruen", d);
+    Klonk.create("G", d);
+    print(d.getString("base"), Yaml.parseObject("a:\\n  b: 2").getJsonObject("a").getInt("b"), Xml.toJson("<r x=\\"1\\"><c>hi</c></r>").getJsonObject("r").getString("c"));
+    print(Yaml.stringify(new JsonObject().put("n", 1)).trim());
+  }
+}`, { designs: { ritter: design }, saveDesigns: true })
+    expect(messages.filter(m => m.type === 'output')).toEqual([{ type: 'output', text: 'female 2 hi' }, { type: 'output', text: 'n: 1' }])
+    const saved = messages.find(m => m.type === 'saveDesign') as { name: string, design: { colors: { shirt: string } } } | undefined
+    expect(saved).toMatchObject({ name: 'gruen', design: { colors: { shirt: '#00ff00' } } })
+    expect(messages).toContainEqual(expect.objectContaining({ command: expect.objectContaining({ name: 'createCharacter', character: expect.objectContaining({ id: 'G', design: expect.objectContaining({ colors: expect.objectContaining({ shirt: '#00ff00' }) }) }) }) }))
+  })
+
+  it('import klonk.* ⇒ verständliche Meldung', async () => {
+    await run('import klonk.*;\npublic class Main {\n  public static void main(String[] args) {\n    JsonObject o = new JsonObject();\n  }\n}', {}, '')
+    expect(messages.at(-1)).toMatchObject({ type: 'error', error: { code: 'java_compile', params: { message: expect.stringContaining('import klonk.JsonObject') } } })
+  })
 })

@@ -2,6 +2,7 @@ import type { PyodideInterface } from 'pyodide'
 import { loadFromOrigin as loadDotnet, type DotnetHost } from './csharp/run'
 import { friendlyJavacMessage, loadFromOrigin as loadJava, publicClass, type Compiler, type Diagnostic as JavacDiagnostic, type JavaToolchain } from './java/run'
 import { createJavaService, type CompletionItem, type HoverInfo } from './java/complete'
+import { JAVA_LIBRARY } from './java/lib'
 import { DEBUG_JAVA, ROBOT_JAVA } from './java/robot'
 import { loadFromOrigin as loadPython } from './python/run'
 import { pythonStub } from './python/stub'
@@ -119,6 +120,7 @@ def _klonk_check(source):
       c.setTeaVMClasslib(tools.classlib)
       c.addSourceFile('Klonk.java', ROBOT_JAVA)
       c.addSourceFile('Debug.java', DEBUG_JAVA)
+      for (const [name, source] of Object.entries(JAVA_LIBRARY)) c.addSourceFile(name, source)
       return { compiler: c, added: new Set<string>(), diagnostics: [] as JavacDiagnostic[], listening: false }
     })
     const c = compiler.compiler

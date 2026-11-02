@@ -23,6 +23,9 @@
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="4.14.0" />
+    <!-- Für Nutzerprogramme: JSON (Newtonsoft) und YAML; XML ist in .NET eingebaut -->
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.4" GeneratePathProperty="true" />
+    <PackageReference Include="YamlDotNet" Version="18.1.0" GeneratePathProperty="true" />
     <TrimmerRootAssembly Include="Microsoft.CodeAnalysis" />
     <TrimmerRootAssembly Include="Microsoft.CodeAnalysis.CSharp" />
     <!-- Alles, wogegen Nutzerprogramme kompiliert werden, vollständig behalten (sonst MissingMethodException) -->
@@ -31,9 +34,18 @@
     <TrimmerRootAssembly Include="System.Console" />
     <TrimmerRootAssembly Include="System.Collections" />
     <TrimmerRootAssembly Include="System.Linq" />
+    <TrimmerRootAssembly Include="Newtonsoft.Json" />
+    <TrimmerRootAssembly Include="YamlDotNet" />
+    <TrimmerRootAssembly Include="System.Private.Xml" />
+    <TrimmerRootAssembly Include="System.Private.Xml.Linq" />
+    <TrimmerRootAssembly Include="System.Xml.ReaderWriter" />
+    <TrimmerRootAssembly Include="System.Xml.Linq" />
+    <TrimmerRootAssembly Include="System.Xml.XDocument" />
     <!-- Roboter-API: wird mit dem Nutzerprogramm kompiliert -->
     <EmbeddedResource Include="RobotApi.txt" LogicalName="Robot.cs" WithCulture="false" />
+    <!-- Bibliotheken für das Nutzerprogramm (gleiche Version wie zur Laufzeit) -->
+    <EmbeddedResource Include="$(PkgNewtonsoft_Json)/lib/net6.0/Newtonsoft.Json.dll;$(PkgYamlDotNet)/lib/net10.0/YamlDotNet.dll" LogicalName="ref/%(Filename)%(Extension)" />
     <!-- Referenz-Assemblies für das Nutzerprogramm -->
-    <EmbeddedResource Include="$(NetCoreTargetingPackRoot)/Microsoft.NETCore.App.Ref/$(BundledNETCoreAppPackageVersion)/ref/net10.0/System.Runtime.dll;$(NetCoreTargetingPackRoot)/Microsoft.NETCore.App.Ref/$(BundledNETCoreAppPackageVersion)/ref/net10.0/System.Console.dll;$(NetCoreTargetingPackRoot)/Microsoft.NETCore.App.Ref/$(BundledNETCoreAppPackageVersion)/ref/net10.0/System.Collections.dll;$(NetCoreTargetingPackRoot)/Microsoft.NETCore.App.Ref/$(BundledNETCoreAppPackageVersion)/ref/net10.0/System.Linq.dll" LogicalName="ref/%(Filename)%(Extension)" />
+    <EmbeddedResource Include="$(NetCoreTargetingPackRoot)/Microsoft.NETCore.App.Ref/$(BundledNETCoreAppPackageVersion)/ref/net10.0/System.Runtime.dll;$(NetCoreTargetingPackRoot)/Microsoft.NETCore.App.Ref/$(BundledNETCoreAppPackageVersion)/ref/net10.0/System.Console.dll;$(NetCoreTargetingPackRoot)/Microsoft.NETCore.App.Ref/$(BundledNETCoreAppPackageVersion)/ref/net10.0/System.Collections.dll;$(NetCoreTargetingPackRoot)/Microsoft.NETCore.App.Ref/$(BundledNETCoreAppPackageVersion)/ref/net10.0/System.Linq.dll;$(NetCoreTargetingPackRoot)/Microsoft.NETCore.App.Ref/$(BundledNETCoreAppPackageVersion)/ref/net10.0/System.Xml.ReaderWriter.dll;$(NetCoreTargetingPackRoot)/Microsoft.NETCore.App.Ref/$(BundledNETCoreAppPackageVersion)/ref/net10.0/System.Xml.Linq.dll;$(NetCoreTargetingPackRoot)/Microsoft.NETCore.App.Ref/$(BundledNETCoreAppPackageVersion)/ref/net10.0/System.Xml.XDocument.dll;$(NetCoreTargetingPackRoot)/Microsoft.NETCore.App.Ref/$(BundledNETCoreAppPackageVersion)/ref/net10.0/System.ObjectModel.dll;$(NetCoreTargetingPackRoot)/Microsoft.NETCore.App.Ref/$(BundledNETCoreAppPackageVersion)/ref/net10.0/System.ComponentModel.TypeConverter.dll;$(NetCoreTargetingPackRoot)/Microsoft.NETCore.App.Ref/$(BundledNETCoreAppPackageVersion)/ref/net10.0/System.Runtime.Serialization.Primitives.dll;$(NetCoreTargetingPackRoot)/Microsoft.NETCore.App.Ref/$(BundledNETCoreAppPackageVersion)/ref/net10.0/System.Collections.Specialized.dll;$(NetCoreTargetingPackRoot)/Microsoft.NETCore.App.Ref/$(BundledNETCoreAppPackageVersion)/ref/net10.0/System.Linq.Expressions.dll;$(NetCoreTargetingPackRoot)/Microsoft.NETCore.App.Ref/$(BundledNETCoreAppPackageVersion)/ref/net10.0/System.Text.RegularExpressions.dll" LogicalName="ref/%(Filename)%(Extension)" />
   </ItemGroup>
 </Project>

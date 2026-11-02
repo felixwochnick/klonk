@@ -27,6 +27,7 @@ export type RunOptions = {
   characterId?: string
   pauseOnStart?: boolean
   designs?: Record<string, RobotDesign>
+  saveDesigns?: boolean
   maxCharacters?: number
 }
 
@@ -39,6 +40,9 @@ export class ProgramRunner {
   private snapshot: RunnerSnapshot = emptySnapshot()
   /** JS/TS: Steuerung über gemeinsamen Speicher (der Nutzercode blockiert den Worker) */
   private shared?: SharedArrayBuffer
+
+  /** Programm speichert ein Design (`saveDesign`) – der Aufrufer schreibt es ins Projekt */
+  onSaveDesign?: (name: string, design: RobotDesign) => void
 
   constructor(
     private createWorker: () => Worker,
@@ -89,6 +93,7 @@ export class ProgramRunner {
       files: options.files ?? {},
       pauseOnStart: options.pauseOnStart,
       designs: options.designs,
+      saveDesigns: options.saveDesigns,
       maxCharacters: Number.isFinite(options.maxCharacters) ? options.maxCharacters : undefined,
     }, this.shared)
   }
@@ -146,6 +151,9 @@ export class ProgramRunner {
         break
       case 'output':
         this.update({ output: [...this.snapshot.output, message.text] })
+        break
+      case 'saveDesign':
+        this.onSaveDesign?.(message.name, message.design)
         break
       case 'paused':
         this.update({ state: 'paused', line: message.range.line, pausedRange: message.range, variables: message.variables })

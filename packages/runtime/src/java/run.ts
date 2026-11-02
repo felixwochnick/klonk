@@ -4,6 +4,7 @@ import type { FromWorker, RunError, ToWorker } from '../protocol'
 import { ApiError, createApi } from '../js/api'
 import { CONTROL, views } from '../js/shared'
 import { instrumentJava } from './instrument'
+import { JAVA_LIBRARY } from './lib'
 import { DEBUG_IMPORT, DEBUG_JAVA, ROBOT_JAVA } from './robot'
 
 /** Wo teavm-javac liegt (eigene Origin wegen COEP; siehe apps/app/nuxt.config.ts) */
@@ -77,6 +78,7 @@ export async function runJava(
     })
     compiler.addSourceFile('Klonk.java', ROBOT_JAVA)
     compiler.addSourceFile('Debug.java', DEBUG_JAVA)
+    for (const [name, source] of Object.entries(JAVA_LIBRARY)) compiler.addSourceFile(name, source)
     for (const [name, source] of Object.entries(files)) compiler.addSourceFile(name, source)
     const compileError = (): RunError => {
       const first = errors.find(e => e.fileName.endsWith(main)) ?? errors[0]
@@ -127,6 +129,9 @@ export async function runJava(
     command: (command: RobotCommand) => post({ type: 'command', command }),
     print: (text: string) => post({ type: 'output', text }),
     sleep,
+    designs: message.designs,
+    maxCharacters: message.maxCharacters,
+    saveDesign: message.saveDesigns ? (name, design) => post({ type: 'saveDesign', name, design }) : undefined,
     onError: (error) => {
       apiError = error
     },
@@ -137,6 +142,8 @@ export async function runJava(
     robotAt: (number: number) => api.robot(number),
     first: () => api.robot(),
     create: (name: string, look: string | null, x: number, y: number) => api.create(name, look ?? undefined, x, y),
+    loadDesign: api.globals.loadDesign,
+    saveDesign: api.globals.saveDesign,
     count: () => api.names().length,
     nameAt: (index: number) => api.names()[index],
     print: api.globals.print,
@@ -237,7 +244,8 @@ function javaFiles(message: Extract<ToWorker, { type: 'run' }>) {
  * javac deshalb „bad source file: Klonk.java …“ – stattdessen den eigentlichen Grund nennen.
  */
 export function friendlyJavacMessage(message: string) {
-  return /bad source file: (Klonk|Debug)\.java/.test(message) ? 'cannot find symbol: class Klonk (missing import klonk.Klonk;?)' : message
+  const name = /bad source file: (Klonk|Debug|Json|JsonObject|JsonArray|JsonException|Yaml|Xml)\.java/.exec(message)?.[1]
+  return name ? `cannot find symbol: class ${name} (missing import klonk.${name}; – import klonk.* is not supported, import each class)` : message
 }
 
 /** Package einer Java-Datei (`package de.schule.aufgabe;`) */

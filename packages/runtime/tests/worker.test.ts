@@ -203,4 +203,17 @@ describe('Worker: JavaScript/TypeScript', () => {
     await until(() => last()?.type === 'done')
     expect(messages).toContainEqual({ type: 'output', text: 'Kim 3 2 2' })
   })
+
+  it('Designs laden, ändern, speichern und verwenden (Lizenz)', async () => {
+    const design = { version: 1 as const, base: 'female' as const, colors: { skin: '#e8b48a', shirt: '#aa0000', pants: '#000000', hair: '#000000', eyes: '#000000' }, accessory: 'none' as const }
+    run('import { Klonk, loadDesign, saveDesign } from "klonk"\nconst d = JSON.parse(loadDesign("Ritter"))\nd.colors.shirt = "#00ff00"\nsaveDesign("gruen", d)\nKlonk.create("G", "gruen")', { language: 'javascript', shared: shared(), designs: { ritter: design }, saveDesigns: true })
+    await until(() => last()?.type === 'done')
+    const saved = messages.find(m => m.type === 'saveDesign') as { name: string, design: { colors: { shirt: string } } } | undefined
+    expect(saved).toMatchObject({ name: 'gruen', design: { colors: { shirt: '#00ff00' } } })
+    expect(messages).toContainEqual(expect.objectContaining({ command: expect.objectContaining({ name: 'createCharacter', character: expect.objectContaining({ id: 'G', design: expect.objectContaining({ colors: expect.objectContaining({ shirt: '#00ff00' }) }) }) }) }))
+    messages.length = 0
+    run('import { loadDesign } from "klonk"\nloadDesign("ritter")', { language: 'javascript', shared: shared() })
+    await until(() => last()?.type === 'error')
+    expect(last()).toMatchObject({ error: { code: 'world', params: { worldCode: 'design_license' } } })
+  })
 })

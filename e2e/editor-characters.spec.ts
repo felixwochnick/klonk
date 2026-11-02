@@ -84,3 +84,31 @@ test('Eigenes Design: visueller Editor, im Welt-Editor setzen, im Programm erste
   await page.getByTestId('character-look').click()
   await expect(page.getByRole('option', { name: 'Roboter-Design: ritter' })).toBeVisible()
 })
+
+test('Programm speichert ein Design ins Projekt', async ({ page }) => {
+  await gotoHydrated(page, `${APP_URL}/`)
+  await page.evaluate(async (world) => {
+    const root = await (await navigator.storage.getDirectory()).getDirectoryHandle('klonk-projects', { create: true })
+    await root.removeEntry('DesignCode', { recursive: true }).catch(() => {})
+    const dir = await root.getDirectoryHandle('DesignCode', { create: true })
+    const write = async (name: string, text: string) => {
+      const w = await (await dir.getFileHandle(name, { create: true })).createWritable()
+      await w.write(text)
+      await w.close()
+    }
+    await write('klonk.json', '{ "language": "javascript" }')
+    await write('main.js', 'import { Klonk, loadDesign, saveDesign } from "klonk"\nconst d = JSON.parse(loadDesign("ritter"))\nd.colors.shirt = "#00aa00"\nd.accessory = "hat"\nsaveDesign("jaeger", d)\nKlonk.create("Robin", "jaeger").step()\n')
+    await write('ritter.klonkdesign.json', JSON.stringify({ version: 1, base: 'male', colors: { skin: '#e8b48a', shirt: '#aa0000', pants: '#333333', hair: '#222222', eyes: '#111111' }, accessory: 'helmet' }))
+    await write('welt.klonkworld.json', JSON.stringify(world))
+  }, WORLD)
+  await page.reload()
+  await page.locator('html[data-hydrated="true"]').waitFor({ state: 'attached' })
+  await page.getByTestId('toggle-project').click()
+  await page.getByTestId('browser-project-DesignCode').click()
+  await expect(page.getByTestId('code-editor')).toHaveAttribute('data-ready', 'true', { timeout: 20_000 })
+  await page.getByTestId('run').click()
+  await expect(state(page)).toHaveAttribute('data-state', 'done', { timeout: 30_000 })
+  await expect(page.getByTestId('file-jaeger.klonkdesign.json')).toBeVisible()
+  await page.getByTestId('file-jaeger.klonkdesign.json').click()
+  await expect(page.getByTestId('design-accessory')).toContainText('Hut')
+})

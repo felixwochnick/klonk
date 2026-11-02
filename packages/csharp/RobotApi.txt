@@ -43,6 +43,11 @@ namespace klonk
         /// <summary>Neue Figur: Aussehen "male", "female", "diverse" oder eigenes Design, optional auf Feld x|y (sonst neben der zuletzt genutzten)</summary>
         public static Klonk Create(string name, string? look = null, int x = -1, int y = -1) => new Klonk(Call("$create", S(name), S(look ?? ""), N(x), N(y)));
 
+        /// <summary>Design des Projekts als JSON-Text (Lizenz) – z. B. mit Newtonsoft: JObject.Parse(Klonk.LoadDesign("ritter"))</summary>
+        public static string LoadDesign(string name) => Call("loadDesign", S(name));
+        /// <summary>Design (JSON-Text) ins Projekt speichern: Datei name.klonkdesign.json (Lizenz)</summary>
+        public static void SaveDesign(string name, string json) => Call("saveDesign", S(name), S(json));
+
         /// <summary>Alle Figuren der Welt</summary>
         public static Klonk[] All()
         {

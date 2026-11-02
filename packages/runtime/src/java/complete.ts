@@ -1,5 +1,6 @@
 import { BUILTINS, type Builtin, type BuiltinName, type ScriptLanguage } from '@klonk/klonk-script'
 import { ROBOT_METHODS } from '../js/api'
+import { JAVA_LIBRARY } from './lib'
 
 /**
  * Autovervollständigung für Java ohne Sprachdienst (der Browser-javac kann nur übersetzen): Deklarationen im Text
@@ -33,6 +34,9 @@ function klonkType(lang: ScriptLanguage): TypeInfo {
   })
   members.push({ name: 'name', kind: 'field', type: 'String', detail: 'String name', isStatic: false, documentation: lang === 'de' ? 'Name der Figur' : 'Name of the character' })
   members.push({ name: 'create', kind: 'method', type: 'Klonk', detail: 'static Klonk create(String name, String look, int x, int y)', isStatic: true, documentation: BUILTINS.createCharacter.doc[lang] })
+  const de = lang === 'de'
+  members.push({ name: 'loadDesign', kind: 'method', type: 'String', detail: 'static String loadDesign(String name)', isStatic: true, documentation: de ? 'Design des Projekts als JSON-Text (Lizenz)' : 'Design of the project as JSON text (license)' })
+  members.push({ name: 'saveDesign', kind: 'method', type: 'void', detail: 'static void saveDesign(String name, JsonObject design)', isStatic: true, documentation: de ? 'Design ins Projekt speichern (Lizenz)' : 'Save a design to the project (license)' })
   members.push({ name: 'all', kind: 'method', type: 'Klonk[]', detail: 'static Klonk[] all()', isStatic: true, documentation: lang === 'de' ? 'Alle Figuren der Welt' : 'All characters in the world' })
   for (const name of Object.keys(BUILTINS) as BuiltinName[]) {
     const builtin: Builtin = BUILTINS[name]
@@ -130,6 +134,9 @@ function baseType(type: string) {
   return type.replace(/<.*$/, '')
 }
 
+/** Klassen der mitgelieferten Bibliothek (klonk.JsonObject …) – ohne Hilfsklassen im Inneren */
+const LIBRARY_CLASSES = Object.values(JAVA_LIBRARY).flatMap(source => classesOf(source)).filter(t => !['Parser', 'Reader', 'Line'].includes(t.name))
+
 export function createJavaService(lang: ScriptLanguage) {
   const klonk = klonkType(lang)
 
@@ -140,6 +147,7 @@ export function createJavaService(lang: ScriptLanguage) {
     const own = classesOf(source)
     const project = Object.entries(files).filter(([path]) => path.endsWith('.java')).flatMap(([, code]) => code === source ? [] : classesOf(code))
     const types = new Map<string, TypeInfo>(Object.entries(BUILTIN_TYPES))
+    for (const t of LIBRARY_CLASSES) types.set(t.name, t)
     types.set('Klonk', klonk)
     for (const t of [...project, ...own]) types.set(t.name, t)
     return { text, imported, staticImported, own, project, types }
@@ -191,6 +199,10 @@ export function createJavaService(lang: ScriptLanguage) {
       for (const member of enclosing?.members ?? []) items.push(toItem(member))
       for (const t of [...ctx.own, ...ctx.project]) items.push({ label: t.name, kind: 'class', detail: `class ${t.name}` })
       for (const name of ['String', 'System', 'Math', 'Integer']) items.push({ label: name, kind: 'class', detail: `class java.lang.${name}` })
+      for (const t of LIBRARY_CLASSES) {
+        const imported = new RegExp(String.raw`\bimport\s+klonk\.${t.name}\s*;`).test(ctx.text)
+        items.push({ label: t.name, kind: 'class', detail: `class klonk.${t.name}`, addImport: imported ? undefined : `import klonk.${t.name};` })
+      }
       items.push({ label: 'Klonk', kind: 'class', detail: 'class klonk.Klonk', documentation: lang === 'de' ? 'Eine Figur der Welt' : 'A character in the world', addImport: ctx.imported ? undefined : 'import klonk.Klonk;' })
       if (ctx.staticImported) for (const member of klonk.members.filter(m => m.isStatic && m.name !== 'all')) items.push(toItem(member))
       const seen = new Set<string>()

@@ -1,7 +1,7 @@
 import { WorldError } from './errors'
 import type { BrickColor, CellData, CharacterData, CharacterModel, Direction, MarkColor, Position, RobotDesign, WorldData } from './types'
 import { DIRECTIONS } from './types'
-import { parseWorld } from './schema'
+import { parseDesign, parseWorld } from './schema'
 
 type Cell = { bricks: BrickColor[], mark: MarkColor | null, block: boolean }
 
@@ -405,14 +405,32 @@ const MODEL_NAMES: Record<string, CharacterModel> = {
   diverse: 'diverse', divers: 'diverse',
 }
 
-/** Aussehen aus einer Angabe im Programm: Standardmodell oder (über `designs`) eigenes Design */
-export function resolveLook(name: unknown, designs: Record<string, RobotDesign> = {}): { model: CharacterModel, design?: RobotDesign } {
+/**
+ * Aussehen aus einer Angabe im Programm: Standardmodell, Name eines Designs aus `designs` oder ein Design als JSON
+ * (Text oder Objekt). Eigene Designs nur, wenn `designs` übergeben wird (Lizenz).
+ */
+export function resolveLook(name: unknown, designs?: Record<string, RobotDesign>): { model: CharacterModel, design?: RobotDesign } {
   if (name === undefined || name === null || name === '') return { model: 'male' }
+  const custom = (design: RobotDesign) => {
+    if (!designs) throw new WorldError('design_license')
+    return { model: design.base, design }
+  }
+  if (typeof name === 'object') return custom(parseDesign(name))
   const text = String(name).trim()
+  if (text.startsWith('{')) {
+    let data: unknown
+    try {
+      data = JSON.parse(text)
+    }
+    catch {
+      throw new WorldError('invalid_design', { reason: 'json' })
+    }
+    return custom(parseDesign(data))
+  }
   const model = MODEL_NAMES[text.toLowerCase()]
   if (model) return { model }
-  const key = Object.keys(designs).find(k => k.toLowerCase() === text.toLowerCase())
-  if (key) return { model: designs[key]!.base, design: designs[key] }
+  const key = Object.keys(designs ?? {}).find(k => k.toLowerCase() === text.toLowerCase())
+  if (key) return custom(designs![key]!)
   throw new WorldError('unknown_design', { name: text })
 }
 

@@ -74,6 +74,9 @@ export async function runPython(
       command: (command: RobotCommand) => post({ type: 'command', command }),
       print: (text: string) => post({ type: 'output', text }),
       sleep,
+      designs: message.designs,
+      maxCharacters: message.maxCharacters,
+      saveDesign: message.saveDesigns ? (name, design) => post({ type: 'saveDesign', name, design }) : undefined,
       // API-Fehler merken, damit sie wie in den anderen Sprachen übersetzt werden
       onError: (error) => {
         apiError = error

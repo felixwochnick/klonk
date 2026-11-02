@@ -155,6 +155,13 @@ node scripts/build-csharp.ts        # C#-Host bauen (.NET-SDK 10 nötig; Ausgabe
   Figuren betten ihr Design ein (`CharacterData.design`), Welten bleiben eigenständig. Renderer: `utils/character-look.ts`
   (`applyDesign` färbt Materialien `<modell>-skin|shirt|pants|hair`/`eye` um, Zubehör als three.js-Geometrie; `nameLabel` = Sprite mit
   Namen über jeder Figur, `showNames`). Projektdesigns gehen als `designs` (Dateiname ⇒ Design) an den Runner.
+- **Designs in Programmen:** `loadDesign(name)` (JSON-Text; Python `load_design` ⇒ dict) / `saveDesign(name, design)` (Worker-Nachricht
+  `saveDesign` ⇒ `ProgramRunner.onSaveDesign` ⇒ `useProject().writeDesign`), `create(name, look)` nimmt auch Design-JSON. Run-Request:
+  `designs` nur mit Lizenz (sonst `design_license`), `saveDesigns` = Lizenz + Projekt. **Java-Bibliotheken** `packages/runtime/src/java/lib/*.java`
+  (`klonk.Json/JsonObject/JsonArray/Yaml/Xml`, per `?raw` immer mitkompiliert): eigene Klassen, weil org.json im Browser-javac nicht geht
+  (kein `getClass()`/`Map.Entry`/`Throwable.getMessage()` in dessen Klassenbibliothek, Absturz bei Annotationen mit Argumenten wie
+  `@SuppressWarnings(…)`). `import klonk.*;` geht nicht (flacher Quellpfad) ⇒ `friendlyJavacMessage`. **C#:** Newtonsoft.Json 13.0.4 +
+  YamlDotNet 18.1.0 (NuGet, DLLs als Referenz eingebettet, nicht getrimmt) und System.Xml.Linq (Ref-Assemblies + `TrimmerRootAssembly`).
 - **Figurennamen** = `CharacterData.id` (`isValidCharacterName`, `World.findCharacter/renameCharacter`, Vorschläge `nextCharacterName`),
   umbenennen im Welt-Editor (Abschnitt „Namen der Figuren“).
 - **Klonk-Script ist mehrsprachig:** Schlüsselwörter und Befehle pro Sprache (anfangs Deutsch + Englisch) über

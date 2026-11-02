@@ -27,6 +27,8 @@ public final class Klonk {
         Robot create(String name, String look, int x, int y);
         int count();
         String nameAt(int index);
+        String loadDesign(String name);
+        void saveDesign(String name, String json);
         void print(String text);
         void sleepSeconds(double seconds);
         int random(int min, int max);
@@ -91,6 +93,15 @@ public final class Klonk {
     public static Klonk create(String name, String look) { return new Klonk(API.create(name, look, -1, -1)); }
     /** Neue Figur auf Feld x|y */
     public static Klonk create(String name, String look, int x, int y) { return new Klonk(API.create(name, look, x, y)); }
+
+    /** Neue Figur mit eigenem Design (z. B. aus loadDesign, bearbeitet) */
+    public static Klonk create(String name, JsonObject design) { return new Klonk(API.create(name, design.toString(), -1, -1)); }
+
+    /** Design des Projekts als JSON-Text (Lizenz) – z. B. new JsonObject(Klonk.loadDesign("ritter")) */
+    public static String loadDesign(String name) { return "" + API.loadDesign(name); }
+    /** Design ins Projekt speichern (Datei name.klonkdesign.json, Lizenz) */
+    public static void saveDesign(String name, String json) { API.saveDesign(name, json); }
+    public static void saveDesign(String name, JsonObject design) { API.saveDesign(name, design.toString()); }
 
     /** Alle Figuren der Welt */
     public static Klonk[] all() {

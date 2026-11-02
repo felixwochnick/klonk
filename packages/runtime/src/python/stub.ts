@@ -44,7 +44,17 @@ export function pythonStub(lang: ScriptLanguage) {
     const returns = builtin.kind === 'sensor' ? (RETURNS[name] ?? 'bool') : 'None'
     lines.push('', `    def ${snake(name)}(${['self', ...params].join(', ')}) -> ${returns}:`, doc(builtin.doc[lang], '        '), `        ${returns === 'None' ? 'pass' : `return ${returns}()`}`)
   }
-  lines.push('')
+  lines.push(
+    '',
+    'def load_design(name: str) -> dict:',
+    doc(de ? 'Design des Projekts als dict (Lizenz)' : 'Design of the project as a dict (license)', '    '),
+    '    return {}',
+    '',
+    'def save_design(name: str, design: dict | str) -> None:',
+    doc(de ? 'Design ins Projekt speichern (Datei name.klonkdesign.json, Lizenz)' : 'Save a design to the project (file name.klonkdesign.json, license)', '    '),
+    '    pass',
+    '',
+  )
   for (const name of Object.keys(BUILTINS) as BuiltinName[]) {
     const builtin: Builtin = BUILTINS[name]
     if (builtin.kind === 'constant') lines.push(`${name} = ${JSON.stringify(name)}`, doc(builtin.doc[lang], ''))

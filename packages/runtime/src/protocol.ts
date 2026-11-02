@@ -20,8 +20,10 @@ export type ToWorker
     /** Bibliotheken erlaubt (Lizenz) und verfügbare Dateien */
     allowImports: boolean
     files: Record<string, string>
-    /** Eigene Designs für neue Figuren (Name ⇒ Design, nur mit Lizenz) */
+    /** Eigene Designs für neue Figuren (Name ⇒ Design); nur mit Lizenz gesetzt – ohne sind eigene Designs gesperrt */
     designs?: Record<string, RobotDesign>
+    /** Programme dürfen Designs ins Projekt speichern (Lizenz + geöffnetes Projekt) */
+    saveDesigns?: boolean
     /** Höchstzahl der Figuren (Lizenz) */
     maxCharacters?: number
     /** Gleich in der ersten Zeile anhalten */
@@ -42,6 +44,8 @@ export type FromWorker
   = | { type: 'line', line: number }
     | { type: 'command', command: RobotCommand }
     | { type: 'output', text: string }
+    /** Programm speichert ein Design im Projekt (`saveDesign`) */
+    | { type: 'saveDesign', name: string, design: RobotDesign }
     | { type: 'paused', range: SourceRange, variables: Record<string, Value>, reason: 'breakpoint' | 'step' | 'pause' }
     | { type: 'resumed' }
     | { type: 'error', error: RunError }

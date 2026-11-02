@@ -35,6 +35,9 @@ class Klonk:
     @staticmethod
     def create(name, look=None, x=None, y=None):
         """Neue Figur: Aussehen "male"/"female"/"diverse" oder eigenes Design, optional auf Feld x|y"""
+        if look is not None and not isinstance(look, str):
+            import json
+            look = json.dumps(look)
         return Klonk(_klonk_api.create(name, look, x, y).name)
 
 def _klonk_method(js_name):
@@ -53,6 +56,20 @@ _klonk_module.Klonk = Klonk
 for _name in _klonk_api.globals:
     if _name != 'print':
         setattr(_klonk_module, _klonk_snake(_name), getattr(_klonk_api, _name))
+_klonk_module.__all__ = [n for n in vars(_klonk_module) if not n.startswith('_')]
+# Designs als dict laden/speichern (JSON-Text zwischen Python und JS)
+import json as _klonk_json
+
+def load_design(name):
+    """Design des Projekts als dict (Lizenz)"""
+    return _klonk_json.loads(_klonk_api.loadDesign(name))
+
+def save_design(name, design):
+    """Design (dict oder JSON-Text) ins Projekt speichern (Lizenz)"""
+    _klonk_api.saveDesign(name, design if isinstance(design, str) else _klonk_json.dumps(design))
+
+_klonk_module.load_design = load_design
+_klonk_module.save_design = save_design
 _klonk_module.__all__ = [n for n in vars(_klonk_module) if not n.startswith('_')]
 sys.modules['klonk'] = _klonk_module
 

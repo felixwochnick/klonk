@@ -219,6 +219,21 @@ export function useProject() {
     return result
   }
 
+  /** Design aus einem Programm speichern: vorhandene Datei gleichen Namens überschreiben, sonst neu im Projektordner */
+  async function writeDesign(name: string, design: RobotDesign) {
+    if (!project.value) return
+    const existing = designFiles.value.find(f => f.name.replace(/\.klonkdesign\.json$/i, '').toLowerCase() === name.toLowerCase())
+    const path = existing?.path ?? `${name}.klonkdesign.json`
+    if (!isValidName(path.split('/').pop()!)) throw new Error('invalid_name')
+    await project.value.write(path, `${JSON.stringify(design, null, 2)}\n`)
+    // Offene Datei aktualisieren (Design-Editor)
+    if (currentPath.value === path) {
+      loadedContent = `${JSON.stringify(design, null, 2)}\n`
+      content.value = loadedContent
+    }
+    await refresh()
+  }
+
   function selectWorld(path: string | null) {
     worldPath.value = path
     rememberSelection()
@@ -239,7 +254,7 @@ export function useProject() {
 
   return {
     project, files, folders, language, programFiles, designFiles, worldFiles, currentPath, content, kind, worldPath, status, breakpoints,
-    open, close, select, create, rename, remove, setLanguage, createFolder, renameFolder, removeFolder, update, flush, refresh, readWorld, writeWorld, importableFiles, readDesigns, selectWorld,
+    open, close, select, create, rename, remove, setLanguage, createFolder, renameFolder, removeFolder, update, flush, refresh, readWorld, writeWorld, importableFiles, readDesigns, writeDesign, selectWorld,
     openBrowserProject: async (name: string, createIt = false) => open(await openBrowserProject(name, createIt)),
   }
 }

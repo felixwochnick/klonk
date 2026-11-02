@@ -103,6 +103,10 @@ onMounted(() => {
   runner = new ProgramRunner(() => new RunnerWorker(), (s) => {
     snapshot.value = s
   })
+  // Programme speichern Designs ins Projekt (saveDesign)
+  runner.onSaveDesign = (name, design) => {
+    proj.writeDesign(name, design).catch(() => toast.add({ title: t('project.errors.generic'), color: 'error' }))
+  }
 })
 onBeforeUnmount(() => runner?.dispose())
 
@@ -135,7 +139,9 @@ async function run(pauseOnStart = false) {
   // Eigene Designs für erstelle/Klonk.create nur mit Lizenz
   const designs = inProject.value && can('models') ? await proj.readDesigns() : {}
   runner.run(world.value, {
-    designs,
+    // Ohne Lizenz keine eigenen Designs (auch nicht als JSON im Programm)
+    designs: can('models') ? designs : undefined,
+    saveDesigns: inProject.value && can('models'),
     maxCharacters: maxCharacters.value,
     language: runLanguage.value,
     source: runSource.value,
