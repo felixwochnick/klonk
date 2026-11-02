@@ -14,4 +14,7 @@ Programmieren lernen mit Klemmbaustein-Figuren – in Klonk-Script, Blöcken, Ja
   :::u-button{to="/de/getting-started/self-hosting" size="xl" trailing-icon="i-lucide-arrow-right"}
   Selbst hosten
   :::
+  :::u-button{to="/de/teaching/overview" size="xl" color="neutral" variant="subtle" icon="i-lucide-graduation-cap"}
+  Im Unterricht
+  :::
 ::
