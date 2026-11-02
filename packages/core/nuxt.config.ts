@@ -12,6 +12,11 @@ export default defineNuxtConfig({
     encryptionKey: '',
     // Lizenz-Token der Instanz (alternativ in der Verwaltung hinterlegen)
     licenseToken: '',
+    // Lizenzserver klonk.* (leer = Origin von public.shopUrl): Tokens automatisch verlängern
+    licenseServerUrl: '',
+    licenseAutoRefresh: true,
+    // Nur gehostete Plattform: Schlüssel für den Abgleich der Organisations- und Privat-Lizenzen mit dem Shop
+    licenseServerApiKey: '',
     // Klonk ID: plattformweiter OIDC-Anbieter (Authentik), nur für Betreiber (Entwickler:innen, Besitzer:innen)
     platformOidc: {
       name: 'Klonk ID',

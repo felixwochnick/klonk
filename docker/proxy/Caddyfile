@@ -66,11 +66,19 @@
 	}
 }
 
-# Ohne eigene Website führt die Hauptdomain zur App
+# Hauptdomain: Website (KLONK_WEBSITE_UPSTREAM, z. B. `web:3000` aus dem privaten Repo klonk-web), sonst zur App
 {$KLONK_SCHEME}://{$KLONK_DOMAIN} {
 	import common
-	redir {$KLONK_SCHEME}://app.{$KLONK_DOMAIN}{uri}
+	@nosite expression `{env.KLONK_WEBSITE_UPSTREAM} == ""`
+	handle @nosite {
+		redir {$KLONK_SCHEME}://app.{$KLONK_DOMAIN}{uri}
+	}
+	handle {
+		reverse_proxy {env.KLONK_WEBSITE_UPSTREAM}
+	}
 }
 
 # Zusätzliche Seiten, z. B. Test-Anmeldedienste im lokalen Stack (docker/local/sso.caddy)
 import /etc/caddy/sites/*.caddy
+# Eigene Seiten des Betriebs aus docker/proxy/sites/ (z. B. Invoice Ninja der Website, siehe README dort)
+import /etc/caddy/sites.d/*.caddy

@@ -305,8 +305,17 @@ node scripts/build-csharp.ts        # C#-Host bauen (.NET-SDK 10 nötig; Ausgabe
   (admin → Lizenz, nur Plattform-Admins). Feature `hosted` ⇒ Grenzen pro Organisation (`organizations.license_token`).
   Client: `useLicense()` (`can('libraries')`, `maxCharacters`). **Neue Bezahlfunktionen immer serverseitig mit
   `requireFeature()` absichern** und in `LICENSE_FEATURES` + Admin-i18n (`admin.license.features.*`) eintragen.
-- Produktiver Signierschlüssel liegt nur lokal unter `~/.config/klonk/license-signing-key.pem` (gehört ins private Shop-Repo/
-  Secret-Store). Tokens manuell ausstellen: `node scripts/sign-license.ts --name … --features … --days …`.
+- Produktiver Signierschlüssel gehört in den Secret-Store von klonk-web (`NUXT_LICENSE_SIGNING_KEY`), nie in dieses Repo.
+  Tokens manuell ausstellen: Website → Betrieb (oder `node scripts/sign-license.ts --name … --features … --days …`).
+- **Lizenzabgleich** (`server/utils/license-sync.ts`, Plugin `apps/admin/server/plugins/license-sync.ts`, alle 6 h, nur admin.*):
+  Instanz-Token über `POST <Lizenzserver>/api/v1/license/refresh` verlängern (Lizenzserver = `NUXT_LICENSE_SERVER_URL` oder
+  Origin von `NUXT_PUBLIC_SHOP_URL`; aus mit `NUXT_LICENSE_AUTO_REFRESH=false`). Token aus der Env ⇒ verlängertes Token in
+  `instance_settings.license_refreshed`, `newerLicenseToken()` wählt (gleiche `sid`, später `exp`). Gehostete Plattform mit
+  `NUXT_LICENSE_SERVER_API_KEY`: `GET /api/v1/platform/licenses` ⇒ `organizations.license_token` und `user_licenses`
+  (Privat-Abos, nur Privatkonten); Token muss `organizationId` bzw. `userId` des Ziels enthalten.
+  `getEffectiveLicense(orgId, userId)` wertet Privat-Lizenzen aus. `/api/session` liefert `organizationId` für den Shop.
+- Proxy: Hauptdomain ⇒ Website, wenn `KLONK_WEBSITE_UPSTREAM` gesetzt (sonst Weiterleitung zur App); eigene Seiten
+  (z. B. Invoice Ninja) als `docker/proxy/sites/*.caddy` (nicht eingecheckt).
 - **Code-Lizenz (erledigt, vom User so festgelegt):** MIT für `packages/klonk-script` und `packages/world`, **Elastic License 2.0** für
   die Plattform (apps/*, core, ui, runtime, csharp; Rest des Repos ebenfalls ELv2). Root-`LICENSE` erklärt die Aufteilung, jedes Paket
   hat eine eigene `LICENSE`, `license`-Felder in den package.json (`MIT` / `Elastic-2.0`). Feature-Flags bleiben im selben Code (Schutz
@@ -317,7 +326,7 @@ node scripts/build-csharp.ts        # C#-Host bauen (.NET-SDK 10 nötig; Ausgabe
   `00.client-host.client.ts` für `$fetch`, `clientHostHeaders()` für `useFetch`) lokal sind (`isLocalTest(event)`). `getEffectiveLicense`,
   `requireFeature`, `assertUserCapacity` bekommen dafür `event`. Abschalten: `NUXT_LICENSE_LOCAL_MODE=off` bzw. Header `x-klonk-local: off`
   (Playwright setzt ihn global – Lizenztests prüfen echte Grenzen; `e2e/local-mode.spec.ts` testet den Modus).
-- Offen: weitere Bezahlfunktionen, Abos für Privatkonten auf der gehosteten Plattform.
+- Offen: weitere Bezahlfunktionen.
 
 ## Roadmap (Status pflegen!)
 

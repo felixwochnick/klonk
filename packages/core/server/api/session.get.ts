@@ -18,6 +18,7 @@ export default defineEventHandler(async (event) => {
     user: {
       id: user.id,
       displayName: user.displayName,
+      organizationId: user.organizationId,
       organizationName: user.organizationName,
       role: user.role,
       platformRole: user.platformRole,

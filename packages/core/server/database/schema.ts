@@ -129,3 +129,10 @@ export const organizationAiSettings = pgTable('organization_ai_settings', {
   tutor: boolean().notNull().default(true),
   updatedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
 })
+
+/** Lizenz-Token von Privatkonten (gehostete Plattform, Privat-Abo aus dem Shop) – schreibt nur der Abgleich mit klonk.* */
+export const userLicenses = pgTable('user_licenses', {
+  userId: uuid().primaryKey().references(() => users.id, { onDelete: 'cascade' }),
+  token: text().notNull(),
+  updatedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+})
