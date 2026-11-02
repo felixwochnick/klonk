@@ -277,12 +277,13 @@ node scripts/build-csharp.ts        # C#-Host bauen (.NET-SDK 10 nötig; Ausgabe
   (Was ist Klonk?, Das erste Programm), `2.world`, `3.klonk-script` (Navigation „Programmieren“; Slug bleibt, `LanguageDocs.vue` verlinkt
   dorthin), `4.teaching`, `5.administration`, `6.self-hosting` (Installation, Quelltext-Lizenz). Interne Links immer mit `/de/` bzw. `/en/`.
 - **Unterricht (Docs):** `apps/docs/content/{de,en}/4.teaching/` gegliedert **Land → Bundesland → Schulform → Klasse**
-  (`2.germany/3.bavaria/2.gymnasium/N.grade-X.md`, je Ebene `.navigation.yml` + `1.overview.md`). Je Klasse: Lernbereiche mit
+  (`3.germany/3.bavaria/2.gymnasium/N.grade-X.md`, je Ebene `.navigation.yml` + `1.overview.md`). Je Klasse: Lernbereiche mit
   Eignung (★★★/★★/★/–), Link zum Lehrplan-Volltext, Unterrichtsideen; Codebeispiele müssen mit der echten API laufen.
   Ordner alphabetisch nummeriert (`2.baden-wuerttemberg`, `3.bavaria`, `4.hesse`, `5.lower-saxony`, `6.north-rhine-westphalia`,
   `7.saxony`), Stufenbündel als `grade-5-6.md`, Oberstufe `upper-secondary.md`. Bayern: Gymnasium, Realschule (IT modular ⇒
-  Anfangs-/Aufbauunterricht), Mittelschule, FOS/BOS (KIT/KIWI ab 2026/27); übrige Länder bisher nur Gymnasium. Neue Länder/Schulformen
-  ⇒ Tabellen in `4.teaching/1.overview.md`, `2.germany/1.overview.md` (inkl. „Wie das Fach heißt“) und der Landesübersicht ergänzen.
+  Anfangs-/Aufbauunterricht), Mittelschule, FOS/BOS (KIT/KIWI ab 2026/27); übrige Länder bisher nur Gymnasium.
+  Zielgruppe: Lehrkräfte, Schulleitungen, Kultusverwaltung (Sie-Form, sachlich, Lehrplanbegriffe, keine Werbesprache; vom User so festgelegt); Betrieb/Datenschutz/Lizenz für Schulen in `4.teaching/2.schools.md`.
+  Neue Länder/Schulformen ⇒ Tabellen in `4.teaching/1.overview.md`, `3.germany/1.overview.md` (inkl. „Wie das Fach heißt“) und der Landesübersicht ergänzen.
   Marken gibt es nur in vier Farben (gelb/rot/blau/grün) – Beispiele dürfen keine anderen Markenfarben nutzen.
 - **KI-Assistent** (Lizenz-Feature `ai`, vom User so festgelegt): Tab **KI** neben Welt | Doku (`AiChat.vue`, `useAi()`), „Fehler erklären“
   im Fehlerkasten, Codeblöcke „Einfügen“/„Alles ersetzen“ (`KlonkEditor.insertText/replaceAll`, rückgängig machbar) nur bei voller Hilfe.
