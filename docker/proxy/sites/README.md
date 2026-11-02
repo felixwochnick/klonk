@@ -5,9 +5,9 @@ Verfügbar sind die Snippets `common` (TLS nach `KLONK_TLS`, Kompression, Sicher
 `{$KLONK_SCHEME}` / `{$KLONK_DOMAIN}`, z. B.:
 
 ```caddy
-{$KLONK_SCHEME}://rechnung.{$KLONK_DOMAIN} {
+{$KLONK_SCHEME}://status.{$KLONK_DOMAIN} {
 	import common
-	reverse_proxy invoiceninja:80
+	reverse_proxy status:3001
 }
 ```
 

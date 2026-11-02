@@ -323,7 +323,7 @@ node scripts/build-csharp.ts        # C#-Host bauen (.NET-SDK 10 nötig; Ausgabe
   (Privat-Abos, nur Privatkonten); Token muss `organizationId` bzw. `userId` des Ziels enthalten.
   `getEffectiveLicense(orgId, userId)` wertet Privat-Lizenzen aus. `/api/session` liefert `organizationId` für den Shop.
 - Proxy: Hauptdomain ⇒ Website, wenn `KLONK_WEBSITE_UPSTREAM` gesetzt (sonst Weiterleitung zur App); eigene Seiten
-  (z. B. Invoice Ninja) als `docker/proxy/sites/*.caddy` (nicht eingecheckt).
+  des Betriebs als `docker/proxy/sites/*.caddy` (nicht eingecheckt).
 - **Code-Lizenz (erledigt, vom User so festgelegt):** MIT für `packages/klonk-script` und `packages/world`, **Elastic License 2.0** für
   die Plattform (apps/*, core, ui, runtime, csharp; Rest des Repos ebenfalls ELv2). Root-`LICENSE` erklärt die Aufteilung, jedes Paket
   hat eine eigene `LICENSE`, `license`-Felder in den package.json (`MIT` / `Elastic-2.0`). Feature-Flags bleiben im selben Code (Schutz

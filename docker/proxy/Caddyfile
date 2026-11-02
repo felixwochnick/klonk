@@ -80,5 +80,5 @@
 
 # Zusätzliche Seiten, z. B. Test-Anmeldedienste im lokalen Stack (docker/local/sso.caddy)
 import /etc/caddy/sites/*.caddy
-# Eigene Seiten des Betriebs aus docker/proxy/sites/ (z. B. Invoice Ninja der Website, siehe README dort)
+# Eigene Seiten des Betriebs aus docker/proxy/sites/ (siehe README dort)
 import /etc/caddy/sites.d/*.caddy
