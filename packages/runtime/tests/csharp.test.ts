@@ -62,15 +62,15 @@ while (!klonk.IsWall()) { klonk.Step(); n++; }
 klonk.TurnRight();
 klonk.PlaceBrick(Blue);
 Console.WriteLine($"steps {n}");
-Print("x", klonk.PositionX(), klonk.IsWall(), new[] { 1, 2 }, klonk);`)
+Console.WriteLine($"x {klonk.PositionX()} {klonk.IsWall()} {klonk}");`)
     expect(messages.filter(m => m.type === 'command')).toHaveLength(6)
-    expect(messages.filter(m => m.type === 'output')).toEqual([{ type: 'output', text: 'steps 4' }, { type: 'output', text: 'x 5 false [1, 2] Klonk("k")' }])
+    expect(messages.filter(m => m.type === 'output')).toEqual([{ type: 'output', text: 'steps 4' }, { type: 'output', text: 'x 5 False Klonk("k")' }])
     expect(messages.at(-1)).toEqual({ type: 'done' })
   })
 
   it('mehrere Figuren: Name, Nummer, alle', async () => {
     const two: WorldData = { ...world, characters: [...world.characters, { id: 'Klara', model: 'female', x: 0, z: 2, direction: 'east' }] }
-    await run('var klara = new Klonk("klara");\nklara.Step(2);\nnew Klonk(1).Step();\nforeach (var r in Klonk.All()) Print(r.Name, r.PositionX());\nnew Klonk("Nobody");', { world: two })
+    await run('var klara = new Klonk("klara");\nklara.Step(2);\nnew Klonk(1).Step();\nforeach (var r in Klonk.All()) Console.WriteLine($"{r.Name} {r.PositionX()}");\nnew Klonk("Nobody");', { world: two })
     expect(messages.filter(m => m.type === 'command').map(m => (m as { command: { id: string } }).command.id)).toEqual(['Klara', 'Klara', 'k'])
     expect(messages.filter(m => m.type === 'output')).toEqual([{ type: 'output', text: 'k 2' }, { type: 'output', text: 'Klara 3' }])
     expect(messages.at(-1)).toMatchObject({ type: 'error', error: { code: 'world', params: { worldCode: 'unknown_character' }, range: { line: 5 } } })
@@ -88,10 +88,10 @@ Print("x", klonk.PositionX(), klonk.IsWall(), new[] { 1, 2 }, klonk);`)
   })
 
   it('Projektdateien nur mit Bibliotheken (Lizenz)', async () => {
-    const source = 'var k = new Klonk();\nTools.Helper.Two(k);\nPrint(k.PositionX());'
+    const source = 'var k = new Klonk();\nTools.Helper.Two(k);\nConsole.WriteLine(k.PositionX());'
     const files = { 'Program.cs': USING + source, 'Helper.cs': 'using klonk;\nnamespace Tools;\nstatic class Helper { public static void Two(Klonk k) { k.Step(); k.Step(); } }' }
     await run(source, { files })
-    expect(messages.at(-1)).toMatchObject({ type: 'error', error: { code: 'cs_compile' } })
+    expect(messages.at(-1)).toMatchObject({ type: 'error', error: { code: 'feature_libraries' } })
     messages.length = 0
     await run(source, { files, allowImports: true })
     expect(messages.filter(m => m.type === 'output')).toEqual([{ type: 'output', text: '3' }])
@@ -103,7 +103,7 @@ Print("x", klonk.PositionX(), klonk.IsWall(), new[] { 1, 2 }, klonk);`)
   })
 
   it('Klonk.Create', async () => {
-    await run('var kim = Klonk.Create("Kim", "female", 3, 1);\nkim.Step();\nKlonk.Create("Robo");\nPrint(kim.Name, kim.PositionX(), Klonk.All().Length);')
+    await run('var kim = Klonk.Create("Kim", "female", 3, 1);\nkim.Step();\nKlonk.Create("Robo");\nConsole.WriteLine($"{kim.Name} {kim.PositionX()} {Klonk.All().Length}");')
     expect(messages.filter(m => m.type === 'output')).toEqual([{ type: 'output', text: 'Kim 3 3' }])
   })
 
@@ -113,13 +113,13 @@ using Newtonsoft.Json.Linq;
 using YamlDotNet.Serialization;
 using System.Xml.Linq;
 var o = JObject.Parse("{ \\"base\\": \\"female\\", \\"colors\\": { \\"shirt\\": \\"#aa0000\\" } }");
-Print((string)o["colors"]!["shirt"]!);
-Print(JsonConvert.SerializeObject(new { Name = "Kim", Steps = 3 }));
+Console.WriteLine((string)o["colors"]!["shirt"]!);
+Console.WriteLine(JsonConvert.SerializeObject(new { Name = "Kim", Steps = 3 }));
 var yaml = new SerializerBuilder().Build().Serialize(new Dictionary<string, object> { ["name"] = "Kim", ["steps"] = 3 });
 var back = new DeserializerBuilder().Build().Deserialize<Dictionary<string, string>>(yaml);
-Print(back["name"], back["steps"]);
+Console.WriteLine($"{back["name"]} {back["steps"]}");
 var xml = new XElement("robot", new XAttribute("name", "Kim"), new XElement("color", "red"));
-Print(xml.ToString(SaveOptions.DisableFormatting), XElement.Parse("<a><b>1</b></a>").Element("b")!.Value);`)
+Console.WriteLine(xml.ToString(SaveOptions.DisableFormatting) + " " + XElement.Parse("<a><b>1</b></a>").Element("b")!.Value);`)
     expect(messages.at(-1)).toEqual({ type: 'done' })
     expect(messages.filter(m => m.type === 'output')).toEqual([
       { type: 'output', text: '#aa0000' },
@@ -131,10 +131,16 @@ Print(xml.ToString(SaveOptions.DisableFormatting), XElement.Parse("<a><b>1</b></
 
   it('Designs mit Newtonsoft laden, ändern, speichern', async () => {
     const design = { version: 1 as const, base: 'female' as const, colors: { skin: '#e8b48a', shirt: '#aa0000', pants: '#000000', hair: '#000000', eyes: '#000000' }, accessory: 'none' as const }
-    await run('var d = Newtonsoft.Json.Linq.JObject.Parse(Klonk.LoadDesign("ritter"));\nd["colors"]!["shirt"] = "#00ff00";\nKlonk.SaveDesign("gruen", d.ToString());\nKlonk.Create("G", "gruen");\nPrint((string)d["base"]!);', { designs: { ritter: design }, saveDesigns: true })
+    await run('var d = Newtonsoft.Json.Linq.JObject.Parse(Klonk.LoadDesign("ritter"));\nd["colors"]!["shirt"] = "#00ff00";\nKlonk.SaveDesign("gruen", d.ToString());\nKlonk.Create("G", "gruen");\nConsole.WriteLine((string)d["base"]!);', { designs: { ritter: design }, saveDesigns: true })
     expect(messages.filter(m => m.type === 'output')).toEqual([{ type: 'output', text: 'female' }])
     const saved = messages.find(m => m.type === 'saveDesign') as { name: string, design: { colors: { shirt: string } } } | undefined
     expect(saved).toMatchObject({ name: 'gruen', design: { colors: { shirt: '#00ff00' } } })
     expect(messages).toContainEqual(expect.objectContaining({ command: expect.objectContaining({ name: 'createCharacter', character: expect.objectContaining({ id: 'G', design: expect.objectContaining({ colors: expect.objectContaining({ shirt: '#00ff00' }) }) }) }) }))
+  })
+
+  it('ohne Lizenz ⇒ Hinweis auf Bibliotheken statt unbekanntem Namensraum', async () => {
+    const files = { 'Werkzeuge/Laufen.cs': 'using klonk;\nnamespace Werkzeuge;\npublic static class Laufen { public static void Zwei(Klonk k) { k.Step(); k.Step(); } }' }
+    await run('using Werkzeuge;\nLaufen.Zwei(new Klonk());', { files })
+    expect(messages.at(-1)).toMatchObject({ type: 'error', error: { code: 'feature_libraries' } })
   })
 })

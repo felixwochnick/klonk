@@ -1,4 +1,5 @@
 import type { RobotCommand, SourceRange, Value } from '@klonk/klonk-script'
+import { assetUrl } from '../assets'
 import { World } from '@klonk/world'
 import type { FromWorker, RunError, ToWorker } from '../protocol'
 import { ApiError, createApi } from '../js/api'
@@ -8,7 +9,7 @@ import { JAVA_LIBRARY } from './lib'
 import { DEBUG_IMPORT, DEBUG_JAVA, ROBOT_JAVA } from './robot'
 
 /** Wo teavm-javac liegt (eigene Origin wegen COEP; siehe apps/app/nuxt.config.ts) */
-export const TEAVM_URL = '/teavm/'
+export const TEAVM_URL = assetUrl('teavm')
 
 /** Zugriffe, die Nutzercode nicht braucht (über JSO erreichbar) */
 const BLOCKED_GLOBALS = ['fetch', 'XMLHttpRequest', 'WebSocket', 'EventSource', 'importScripts', 'indexedDB', 'caches', 'BroadcastChannel', 'WebTransport', 'postMessage', 'onmessage', 'close']
@@ -83,6 +84,8 @@ export async function runJava(
     const compileError = (): RunError => {
       const first = errors.find(e => e.fileName.endsWith(main)) ?? errors[0]
       const line = first?.lineNumber || 1
+      // Ohne Lizenz fehlen die anderen Projektdateien – dann das sagen statt „package … does not exist“
+      if (first && !message.allowImports && usesProjectJava(first.message, message)) return { code: 'feature_libraries', params: {}, range: lineRange(line) }
       return { code: 'java_compile', params: { message: friendlyJavacMessage(first?.message ?? '') }, range: first?.fileName.endsWith(main) ? lineRange(line) : undefined }
     }
     if (!compiler.compile()) {
@@ -92,7 +95,7 @@ export async function runJava(
     // Startklasse: die der geöffneten Datei (mit Package), sonst die erste mit main()
     const mains = Array.from(compiler.detectMainClasses(), c => c.replace(/\//g, '.')).filter(c => !c.startsWith('klonk.'))
     const own = publicClass(message.source) ?? main.slice(0, -5)
-    const pkg = packageOf(message.source)
+    const pkg = packageOf(message.source) ?? DEFAULT_PACKAGE
     const mainClass = mains.find(c => c === (pkg ? `${pkg}.${own}` : own)) ?? mains[0]
     if (!mainClass) {
       post({ type: 'error', error: { code: 'java_no_main', params: {} } })
@@ -146,9 +149,7 @@ export async function runJava(
     saveDesign: api.globals.saveDesign,
     count: () => api.names().length,
     nameAt: (index: number) => api.names()[index],
-    print: api.globals.print,
     sleepSeconds: api.globals.wait,
-    random: api.globals.random,
   }
   // Prüfpunkt: true ⇒ anhalten (Variablen folgen über variable(), dann pause())
   robot.checkpoint = (current: number) => {
@@ -220,13 +221,7 @@ export async function runJava(
 
 /** Hauptdatei (+ mit Lizenz weitere .java-Dateien des Projekts, auch aus Unterordnern – der Compiler sieht sie flach), instrumentiert, mit Import der Roboter-API */
 function javaFiles(message: Extract<ToWorker, { type: 'run' }>) {
-  const prepare = (source: string) => {
-    const instrumented = instrumentJava(source) ?? source
-    // Import nach einer package-Anweisung, sonst ganz vorne – in derselben Zeile
-    const pkg = /^\s*package\s+[\w.]+\s*;/.exec(instrumented)
-    const at = pkg ? pkg[0].length : 0
-    return `${instrumented.slice(0, at)}${at ? ' ' : ''}${DEBUG_IMPORT}${instrumented.slice(at)}`
-  }
+  const prepare = (source: string) => withPackage(instrumentJava(source) ?? source, DEBUG_IMPORT)
   const main = `${publicClass(message.source) ?? 'Main'}.java`
   const files: Record<string, string> = { [main]: prepare(message.source) }
   if (message.allowImports) {
@@ -239,14 +234,47 @@ function javaFiles(message: Extract<ToWorker, { type: 'run' }>) {
   return { main, files }
 }
 
-/**
- * Klonk.java liegt (mangels Unterordnern im Browser-javac) flach im Quellpfad. Fehlt `import klonk.Klonk;`, meldet
- * javac deshalb „bad source file: Klonk.java …“ – stattdessen den eigentlichen Grund nennen.
- */
+/** Fehlt der Import einer Klonk-Klasse, das dazusagen; das interne Paket `_default` nicht zeigen */
 export function friendlyJavacMessage(message: string) {
-  const name = /bad source file: (Klonk|Debug|Json|JsonObject|JsonArray|JsonException|Yaml|Xml)\.java/.exec(message)?.[1]
-  return name ? `cannot find symbol: class ${name} (missing import klonk.${name}; – import klonk.* is not supported, import each class)` : message
+  const KLONK = '(Klonk|Json|JsonObject|JsonArray|JsonException|Yaml|Xml)'
+  const missing = new RegExp(`bad source file: ${KLONK}\\.java`).exec(message)?.[1] ?? new RegExp(`symbol:\\s+class ${KLONK}\\b`).exec(message)?.[1]
+  return missing ? `cannot find symbol: class ${missing} (missing import klonk.${missing};?)` : message.replace(/\b_default\./g, '')
 }
+
+/** Bezieht sich ein Compilerfehler auf Packages/Klassen anderer Projektdateien? */
+function usesProjectJava(error: string, message: Extract<ToWorker, { type: 'run' }>) {
+  const others = Object.entries(message.files).filter(([path, source]) => path.endsWith('.java') && source !== message.source)
+  const packages = new Set(others.map(([, source]) => packageOf(source)).filter(Boolean) as string[])
+  const classes = new Set(others.map(([path, source]) => publicClass(source) ?? path.slice(path.lastIndexOf('/') + 1, -5)))
+  const pkg = /package ([\w.]+) does not exist/.exec(error)?.[1]
+  if (pkg && [...packages].some(p => p === pkg || p.startsWith(`${pkg}.`))) return true
+  const symbol = /symbol:\s+(?:class|variable) (\w+)/.exec(error)?.[1]
+  return !!symbol && (classes.has(symbol) || [...packages].some(p => p.split('.')[0] === symbol))
+}
+
+/**
+ * Klassen ohne `package` kompiliert Klonk im Paket `_default`: Der Browser-javac legt alle Dateien flach in den
+ * Quellpfad, sucht einfache Namen aber zuerst im Standardpaket – dort fände er `Laufen.java` aus `package
+ * Werkzeuge` und bräche ab („bad source file“), statt `import Werkzeuge.*;` bzw. `import klonk.*;` zu folgen.
+ */
+export const DEFAULT_PACKAGE = '_default'
+
+/**
+ * Text direkt hinter der package-Anweisung einfügen (fehlt sie, mit `package _default;` davor) – alles in der Zeile
+ * der package-Anweisung bzw. in Zeile 1, damit die Zeilennummern gleich bleiben. Liefert auch, wie viele Zeichen in
+ * Zeile 1 vorne dazukamen (für Spaltenangaben).
+ */
+export function withPackage(source: string, insert = '') {
+  const match = PACKAGE.exec(source)
+  if (match) return `${source.slice(0, match.index + match[0].length)} ${insert}${source.slice(match.index + match[0].length)}`
+  return `package ${DEFAULT_PACKAGE}; ${insert}${source}`
+}
+/** Zusätzliche Zeichen in Zeile 1 durch `withPackage` (nur ohne eigene package-Anweisung) */
+export function packagePrefixLength(source: string, insert = '') {
+  return PACKAGE.test(source) ? 0 : `package ${DEFAULT_PACKAGE}; ${insert}`.length
+}
+
+const PACKAGE = /^\s*(?:\/\/[^\n]*\n\s*|\/\*[\s\S]*?\*\/\s*)*package\s+[\w.]+\s*;/
 
 /** Package einer Java-Datei (`package de.schule.aufgabe;`) */
 export function packageOf(source: string) {

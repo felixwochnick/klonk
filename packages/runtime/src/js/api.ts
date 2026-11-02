@@ -54,19 +54,24 @@ export const CLASS_COMMANDS: readonly BuiltinName[] = ['selectCharacter', 'creat
 export const ROBOT_METHODS = (Object.keys(BUILTINS) as BuiltinName[])
   .filter(name => (BUILTINS[name].kind === 'command' || BUILTINS[name].kind === 'sensor') && !CLASS_COMMANDS.includes(name))
 
-/** Globale Funktionen und Farbkonstanten (`print`, `wait`, `random`, `red` …) */
+/**
+ * Funktionen und Farbkonstanten der Klonk-Script-Tabellen. In den Objekt-Sprachen gibt es davon nur `wait` und die Farben –
+ * Ausgabe und Zufall nehmen dort die Mittel der Sprache selbst (console.log, print, System.out.println, Math.random …).
+ */
 export const GLOBAL_NAMES = (Object.keys(BUILTINS) as BuiltinName[])
   .filter(name => BUILTINS[name].kind === 'function' || BUILTINS[name].kind === 'constant')
 
 export type RobotHandle = { readonly name: string } & Record<string, (...args: unknown[]) => unknown>
 
 export type RobotApi = {
-  /** `print`, `wait`, `random` und Farben (englische Namen) */
+  /** `wait`, Farben, `loadDesign`/`saveDesign` (englische Namen) */
   globals: Record<string, unknown>
   /** Figur nach Name (ohne Groß-/Kleinschreibung) oder Nummer (ab 1); ohne Angabe die erste */
   robot: (name?: unknown) => RobotHandle
   /** Namen aller Figuren in Weltreihenfolge */
   names: () => string[]
+  /** Ausgabe (console.log) */
+  print: (...values: unknown[]) => void
   /** Neue Figur (Aussehen: Standardmodell oder eigenes Design; Feld 1-basiert, sonst neben der zuletzt genutzten) */
   create: (name: unknown, look?: unknown, x?: unknown, y?: unknown) => RobotHandle
 }
@@ -162,9 +167,7 @@ export function createApi(host: ApiHost): RobotApi {
   }
 
   const globals: Record<string, unknown> = {
-    print: (...values: unknown[]) => host.print(values.map(v => display(v)).join(' ')),
     wait: (seconds = 1) => host.sleep(Math.max(0, Math.min(Number(seconds) || 0, 60)) * 1000),
-    random: (min: number, max: number) => Math.ceil(min) + Math.floor(Math.random() * (Math.floor(max) - Math.ceil(min) + 1)),
   }
   for (const c of BRICK_COLORS) globals[c] = c
 
@@ -195,7 +198,10 @@ export function createApi(host: ApiHost): RobotApi {
     host.saveDesign(text, parsed)
   })
 
-  return { globals, robot, create, names: () => w().getCharacters().map(c => c.id) }
+  /** Ausgabe wie Klonk-Script (für console.log in JS) */
+  const print = (...values: unknown[]) => host.print(values.map(v => display(v)).join(' '))
+
+  return { globals, print, robot, create, names: () => w().getCharacters().map(c => c.id) }
 }
 
 /** Darstellung einer Figur in Ausgabe und Variablenansicht */

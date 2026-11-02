@@ -34,7 +34,7 @@ test('Seite ist cross-origin-isoliert (Voraussetzung für JS/TS)', async ({ page
 })
 
 test('JavaScript ausführen mit der englischen Objekt-API', async ({ page }) => {
-  await openIde(page, 'javascript', `import { Klonk, print, red } from 'klonk'; const klonk = new Klonk()
+  await openIde(page, 'javascript', `import { Klonk, red } from 'klonk'; const klonk = new Klonk()
 let n = 0
 while (!klonk.isWall()) {
   klonk.turnLeft()
@@ -43,7 +43,7 @@ while (!klonk.isWall()) {
   klonk.step()
   n++
 }
-print('Schritte:', n, [1, 2])`)
+console.log('Schritte:', n, [1, 2])`)
   await expect(page.getByTestId('language')).toContainText('JavaScript')
   await page.getByTestId('run').click()
   await expect(state(page)).toHaveAttribute('data-state', 'done', { timeout: 30_000 })
@@ -53,7 +53,7 @@ print('Schritte:', n, [1, 2])`)
 })
 
 test('Debugger in TypeScript: Haltepunkt in Funktion, Variablen, Einzelschritt', async ({ page }) => {
-  await openIde(page, 'typescript', `import { print } from 'klonk'; function doppelt(x: number): number {
+  await openIde(page, 'typescript', `function doppelt(x: number): number {
   const y = x * 2
   return y
 }
@@ -61,7 +61,7 @@ let summe: number = 0
 for (let i = 1; i <= 3; i++) {
   summe += doppelt(i)
 }
-print(summe)`, [3])
+console.log(summe)`, [3])
   await page.getByTestId('run').click()
   await expect(state(page)).toHaveAttribute('data-state', 'paused', { timeout: 15_000 })
   await expect(page.getByTestId('variable-x')).toContainText('1')
@@ -110,7 +110,7 @@ test('TypeScript: Typfehler und Autovervollständigung der Roboter-API', async (
 test('Zwei Figuren gleichzeitig steuern', async ({ page }) => {
   await page.evaluate(() => localStorage.setItem('klonk:program', JSON.stringify({
     language: 'javascript',
-    programs: { javascript: { source: 'import { Klonk, print } from "klonk"; const klonk = new Klonk()\nconst klara = new Klonk("Klara")\nfor (let i = 0; i < 3; i++) {\n  klonk.step()\n  klara.step()\n}\nprint(Klonk.all().map(k => k.name + ": " + k.positionY()).join(", "))', breakpoints: [] } },
+    programs: { javascript: { source: 'import { Klonk } from "klonk"; const klonk = new Klonk()\nconst klara = new Klonk("Klara")\nfor (let i = 0; i < 3; i++) {\n  klonk.step()\n  klara.step()\n}\nconsole.log(Klonk.all().map(k => k.name + ": " + k.positionY()).join(", "))', breakpoints: [] } },
   })))
   await page.evaluate(world => localStorage.setItem('klonk:world', JSON.stringify(world)), {
     ...WORLD,

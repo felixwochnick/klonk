@@ -4,11 +4,14 @@ const CACHE_KEY = 'klonk:license'
 export function useLicense() {
   const { data, refresh, error } = useFetch<LicenseInfo>('/api/license', {
     key: 'license',
+    headers: clientHostHeaders(),
     // Offline (PWA) gilt die zuletzt geladene Lizenz weiter – die Server-APIs prüfen ohnehin selbst
     default: () => cachedLicense() ?? FREE_LICENSE,
   })
 
   if (import.meta.client) {
+    // Lokaler Testmodus braucht den Hostnamen des Browsers – beim Server-Rendering fehlt der ⇒ im Browser neu laden
+    if (/(^localhost$|\.localhost$|^127\.0\.0\.1$)/.test(location.hostname) && data.value?.plan !== 'local') onMounted(() => void refresh())
     watch(data, (value) => {
       if (value && !error.value) storage(() => localStorage.setItem(CACHE_KEY, JSON.stringify(value)))
     })
@@ -17,7 +20,10 @@ export function useLicense() {
   const can = (feature: LicenseFeature) => hasFeature(data.value, feature)
   const maxCharacters = computed(() => (can('characters') ? Infinity : FREE_MAX_CHARACTERS))
 
-  return { license: data, refresh, can, maxCharacters }
+  /** Lokaler Testmodus (localhost/*.localhost): alles frei */
+  const isLocal = computed(() => data.value?.plan === 'local')
+
+  return { license: data, refresh, can, maxCharacters, isLocal }
 }
 
 function cachedLicense(): LicenseInfo | undefined {

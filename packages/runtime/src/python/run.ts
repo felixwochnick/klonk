@@ -1,4 +1,5 @@
 import type { RobotCommand, SourceRange } from '@klonk/klonk-script'
+import { assetUrl } from '../assets'
 import { World } from '@klonk/world'
 import type { PyodideInterface } from 'pyodide'
 import type { FromWorker, ToWorker } from '../protocol'
@@ -11,7 +12,7 @@ import { PRELUDE, USER_FILE } from './prelude'
 const BLOCKED_GLOBALS = ['fetch', 'XMLHttpRequest', 'WebSocket', 'EventSource', 'importScripts', 'indexedDB', 'caches', 'BroadcastChannel', 'WebTransport', 'postMessage', 'onmessage', 'close']
 
 /** Wo die Pyodide-Dateien liegen (eigene Origin wegen COEP; siehe apps/app/nuxt.config.ts) */
-export const PYODIDE_URL = '/pyodide/'
+export const PYODIDE_URL = assetUrl('pyodide')
 
 /**
  * Führt Python (Pyodide) synchron im Worker aus – gleiche Steuerung wie JS/TS: `sys.settrace` ruft vor
@@ -137,7 +138,11 @@ export async function runPython(
     post({ type: 'done' })
   }
   catch (error) {
-    post({ type: 'error', error: toRunError(error, apiError, line) })
+    const runError = toRunError(error, apiError, line)
+    // Ohne Lizenz fehlen die Projektmodule – dann das sagen statt ModuleNotFoundError
+    const missing = /No module named '([\w.]+)'/.exec(String(runError.params.message))?.[1]?.split('.')[0]
+    const projectModule = missing && Object.keys(message.files).some(path => path.endsWith('.py') && (path === `${missing}.py` || path.split('/').includes(missing) || path.endsWith(`/${missing}.py`)))
+    post({ type: 'error', error: projectModule && !message.allowImports ? { code: 'feature_libraries', params: {}, range: runError.range } : runError })
   }
 }
 

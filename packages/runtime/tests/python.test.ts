@@ -70,7 +70,7 @@ describe('Python', { timeout: 60_000 }, () => {
   it('Projektdateien nur mit Bibliotheken importierbar', async () => {
     const files = { 'tools/helfer.py': 'def two(robot):\n    robot.step()\n    robot.step()\n' }
     await run('from tools import helfer\nhelfer.two(Klonk())\n', { files })
-    expect(messages.at(-1)).toMatchObject({ type: 'error', error: { code: 'py_runtime', params: { name: 'ModuleNotFoundError' } } })
+    expect(messages.at(-1)).toMatchObject({ type: 'error', error: { code: 'feature_libraries' } })
     messages.length = 0
     await run('from tools import helfer\nk = Klonk()\nhelfer.two(k)\nprint(k.position_x())\n', { files, allowImports: true })
     expect(messages.filter(m => m.type === 'output')).toEqual([{ type: 'output', text: '3' }])
@@ -96,5 +96,10 @@ describe('Python', { timeout: 60_000 }, () => {
     const saved = messages.find(m => m.type === 'saveDesign') as { name: string, design: { colors: { shirt: string } } } | undefined
     expect(saved).toMatchObject({ name: 'gruen', design: { colors: { shirt: '#00ff00' } } })
     expect(messages).toContainEqual(expect.objectContaining({ command: expect.objectContaining({ name: 'createCharacter', character: expect.objectContaining({ id: 'G', design: expect.objectContaining({ colors: expect.objectContaining({ shirt: '#00ff00' }) }) }) }) }))
+  })
+
+  it('ohne Lizenz ⇒ Hinweis auf Bibliotheken statt ModuleNotFoundError', async () => {
+    await run('from tools import helfer\n', { files: { 'tools/helfer.py': 'x = 1\n' } })
+    expect(messages.at(-1)).toMatchObject({ type: 'error', error: { code: 'feature_libraries' } })
   })
 })

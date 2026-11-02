@@ -131,12 +131,16 @@ node scripts/build-csharp.ts        # C#-Host bauen (.NET-SDK 10 nötig; Ausgabe
   JS/TS `import { Klonk } from 'klonk'`, Python `from klonk import Klonk`, Java `import klonk.Klonk;` (+ `import static klonk.Klonk.*;`),
   C# `using klonk;` (+ `using static klonk.Klonk;`). **Klonk-Script und Blöcke steuern immer nur eine Figur** (`wähleFigur`), ohne Import.
   Gemeinsame Basis `createApi()` in `runtime/src/js/api.ts` (`robot()`, `names()`, `globals`, `ROBOT_METHODS`, `onError`).
+  - **Ausgabe/Zufall wie in der Sprache** (vom User so festgelegt): `console.log`/`Math.random`, `print`/`random`, `System.out.println`,
+    `Console.WriteLine` – die Bibliothek `klonk` hat davon nur `wait` (Java `sleep`), Farben und Designs.
   - JS/TS: `js/modules.ts` schreibt `import`/`export` zeilentreu in `__klonk_import`/`__klonk_export` um (Exporte als Getter vorne,
-    `export *` über Proxy-Namespace); `"klonk"` = API-Modul, relative Pfade = Projektdateien (Lizenz `libraries`, ohne Prüfpunkte).
-    Monaco: `declare module 'klonk'` in `js-api-types.ts`.
+    `export *` über Proxy-Namespace); `"klonk"` = API-Modul, `./x` bzw. `/src/x` = Projektdateien (Lizenz `libraries`, ohne Prüfpunkte).
+    Monaco: `declare module 'klonk'` in `js-api-types.ts`; Projektdateien als Modelle unter `file:///<pfad>` (`paths: {'/*': ['*']}`,
+    nach dem Anlegen mit `getTypeScriptWorker(...uris)` synchronisieren, sonst „Cannot find module“).
   - Python: Modul `klonk` per `sys.modules` im Vorspann (JS-Brücke `_klonk_js`), Projektdateien mit Ordnern (Pakete), Ordner der Hauptdatei in `sys.path`.
   - Java: `klonk.Klonk` + Debugger-Klasse `klonk.Debug` (unsichtbarer Import `import static klonk.Debug.*;` in Zeile 1, `__cp` unqualifiziert –
-    eine Variable `klonk` würde `klonk.X` verdecken). Browser-javac kann **keine Unterordner** in Dateinamen ⇒ alle Dateien flach nach Klassenname;
+    eine Variable `klonk` würde `klonk.X` verdecken). Browser-javac kann **keine Unterordner** in Dateinamen ⇒ alle Dateien flach nach Klassenname; Klassen ohne `package` laufen
+    intern in `package _default;` (`withPackage()`), sonst findet javac bei `import X.*;`/`import klonk.*;` die flache Datei im Standardpaket;
     fehlt `import klonk.Klonk;`, meldet javac „bad source file: Klonk.java“ ⇒ `friendlyJavacMessage()`. `detectMainClasses()` liefert `a/b/C` ⇒
     in Punkte umwandeln; Startklasse = Package + öffentliche Klasse der geöffneten Datei. JSO-Strings vor `toString()` per Verkettung kopieren.
   - C#: Namensraum `klonk` (klein, `Klonk` würde die Klasse verdecken), Instrumentierung `global::klonk.Klonk.__cp`; Aufrufe `call(method, ["s:<Name>", …])`.
@@ -246,8 +250,13 @@ node scripts/build-csharp.ts        # C#-Host bauen (.NET-SDK 10 nötig; Ausgabe
   Pyodide `compile()`, javac (gleiche Dateien wie beim Lauf, Import-Präfix aus Positionen herausgerechnet; Compiler wird
   wiederverwendet, entfernte Dateien leer überschreiben), C# `[JSExport] Host.Check`. Marker-Owner `klonk-check`; Laufzeitfehler als
   Marker `klonk-runtime` mit Meldung, „Zur Zeile“ im Fehlerkasten (`KlonkEditor.revealLine`). Projekt-Bibliotheken gehen mit (Prop `files`).
-- **Monaco-Modelle:** eines je Sprache mit Dateiendung (`file:///klonk/<n>/program.ts` …) – der TS-Dienst erkennt TS/JS an der Endung.
-- **Vollbild-Code:** `focus` in `index.vue` (fixed über dem Kopf + Browser-Fullscreen-API), Ausgabe kompakt unter dem Editor.
+- **Monaco-Modelle:** eines je Sprache mit Dateiendung (`file:///__klonk/<n>/program.ts`, im Projekt `file:///<pfad>`) – der TS-Dienst erkennt TS/JS an der Endung.
+- **Code in voller Breite** (`focus`, vom User so gewünscht – kein Browser-Vollbild): Projekt/Welt aus, Ausgabe kompakt unter dem Editor.
+  Rechts Tabs **Welt | Doku** (`LanguageDocs.vue`: Kurzreferenz je Sprache aus den Tabellen, Link `public.docsUrl`); Ausführen zeigt die Welt.
+- **Navigation:** Projekte · Programmieren · Kleiderschrank (`/designs`, Designs des Projekts) · Welt.
+- **Laufzeiten versioniert:** `/pyodide|teavm|pylibs|dotnet/<hash>/` (`assetVersion()` in `apps/app/nuxt.config.ts`, Vite-`define`
+  `__KLONK_ASSETS__`, `runtime/src/assets.ts`) – sonst lieferten Browser-/PWA-Cache nach einem Neubau alte Dateien (z. B. alter C#-Host).
+- **Ohne Lizenz + Projektdateien:** Runner bekommt die Dateien immer, nutzt sie nur mit `allowImports`; Java/C#/Python melden dann `feature_libraries` statt „package/namespace/module not found“.
 - **IDE-Layout:** Trenner `SplitHandle` (Zeigen + Pfeiltasten) zwischen Projekt/Code/Welt/Ausgabe, Größen in `klonk:layout` (localStorage), nur ab `lg`. Blockly folgt per `ResizeObserver` (`svgResize`), Container `absolute inset-0`.
 - **Einstellungen:** `SettingsForm` (core) unter `/settings` in app und admin (Kontomenü über „Abmelden“): Sprache + Hell/Dunkel/System.
   Angemeldet blendet der Kopf die Schnellschalter aus; Login-Seiten behalten sie. Nuxt-UI-Radius = Standard (kein `--ui-radius`).
@@ -292,6 +301,11 @@ node scripts/build-csharp.ts        # C#-Host bauen (.NET-SDK 10 nötig; Ausgabe
   hat eine eigene `LICENSE`, `license`-Felder in den package.json (`MIT` / `Elastic-2.0`). Feature-Flags bleiben im selben Code (Schutz
   über ELv2: Umgehen der Token-Prüfung und Hosting für Dritte verboten). Fremdbibliotheken in `THIRD_PARTY_NOTICES.md` – **neue
   mitgelieferte Bibliotheken dort eintragen**. Docs-Seite `1.getting-started/2.license.md`.
+- **Lokaler Testmodus** (vom User so festgelegt): auf `localhost`/`*.localhost`/`127.0.0.1` alles frei (`LOCAL_LICENSE`, Plan `local`,
+  Badge „Lokaler Testmodus“) – nur wenn Host-Header **und** der vom Browser gemeldete Hostname (`x-klonk-host`, Plugin
+  `00.client-host.client.ts` für `$fetch`, `clientHostHeaders()` für `useFetch`) lokal sind (`isLocalTest(event)`). `getEffectiveLicense`,
+  `requireFeature`, `assertUserCapacity` bekommen dafür `event`. Abschalten: `NUXT_LICENSE_LOCAL_MODE=off` bzw. Header `x-klonk-local: off`
+  (Playwright setzt ihn global – Lizenztests prüfen echte Grenzen; `e2e/local-mode.spec.ts` testet den Modus).
 - Offen: weitere Bezahlfunktionen, Abos für Privatkonten auf der gehosteten Plattform.
 
 ## Roadmap (Status pflegen!)

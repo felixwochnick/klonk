@@ -15,7 +15,7 @@ export default defineEventHandler(async (event) => {
   }))
 
   // Die neue Organisation hat noch keine eigene Lizenz – nur die Instanzgrenze prüfen
-  await assertUserCapacity(null)
+  await assertUserCapacity(null, event)
   const passwordHash = await hashPassword(input.admin.password)
 
   return withUserDb(user.id, async (tx) => {

@@ -102,7 +102,8 @@
   "nav": {
     "world": "Welt",
     "code": "Programmieren",
-    "projects": "Projekte"
+    "projects": "Projekte",
+    "wardrobe": "Kleiderschrank"
   },
   "editor": {
     "title": "Programmieren",
@@ -145,8 +146,12 @@
     "resizeCode": "Breite des Codes ändern",
     "resizeOutput": "Höhe der Ausgabe ändern",
     "showErrorLine": "Zur Zeile",
-    "focus": "Vollbild-Code (z. B. fürs Tablet)",
-    "focusExit": "Vollbild verlassen"
+    "focus": "Code in voller Breite",
+    "focusExit": "Alle Bereiche zeigen",
+    "tabs": {
+      "world": "Welt",
+      "docs": "Doku"
+    }
   },
   "script": {
     "errors": {
@@ -348,5 +353,29 @@
       "helmet": "Helm",
       "crown": "Krone"
     }
+  },
+  "langDocs": {
+    "title": "Kurzreferenz",
+    "full": "Vollständige Doku",
+    "import": "Einbinden",
+    "characters": "Figuren",
+    "first": "die erste Figur",
+    "byName": "die Figur mit diesem Namen",
+    "all": "alle Figuren",
+    "create": "neue Figur (Aussehen und Feld optional)",
+    "name": "Name der Figur",
+    "methods": "Methoden einer Figur",
+    "commands": "Befehle und Sensoren",
+    "colors": "Farben",
+    "more": "Außerdem",
+    "wait": "warten (Sekunden)",
+    "output": "Ausgabe",
+    "scriptIntro": "Schlüsselwörter:"
+  },
+  "wardrobe": {
+    "title": "Kleiderschrank",
+    "noProject": "Roboter-Designs gehören zu einem Projekt. Öffne oder erstelle zuerst ein Projekt.",
+    "new": "Neues Design",
+    "empty": "Noch keine Designs in diesem Projekt."
   }
 }

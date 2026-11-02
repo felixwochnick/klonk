@@ -120,7 +120,8 @@ const errorMessage = computed(() => {
 // Bibliotheken des Projekts für die Prüfung im Editor (Compiler sollen eigene Klassen/Module kennen)
 const checkFiles = shallowRef<Record<string, string>>({})
 watch([proj.currentPath, proj.files], async () => {
-  checkFiles.value = inProject.value && can('libraries') ? await proj.importableFiles().catch(() => ({})) : {}
+  // Editor sieht die Projektdateien immer (Vorschläge, Prüfung); ausführen lassen sie sich nur mit Lizenz
+  checkFiles.value = inProject.value ? await proj.importableFiles().catch(() => ({})) : {}
 }, { immediate: true })
 
 // „Fehler in Zeile …“ anklicken ⇒ Zeile im Editor zeigen
@@ -133,9 +134,12 @@ function resetWorld() {
 
 async function run(pauseOnStart = false) {
   if (!runner) return
+  // Beim Ausführen die Welt zeigen
+  rightTab.value = 'world'
   resetWorld()
   // Bibliotheken: Klonk-Script-/Python-Dateien des Projekts (nur mit Lizenz)
-  const files = inProject.value && can('libraries') ? await proj.importableFiles() : {}
+  // Projektdateien immer mitgeben: genutzt werden sie nur mit Lizenz, ohne erkennt der Runner den Grund für Fehler
+  const files = inProject.value ? await proj.importableFiles() : {}
   // Eigene Designs für erstelle/Klonk.create nur mit Lizenz
   const designs = inProject.value && can('models') ? await proj.readDesigns() : {}
   runner.run(world.value, {
@@ -199,31 +203,14 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey))
 
 const variables = computed(() => Object.entries(snapshot.value.variables))
 
-// Vollbild-Code (Tablets): nur Werkzeugleiste und Editor, möglichst auch ohne Browserleisten
+// Code in voller Breite (z. B. auf dem Tablet): Projekt und Welt ausblenden, Ausgabe kompakt unter dem Code
 const focus = ref(false)
-let browserFullscreen = false
-async function toggleFocus() {
+function toggleFocus() {
   focus.value = !focus.value
-  if (focus.value && document.fullscreenEnabled && !document.fullscreenElement) {
-    browserFullscreen = await document.documentElement.requestFullscreen().then(() => true, () => false)
-  }
-  else if (!focus.value && browserFullscreen && document.fullscreenElement) {
-    browserFullscreen = false
-    await document.exitFullscreen().catch(() => {})
-  }
 }
-function onFullscreenChange() {
-  // Browser-Vollbild beendet (z. B. Esc) ⇒ auch den Modus verlassen
-  if (browserFullscreen && !document.fullscreenElement) {
-    browserFullscreen = false
-    focus.value = false
-  }
-}
-onMounted(() => document.addEventListener('fullscreenchange', onFullscreenChange))
-onBeforeUnmount(() => {
-  document.removeEventListener('fullscreenchange', onFullscreenChange)
-  if (browserFullscreen && document.fullscreenElement) void document.exitFullscreen().catch(() => {})
-})
+
+// Rechts: 3D-Welt oder Kurzreferenz der Sprache (die Welt bleibt dabei geladen)
+const rightTab = ref<'world' | 'docs'>('world')
 
 // Fenstergrößen (ab lg): Trenner ziehen wie in Code-Editoren, im Browser gemerkt
 const LAYOUT_KEY = 'klonk:layout'
@@ -268,8 +255,7 @@ const paneStyle = computed(() => ({
 
 <template>
   <div
-    class="flex flex-col"
-    :class="focus ? 'fixed inset-0 z-50 bg-(--ui-bg)' : 'h-[calc(100dvh-var(--ui-header-height))]'"
+    class="flex h-[calc(100dvh-var(--ui-header-height))] flex-col"
     data-testid="ide"
     :data-focus="focus"
   >
@@ -374,7 +360,6 @@ const paneStyle = computed(() => ({
           />
         </UDropdownMenu>
         <UButton
-          v-if="!focus"
           icon="i-lucide-pencil-ruler"
           variant="ghost"
           color="neutral"
@@ -383,7 +368,7 @@ const paneStyle = computed(() => ({
         />
         <UTooltip :text="focus ? t('editor.focusExit') : t('editor.focus')">
           <UButton
-            :icon="focus ? 'i-lucide-minimize-2' : 'i-lucide-maximize-2'"
+            :icon="focus ? 'i-lucide-columns-2' : 'i-lucide-rectangle-horizontal'"
             variant="ghost"
             color="neutral"
             :aria-label="focus ? t('editor.focusExit') : t('editor.focus')"
@@ -519,7 +504,34 @@ const paneStyle = computed(() => ({
         ref="worldColumn"
         class="flex min-h-0 min-w-0 flex-1 flex-col border-t border-(--ui-border) lg:border-t-0"
       >
-        <div class="relative min-h-64 flex-1 bg-(--ui-bg-muted)">
+        <div
+          class="flex items-center gap-1 border-b border-(--ui-border) px-2 py-1"
+          role="tablist"
+        >
+          <UButton
+            v-for="tab in (['world', 'docs'] as const)"
+            :key="tab"
+            role="tab"
+            size="xs"
+            :aria-selected="rightTab === tab"
+            :variant="rightTab === tab ? 'soft' : 'ghost'"
+            :color="rightTab === tab ? 'primary' : 'neutral'"
+            :icon="tab === 'world' ? 'i-lucide-boxes' : 'i-lucide-book-open'"
+            :label="t(`editor.tabs.${tab}`)"
+            :data-testid="`tab-${tab}`"
+            @click="rightTab = tab"
+          />
+        </div>
+        <div
+          v-if="rightTab === 'docs'"
+          class="min-h-64 flex-1"
+        >
+          <LanguageDocs :language="language" />
+        </div>
+        <div
+          v-show="rightTab === 'world'"
+          class="relative min-h-64 flex-1 bg-(--ui-bg-muted)"
+        >
           <ClientOnly>
             <KlonkWorld
               :world="world"

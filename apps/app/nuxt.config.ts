@@ -1,6 +1,7 @@
+import { createHash } from 'node:crypto'
 import { createRequire } from 'node:module'
-import { existsSync } from 'node:fs'
-import { dirname } from 'node:path'
+import { existsSync, readdirSync, statSync } from 'node:fs'
+import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 // Python: Pyodide-Dateien von der eigenen Origin ausliefern (COEP erlaubt keine Fremd-Ressourcen)
@@ -12,6 +13,31 @@ const PYLIBS_DIR = fileURLToPath(new URL('../../packages/runtime/pylibs', import
 // C#: Roslyn auf .NET-WebAssembly, gebaut mit `node scripts/build-csharp.ts` (nicht im Git)
 const DOTNET_DIR = fileURLToPath(new URL('../../packages/runtime/dotnet', import.meta.url))
 if (!existsSync(DOTNET_DIR)) console.warn('[klonk] C#-Host fehlt – `node scripts/build-csharp.ts` ausführen (C# sonst nicht verfügbar)')
+
+/**
+ * Version eines Asset-Ordners aus Dateinamen, Größen und Änderungszeiten. Die Laufzeiten liegen unter
+ * `/<name>/<version>/` – ein neuer Build ergibt neue URLs, Browser- und PWA-Cache (CacheFirst, 30 Tage)
+ * liefern also nie veraltete Dateien (z. B. einen alten C#-Host).
+ */
+function assetVersion(dir: string) {
+  const hash = createHash('sha256')
+  const walk = (current: string) => {
+    for (const name of readdirSync(current).sort()) {
+      const path = join(current, name)
+      const stat = statSync(path)
+      if (stat.isDirectory()) walk(path)
+      else hash.update(`${path.slice(dir.length)}:${stat.size}:${stat.mtimeMs}\n`)
+    }
+  }
+  if (existsSync(dir)) walk(dir)
+  return hash.digest('hex').slice(0, 10)
+}
+const ASSETS = {
+  pyodide: `/pyodide/${assetVersion(PYODIDE_DIR)}/`,
+  teavm: `/teavm/${assetVersion(TEAVM_DIR)}/`,
+  pylibs: `/pylibs/${assetVersion(PYLIBS_DIR)}/`,
+  dotnet: `/dotnet/${assetVersion(DOTNET_DIR)}/`,
+}
 
 // Jeder Build bekommt eine neue Revision für die vorab gespeicherte App-Shell
 const SHELL_REVISION = Date.now().toString(36)
@@ -37,21 +63,24 @@ export default defineNuxtConfig({
     '/world': { ssr: false },
     '/projects': { ssr: false },
     '/settings': { ssr: false },
+    '/designs': { ssr: false },
   },
 
   compatibilityDate: '2026-10-01',
 
   nitro: {
     publicAssets: [
-      { dir: PYODIDE_DIR, baseURL: '/pyodide', maxAge: 60 * 60 * 24 * 30 },
-      { dir: TEAVM_DIR, baseURL: '/teavm', maxAge: 60 * 60 * 24 * 30 },
-      { dir: PYLIBS_DIR, baseURL: '/pylibs', maxAge: 60 * 60 * 24 * 30 },
-      ...(existsSync(DOTNET_DIR) ? [{ dir: DOTNET_DIR, baseURL: '/dotnet', maxAge: 60 * 60 * 24 * 30 }] : []),
+      { dir: PYODIDE_DIR, baseURL: ASSETS.pyodide, maxAge: 60 * 60 * 24 * 365 },
+      { dir: TEAVM_DIR, baseURL: ASSETS.teavm, maxAge: 60 * 60 * 24 * 365 },
+      { dir: PYLIBS_DIR, baseURL: ASSETS.pylibs, maxAge: 60 * 60 * 24 * 365 },
+      ...(existsSync(DOTNET_DIR) ? [{ dir: DOTNET_DIR, baseURL: ASSETS.dotnet, maxAge: 60 * 60 * 24 * 365 }] : []),
     ],
   },
 
   vite: {
     worker: { format: 'es' },
+    // Versionierte Pfade der Laufzeiten für Worker und Seite (siehe ASSETS)
+    define: { __KLONK_ASSETS__: JSON.stringify(ASSETS) },
     // Abhängigkeiten von Worker/Editor vorab optimieren – sonst lädt die Entwicklungsumgebung beim
     // ersten JS-Lauf neu, weil Vite sie erst dann entdeckt
     optimizeDeps: {
@@ -118,14 +147,14 @@ export default defineNuxtConfig({
       // Alle Lern-Seiten teilen sich dieselbe SPA-Shell
       additionalManifestEntries: [{ url: '/', revision: SHELL_REVISION }],
       navigateFallback: '/',
-      navigateFallbackAllowlist: [/^\/(world|projects|settings)?\/?$/],
+      navigateFallbackAllowlist: [/^\/(world|projects|settings|designs)?\/?$/],
       runtimeCaching: [
         // Symbole, die nicht im Client-Bundle stecken
         { urlPattern: /\/api\/_nuxt_icon\//, handler: 'StaleWhileRevalidate', options: { cacheName: 'icons' } },
-        { urlPattern: /\/pyodide\//, handler: 'CacheFirst', options: { cacheName: 'pyodide' } },
-        { urlPattern: /\/teavm\//, handler: 'CacheFirst', options: { cacheName: 'teavm' } },
-        { urlPattern: /\/pylibs\//, handler: 'CacheFirst', options: { cacheName: 'pylibs' } },
-        { urlPattern: /\/dotnet\//, handler: 'CacheFirst', options: { cacheName: 'dotnet' } },
+        { urlPattern: /\/pyodide\//, handler: 'CacheFirst', options: { cacheName: 'pyodide', expiration: { maxEntries: 400 } } },
+        { urlPattern: /\/teavm\//, handler: 'CacheFirst', options: { cacheName: 'teavm', expiration: { maxEntries: 400 } } },
+        { urlPattern: /\/pylibs\//, handler: 'CacheFirst', options: { cacheName: 'pylibs', expiration: { maxEntries: 400 } } },
+        { urlPattern: /\/dotnet\//, handler: 'CacheFirst', options: { cacheName: 'dotnet', expiration: { maxEntries: 400 } } },
       ],
       cleanupOutdatedCaches: true,
     },

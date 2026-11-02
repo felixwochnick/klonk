@@ -124,7 +124,8 @@
         "self-hosted-enterprise": "Self-Hosted Enterprise (über 1000 Konten)",
         "school": "Schule",
         "company": "Unternehmen",
-        "private": "Privat"
+        "private": "Privat",
+        "local": "Lokaler Testmodus (localhost)"
       },
       "limit": {
         "warning": "{used} von {max} Konten belegt – die Grenze der Lizenz ist bald erreicht.",

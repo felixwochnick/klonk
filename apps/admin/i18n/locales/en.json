@@ -124,7 +124,8 @@
         "self-hosted-enterprise": "Self-Hosted Enterprise (more than 1000 accounts)",
         "school": "School",
         "company": "Company",
-        "private": "Private"
+        "private": "Private",
+        "local": "Local test mode (localhost)"
       },
       "limit": {
         "warning": "{used} of {max} accounts used – the license limit will be reached soon.",

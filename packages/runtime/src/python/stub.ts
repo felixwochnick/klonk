@@ -59,7 +59,6 @@ export function pythonStub(lang: ScriptLanguage) {
     const builtin: Builtin = BUILTINS[name]
     if (builtin.kind === 'constant') lines.push(`${name} = ${JSON.stringify(name)}`, doc(builtin.doc[lang], ''))
     else if (name === 'wait') lines.push('', 'def wait(seconds: float = 1) -> None:', doc(builtin.doc[lang], '    '), '    pass')
-    else if (name === 'random') lines.push('', 'def random(minimum: int, maximum: int) -> int:', doc(builtin.doc[lang], '    '), '    return 0')
   }
   return `${lines.join('\n')}\n`
 }

@@ -52,6 +52,8 @@ describe('Java: Instrumentierung', () => {
       else if (name === 'createCharacter') expect(ROBOT_JAVA).toContain('public static Klonk create(String name)')
       else if (builtin.kind === 'constant') expect(ROBOT_JAVA).toContain(`String ${name.toUpperCase()} =`)
       else if (name === 'wait') expect(ROBOT_JAVA).toContain('static void sleep(double seconds)')
+      // Ausgabe und Zufall wie gewohnt (System.out.println, Math.random)
+      else if (name === 'print' || name === 'random') expect(ROBOT_JAVA).not.toMatch(new RegExp(`static \\w+ ${name}\\(`))
       else if (builtin.kind === 'function') expect(ROBOT_JAVA).toMatch(new RegExp(`public static \\w+ ${name}\\(`))
       else expect(ROBOT_JAVA).toMatch(new RegExp(`public (?!static)\\w+ ${name}\\(`))
     }
@@ -91,7 +93,7 @@ describe('Java: Ausführen', { timeout: 120_000 }, () => {
     klonk.turnRight();
     klonk.placeBrick(BLUE);
     System.out.println("steps " + n);
-    print("x", klonk.positionX(), klonk.isWall(), klonk);
+    System.out.println("x " + klonk.positionX() + " " + klonk.isWall() + " " + klonk);
   }
 }`)
     expect(messages.filter(m => m.type === 'command')).toHaveLength(6)
@@ -106,7 +108,7 @@ describe('Java: Ausführen', { timeout: 120_000 }, () => {
     Klonk klara = new Klonk("klara");
     klara.step(2);
     new Klonk(1).step();
-    for (Klonk r : Klonk.all()) print(r.name, r.positionX());
+    for (Klonk r : Klonk.all()) System.out.println(r.name + " " + r.positionX());
   }
 }`, { world: two })
     expect(messages.filter(m => m.type === 'command').map(m => (m as { command: { id: string } }).command.id)).toEqual(['Klara', 'Klara', 'k'])
@@ -135,7 +137,7 @@ describe('Java: Ausführen', { timeout: 120_000 }, () => {
   })
 
   it('Klonk.create', async () => {
-    await run('public class Main {\n  public static void main(String[] args) {\n    Klonk kim = Klonk.create("Kim", "female", 3, 1);\n    kim.step();\n    Klonk.create("Robo");\n    print(kim.name, kim.positionX(), Klonk.all().length);\n  }\n}')
+    await run('public class Main {\n  public static void main(String[] args) {\n    Klonk kim = Klonk.create("Kim", "female", 3, 1);\n    kim.step();\n    Klonk.create("Robo");\n    System.out.println(kim.name + " " + kim.positionX() + " " + Klonk.all().length);\n  }\n}')
     expect(messages.filter(m => m.type === 'output')).toEqual([{ type: 'output', text: 'Kim 3 3' }])
   })
 
@@ -150,8 +152,8 @@ public class Main {
     d.getJsonObject("colors").put("shirt", "#00ff00");
     Klonk.saveDesign("gruen", d);
     Klonk.create("G", d);
-    print(d.getString("base"), Yaml.parseObject("a:\\n  b: 2").getJsonObject("a").getInt("b"), Xml.toJson("<r x=\\"1\\"><c>hi</c></r>").getJsonObject("r").getString("c"));
-    print(Yaml.stringify(new JsonObject().put("n", 1)).trim());
+    System.out.println(d.getString("base") + " " + Yaml.parseObject("a:\\n  b: 2").getJsonObject("a").getInt("b") + " " + Xml.toJson("<r x=\\"1\\"><c>hi</c></r>").getJsonObject("r").getString("c"));
+    System.out.println(Yaml.stringify(new JsonObject().put("n", 1)).trim());
   }
 }`, { designs: { ritter: design }, saveDesigns: true })
     expect(messages.filter(m => m.type === 'output')).toEqual([{ type: 'output', text: 'female 2 hi' }, { type: 'output', text: 'n: 1' }])
@@ -160,8 +162,19 @@ public class Main {
     expect(messages).toContainEqual(expect.objectContaining({ command: expect.objectContaining({ name: 'createCharacter', character: expect.objectContaining({ id: 'G', design: expect.objectContaining({ colors: expect.objectContaining({ shirt: '#00ff00' }) }) }) }) }))
   })
 
-  it('import klonk.* ⇒ verständliche Meldung', async () => {
-    await run('import klonk.*;\npublic class Main {\n  public static void main(String[] args) {\n    JsonObject o = new JsonObject();\n  }\n}', {}, '')
-    expect(messages.at(-1)).toMatchObject({ type: 'error', error: { code: 'java_compile', params: { message: expect.stringContaining('import klonk.JsonObject') } } })
+  it('import klonk.* geht auch (Klassen ohne package laufen intern im Paket _default)', async () => {
+    await run('import klonk.*;\npublic class Main {\n  public static void main(String[] args) {\n    JsonObject o = new JsonObject().put("a", 1);\n    new Klonk().step();\n    System.out.println(o);\n  }\n}', {}, '')
+    expect(messages.filter(m => m.type === 'output')).toEqual([{ type: 'output', text: '{"a":1}' }])
+  })
+
+  it('Package per Wildcard importieren; ohne Lizenz ⇒ Hinweis auf Bibliotheken', async () => {
+    const tool = 'package Werkzeuge;\nimport klonk.Klonk;\npublic class Laufen {\n  public static void zwei(Klonk k) { k.step(); k.step(); }\n}'
+    const main = 'import klonk.Klonk;\nimport Werkzeuge.*;\npublic class Main {\n  public static void main(String[] args) {\n    Klonk k = new Klonk();\n    Laufen.zwei(k);\n    System.out.println(k.positionX());\n  }\n}'
+    const files = { 'src/Werkzeuge/Laufen.java': tool, 'src/Main.java': main }
+    await run(main, { path: 'src/Main.java', allowImports: true, files }, '')
+    expect(messages.filter(m => m.type === 'output')).toEqual([{ type: 'output', text: '3' }])
+    messages.length = 0
+    await run(main, { path: 'src/Main.java', allowImports: false, files }, '')
+    expect(messages.at(-1)).toMatchObject({ type: 'error', error: { code: 'feature_libraries', range: { line: 2 } } })
   })
 })

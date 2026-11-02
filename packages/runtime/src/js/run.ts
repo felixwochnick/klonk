@@ -65,7 +65,7 @@ export function runJavaScript(message: Extract<ToWorker, { type: 'run' }>, post:
       maxCharacters: message.maxCharacters,
       saveDesign: message.saveDesigns ? (name, design) => post({ type: 'saveDesign', name, design }) : undefined,
     })
-    // Bibliothek "klonk": Klasse Klonk, print/wait/random und Farben – nur per import verfügbar
+    // Bibliothek "klonk": Klasse Klonk, wait, Farben und Designs – nur per import verfügbar; Ausgabe mit console.log
     const klonk: ModuleNamespace = { ...api.globals, Klonk: createKlonkClass(api) }
     klonk.default = klonk
 
@@ -73,7 +73,7 @@ export function runJavaScript(message: Extract<ToWorker, { type: 'run' }>, post:
     const modules = new Map<string, ModuleNamespace>()
     const load = (from: string) => (specifier: string): ModuleNamespace => {
       if (specifier === 'klonk') return klonk
-      if (!specifier.startsWith('.')) throw new ApiError('js_module_not_found', { name: specifier })
+      if (!specifier.startsWith('.') && !specifier.startsWith('/')) throw new ApiError('js_module_not_found', { name: specifier })
       if (!message.allowImports) throw new ApiError('feature_libraries')
       const path = resolveImport(from, specifier, message.files)
       if (!path) throw new ApiError('js_module_not_found', { name: specifier })
@@ -97,7 +97,7 @@ export function runJavaScript(message: Extract<ToWorker, { type: 'run' }>, post:
         // nicht überschreibbar – egal
       }
     }
-    const print = api.globals.print
+    const print = api.print
     scope.console = { log: print, info: print, warn: print, error: print }
 
     new Function(CHECKPOINT, IMPORT, EXPORT, `'use strict';${code}`)(checkpoint, load(main), register)

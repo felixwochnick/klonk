@@ -1,4 +1,5 @@
 import { count, eq } from 'drizzle-orm'
+import type { H3Event } from 'h3'
 import { importSPKI, jwtVerify, decodeProtectedHeader, type JWTPayload } from 'jose'
 import { instanceSettings, organizations, users } from '../database/schema'
 import { LICENSE_FEATURES } from '../../shared/utils/license'
@@ -111,20 +112,49 @@ export async function getOrganizationLicense(organizationId: string) {
   return verifyForInstance(org?.token)
 }
 
+/** `localhost`, `*.localhost`, `127.0.0.1`, `::1` – Namen, die jeder Browser nur auf den eigenen Rechner auflöst */
+const LOCAL_HOST = /^(localhost|127\.0\.0\.1|\[?::1\]?|[a-z0-9.-]+\.localhost)$/i
+
+/**
+ * Lokaler Testmodus (vom User so festgelegt): auf dem eigenen Rechner (z. B. app.klonk.localhost) ist alles
+ * freigeschaltet. Nur, wenn **beide** lokal sind – der Host der Anfrage und der Hostname, den die Seite im Browser
+ * selbst meldet (Header `x-klonk-host` aus `location.hostname`). Wer über eine echte Domain zugreift, hat dort immer
+ * diese Domain; ein Proxy, der beides umschreibt, umgeht absichtlich die Lizenzprüfung (ELv2 verbietet das).
+ * Abschaltbar mit `NUXT_LICENSE_LOCAL_MODE=off` bzw. pro Anfrage mit `x-klonk-local: off` (E2E-Tests der Grenzen).
+ */
+export function isLocalTest(event: H3Event | undefined) {
+  if (!event || useRuntimeConfig().licenseLocalMode === 'off') return false
+  if (getHeader(event, 'x-klonk-local') === 'off') return false
+  const host = (getHeader(event, 'host') ?? '').replace(/:\d+$/, '')
+  const client = getHeader(event, 'x-klonk-host') ?? ''
+  return LOCAL_HOST.test(host) && LOCAL_HOST.test(client)
+}
+
+/** Lizenz im lokalen Testmodus: alle Funktionen, keine Grenzen (nur nicht „gehostet“) */
+export const LOCAL_LICENSE: LicenseInfo = {
+  plan: 'local',
+  licensee: null,
+  maxUsers: null,
+  features: LICENSE_FEATURES.filter(f => f !== 'hosted'),
+  expiresAt: null,
+  problem: null,
+}
+
 /**
  * Wirksame Lizenz für eine Organisation (oder Privatkonten mit `null`):
  * - Selbsthosting: die Instanz-Lizenz gilt für alle
  * - Gehostete Plattform (Feature `hosted`): jede Organisation hat ihr eigenes Token, sonst kostenlos
  */
-export async function getEffectiveLicense(organizationId: string | null): Promise<LicenseInfo> {
+export async function getEffectiveLicense(organizationId: string | null, event?: H3Event): Promise<LicenseInfo> {
+  if (isLocalTest(event)) return LOCAL_LICENSE
   const instance = await getInstanceLicense()
   if (!hasFeature(instance, 'hosted')) return instance
   if (!organizationId) return { ...FREE_LICENSE, maxUsers: null }
   return getOrganizationLicense(organizationId)
 }
 
-export async function requireFeature(organizationId: string | null, feature: LicenseFeature) {
-  const license = await getEffectiveLicense(organizationId)
+export async function requireFeature(organizationId: string | null, feature: LicenseFeature, event?: H3Event) {
+  const license = await getEffectiveLicense(organizationId, event)
   if (!hasFeature(license, feature))
     throw createError({ statusCode: 402, message: 'feature_required', data: { feature } })
 }
@@ -144,7 +174,8 @@ export async function getUserUsage(organizationId: string | null): Promise<UserU
 }
 
 /** Vor dem Anlegen eines Kontos: Grenze der Lizenz inkl. Puffer einhalten */
-export async function assertUserCapacity(organizationId: string | null) {
+export async function assertUserCapacity(organizationId: string | null, event?: H3Event) {
+  if (isLocalTest(event)) return
   const instance = await getInstanceLicense()
   if (userUsage(await countUsers(), instance).status === 'blocked')
     throw createError({ statusCode: 402, message: 'user_limit_reached' })

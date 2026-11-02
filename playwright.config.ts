@@ -29,6 +29,8 @@ export default defineConfig({
     trace: 'retain-on-failure',
     // Stack: selbst signierte Zertifikate (*.localhost löst der Browser selbst auf)
     ignoreHTTPSErrors: STACK,
+    // Lokalen Testmodus (alles frei auf *.localhost) abschalten – die Tests prüfen die echten Lizenzgrenzen
+    extraHTTPHeaders: { 'x-klonk-local': 'off' },
     launchOptions: {
       // Lokal installiertes Chromium nutzen (CHROMIUM_PATH überschreibt)
       executablePath: process.env.CHROMIUM_PATH ?? '/usr/bin/chromium',

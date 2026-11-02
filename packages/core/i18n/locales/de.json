@@ -75,5 +75,9 @@
     "system": "Wie das System",
     "light": "Hell",
     "dark": "Dunkel"
+  },
+  "license": {
+    "local": "Lokaler Testmodus",
+    "localHint": "Auf diesem Rechner (localhost) sind alle Funktionen zum Ausprobieren freigeschaltet. Für den Betrieb ist ein Lizenz-Token nötig."
   }
 }

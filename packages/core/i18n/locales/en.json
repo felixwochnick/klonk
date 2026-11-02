@@ -75,5 +75,9 @@
     "system": "System",
     "light": "Light",
     "dark": "Dark"
+  },
+  "license": {
+    "local": "Local test mode",
+    "localHint": "On this machine (localhost) all features are unlocked for trying them out. Running Klonk for real requires a license token."
   }
 }

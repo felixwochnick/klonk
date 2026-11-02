@@ -129,7 +129,7 @@ print(klonk.name, "placed", placed, "bricks")
   }
   const ts = language === 'typescript'
   return `// Klonk walks to the wall and places bricks on its left
-import { Klonk, ${k('blue')}, ${k('print')}${ts ? ', type KlonkColor' : ''} } from 'klonk'
+import { Klonk, ${k('blue')}${ts ? ', type KlonkColor' : ''} } from 'klonk'
 
 const klonk = new Klonk()
 
@@ -147,7 +147,7 @@ function row(robot${ts ? ': Klonk' : ''}, color${ts ? ': KlonkColor' : ''})${ts 
 
 const placed = row(klonk, ${k('blue')})
 klonk.${k('setMark')}()
-${k('print')}(klonk.name, "placed", placed, "bricks")
+console.log(klonk.name, "placed", placed, "bricks")
 `
 }
 

@@ -34,7 +34,11 @@ export default defineNuxtConfig({
       websiteUrls: '',
       // Shop/Kundenkonto auf klonk.* für „Lizenz kaufen/verwalten“ (leer = Link ausblenden)
       shopUrl: '',
+      // Dokumentation (docs.klonk.*) für Links aus der App
+      docsUrl: 'http://localhost:3001',
     },
+    // Lokaler Testmodus (alles frei auf localhost/*.localhost); `off` schaltet ihn ab
+    licenseLocalMode: 'on',
     session: {
       name: 'klonk-session',
       maxAge: 60 * 60 * 24 * 14,

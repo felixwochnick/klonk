@@ -97,3 +97,19 @@ test('Blöcke passen sich an, Vollbild-Code', async ({ page }) => {
   await page.getByTestId('focus-mode').click()
   await expect(page.getByTestId('world-view')).toBeVisible()
 })
+
+test('Tab „Doku“ zeigt die Kurzreferenz der Sprache; Navigation mit Kleiderschrank', async ({ page }) => {
+  await page.evaluate(() => localStorage.setItem('klonk:program', JSON.stringify({ language: 'python', programs: {} })))
+  await gotoHydrated(page, `${APP_URL}/`)
+  await expect(page.getByRole('navigation').getByRole('link')).toHaveText(['Projekte', 'Programmieren', 'Kleiderschrank', 'Welt'])
+  await page.getByTestId('tab-docs').click()
+  await expect(page.getByTestId('language-docs')).toContainText('from klonk import Klonk')
+  await expect(page.getByTestId('language-docs')).toContainText('klonk.turn_left()')
+  await expect(page.getByTestId('world-view')).toBeHidden()
+  // Ausführen zeigt wieder die Welt
+  await page.getByTestId('run').click()
+  await expect(page.getByTestId('world-view')).toBeVisible()
+
+  await page.getByRole('link', { name: 'Kleiderschrank' }).click()
+  await expect(page.getByTestId('wardrobe')).toContainText('Öffne oder erstelle zuerst ein Projekt')
+})

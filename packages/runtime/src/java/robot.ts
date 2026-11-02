@@ -1,6 +1,6 @@
 /**
  * Roboter-API für Java: Klasse `klonk.Klonk`, wird mitkompiliert; Programme importieren sie selbst mit
- * `import klonk.Klonk;` (+ `import static klonk.Klonk.*;` für Farben, `print`, `sleep`, `random`). Jede Figur ist ein Objekt:
+ * `import klonk.Klonk;` (+ `import static klonk.Klonk.*;` für Farben und `sleep`; Ausgabe wie gewohnt mit `System.out.println`). Jede Figur ist ein Objekt:
  * `Klonk karl = new Klonk("Karl"); karl.step();`. Die Methoden rufen über JSO (Schnittstellen auf `JSObject`)
  * die JS-Roboter-API im Worker (`globalThis.klonk`). Englische Namen wie in JS/TS; Farben als Konstanten in
  * Java-Schreibweise (`RED`). `wait` heißt `sleep`, weil jede Klasse `Object.wait()` erbt und das den
@@ -29,9 +29,7 @@ public final class Klonk {
         String nameAt(int index);
         String loadDesign(String name);
         void saveDesign(String name, String json);
-        void print(String text);
         void sleepSeconds(double seconds);
-        int random(int min, int max);
         boolean checkpoint(int line);
         void variable(String name, String value);
         void pause();
@@ -136,17 +134,8 @@ public final class Klonk {
     public int positionX() { return robot.positionX(); }
     public int positionY() { return robot.positionY(); }
 
-    public static int random(int min, int max) { return API.random(min, max); }
+    /** Warten (Sekunden) – Thread.sleep gibt es im Browser nicht */
     public static void sleep(double seconds) { API.sleepSeconds(seconds); }
-
-    public static void print(Object... values) {
-        StringBuilder text = new StringBuilder();
-        for (int i = 0; i < values.length; i++) {
-            if (i > 0) text.append(' ');
-            text.append(show(values[i]));
-        }
-        API.print(text.toString());
-    }
 
     static String show(Object value) {
         if (value instanceof Object[]) return java.util.Arrays.deepToString((Object[]) value);

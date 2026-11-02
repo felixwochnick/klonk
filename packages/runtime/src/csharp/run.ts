@@ -1,4 +1,5 @@
 import type { RobotCommand, SourceRange, Value } from '@klonk/klonk-script'
+import { assetUrl } from '../assets'
 import { World } from '@klonk/world'
 import type { FromWorker, RunError, ToWorker } from '../protocol'
 import type { ApiError } from '../js/api'
@@ -6,7 +7,7 @@ import { ROBOT_METHODS, createApi } from '../js/api'
 import { CONTROL, views } from '../js/shared'
 
 /** Wo der C#-Host liegt (Roslyn auf .NET-WebAssembly, `node scripts/build-csharp.ts`; eigene Origin wegen COEP) */
-export const DOTNET_URL = '/dotnet/'
+export const DOTNET_URL = assetUrl('dotnet')
 
 /** Zugriffe, die Nutzercode nicht braucht */
 const BLOCKED_GLOBALS = ['fetch', 'XMLHttpRequest', 'WebSocket', 'EventSource', 'importScripts', 'indexedDB', 'caches', 'BroadcastChannel', 'WebTransport', 'postMessage', 'onmessage', 'close']
@@ -126,7 +127,7 @@ export async function runCSharp(
     const libraries = message.allowImports ? Object.entries(message.files).filter(([path, source]) => path.endsWith('.cs') && source !== message.source).map(([, source]) => source) : []
     const result = JSON.parse(exports.Host.Run(message.source, libraries)) as HostResult
     if (result.ok) post({ type: 'done' })
-    else post({ type: 'error', error: toRunError(result, apiError, line) })
+    else post({ type: 'error', error: toRunError(result, apiError, line, message) })
   }
   catch (error) {
     post({ type: 'error', error: apiError
@@ -135,9 +136,22 @@ export async function runCSharp(
   }
 }
 
-function toRunError(result: HostResult, apiError: ApiError | undefined, line: number): RunError {
+/** Bezieht sich ein Compilerfehler auf Namensräume/Klassen anderer Projektdateien (ohne Lizenz nicht dabei)? */
+function usesProjectCSharp(error: string, message: Extract<ToWorker, { type: 'run' }>) {
+  const names = new Set<string>()
+  for (const [path, source] of Object.entries(message.files)) {
+    if (!path.endsWith('.cs') || source === message.source) continue
+    for (const m of source.matchAll(/\bnamespace\s+([\w.]+)/g)) for (const part of m[1]!.split('.')) names.add(part)
+    for (const m of source.matchAll(/\b(?:class|struct|record|interface|enum)\s+(\w+)/g)) names.add(m[1]!)
+  }
+  const name = /(?:type or namespace name|The name) '(\w+)'/.exec(error)?.[1]
+  return !!name && names.has(name)
+}
+
+function toRunError(result: HostResult, apiError: ApiError | undefined, line: number, message?: Extract<ToWorker, { type: 'run' }>): RunError {
   switch (result.error) {
     case 'cs_compile':
+      if (message && !message.allowImports && usesProjectCSharp(result.message ?? '', message)) return { code: 'feature_libraries', params: {}, range: result.line ? lineRange(result.line) : undefined }
       return { code: 'cs_compile', params: { message: result.message ?? '' }, range: result.line ? lineRange(result.line) : undefined }
     case 'cs_no_main':
       return { code: 'cs_no_main', params: {} }
