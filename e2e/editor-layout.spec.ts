@@ -60,3 +60,40 @@ test('Sprache und Darstellung in den Einstellungen', async ({ page }) => {
   await page.getByRole('option', { name: 'Deutsch' }).click()
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('Einstellungen')
 })
+
+test('Sprachwechsel: neue Sprache sofort richtig geladen (keine falschen Fehler)', async ({ page }) => {
+  await page.evaluate(() => localStorage.removeItem('klonk:program'))
+  await gotoHydrated(page, `${APP_URL}/`)
+  for (const language of ['Python', 'TypeScript', 'JavaScript', 'TypeScript']) {
+    await page.getByTestId('language').click()
+    await page.getByRole('option', { name: language, exact: true }).click()
+    await expect(page.locator('.view-lines')).toContainText('Klonk')
+    await page.waitForTimeout(2500)
+    await expect(page.locator('.squiggly-error')).toHaveCount(0)
+  }
+})
+
+test('Blöcke passen sich an, Vollbild-Code', async ({ page }) => {
+  await page.evaluate(() => localStorage.setItem('klonk:program', JSON.stringify({ language: 'blocks', programs: {} })))
+  await gotoHydrated(page, `${APP_URL}/`)
+  await expect(page.getByTestId('blocks-editor')).toHaveAttribute('data-ready', 'true', { timeout: 20_000 })
+  const svgWidth = () => page.locator('[data-testid="blocks-editor"] svg.blocklySvg').evaluate(e => e.getBoundingClientRect().width)
+  const paneWidth = () => page.getByTestId('code-pane').evaluate(e => e.getBoundingClientRect().width)
+  const box = (await page.getByTestId('split-code').boundingBox())!
+  await page.mouse.move(box.x + 4, box.y + 200)
+  await page.mouse.down()
+  await page.mouse.move(box.x - 200, box.y + 200, { steps: 5 })
+  await page.mouse.up()
+  await expect.poll(async () => Math.abs(await svgWidth() - await paneWidth())).toBeLessThan(3)
+
+  // Vollbild: nur Werkzeugleiste + Editor, Kopfzeile verdeckt, Welt ausgeblendet
+  await page.getByTestId('focus-mode').click()
+  await expect(page.getByTestId('ide')).toHaveAttribute('data-focus', 'true')
+  await expect(page.getByTestId('world-view')).toBeHidden()
+  await expect.poll(paneWidth).toBeGreaterThan(1300)
+  await expect.poll(async () => Math.abs(await svgWidth() - await paneWidth())).toBeLessThan(3)
+  await page.getByTestId('run').click()
+  await expect(page.getByTestId('focus-output')).toBeVisible()
+  await page.getByTestId('focus-mode').click()
+  await expect(page.getByTestId('world-view')).toBeVisible()
+})

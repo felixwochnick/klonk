@@ -144,13 +144,22 @@ function rebuild() {
   create()
 }
 
+// Größe folgt dem Container (Trenner verschieben, Vollbild) – Blockly hört selbst nur auf das Fenster
+let resizeObserver: ResizeObserver | undefined
 onMounted(async () => {
   messages = await load()
   create()
+  resizeObserver = new ResizeObserver(() => {
+    if (workspace) Blockly?.svgResize(workspace)
+  })
+  resizeObserver.observe(container.value!)
   ready.value = true
 })
 
-onBeforeUnmount(() => workspace?.dispose())
+onBeforeUnmount(() => {
+  resizeObserver?.disconnect()
+  workspace?.dispose()
+})
 
 // Sprache/Farbschema: Blöcke neu beschriften (Arbeitsbereich bleibt erhalten)
 watch([locale, () => colorMode.value], rebuild)
@@ -180,7 +189,7 @@ watch(() => props.errorBlock, (id, previous) => {
 <template>
   <div
     ref="container"
-    class="h-full w-full"
+    class="absolute inset-0"
     data-testid="blocks-editor"
     :data-ready="ready"
   />

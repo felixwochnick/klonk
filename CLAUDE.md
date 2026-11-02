@@ -208,7 +208,9 @@ node scripts/build-csharp.ts        # C#-Host bauen (.NET-SDK 10 nötig; Ausgabe
   Pyodide `compile()`, javac (gleiche Dateien wie beim Lauf, Import-Präfix aus Positionen herausgerechnet; Compiler wird
   wiederverwendet, entfernte Dateien leer überschreiben), C# `[JSExport] Host.Check`. Marker-Owner `klonk-check`; Laufzeitfehler als
   Marker `klonk-runtime` mit Meldung, „Zur Zeile“ im Fehlerkasten (`KlonkEditor.revealLine`). Projekt-Bibliotheken gehen mit (Prop `files`).
-- **IDE-Layout:** Trenner `SplitHandle` (Zeigen + Pfeiltasten) zwischen Projekt/Code/Welt/Ausgabe, Größen in `klonk:layout` (localStorage), nur ab `lg`.
+- **Monaco-Modelle:** eines je Sprache mit Dateiendung (`file:///klonk/<n>/program.ts` …) – der TS-Dienst erkennt TS/JS an der Endung.
+- **Vollbild-Code:** `focus` in `index.vue` (fixed über dem Kopf + Browser-Fullscreen-API), Ausgabe kompakt unter dem Editor.
+- **IDE-Layout:** Trenner `SplitHandle` (Zeigen + Pfeiltasten) zwischen Projekt/Code/Welt/Ausgabe, Größen in `klonk:layout` (localStorage), nur ab `lg`. Blockly folgt per `ResizeObserver` (`svgResize`), Container `absolute inset-0`.
 - **Einstellungen:** `SettingsForm` (core) unter `/settings` in app und admin (Kontomenü über „Abmelden“): Sprache + Hell/Dunkel/System.
   Angemeldet blendet der Kopf die Schnellschalter aus; Login-Seiten behalten sie. Nuxt-UI-Radius = Standard (kein `--ui-radius`).
 - **3D:** `apps/app/app/utils/world-renderer.ts` rendert nur bei Bedarf (`invalidate()`) – Dauer-Rendern blockierte

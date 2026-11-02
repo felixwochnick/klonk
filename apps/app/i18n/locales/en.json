@@ -140,7 +140,9 @@
     "resizeProject": "Resize project",
     "resizeCode": "Resize code",
     "resizeOutput": "Resize output",
-    "showErrorLine": "Go to line"
+    "showErrorLine": "Go to line",
+    "focus": "Full-screen code (e.g. on tablets)",
+    "focusExit": "Exit full screen"
   },
   "script": {
     "errors": {

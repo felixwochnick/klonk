@@ -187,6 +187,32 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey))
 
 const variables = computed(() => Object.entries(snapshot.value.variables))
 
+// Vollbild-Code (Tablets): nur Werkzeugleiste und Editor, möglichst auch ohne Browserleisten
+const focus = ref(false)
+let browserFullscreen = false
+async function toggleFocus() {
+  focus.value = !focus.value
+  if (focus.value && document.fullscreenEnabled && !document.fullscreenElement) {
+    browserFullscreen = await document.documentElement.requestFullscreen().then(() => true, () => false)
+  }
+  else if (!focus.value && browserFullscreen && document.fullscreenElement) {
+    browserFullscreen = false
+    await document.exitFullscreen().catch(() => {})
+  }
+}
+function onFullscreenChange() {
+  // Browser-Vollbild beendet (z. B. Esc) ⇒ auch den Modus verlassen
+  if (browserFullscreen && !document.fullscreenElement) {
+    browserFullscreen = false
+    focus.value = false
+  }
+}
+onMounted(() => document.addEventListener('fullscreenchange', onFullscreenChange))
+onBeforeUnmount(() => {
+  document.removeEventListener('fullscreenchange', onFullscreenChange)
+  if (browserFullscreen && document.fullscreenElement) void document.exitFullscreen().catch(() => {})
+})
+
 // Fenstergrößen (ab lg): Trenner ziehen wie in Code-Editoren, im Browser gemerkt
 const LAYOUT_KEY = 'klonk:layout'
 const panes = ref({ project: 256, code: 0, output: 224 })
@@ -229,7 +255,12 @@ const paneStyle = computed(() => ({
 </script>
 
 <template>
-  <div class="flex h-[calc(100dvh-var(--ui-header-height))] flex-col">
+  <div
+    class="flex flex-col"
+    :class="focus ? 'fixed inset-0 z-50 bg-(--ui-bg)' : 'h-[calc(100dvh-var(--ui-header-height))]'"
+    data-testid="ide"
+    :data-focus="focus"
+  >
     <!-- Werkzeugleiste -->
     <div class="flex flex-wrap items-center gap-2 border-b border-(--ui-border) px-3 py-2">
       <UTooltip :text="t('project.title')">
@@ -330,12 +361,24 @@ const paneStyle = computed(() => ({
           />
         </UDropdownMenu>
         <UButton
+          v-if="!focus"
           icon="i-lucide-pencil-ruler"
           variant="ghost"
           color="neutral"
           :label="t('editor.editWorld')"
           to="/world"
         />
+        <UTooltip :text="focus ? t('editor.focusExit') : t('editor.focus')">
+          <UButton
+            :icon="focus ? 'i-lucide-minimize-2' : 'i-lucide-maximize-2'"
+            variant="ghost"
+            color="neutral"
+            :aria-label="focus ? t('editor.focusExit') : t('editor.focus')"
+            :aria-pressed="focus"
+            data-testid="focus-mode"
+            @click="toggleFocus"
+          />
+        </UTooltip>
       </div>
     </div>
 
@@ -345,7 +388,7 @@ const paneStyle = computed(() => ({
       :style="paneStyle"
     >
       <!-- Projekt -->
-      <template v-if="showProject">
+      <template v-if="showProject && !focus">
         <aside
           class="shrink-0 border-b border-(--ui-border) lg:w-(--pane-project) lg:border-b-0"
           data-testid="project-pane"
@@ -365,7 +408,8 @@ const paneStyle = computed(() => ({
 
       <!-- Code -->
       <section
-        class="flex min-h-64 flex-1 flex-col lg:w-(--pane-code) lg:max-w-[calc(100%-20rem)] lg:flex-none"
+        class="flex min-h-64 flex-1 flex-col"
+        :class="focus ? '' : 'lg:w-(--pane-code) lg:max-w-[calc(100%-20rem)] lg:flex-none'"
         data-testid="code-pane"
       >
         <div
@@ -421,9 +465,30 @@ const paneStyle = computed(() => ({
             :files="checkFiles"
           />
         </ClientOnly>
+        <!-- Vollbild: kompakte Ausgabe unter dem Code -->
+        <div
+          v-if="focus && snapshot.state !== 'idle'"
+          class="max-h-36 shrink-0 overflow-y-auto border-t border-(--ui-border) px-3 py-2 text-xs"
+          data-testid="focus-output"
+        >
+          <div class="mb-1 flex items-center gap-2">
+            <UBadge
+              :color="snapshot.state === 'error' ? 'error' : snapshot.state === 'done' ? 'success' : 'neutral'"
+              variant="subtle"
+              size="sm"
+              :label="t(`editor.state.${snapshot.state}`)"
+            />
+            <span
+              v-if="errorMessage"
+              class="text-(--ui-error)"
+            >{{ snapshot.error?.range ? t('editor.errorAt', { line: snapshot.error.range.line }) + ': ' : '' }}{{ errorMessage }}</span>
+          </div>
+          <pre class="whitespace-pre-wrap font-mono">{{ snapshot.output.join('\n') }}</pre>
+        </div>
       </section>
 
       <SplitHandle
+        v-if="!focus"
         orientation="vertical"
         :label="t('editor.resizeCode')"
         data-testid="split-code"
@@ -433,6 +498,7 @@ const paneStyle = computed(() => ({
 
       <!-- Welt + Ausgabe -->
       <section
+        v-show="!focus"
         ref="worldColumn"
         class="flex min-h-0 min-w-0 flex-1 flex-col border-t border-(--ui-border) lg:border-t-0"
       >

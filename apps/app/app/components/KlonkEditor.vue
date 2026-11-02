@@ -6,6 +6,8 @@ import { CHECKED_LANGUAGES, checkProgram } from '~/utils/checker'
 import { KLONK_LANGUAGE, loadMonaco, updateRobotApi, validate, type Monaco } from '~/utils/monaco'
 
 const monacoLanguage = (language: string) => (language === 'klonk' ? KLONK_LANGUAGE : language)
+const EXTENSION: Record<string, string> = { klonk: 'klonk', javascript: 'js', typescript: 'ts', python: 'py', java: 'java', csharp: 'cs' }
+let modelCounter = 0
 
 // Code-Editor (Monaco) für Klonk-Script mit Breakpoints und Hervorhebung der aktuellen Zeile.
 // Nur im Browser verwenden (<ClientOnly>).
@@ -59,9 +61,12 @@ const translator = {
 
 onMounted(async () => {
   monaco = await loadMonaco(translator)
+  // Eigenes Modell je Sprache mit passender Endung: der TypeScript-Dienst erkennt TS/JS an der Dateiendung
+  // (ein gemeinsames Modell ohne Endung prüfte TypeScript als JavaScript ⇒ falsche Fehler bis zum Neuladen)
+  const createModel = (value: string, language: string) =>
+    monaco!.editor.createModel(value, monacoLanguage(language), monaco!.Uri.parse(`file:///klonk/${++modelCounter}/program.${EXTENSION[language] ?? 'txt'}`))
   editor = monaco.editor.create(container.value!, {
-    value: source.value,
-    language: monacoLanguage(props.language),
+    model: createModel(source.value, props.language),
     theme: colorMode.value === 'dark' ? 'klonk-dark' : 'klonk-light',
     automaticLayout: true,
     minimap: { enabled: false },
@@ -80,7 +85,7 @@ onMounted(async () => {
   })
   decorations = editor.createDecorationsCollection()
 
-  const model = editor.getModel()!
+  let model = editor.getModel()!
   const check = async () => {
     if (!monaco) return
     // JS/TS prüft der TypeScript-Worker von Monaco selbst, Klonk-Script der eigene Parser
@@ -108,9 +113,12 @@ onMounted(async () => {
     timer = setTimeout(check, props.language === 'klonk' ? 250 : 600)
   })
   stopLanguageWatch = watch(() => props.language, (language) => {
-    monaco!.editor.setModelMarkers(model, KLONK_LANGUAGE, [])
-    monaco!.editor.setModelMarkers(model, CHECK_OWNER, [])
-    monaco!.editor.setModelLanguage(model, monacoLanguage(language))
+    const previous = model
+    model = createModel(source.value, language)
+    editor!.setModel(model)
+    previous.dispose()
+    updateDecorations()
+    updateRuntimeMarker()
     void check()
   })
   stopFilesWatch = watch(() => props.files, () => void check())
@@ -134,6 +142,7 @@ onMounted(async () => {
 onBeforeUnmount(() => {
   stopLanguageWatch?.()
   stopFilesWatch?.()
+  editor?.getModel()?.dispose()
   editor?.dispose()
 })
 

@@ -140,7 +140,9 @@
     "resizeProject": "Breite des Projekts ändern",
     "resizeCode": "Breite des Codes ändern",
     "resizeOutput": "Höhe der Ausgabe ändern",
-    "showErrorLine": "Zur Zeile"
+    "showErrorLine": "Zur Zeile",
+    "focus": "Vollbild-Code (z. B. fürs Tablet)",
+    "focusExit": "Vollbild verlassen"
   },
   "script": {
     "errors": {
