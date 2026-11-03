@@ -287,6 +287,13 @@ node scripts/build-csharp.ts        # C#-Host bauen (.NET-SDK 10 nötig; Ausgabe
   Ist das Modulprojekt in der IDE offen, nutzt die Lernansicht dieselbe `CloudProject`-Instanz (`useLearn().open`, sonst zwei Sync-Warteschlangen
   auf einer OPFS-Kopie). IDE: Datei in einem Aufgabenordner ⇒ Leiste „In der Lernansicht prüfen“ (`learnTask` in `pages/index.vue`).
   E2E `e2e/learn.spec.ts` (Konto tom, Gruppe 9c; Programme per Cloud-API in den Aufgabenordner geschrieben).
+- **Robot-Karol-Import** (vom User so festgelegt: Programme ⇒ Klonk-Script oder Blöcke, Welten ⇒ Klonk-Welten, damit Lehrkräfte eigene Aufgaben
+  weiterverwenden): `convertKarolProgram`/`decodeKarolFile` in `@klonk/klonk-script` (`src/karol.ts`, Latin-1, `*wiederhole`/`endewiederhole`,
+  nachprüfende Schleife ⇒ `wiederhole immer` + `abbrechen`, `Bedingung` ⇒ `funktion` mit `ergebnis`, Quader/Ton/Rucksack ⇒ Kommentar + Hinweis),
+  `convertKarolWorld` in `@klonk/world` (`src/karol.ts`; Felder spaltenweise x-dann-y, Karol-y = Klonk-z ohne Spiegelung, Richtung 0–3 = S/W/N/O –
+  an 30 Beispielprogrammen von Robot Karol 3.0 geprüft, Linke-Hand-Regel löst alle Labyrinthe; Beispieldateien wegen unklarer Lizenz nicht im Repo).
+  Klonk-Script ⇒ Blöcke: `utils/blocks/from-script.ts` (`scriptToBlocks`, Gegenstück zu `generator.ts`; `zurück` nur am Funktionsende, Kommentare
+  entfallen). App: Explorer „Neu → Robot Karol importieren ›“ (`importKarol`, `utils/karol-import.ts`), Welt-Editor öffnet `.kdw`. E2E `e2e/karol.spec.ts`.
 - **Projektarten** (vom User so festgelegt): Klonk-Script und Blöcke sind **eine** Projektart (`klonk.json` `language: 'klonk'`, alte `'blocks'` ⇒
   `projectLanguage()`), beide Dateiarten erlaubt (`projectAllows`), Name „Klonk-Script & Blöcke“ (`projectLanguageLabel`, `PROJECT_LANGUAGES`).
   Startdatei folgt der zuletzt in der IDE genutzten Sprache. **Programm in einem Ordner mit eigener Welt ⇒ diese Welt laden** (`useProject().select`).
