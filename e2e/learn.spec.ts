@@ -33,8 +33,9 @@ async function prepare(page: Page, module: string, task: string, language: 'klon
   const files = async () => (await api<Changes>(page, `/api/cloud/projects/${project.id}/changes?since=0`)).body.changes
   const revision = async (path: string) => (await files()).find(c => c.path === path)?.revision ?? 0
   const put = async (path: string, content: string) => expect((await api(page, `/api/cloud/projects/${project.id}/files`, 'PUT', { path, content, baseRevision: await revision(path) })).status).toBe(200)
-  await put(`${task}.${language}`, code)
   const manifest = JSON.parse((await files()).find(c => c.path === 'klonk.json')!.content!)
+  // Programm liegt im Aufgabenordner, z. B. „1 Zur Marke/Programm.klonk“
+  await put(`${manifest.learn.tasks[task]}.${language}`, code)
   manifest.learn.languages[task] = language
   await put('klonk.json', JSON.stringify(manifest))
   return project.id
@@ -80,6 +81,10 @@ test('Freigabe, Lernen in der Cloud und Lernstand für die Gruppenleitung', asyn
   await expect(teacher.getByRole('heading', { level: 1 })).toHaveText('Lernstand – 9c')
   await teacher.getByRole('switch', { name: '1. Erste Schritte: Anweisungen' }).click()
   await expect(teacher.getByTestId('learn-cell-tom-sequence')).toHaveText('nicht begonnen')
+  // Sprachvorgabe für dieses Modul: nur Klonk-Script
+  await teacher.getByTestId('learn-languages-sequence').click()
+  await teacher.getByRole('option', { name: 'nur Klonk-Script' }).click()
+  await expect(teacher.getByTestId('learn-languages-sequence')).toContainText('nur Klonk-Script')
 
   // Tom sieht nur Modul 1 und löst die erste Aufgabe – gespeichert im Cloud-Projekt
   await gotoHydrated(student, `${APP_URL}/learn`)
@@ -87,7 +92,16 @@ test('Freigabe, Lernen in der Cloud und Lernstand für die Gruppenleitung', asyn
   await expect(student.getByTestId('learn-module-sequence')).toBeVisible()
   expect((await api(student, '/api/learn/modules/repeat/start', 'POST', { lang: 'de' })).status).toBe(403)
   await prepare(student, 'sequence', 'to-the-mark', 'klonk', 'schritt(4)')
+  // Modulprojekt: je Aufgabe ein Ordner mit Aufgabentext, Welt und Programm (Vorgabe Klonk-Script ⇒ .klonk)
+  const projectFiles = (await api<Changes>(student, `/api/cloud/projects/${(await api<{ projects: Record<string, { projectId: string }> }>(student, '/api/learn')).body.projects.sequence!.projectId}/changes?since=0`)).body.changes.map(c => c.path)
+  expect(projectFiles).toEqual(expect.arrayContaining(['1 Zur Marke/Aufgabe.md', '1 Zur Marke/Welt.klonkworld.json', '1 Zur Marke/Programm.klonk', '4 Aufräumen/Programm.klonk']))
+  expect(projectFiles).not.toContain('1 Zur Marke/Programm.blocks')
   await openTask(student, 'sequence/to-the-mark')
+  // Nur Klonk-Script erlaubt
+  await expect(student.getByTestId('language')).toContainText('Klonk-Script')
+  await student.getByTestId('language').click()
+  await expect(student.getByRole('option')).toHaveText(['Klonk-Script'])
+  await student.keyboard.press('Escape')
   await expect(await check(student)).toHaveAttribute('data-status', 'solved')
   await expect(student.getByTestId('learn-solved')).toBeVisible()
   // Lernstand liegt in der Cloud (Manifest wird im Hintergrund hochgeladen)
@@ -166,5 +180,16 @@ test('Blöcke lösen eine Aufgabe, Hinweise für Lehrkräfte', async ({ browser 
 
   await gotoHydrated(page, `${APP_URL}/learn/while`)
   await expect(page.getByTestId('learn-teacher')).toContainText('Zeitbedarf')
+
+  // Modulprojekt im Explorer: Programm einer Aufgabe öffnen ⇒ IDE mit der Welt aus dem Aufgabenordner
+  await gotoHydrated(page, `${APP_URL}/projects`)
+  await page.getByTestId('cloud-project-Lernmodul 3 – Bedingte Wiederholung').click()
+  await page.getByTestId('explorer-folder-2 Die Marke finden').click()
+  await page.getByTestId('explorer-file-2 Die Marke finden/Programm.blocks').click()
+  await expect(page.getByTestId('learn-task-hint')).toContainText('Aufgabe „Die Marke finden“ aus Bedingte Wiederholung')
+  await page.getByTestId('toggle-project').click()
+  await expect(page.getByTestId('project-world')).toContainText('Welt 1')
+  await page.getByTestId('learn-task-open').click()
+  await expect(page).toHaveURL(/\/learn\/while\/find-the-mark$/)
   await page.context().close()
 })

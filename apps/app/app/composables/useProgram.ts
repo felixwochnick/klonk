@@ -7,6 +7,22 @@ const STORAGE_KEY = 'klonk:program'
 export type ProgramLanguage = RunLanguage | 'blocks'
 export const PROGRAM_LANGUAGES: ProgramLanguage[] = ['blocks', 'klonk', 'javascript', 'typescript', 'python', 'java', 'csharp']
 
+/** Projektarten (`klonk.json`): Klonk-Script und Blöcke sind eine Art – beide Dateiarten sind darin erlaubt */
+export const PROJECT_LANGUAGES: ProgramLanguage[] = PROGRAM_LANGUAGES.filter(l => l !== 'blocks')
+
+/** Projektart aus `klonk.json` (frühere Blöcke-Projekte gehören zu Klonk-Script & Blöcke) */
+export const projectLanguage = (value: ProgramLanguage): ProgramLanguage => (value === 'blocks' ? 'klonk' : value)
+
+/** Darf ein Projekt dieser Art Dateien dieser Sprache enthalten? (ohne Art: alles) */
+export function projectAllows(project: ProgramLanguage | null, kind: ProgramLanguage) {
+  return !project || projectLanguage(project) === projectLanguage(kind)
+}
+
+/** Name der Projektart („Klonk-Script & Blöcke“ statt nur „Klonk-Script“) */
+export function projectLanguageLabel(t: (key: string) => string, value: ProgramLanguage) {
+  return projectLanguage(value) === 'klonk' ? t('project.klonkAndBlocks') : t(`editor.languages.${value}`)
+}
+
 type Program = { source: string, breakpoints: number[] }
 
 /** Beispiel für Blöcke: bis zur Wand laufen und markieren (Blockly-JSON) */

@@ -6,7 +6,7 @@ const name = defineModel<string>('name', { required: true })
 const language = defineModel<ProgramLanguage>('language', { default: 'blocks' })
 const emit = defineEmits<{ close: [], submit: [] }>()
 const { t } = useI18n()
-const languageItems = computed(() => PROGRAM_LANGUAGES.map(l => ({ label: t(`editor.languages.${l}`), value: l })))
+const languageItems = computed(() => PROJECT_LANGUAGES.map(l => ({ label: projectLanguageLabel(t, l), value: l })))
 </script>
 
 <template>

@@ -109,6 +109,10 @@ export function useProject() {
     currentPath.value = path
     loadedContent = text
     content.value = text
+    // Programm in einem Ordner mit eigener Welt (z. B. Aufgabe eines Lernmoduls) ⇒ diese Welt laden
+    const folder = path.includes('/') ? path.slice(0, path.lastIndexOf('/')) : null
+    const local = folder ? worldFiles.value.filter(f => f.path.startsWith(`${folder}/`) && !f.path.slice(folder.length + 1).includes('/')) : []
+    if (local.length && !local.some(f => f.path === worldPath.value)) worldPath.value = local[0]!.path
     rememberSelection()
   }
 
@@ -145,8 +149,8 @@ export function useProject() {
   /** Projektsprache festlegen (neues Projekt) */
   async function setLanguage(value: ProgramLanguage | null) {
     if (!project.value) return
-    language.value = value
-    await project.value.write(MANIFEST, `${JSON.stringify({ language: value }, null, 2)}\n`)
+    language.value = value && projectLanguage(value)
+    await project.value.write(MANIFEST, `${JSON.stringify({ language: language.value }, null, 2)}\n`)
   }
 
   /** Neuer Ordner (Pfad mit `/` für Unterordner) */
@@ -312,7 +316,7 @@ export function useProject() {
 async function readManifest(project: Project): Promise<ProgramLanguage | null> {
   try {
     const data = JSON.parse(await project.read(MANIFEST)) as { language?: unknown }
-    return (PROGRAM_LANGUAGES as readonly string[]).includes(String(data.language)) ? data.language as ProgramLanguage : null
+    return (PROGRAM_LANGUAGES as readonly string[]).includes(String(data.language)) ? projectLanguage(data.language as ProgramLanguage) : null
   }
   catch {
     return null

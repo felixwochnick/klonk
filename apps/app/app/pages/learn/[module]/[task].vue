@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { GeneratedProgram } from '~/utils/blocks/generator'
-import { compareOutcome, expectedOutcomes, findModule, LEARN_MANIFEST, parseManifest, serializeManifest, taskFile, type CheckFailure, type LearnLanguage, type LearnManifest, type Outcome } from '@klonk/learn'
+import { compareOutcome, expectedOutcomes, findModule, LEARN_LANGUAGES, LEARN_MANIFEST, parseManifest, serializeManifest, taskFile, taskFolderFiles, type CheckFailure, type LearnLanguage, type LearnManifest, type Outcome } from '@klonk/learn'
 import { World } from '@klonk/world'
 import { ProgramRunner, type RunError, type RunnerSnapshot } from '@klonk/runtime'
 import RunnerWorker from '@klonk/runtime/worker?worker'
@@ -31,14 +31,37 @@ const loadError = ref<string | null>(null)
 const readOnly = ref(!!foreign)
 const solvedHere = ref(false)
 let project: CloudProject | undefined
+let shared = false
 let manifest: LearnManifest | undefined
 let saved = { language: '', blocks: '', klonk: '' }
+
+/**
+ * Aufgabenordner (Text, Welten, Programm) anlegen, falls das Projekt noch keinen hat (Projekte aus der ersten Fassung
+ * hatten die Programme direkt im Projektordner – deren Inhalt zieht mit um)
+ */
+async function ensureTaskFolder() {
+  if (!project || project.readOnly || !manifest || !module || !task || manifest.tasks[task.id]) return
+  const index = module.tasks.indexOf(task)
+  const entry = taskFolderFiles(task, index, lang.value, allowedLanguages.value[0] ?? 'blocks')
+  await project.createFolder(entry.folder)
+  for (const file of entry.files) if (!await project.exists(file.path)) await project.write(file.path, file.content)
+  for (const language of LEARN_LANGUAGES) {
+    const old = await project.read(`${task.id}.${language}`).catch(() => null)
+    if (old === null) continue
+    await project.write(`${entry.program}.${language}`, old)
+    await project.remove(`${task.id}.${language}`)
+  }
+  manifest.tasks[task.id] = entry.program
+  await project.write(LEARN_MANIFEST, serializeManifest(manifest))
+}
 
 async function loadProgram() {
   if (!project || !module || !task) return
   manifest = parseManifest(await project.read(LEARN_MANIFEST).catch(() => null), module.id)
-  const read = (language: LearnLanguage) => project!.read(taskFile(task.id, language)).catch(() => '')
-  program.language = manifest.languages[task.id] ?? 'blocks'
+  await ensureTaskFolder()
+  const read = (language: LearnLanguage) => project!.read(taskFile(manifest!, task.id, language)).catch(() => '')
+  const stored = manifest.languages[task.id]
+  program.language = stored && (readOnly.value || allowedLanguages.value.includes(stored)) ? stored : allowedLanguages.value[0] ?? 'blocks'
   program.blocks = await read('blocks')
   program.klonk = await read('klonk')
   solvedHere.value = !!manifest.solved[task.id]
@@ -48,11 +71,13 @@ async function loadProgram() {
 onMounted(async () => {
   if (!module || !task) return
   try {
-    project = foreign ? await learn.openForeign(foreign.id, foreign.name) : await learn.openOwn(module.id, lang.value)
+    const opened = foreign ? await learn.openForeign(foreign.id, foreign.name) : await learn.openOwn(module.id, lang.value)
+    project = opened.project
+    shared = opened.shared
     readOnly.value = project.readOnly
     await loadProgram()
     // Gruppenleitung sieht Änderungen der Lernenden, sobald sie hochgeladen sind
-    if (project.readOnly) project.onRemoteChange = () => void loadProgram()
+    if (project.readOnly && !shared) project.onRemoteChange = () => void loadProgram()
     ready.value = true
   }
   catch (error) {
@@ -64,8 +89,8 @@ onMounted(async () => {
 let saveTimer: ReturnType<typeof setTimeout> | undefined
 async function save() {
   if (!project || project.readOnly || !manifest || !task || !ready.value) return
-  if (program.blocks !== saved.blocks) await project.write(taskFile(task.id, 'blocks'), program.blocks)
-  if (program.klonk !== saved.klonk) await project.write(taskFile(task.id, 'klonk'), program.klonk)
+  if (program.blocks !== saved.blocks) await project.write(taskFile(manifest, task.id, 'blocks'), program.blocks)
+  if (program.klonk !== saved.klonk) await project.write(taskFile(manifest, task.id, 'klonk'), program.klonk)
   if (program.language !== saved.language) {
     manifest.languages[task.id] = program.language
     await project.write(LEARN_MANIFEST, serializeManifest(manifest))
@@ -79,7 +104,9 @@ watch(() => [program.language, program.blocks, program.klonk], () => {
 })
 onBeforeUnmount(() => {
   clearTimeout(saveTimer)
-  void save().finally(() => project?.stop())
+  void save().finally(() => {
+    if (!shared) project?.stop()
+  })
 })
 
 async function markSolved() {
@@ -95,7 +122,9 @@ const language = computed({
     program.language = value
   },
 })
-const languageItems = computed(() => (['blocks', 'klonk'] as const).map(value => ({ label: t(`editor.languages.${value}`), value })))
+// Sprachvorgabe der Gruppenleitung (fremde Programme: so, wie sie geschrieben wurden)
+const allowedLanguages = computed<LearnLanguage[]>(() => (foreign || !module ? LEARN_LANGUAGES : learn.status.value?.languages[module.id] ?? LEARN_LANGUAGES))
+const languageItems = computed(() => allowedLanguages.value.map(value => ({ label: t(`editor.languages.${value}`), value })))
 const isBlocks = computed(() => language.value === 'blocks')
 const blocksProgram = shallowRef<GeneratedProgram>({ code: '', lineToBlock: {} })
 function onBlocksProgram(generated: GeneratedProgram) {

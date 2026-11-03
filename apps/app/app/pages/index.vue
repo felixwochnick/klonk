@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { GeneratedProgram } from '~/utils/blocks/generator'
 import { translate } from '@klonk/klonk-script'
+import { findModule } from '@klonk/learn'
 import { World, type WorldData } from '@klonk/world'
 import { databaseEngine } from '~/utils/project-fs'
 import { ProgramRunner, type RunLanguage, type RunnerSnapshot } from '@klonk/runtime'
@@ -279,6 +280,28 @@ function toggleFocus() {
 
 // Rechts: 3D-Welt, Kurzreferenz der Sprache oder KI-Assistent (die Welt bleibt dabei geladen)
 const rightTab = ref<'world' | 'docs' | 'ai'>('world')
+
+// Datei aus einem Lernmodul (Aufgabenordner): Hinweis mit Link in die Lernansicht, wo geprüft wird
+const learnManifest = shallowRef<{ module: string, tasks: Record<string, string> } | null>(null)
+watch([proj.project, proj.files], async () => {
+  const text = inProject.value ? await proj.project.value!.read('klonk.json').catch(() => null) : null
+  try {
+    const learn = (JSON.parse(text ?? '') as { learn?: { module?: unknown, tasks?: Record<string, string> } }).learn
+    learnManifest.value = typeof learn?.module === 'string' ? { module: learn.module, tasks: learn.tasks ?? {} } : null
+  }
+  catch {
+    learnManifest.value = null
+  }
+}, { immediate: true })
+const learnTask = computed(() => {
+  const manifest = learnManifest.value
+  const path = proj.currentPath.value
+  if (!manifest || !path) return null
+  const module = findModule(manifest.module)
+  const entry = Object.entries(manifest.tasks).find(([, program]) => program.includes('/') && path.startsWith(`${program.slice(0, program.lastIndexOf('/'))}/`))
+  const task = entry && module?.tasks.find(x => x.id === entry[0])
+  return module && task ? { module, task } : null
+})
 const ai = useAi()
 const rightTabs = computed(() => (ai.enabled.value ? ['world', 'docs', 'ai'] as const : ['world', 'docs'] as const))
 const TAB_ICONS = { world: 'i-lucide-boxes', docs: 'i-lucide-book-open', ai: 'i-lucide-sparkles' }
@@ -469,6 +492,27 @@ const paneStyle = computed(() => ({
           />
         </UTooltip>
       </div>
+    </div>
+
+    <div
+      v-if="learnTask"
+      class="flex flex-wrap items-center gap-2 border-b border-(--ui-border) bg-(--ui-bg-muted) px-3 py-1.5 text-sm"
+      data-testid="learn-task-hint"
+    >
+      <UIcon
+        name="i-lucide-graduation-cap"
+        class="shrink-0 text-(--ui-primary)"
+      />
+      <span>{{ t('learn.learnTaskHint', { task: learnTask.task.title[locale === 'en' ? 'en' : 'de'], module: learnTask.module.title[locale === 'en' ? 'en' : 'de'] }) }}</span>
+      <UButton
+        :to="`/learn/${learnTask.module.id}/${learnTask.task.id}`"
+        :label="t('learn.openInLearn')"
+        trailing-icon="i-lucide-arrow-right"
+        size="xs"
+        variant="soft"
+        class="ms-auto"
+        data-testid="learn-task-open"
+      />
     </div>
 
     <div

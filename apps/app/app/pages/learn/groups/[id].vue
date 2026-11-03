@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { LEARN_MODULES, type LearnGroupProgress, type LearnModuleProgress, type LearnTaskState } from '@klonk/learn'
+import { LEARN_LANGUAGE_CHOICES, LEARN_MODULES, type LearnGroupProgress, type LearnLanguageChoice, type LearnModuleProgress, type LearnTaskState } from '@klonk/learn'
 
 const { t, locale, d } = useI18n()
 const route = useRoute()
@@ -26,11 +26,22 @@ const moduleNumber = (id: string) => LEARN_MODULES.findIndex(m => m.id === id) +
 const enabledModules = computed(() => LEARN_MODULES.filter(m => data.value?.modules.includes(m.id)))
 const members = computed(() => data.value?.members ?? [])
 
-// Freigabe
+// Freigabe je Modul mit Sprachvorgabe
 const saving = ref(false)
-async function toggle(moduleId: string, on: boolean) {
+const choiceItems = computed(() => LEARN_LANGUAGE_CHOICES.map(value => ({ label: t(`learn.languageChoice.${value}`), value })))
+const choiceOf = (moduleId: string): LearnLanguageChoice => data.value?.languages[moduleId] ?? 'both'
+
+function toggle(moduleId: string, on: boolean) {
   if (!data.value) return
-  const modules = on ? [...data.value.modules, moduleId] : data.value.modules.filter(id => id !== moduleId)
+  const ids = on ? [...data.value.modules, moduleId] : data.value.modules.filter(id => id !== moduleId)
+  return save(ids.map(id => ({ id, languages: choiceOf(id) })))
+}
+function setChoice(moduleId: string, languages: LearnLanguageChoice) {
+  if (!data.value) return
+  return save(data.value.modules.map(id => ({ id, languages: id === moduleId ? languages : choiceOf(id) })))
+}
+
+async function save(modules: { id: string, languages: LearnLanguageChoice }[]) {
   saving.value = true
   try {
     await $fetch(`/api/learn/groups/${groupId}/modules` as string, { method: 'PUT', headers: clientHostHeaders(), body: { modules } })
@@ -136,18 +147,33 @@ function viewLink(member: LearnGroupProgress['members'][number], moduleId: strin
           </p>
         </template>
         <div
-          class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3"
+          class="grid gap-x-6 gap-y-3 md:grid-cols-2"
           data-testid="learn-enable"
         >
-          <USwitch
+          <div
             v-for="module in LEARN_MODULES"
             :key="module.id"
-            :model-value="data.modules.includes(module.id)"
-            :disabled="saving"
-            :label="`${moduleNumber(module.id)}. ${module.title[lang]}`"
-            :data-testid="`learn-enable-${module.id}`"
-            @update:model-value="on => toggle(module.id, !!on)"
-          />
+            class="flex min-h-9 flex-wrap items-center justify-between gap-2"
+          >
+            <USwitch
+              :model-value="data.modules.includes(module.id)"
+              :disabled="saving"
+              :label="`${moduleNumber(module.id)}. ${module.title[lang]}`"
+              :data-testid="`learn-enable-${module.id}`"
+              @update:model-value="on => toggle(module.id, !!on)"
+            />
+            <USelect
+              v-if="data.modules.includes(module.id)"
+              :model-value="choiceOf(module.id)"
+              :items="choiceItems"
+              :disabled="saving"
+              size="sm"
+              class="w-52"
+              :aria-label="t('learn.languageFor', { module: module.title[lang] })"
+              :data-testid="`learn-languages-${module.id}`"
+              @update:model-value="value => setChoice(module.id, value as LearnLanguageChoice)"
+            />
+          </div>
         </div>
       </UCard>
 
