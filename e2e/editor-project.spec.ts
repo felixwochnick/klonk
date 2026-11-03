@@ -259,13 +259,13 @@ test('Neues Java-Projekt: Sprache, Startdatei in src/, Package aus dem Ordner', 
 
   // „Neue Datei“ bietet nur Java (plus Welt und Ordner)
   await page.getByTestId('new-file').click()
-  await expect(page.getByRole('menuitem', { name: 'Python' })).toHaveCount(0)
+  await expect(page.getByRole('menuitem', { name: 'Python', exact: true })).toHaveCount(0)
   await page.getByRole('menuitem', { name: 'Ordner' }).click()
   await page.getByTestId('project-dialog-name').fill('src/de/tools')
   await page.getByTestId('project-dialog-submit').click()
   await page.getByTestId('folder-actions-src/de/tools').click()
   await page.getByRole('menuitem', { name: 'Neue Datei' }).click()
-  await page.getByRole('menuitem', { name: 'Java' }).click()
+  await page.getByRole('menuitem', { name: 'Java', exact: true }).click()
   await page.getByTestId('project-dialog-name').fill('Walker')
   await page.getByTestId('project-dialog-submit').click()
   await expect(page.getByTestId('file-src/de/tools/Walker.java')).toBeVisible()
@@ -299,7 +299,7 @@ test('Leeres Projekt öffnen ⇒ einrichten mit Startdateien; C#-Klasse im Names
   await page.getByTestId('project-dialog-submit').click()
   await page.getByTestId('folder-actions-Werkzeuge').click()
   await page.getByRole('menuitem', { name: 'Neue Datei' }).click()
-  await page.getByRole('menuitem', { name: 'C#' }).click()
+  await page.getByRole('menuitem', { name: 'C#', exact: true }).click()
   await page.getByTestId('project-dialog-name').fill('Laufen')
   await page.getByTestId('project-dialog-submit').click()
   await expect.poll(() => readProjectFile(page, 'Leer', 'Werkzeuge/Laufen.cs').catch(() => '')).toMatch(/namespace Werkzeuge;[\s\S]*public static class Laufen/)
@@ -334,3 +334,73 @@ test('TypeScript: Projektdatei ab dem Projektordner importieren, ohne falsche Fe
   }
 })
 
+
+test('Rechtsklick-Menüs: Neues anlegen, Packages (Java, Python) und Namespaces (C#)', async ({ page }) => {
+  await openIde(page)
+  await seedProject(page, 'Kontext', {
+    'klonk.json': '{ "language": "java" }',
+    'src/Main.java': 'import klonk.Klonk;\n\npublic class Main {\n    public static void main(String[] args) {\n        new Klonk().step();\n    }\n}\n',
+    'welt.klonkworld.json': JSON.stringify(WORLD),
+  })
+  await page.reload()
+  await page.locator('html[data-hydrated="true"]').waitFor({ state: 'attached' })
+  await page.getByTestId('toggle-project').click()
+  await page.getByTestId('browser-project-Kontext').click()
+
+  // Freie Fläche: Java-Package ⇒ Ordner unter src/
+  await page.getByTestId('file-tree').click({ button: 'right', position: { x: 60, y: 140 } })
+  await page.getByRole('menuitem', { name: 'Neues Java-Package' }).click()
+  await page.getByTestId('project-dialog-name').fill('spiel.figuren')
+  await page.getByTestId('project-dialog-submit').click()
+  await expect(page.getByTestId('folder-src/spiel/figuren')).toBeVisible()
+
+  // Rechtsklick auf das Package ⇒ Neue Datei ⇒ Java: Klasse mit passendem package
+  await page.getByTestId('folder-src/spiel/figuren').click({ button: 'right' })
+  await page.getByRole('menuitem', { name: 'Neue Datei' }).click()
+  await page.getByRole('menuitem', { name: 'Java', exact: true }).click()
+  await page.getByTestId('project-dialog-name').fill('Held')
+  await page.getByTestId('project-dialog-submit').click()
+  await expect(page.getByTestId('file-src/spiel/figuren/Held.java')).toBeVisible()
+  await expect.poll(() => readProjectFile(page, 'Kontext', 'src/spiel/figuren/Held.java').catch(() => '')).toContain('package spiel.figuren;')
+
+  // Rechtsklick auf eine Datei: Umbenennen, daneben „Neuer Ordner“ im selben Ordner
+  await page.getByTestId('file-src/spiel/figuren/Held.java').click({ button: 'right' })
+  await page.getByRole('menuitem', { name: 'Neuer Ordner' }).click()
+  await page.getByTestId('project-dialog-name').fill('extra')
+  await page.getByTestId('project-dialog-submit').click()
+  await expect(page.getByTestId('folder-src/spiel/figuren/extra')).toBeVisible()
+  await page.getByTestId('file-src/Main.java').click({ button: 'right' })
+  await page.getByRole('menuitem', { name: 'Umbenennen' }).click()
+  await expect(page.getByTestId('project-dialog-name')).toHaveValue('src/Main.java')
+  await page.keyboard.press('Escape')
+
+  // Python: Package mit __init__.py je Ebene
+  await seedProject(page, 'KontextPy', { 'klonk.json': '{ "language": "python" }', 'main.py': 'print(1)\n' })
+  await page.getByTestId('close-project').click()
+  await page.getByTestId('browser-project-KontextPy').click()
+  await page.getByTestId('file-tree').click({ button: 'right', position: { x: 60, y: 120 } })
+  await page.getByRole('menuitem', { name: 'Neues Python-Package' }).click()
+  await page.getByTestId('project-dialog-name').fill('werkzeuge.mathe')
+  await page.getByTestId('project-dialog-submit').click()
+  await expect(page.getByTestId('file-werkzeuge/mathe/__init__.py')).toBeVisible()
+  await expect(page.getByTestId('file-werkzeuge/__init__.py')).toBeVisible()
+
+  // C#: Namespace im Vollbild-Explorer (Rechtsklick auf die freie Fläche)
+  await seedProject(page, 'KontextCs', { 'klonk.json': '{ "language": "csharp" }', 'src/Program.cs': 'using klonk;\nnew Klonk().Step();\n' })
+  await page.getByTestId('close-project').click()
+  await page.getByTestId('browser-project-KontextCs').click()
+  await page.getByTestId('open-explorer').click()
+  await page.getByTestId('explorer-area').click({ button: 'right', position: { x: 300, y: 300 } })
+  await page.getByRole('menuitem', { name: 'Neuer C#-Namespace' }).click()
+  await page.getByTestId('project-dialog-name').fill('Spiel.Werkzeuge')
+  await page.getByTestId('project-dialog-submit').click()
+  await expect(page.getByTestId('explorer-folder-src')).toBeVisible()
+  await page.getByTestId('explorer-folder-src').click()
+  await page.getByTestId('explorer-folder-src/Spiel').click()
+  await page.getByTestId('explorer-folder-src/Spiel/Werkzeuge').click({ button: 'right' })
+  await page.getByRole('menuitem', { name: 'Neue Datei' }).click()
+  await page.getByRole('menuitem', { name: 'C#', exact: true }).click()
+  await page.getByTestId('project-dialog-name').fill('Helfer')
+  await page.getByTestId('project-dialog-submit').click()
+  await expect.poll(() => readProjectFile(page, 'KontextCs', 'src/Spiel/Werkzeuge/Helfer.cs').catch(() => '')).toContain('namespace Spiel.Werkzeuge;')
+})

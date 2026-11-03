@@ -295,7 +295,12 @@
       "folder": "Neuer Ordner",
       "design": "Roboter",
       "database": "schule",
-      "sql": "abfrage"
+      "sql": "abfrage",
+      "package": {
+        "java": "werkzeuge",
+        "python": "werkzeuge",
+        "csharp": "Werkzeuge"
+      }
     },
     "confirmDelete": "„{name}“ wirklich löschen?",
     "confirmDeleteProject": "Browser-Projekt „{name}“ mit allen Dateien löschen?",
@@ -339,7 +344,15 @@
     "setup": "Projekt einrichten",
     "design": "Roboter-Design",
     "database": "Datenbank",
-    "sql": "SQL-Abfrage"
+    "sql": "SQL-Abfrage",
+    "newPackage": {
+      "java": "Neues Java-Package",
+      "python": "Neues Python-Package",
+      "csharp": "Neuer C#-Namespace"
+    },
+    "open": "Öffnen",
+    "useWorld": "Als Projektwelt verwenden",
+    "packageHelp": "Teile mit Punkt trennen, z. B. spiel.figuren"
   },
   "pwa": {
     "install": "App installieren",

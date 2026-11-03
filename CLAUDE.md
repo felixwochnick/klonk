@@ -234,6 +234,10 @@ node scripts/build-csharp.ts        # C#-Host bauen (.NET-SDK 10 nötig; Ausgabe
   Endung (`.blocks`, `.klonk`, `.js`, `.ts`, `.py`, `.java`, `.cs`, `.klonkworld.json`). Ohne Projekt nutzt die IDE weiter `useProgram()` (localStorage).
   Reka-`SelectItem` erlaubt keinen leeren Wert ⇒ Platzhalterwerte verwenden. Blockly-Kontextmenü global ⇒ vor Neu-Registrierung abmelden.
   Bedienlogik gemeinsam in `useProjectExplorer()` (Seitenleiste `ProjectPanel` + Vollbild-Explorer `pages/projects.vue`),
+  **Rechtsklick-Menüs** (`UContextMenu`, verschachtelt – innerer Trigger gewinnt): `fileContextItems`, `folderActions`, `areaContextItems`, gemeinsamer
+  Teil `createItemsIn` (*Neue Datei ›*, *Neuer Ordner*, Packages). **Packages/Namespaces** (`createPackage`): Java/C# auf oberster Ebene unter `src`
+  (bzw. `src/main/java`), Python mit `__init__.py` je Ebene; gemischte Projekte bieten die vorhandenen Sprachen an. E2E-Menüs per `exact: true` wählen
+  („Java“ steckt auch in „Neues Java-Package“).
   Datei-Symbole `FileIcon` (simple-icons für JS/TS/…, Klonk-Script als eigener Ziegel), Namensdialog `ProjectNameDialog`.
   **Ordner:** `Project.scan()` liefert Dateien + (auch leere) Ordner; Ordner umbenennen/verschieben = rekursiv kopieren + löschen.
   Baumansicht (`tree`, zugeklappte Ordner modulweit) und Ziehen & Ablegen (`onDragStart/onDragOver/onDrop`, `''` = oberste Ebene)

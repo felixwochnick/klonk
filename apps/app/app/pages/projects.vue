@@ -7,7 +7,7 @@ useSeoMeta({ title: () => t('project.explorer') })
 
 const {
   proj, cloud, canFolders, canBrowser, browserProjects, recent, openFolder, openRecent, openBrowserProject, removeBrowserProject,
-  dialog, dialogName, dialogLanguage, dialogTitle, openDialog, submitDialog, openFile, newItemsIn, fileActions, kindLabel,
+  dialog, dialogName, dialogLanguage, dialogTitle, openDialog, submitDialog, openFile, newItemsIn, fileActions, fileContextItems, areaContextItems, kindLabel,
   folders, folderActions, parentOf, baseName, dropTarget, onDragStart, onDragOver, onDrop,
 } = useProjectExplorer({
   // Programme öffnen sich in der IDE, Welten werden nur als Projektwelt gewählt
@@ -286,141 +286,160 @@ const syncLabel = computed(() => (proj.sync.value ? t(`cloud.sync.${proj.sync.va
             </UTooltip>
           </div>
 
-          <div class="min-h-0 flex-1 overflow-y-auto p-4">
-            <nav
-              v-if="!searching"
-              class="mb-3 flex flex-wrap items-center gap-1 text-sm"
-              data-testid="explorer-breadcrumbs"
+          <!-- Rechtsklick: freie Fläche ⇒ im geöffneten Ordner anlegen -->
+          <UContextMenu
+            :items="areaContextItems(folder || undefined)"
+            :disabled="searching || !areaContextItems(folder || undefined).length"
+          >
+            <div
+              class="min-h-0 flex-1 overflow-y-auto p-4"
+              data-testid="explorer-area"
             >
-              <template
-                v-for="(crumb, i) in breadcrumbs"
-                :key="crumb.path"
+              <nav
+                v-if="!searching"
+                class="mb-3 flex flex-wrap items-center gap-1 text-sm"
+                data-testid="explorer-breadcrumbs"
               >
-                <UIcon
-                  v-if="i > 0"
-                  name="i-lucide-chevron-right"
-                  class="size-4 text-(--ui-text-dimmed)"
-                />
-                <UButton
-                  variant="ghost"
-                  :color="crumb.path === folder ? 'primary' : 'neutral'"
-                  size="sm"
-                  :icon="i === 0 ? 'i-lucide-house' : undefined"
-                  :label="crumb.label"
-                  :class="dropTarget === crumb.path && crumb.path !== folder ? 'ring-1 ring-(--ui-primary)' : ''"
-                  @click="folder = crumb.path"
-                  @dragover="crumb.path !== folder && onDragOver($event, crumb.path)"
-                  @dragleave="dropTarget = null"
-                  @drop="onDrop($event, crumb.path)"
-                />
-              </template>
-            </nav>
-            <p
-              v-if="!visibleFiles.length && !visibleFolders.length"
-              class="p-6 text-center text-(--ui-text-muted)"
-            >
-              {{ searching ? t('project.noMatches') : folder ? t('project.emptyFolder') : t('project.empty') }}
-            </p>
-            <ul class="grid grid-cols-[repeat(auto-fill,minmax(10rem,1fr))] gap-3">
-              <li
-                v-for="path in visibleFolders"
-                :key="`folder:${path}`"
-                class="group relative"
-                draggable="true"
-                @dragstart="onDragStart($event, path, true)"
-                @dragover="onDragOver($event, path)"
-                @dragleave="dropTarget = null"
-                @drop="onDrop($event, path)"
-              >
-                <button
-                  type="button"
-                  class="flex h-full w-full flex-col items-center gap-2 rounded-lg border bg-(--ui-bg) p-4 text-center transition hover:border-(--ui-primary) hover:shadow-sm"
-                  :class="dropTarget === path ? 'border-(--ui-primary) ring-1 ring-(--ui-primary)' : 'border-(--ui-border)'"
-                  :data-testid="`explorer-folder-${path}`"
-                  @click="folder = path"
+                <template
+                  v-for="(crumb, i) in breadcrumbs"
+                  :key="crumb.path"
                 >
                   <UIcon
-                    name="i-lucide-folder"
-                    class="mt-2 size-12 text-amber-500"
+                    v-if="i > 0"
+                    name="i-lucide-chevron-right"
+                    class="size-4 text-(--ui-text-dimmed)"
                   />
-                  <span class="w-full truncate font-medium">{{ baseName(path) }}</span>
-                  <span class="w-full truncate text-xs text-(--ui-text-muted)">{{ t('project.folder') }}</span>
-                  <UBadge
-                    v-if="cloud.assignmentAt(path)"
-                    :label="t('cloud.assignment')"
-                    color="warning"
-                    variant="subtle"
-                    size="sm"
-                    :data-testid="`cloud-assignment-${path}`"
-                  />
-                </button>
-                <UDropdownMenu
-                  v-if="folderActions(path).length"
-                  :items="folderActions(path)"
-                >
                   <UButton
                     variant="ghost"
-                    color="neutral"
-                    size="xs"
-                    icon="i-lucide-ellipsis-vertical"
-                    :aria-label="t('project.actions', { name: path })"
-                    class="absolute end-1 top-1 opacity-60 group-hover:opacity-100"
+                    :color="crumb.path === folder ? 'primary' : 'neutral'"
+                    size="sm"
+                    :icon="i === 0 ? 'i-lucide-house' : undefined"
+                    :label="crumb.label"
+                    :class="dropTarget === crumb.path && crumb.path !== folder ? 'ring-1 ring-(--ui-primary)' : ''"
+                    @click="folder = crumb.path"
+                    @dragover="crumb.path !== folder && onDragOver($event, crumb.path)"
+                    @dragleave="dropTarget = null"
+                    @drop="onDrop($event, crumb.path)"
                   />
-                </UDropdownMenu>
-              </li>
-              <li
-                v-for="file in visibleFiles"
-                :key="file.path"
-                class="group relative"
-                draggable="true"
-                @dragstart="onDragStart($event, file.path, false)"
+                </template>
+              </nav>
+              <p
+                v-if="!visibleFiles.length && !visibleFolders.length"
+                class="p-6 text-center text-(--ui-text-muted)"
               >
-                <button
-                  type="button"
-                  class="flex h-full w-full flex-col items-center gap-2 rounded-lg border bg-(--ui-bg) p-4 text-center transition hover:border-(--ui-primary) hover:shadow-sm disabled:cursor-default disabled:opacity-60 disabled:hover:border-(--ui-border) disabled:hover:shadow-none"
-                  :class="file.path === currentPath || file.path === worldPath ? 'border-(--ui-primary) ring-1 ring-(--ui-primary)' : 'border-(--ui-border)'"
-                  :disabled="file.kind === 'other'"
-                  :data-testid="`explorer-file-${file.path}`"
-                  @click="openFile(file)"
+                {{ searching ? t('project.noMatches') : folder ? t('project.emptyFolder') : t('project.empty') }}
+              </p>
+              <ul class="grid grid-cols-[repeat(auto-fill,minmax(10rem,1fr))] gap-3">
+                <UContextMenu
+                  v-for="path in visibleFolders"
+                  :key="`folder:${path}`"
+                  :items="folderActions(path)"
+                  :disabled="!folderActions(path).length"
                 >
-                  <FileIcon
-                    :kind="file.kind"
-                    size="lg"
-                    class="mt-2"
-                  />
-                  <span class="w-full truncate font-medium">{{ file.name }}</span>
-                  <span class="w-full truncate text-xs text-(--ui-text-muted)">
-                    {{ kindLabel(file.kind) }}<template v-if="searching && folderOf(file)"> · {{ folderOf(file) }}</template>
-                  </span>
-                  <UBadge
-                    v-if="file.path === worldPath"
-                    :label="t('project.activeWorld')"
-                    variant="subtle"
-                    size="sm"
-                  />
-                  <UBadge
-                    v-else-if="file.path === currentPath"
-                    :label="t('project.openInIde')"
-                    variant="subtle"
-                    size="sm"
-                  />
-                </button>
-                <UDropdownMenu
-                  v-if="fileActions(file).length"
-                  :items="fileActions(file)"
+                  <li
+                    class="group relative"
+                    draggable="true"
+                    @dragstart="onDragStart($event, path, true)"
+                    @dragover="onDragOver($event, path)"
+                    @dragleave="dropTarget = null"
+                    @drop="onDrop($event, path)"
+                  >
+                    <button
+                      type="button"
+                      class="flex h-full w-full flex-col items-center gap-2 rounded-lg border bg-(--ui-bg) p-4 text-center transition hover:border-(--ui-primary) hover:shadow-sm"
+                      :class="dropTarget === path ? 'border-(--ui-primary) ring-1 ring-(--ui-primary)' : 'border-(--ui-border)'"
+                      :data-testid="`explorer-folder-${path}`"
+                      @click="folder = path"
+                    >
+                      <UIcon
+                        name="i-lucide-folder"
+                        class="mt-2 size-12 text-amber-500"
+                      />
+                      <span class="w-full truncate font-medium">{{ baseName(path) }}</span>
+                      <span class="w-full truncate text-xs text-(--ui-text-muted)">{{ t('project.folder') }}</span>
+                      <UBadge
+                        v-if="cloud.assignmentAt(path)"
+                        :label="t('cloud.assignment')"
+                        color="warning"
+                        variant="subtle"
+                        size="sm"
+                        :data-testid="`cloud-assignment-${path}`"
+                      />
+                    </button>
+                    <UDropdownMenu
+                      v-if="folderActions(path).length"
+                      :items="folderActions(path)"
+                    >
+                      <UButton
+                        variant="ghost"
+                        color="neutral"
+                        size="xs"
+                        icon="i-lucide-ellipsis-vertical"
+                        :aria-label="t('project.actions', { name: path })"
+                        class="absolute end-1 top-1 opacity-60 group-hover:opacity-100"
+                      />
+                    </UDropdownMenu>
+                  </li>
+                </UContextMenu>
+                <UContextMenu
+                  v-for="file in visibleFiles"
+                  :key="file.path"
+                  :items="fileContextItems(file)"
+                  :disabled="!fileContextItems(file).length"
                 >
-                  <UButton
-                    variant="ghost"
-                    color="neutral"
-                    size="xs"
-                    icon="i-lucide-ellipsis-vertical"
-                    :aria-label="t('project.actions', { name: file.path })"
-                    class="absolute end-1 top-1 opacity-60 group-hover:opacity-100"
-                  />
-                </UDropdownMenu>
-              </li>
-            </ul>
-          </div>
+                  <li
+                    class="group relative"
+                    draggable="true"
+                    @dragstart="onDragStart($event, file.path, false)"
+                  >
+                    <button
+                      type="button"
+                      class="flex h-full w-full flex-col items-center gap-2 rounded-lg border bg-(--ui-bg) p-4 text-center transition hover:border-(--ui-primary) hover:shadow-sm disabled:cursor-default disabled:opacity-60 disabled:hover:border-(--ui-border) disabled:hover:shadow-none"
+                      :class="file.path === currentPath || file.path === worldPath ? 'border-(--ui-primary) ring-1 ring-(--ui-primary)' : 'border-(--ui-border)'"
+                      :disabled="file.kind === 'other'"
+                      :data-testid="`explorer-file-${file.path}`"
+                      @click="openFile(file)"
+                    >
+                      <FileIcon
+                        :kind="file.kind"
+                        size="lg"
+                        class="mt-2"
+                      />
+                      <span class="w-full truncate font-medium">{{ file.name }}</span>
+                      <span class="w-full truncate text-xs text-(--ui-text-muted)">
+                        {{ kindLabel(file.kind) }}<template v-if="searching && folderOf(file)"> · {{ folderOf(file) }}</template>
+                      </span>
+                      <UBadge
+                        v-if="file.path === worldPath"
+                        :label="t('project.activeWorld')"
+                        variant="subtle"
+                        size="sm"
+                      />
+                      <UBadge
+                        v-else-if="file.path === currentPath"
+                        :label="t('project.openInIde')"
+                        variant="subtle"
+                        size="sm"
+                      />
+                    </button>
+                    <UDropdownMenu
+                      v-if="fileActions(file).length"
+                      :items="fileActions(file)"
+                    >
+                      <UButton
+                        variant="ghost"
+                        color="neutral"
+                        size="xs"
+                        icon="i-lucide-ellipsis-vertical"
+                        :aria-label="t('project.actions', { name: file.path })"
+                        class="absolute end-1 top-1 opacity-60 group-hover:opacity-100"
+                      />
+                    </UDropdownMenu>
+                  </li>
+                </UContextMenu>
+              </ul>
+            </div>
+          </UContextMenu>
         </template>
       </section>
     </ClientOnly>
@@ -430,6 +449,7 @@ const syncLabel = computed(() => (proj.sync.value ? t(`cloud.sync.${proj.sync.va
       v-model:language="dialogLanguage"
       :with-language="dialog?.mode === 'project' || dialog?.mode === 'init' || dialog?.mode === 'cloud'"
       :with-name="dialog?.mode !== 'init'"
+      :hint="dialog?.mode === 'package' ? t('project.packageHelp') : undefined"
       :open="!!dialog"
       :title="dialogTitle"
       @close="dialog = null"

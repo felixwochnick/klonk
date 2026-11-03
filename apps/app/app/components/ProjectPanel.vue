@@ -3,7 +3,7 @@
 const { t } = useI18n()
 const {
   proj, canFolders, canBrowser, browserProjects, recent, openFolder, openRecent, openBrowserProject, removeBrowserProject,
-  dialog, dialogName, dialogLanguage, dialogTitle, openDialog, submitDialog, openFile, newItems, fileActions,
+  dialog, dialogName, dialogLanguage, dialogTitle, openDialog, submitDialog, openFile, newItems, fileActions, fileContextItems, areaContextItems,
   tree, toggleFolder, folderActions, parentOf, dropTarget, onDragStart, onDragOver, onDrop,
 } = useProjectExplorer()
 const { project, currentPath, worldPath, status } = proj
@@ -151,94 +151,110 @@ const selectedWorld = computed({
         />
       </UDropdownMenu>
 
-      <ul
-        class="-mx-1 min-h-16 space-y-0.5 rounded-md px-1"
-        :class="dropTarget === '' ? 'bg-(--ui-bg-elevated)/60 ring-1 ring-(--ui-primary)' : ''"
-        data-testid="file-tree"
-        @dragover="onDragOver($event, '')"
-        @dragleave="dropTarget = null"
-        @drop="onDrop($event, '')"
+      <!-- Rechtsklick: auf freie Fläche ⇒ Neues anlegen, auf Ordner/Datei ⇒ deren Aktionen -->
+      <UContextMenu
+        :items="areaContextItems()"
+        :disabled="!areaContextItems().length"
       >
-        <template
-          v-for="row in tree"
-          :key="row.type === 'folder' ? `folder:${row.path}` : row.file.path"
+        <ul
+          class="-mx-1 min-h-16 flex-1 space-y-0.5 rounded-md px-1"
+          :class="dropTarget === '' ? 'bg-(--ui-bg-elevated)/60 ring-1 ring-(--ui-primary)' : ''"
+          data-testid="file-tree"
+          @dragover="onDragOver($event, '')"
+          @dragleave="dropTarget = null"
+          @drop="onDrop($event, '')"
         >
-          <!-- Ordner -->
-          <li
-            v-if="row.type === 'folder'"
-            class="group flex items-center rounded-md"
-            :class="dropTarget === row.path ? 'bg-(--ui-bg-elevated) ring-1 ring-(--ui-primary)' : ''"
-            draggable="true"
-            @dragstart="onDragStart($event, row.path, true)"
-            @dragover="onDragOver($event, row.path)"
-            @drop="onDrop($event, row.path)"
+          <template
+            v-for="row in tree"
+            :key="row.type === 'folder' ? `folder:${row.path}` : row.file.path"
           >
-            <button
-              type="button"
-              class="flex min-w-0 flex-1 items-center gap-1.5 py-1 pe-2 text-left"
-              :style="{ paddingInlineStart: `${row.depth * 14 + 4}px` }"
-              :aria-expanded="row.open"
-              :data-testid="`folder-${row.path}`"
-              @click="toggleFolder(row.path)"
+            <!-- Ordner -->
+            <UContextMenu
+              v-if="row.type === 'folder'"
+              :items="folderActions(row.path)"
+              :disabled="!folderActions(row.path).length"
             >
-              <UIcon
-                :name="row.open ? 'i-lucide-chevron-down' : 'i-lucide-chevron-right'"
-                class="size-3.5 shrink-0 text-(--ui-text-muted)"
-              />
-              <UIcon
-                :name="row.open ? 'i-lucide-folder-open' : 'i-lucide-folder'"
-                class="size-4 shrink-0 text-amber-500"
-              />
-              <span class="truncate">{{ row.name }}</span>
-            </button>
-            <UDropdownMenu :items="folderActions(row.path)">
-              <UButton
-                variant="ghost"
-                color="neutral"
-                size="xs"
-                icon="i-lucide-ellipsis"
-                :aria-label="t('project.actions', { name: row.path })"
-                class="opacity-60 group-hover:opacity-100"
-                :data-testid="`folder-actions-${row.path}`"
-              />
-            </UDropdownMenu>
-          </li>
+              <li
+                class="group flex items-center rounded-md"
+                :class="dropTarget === row.path ? 'bg-(--ui-bg-elevated) ring-1 ring-(--ui-primary)' : ''"
+                draggable="true"
+                @dragstart="onDragStart($event, row.path, true)"
+                @dragover="onDragOver($event, row.path)"
+                @drop="onDrop($event, row.path)"
+              >
+                <button
+                  type="button"
+                  class="flex min-w-0 flex-1 items-center gap-1.5 py-1 pe-2 text-left"
+                  :style="{ paddingInlineStart: `${row.depth * 14 + 4}px` }"
+                  :aria-expanded="row.open"
+                  :data-testid="`folder-${row.path}`"
+                  @click="toggleFolder(row.path)"
+                >
+                  <UIcon
+                    :name="row.open ? 'i-lucide-chevron-down' : 'i-lucide-chevron-right'"
+                    class="size-3.5 shrink-0 text-(--ui-text-muted)"
+                  />
+                  <UIcon
+                    :name="row.open ? 'i-lucide-folder-open' : 'i-lucide-folder'"
+                    class="size-4 shrink-0 text-amber-500"
+                  />
+                  <span class="truncate">{{ row.name }}</span>
+                </button>
+                <UDropdownMenu :items="folderActions(row.path)">
+                  <UButton
+                    variant="ghost"
+                    color="neutral"
+                    size="xs"
+                    icon="i-lucide-ellipsis"
+                    :aria-label="t('project.actions', { name: row.path })"
+                    class="opacity-60 group-hover:opacity-100"
+                    :data-testid="`folder-actions-${row.path}`"
+                  />
+                </UDropdownMenu>
+              </li>
+            </UContextMenu>
 
-          <!-- Datei -->
-          <li
-            v-else
-            class="group flex items-center rounded-md"
-            :class="row.file.path === currentPath || row.file.path === worldPath ? 'bg-(--ui-bg-elevated)' : ''"
-            draggable="true"
-            @dragstart="onDragStart($event, row.file.path, false)"
-            @dragover="onDragOver($event, parentOf(row.file.path))"
-            @drop="onDrop($event, parentOf(row.file.path))"
-          >
-            <button
-              type="button"
-              class="flex min-w-0 flex-1 items-center gap-2 py-1 pe-2 text-left"
-              :style="{ paddingInlineStart: `${row.depth * 14 + 22}px` }"
-              :class="row.file.kind === 'other' ? 'text-(--ui-text-dimmed)' : ''"
-              :disabled="row.file.kind === 'other'"
-              :data-testid="`file-${row.file.path}`"
-              @click="openFile(row.file)"
+            <!-- Datei -->
+            <UContextMenu
+              v-else
+              :items="fileContextItems(row.file)"
+              :disabled="!fileContextItems(row.file).length"
             >
-              <FileIcon :kind="row.file.kind" />
-              <span class="truncate">{{ row.file.name }}</span>
-            </button>
-            <UDropdownMenu :items="fileActions(row.file)">
-              <UButton
-                variant="ghost"
-                color="neutral"
-                size="xs"
-                icon="i-lucide-ellipsis"
-                :aria-label="t('project.actions', { name: row.file.path })"
-                class="opacity-60 group-hover:opacity-100"
-              />
-            </UDropdownMenu>
-          </li>
-        </template>
-      </ul>
+              <li
+                class="group flex items-center rounded-md"
+                :class="row.file.path === currentPath || row.file.path === worldPath ? 'bg-(--ui-bg-elevated)' : ''"
+                draggable="true"
+                @dragstart="onDragStart($event, row.file.path, false)"
+                @dragover="onDragOver($event, parentOf(row.file.path))"
+                @drop="onDrop($event, parentOf(row.file.path))"
+              >
+                <button
+                  type="button"
+                  class="flex min-w-0 flex-1 items-center gap-2 py-1 pe-2 text-left"
+                  :style="{ paddingInlineStart: `${row.depth * 14 + 22}px` }"
+                  :class="row.file.kind === 'other' ? 'text-(--ui-text-dimmed)' : ''"
+                  :disabled="row.file.kind === 'other'"
+                  :data-testid="`file-${row.file.path}`"
+                  @click="openFile(row.file)"
+                >
+                  <FileIcon :kind="row.file.kind" />
+                  <span class="truncate">{{ row.file.name }}</span>
+                </button>
+                <UDropdownMenu :items="fileActions(row.file)">
+                  <UButton
+                    variant="ghost"
+                    color="neutral"
+                    size="xs"
+                    icon="i-lucide-ellipsis"
+                    :aria-label="t('project.actions', { name: row.file.path })"
+                    class="opacity-60 group-hover:opacity-100"
+                  />
+                </UDropdownMenu>
+              </li>
+            </UContextMenu>
+          </template>
+        </ul>
+      </UContextMenu>
 
       <UFormField
         :label="t('project.world')"
@@ -258,6 +274,7 @@ const selectedWorld = computed({
       v-model:language="dialogLanguage"
       :with-language="dialog?.mode === 'project' || dialog?.mode === 'init'"
       :with-name="dialog?.mode !== 'init'"
+      :hint="dialog?.mode === 'package' ? t('project.packageHelp') : undefined"
       :open="!!dialog"
       :title="dialogTitle"
       @close="dialog = null"

@@ -13,6 +13,8 @@ export type ProjectDialog
     | { mode: 'init' }
     | { mode: 'file', kind: Exclude<FileKind, 'other'>, folder?: string, engine?: SqlEngineName }
     | { mode: 'folder', parent?: string }
+    /** Package (Java, Python) bzw. Namespace (C#): Ordner je Namensteil, Python mit __init__.py */
+    | { mode: 'package', language: PackageLanguage, parent?: string }
     | { mode: 'rename', file: ProjectFile }
     | { mode: 'renameFolder', path: string }
     /** Klonk Cloud: neues Projekt bzw. geöffnetes lokales Projekt hochladen */
@@ -25,6 +27,11 @@ export type TreeRow
     | { type: 'file', file: ProjectFile, depth: number }
 
 const PROGRAM_KINDS = ['blocks', 'klonk', 'javascript', 'typescript', 'python', 'java', 'csharp'] as const
+/** Sprachen, deren Ordner Packages bzw. Namespaces sind */
+const PACKAGE_LANGUAGES = ['java', 'python', 'csharp'] as const
+export type PackageLanguage = typeof PACKAGE_LANGUAGES[number]
+/** Teile eines Package-/Namespace-Namens (`spiel.figuren`) – Bezeichner der Sprache */
+const PACKAGE_PART: Record<PackageLanguage, RegExp> = { java: /^[a-z_$][\w$]*$/i, python: /^[a-z_]\w*$/i, csharp: /^[a-z_]\w*$/i }
 const join = (folder: string | undefined, name: string) => (folder ? `${folder}/${name}` : name)
 const baseName = (path: string) => path.slice(path.lastIndexOf('/') + 1)
 const parentOf = (path: string) => (path.includes('/') ? path.slice(0, path.lastIndexOf('/')) : '')
@@ -111,6 +118,7 @@ export function useProjectExplorer(options: { onOpenFile?: (file: ProjectFile) =
     if (mode === 'upload') return t('cloud.upload')
     if (mode === 'init') return t('project.setup')
     if (mode === 'folder') return t('project.newFolder')
+    if (dialog.value?.mode === 'package') return t(`project.newPackage.${dialog.value.language}`)
     return mode === 'rename' || mode === 'renameFolder' ? t('project.rename') : t('project.newFile')
   })
 
@@ -129,7 +137,9 @@ export function useProjectExplorer(options: { onOpenFile?: (file: ProjectFile) =
             ? value.path
             : value.mode === 'project' || value.mode === 'init'
               ? (value.mode === 'init' ? proj.project.value?.name ?? '' : t('project.defaultProjectName'))
-              : value.mode === 'folder' ? t('project.defaultName.folder') : t(`project.defaultName.${value.kind}`)
+              : value.mode === 'folder'
+                ? t('project.defaultName.folder')
+                : value.mode === 'package' ? t(`project.defaultName.package.${value.language}`) : t(`project.defaultName.${value.kind}`)
   }
 
   async function submitDialog() {
@@ -177,6 +187,9 @@ export function useProjectExplorer(options: { onOpenFile?: (file: ProjectFile) =
       else if (d.mode === 'folder') {
         await proj.createFolder(join(d.parent, name))
         if (d.parent) expand(d.parent)
+      }
+      else if (d.mode === 'package') {
+        await createPackage(d.language, name, d.parent)
       }
       else if (d.mode === 'renameFolder') {
         if (name !== d.path) await proj.renameFolder(d.path, name)
@@ -248,8 +261,8 @@ export function useProjectExplorer(options: { onOpenFile?: (file: ProjectFile) =
     if (parentOf(path) !== folder) void move(path, folder, isFolder)
   }
 
-  /** Menü „Neu“: Programme, Welt, Ordner – optional in einem Ordner */
-  function newItemsIn(folder?: string): DropdownMenuItem[][] {
+  /** Dateiarten für „Neue Datei“: Programme, Welt/Design, Datenbanken – optional in einem Ordner */
+  function fileItemsIn(folder?: string): DropdownMenuItem[][] {
     return [
       // Im Projekt mit fester Sprache nur diese (plus Welten und Ordner)
       PROGRAM_KINDS.filter(kind => !proj.language.value || kind === proj.language.value).map(kind => ({
@@ -258,7 +271,6 @@ export function useProjectExplorer(options: { onOpenFile?: (file: ProjectFile) =
       [
         { label: t('project.world'), icon: KIND_ICON.world, onSelect: () => openDialog({ mode: 'file', kind: 'world', folder }) },
         { label: t('project.design'), icon: KIND_ICON.design, onSelect: () => openDialog({ mode: 'file', kind: 'design', folder }) },
-        { label: t('project.folder'), icon: 'i-lucide-folder-plus', onSelect: () => openDialog({ mode: 'folder', parent: folder }) },
       ],
       // Datenbanken (SQLite/PostgreSQL), Abfragen, vorhandene SQLite-Datei übernehmen
       [
@@ -268,6 +280,63 @@ export function useProjectExplorer(options: { onOpenFile?: (file: ProjectFile) =
         { label: t('database.import'), icon: 'i-lucide-file-up', onSelect: () => importDatabase(folder) },
       ],
     ]
+  }
+
+  /** Packages/Namespaces: Projektsprache – im gemischten Projekt die Sprachen, die es darin gibt */
+  const packageLanguages = computed(() => PACKAGE_LANGUAGES.filter(language => (proj.language.value
+    ? proj.language.value === language
+    : files.value.some(f => f.kind === language))))
+  function packageItemsIn(folder?: string): DropdownMenuItem[] {
+    return packageLanguages.value.map(language => ({
+      label: t(`project.newPackage.${language}`),
+      icon: language === 'csharp' ? 'i-lucide-braces' : 'i-lucide-package',
+      onSelect: () => openDialog({ mode: 'package', language, parent: folder }),
+    }))
+  }
+
+  /** Menü „Neu“ (Knopf): Dateiarten, Ordner und Packages */
+  function newItemsIn(folder?: string): DropdownMenuItem[][] {
+    const [programs, other, databases] = fileItemsIn(folder)
+    return [
+      programs!,
+      [...other!, { label: t('project.folder'), icon: 'i-lucide-folder-plus', onSelect: () => openDialog({ mode: 'folder', parent: folder }) }, ...packageItemsIn(folder)],
+      databases!,
+    ]
+  }
+  const newItems = computed(() => newItemsIn())
+
+  /** Anlegen im Kontextmenü: „Neue Datei ›“, „Neuer Ordner“, Packages/Namespaces */
+  function createItemsIn(folder?: string): DropdownMenuItem[] {
+    return [
+      { label: t('project.newFile'), icon: 'i-lucide-file-plus', children: fileItemsIn(folder) },
+      { label: t('project.newFolder'), icon: 'i-lucide-folder-plus', onSelect: () => openDialog({ mode: 'folder', parent: folder }) },
+      ...packageItemsIn(folder),
+    ]
+  }
+
+  /**
+   * Package bzw. Namespace anlegen: `spiel.figuren` ⇒ Ordner `spiel/figuren`. Auf oberster Ebene liegen Java/C# unter `src`
+   * (bzw. `src/main/java`), wie die Startdateien – `javaPackage()`/`csharpNamespace()` leiten den Namen daraus ab.
+   * Python bekommt in jedem Ordner eine `__init__.py`.
+   */
+  async function createPackage(language: PackageLanguage, name: string, parent?: string) {
+    const parts = name.split('.').map(p => p.trim())
+    if (!parts.length || !parts.every(p => PACKAGE_PART[language].test(p))) throw new Error('invalid_name')
+    let base = parent ?? ''
+    if (!base && language !== 'python') {
+      base = folders.value.includes('src/main/java') && language === 'java' ? 'src/main/java' : folders.value.includes('src') || language === 'java' ? 'src' : ''
+    }
+    const path = join(base || undefined, parts.join('/'))
+    if (folders.value.includes(path)) throw new Error('exists')
+    await proj.createFolder(path)
+    if (language === 'python') {
+      for (let i = 1; i <= parts.length; i++) {
+        const init = `${join(base || undefined, parts.slice(0, i).join('/'))}/__init__.py`
+        if (!files.value.some(f => f.path === init)) await proj.project.value!.write(init, '')
+      }
+      await proj.refresh()
+    }
+    expand(path)
   }
 
   /** SQLite-Datei (z. B. aus DB Browser for SQLite) als Datenbank ins Projekt übernehmen */
@@ -287,14 +356,13 @@ export function useProjectExplorer(options: { onOpenFile?: (file: ProjectFile) =
     }
     input.click()
   }
-  const newItems = computed(() => newItemsIn())
 
   function folderActions(path: string): DropdownMenuItem[][] {
     // Gemeinsamer Ordner einer Gruppe: Aufgaben verteilen bzw. bearbeiten
     const assignment = cloud.folderActions(path)
     if (proj.readOnly.value) return assignment.length ? [assignment] : []
     return [
-      [{ label: t('project.newFile'), icon: 'i-lucide-plus', children: newItemsIn(path) }],
+      createItemsIn(path),
       [
         { label: t('project.rename'), icon: 'i-lucide-pencil', onSelect: () => openDialog({ mode: 'renameFolder', path }) },
         { label: t('project.delete'), icon: 'i-lucide-trash-2', color: 'error', onSelect: () => removeFolder(path) },
@@ -341,6 +409,18 @@ export function useProjectExplorer(options: { onOpenFile?: (file: ProjectFile) =
     return edit.length ? [edit, manage] : [manage]
   }
 
+  /** Rechtsklick auf eine Datei: Öffnen, Bearbeiten/Umbenennen/Löschen, daneben Neues anlegen */
+  function fileContextItems(file: ProjectFile): DropdownMenuItem[][] {
+    const open: DropdownMenuItem[] = file.kind === 'other' ? [] : [{ label: t(file.kind === 'world' ? 'project.useWorld' : 'project.open'), icon: 'i-lucide-file-input', onSelect: () => openFile(file) }]
+    if (proj.readOnly.value) return open.length ? [open] : []
+    return [...(open.length ? [open] : []), ...fileActions(file), createItemsIn(parentOf(file.path) || undefined)]
+  }
+
+  /** Rechtsklick auf freie Fläche (oberste Ebene bzw. geöffneter Ordner im Vollbild-Explorer) */
+  function areaContextItems(folder?: string): DropdownMenuItem[][] {
+    return proj.readOnly.value ? [] : [createItemsIn(folder)]
+  }
+
   /** Welt wählen und im Welt-Editor öffnen (lädt sie dort automatisch) */
   async function editWorld(file: ProjectFile) {
     proj.selectWorld(file.path)
@@ -356,7 +436,7 @@ export function useProjectExplorer(options: { onOpenFile?: (file: ProjectFile) =
     proj, cloud, canFolders, canBrowser, browserProjects, recent, loadLists, fail,
     openFolder, openRecent, openBrowserProject, removeBrowserProject,
     dialog, dialogName, dialogLanguage, dialogTitle, openDialog, submitDialog,
-    remove, openFile, newItems, newItemsIn, fileActions, kindLabel,
+    remove, openFile, newItems, newItemsIn, fileActions, fileContextItems, areaContextItems, kindLabel,
     folders, tree, toggleFolder, expand, folderActions, removeFolder, move, parentOf, baseName,
     dropTarget, onDragStart, onDragOver, onDrop,
   }

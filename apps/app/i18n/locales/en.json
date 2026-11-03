@@ -295,7 +295,12 @@
       "folder": "New folder",
       "design": "robot",
       "database": "school",
-      "sql": "query"
+      "sql": "query",
+      "package": {
+        "java": "tools",
+        "python": "tools",
+        "csharp": "Tools"
+      }
     },
     "confirmDelete": "Really delete “{name}”?",
     "confirmDeleteProject": "Delete browser project “{name}” with all files?",
@@ -339,7 +344,15 @@
     "setup": "Set up project",
     "design": "Robot design",
     "database": "Database",
-    "sql": "SQL query"
+    "sql": "SQL query",
+    "newPackage": {
+      "java": "New Java package",
+      "python": "New Python package",
+      "csharp": "New C# namespace"
+    },
+    "open": "Open",
+    "useWorld": "Use as project world",
+    "packageHelp": "Separate parts with dots, e.g. game.characters"
   },
   "pwa": {
     "install": "Install app",
