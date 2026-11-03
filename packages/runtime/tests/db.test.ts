@@ -5,6 +5,19 @@ import { SqlError } from '../src/db/types'
 import { sqlToWorld, worldToSql } from '../src/db/world'
 import type { WorldData } from '@klonk/world'
 
+const SCHEMA = `CREATE TABLE klasse (id INTEGER PRIMARY KEY, name TEXT NOT NULL UNIQUE);
+CREATE TABLE schueler (id INTEGER PRIMARY KEY, vorname TEXT, klasse_id INTEGER NOT NULL REFERENCES klasse(id));
+CREATE TABLE ausweis (nr INTEGER PRIMARY KEY, schueler_id INTEGER UNIQUE REFERENCES schueler(id));`
+
+/** Schema für das ER-Diagramm: Fremdschlüssel und eindeutige Spalten */
+const schemaOf = (tables: Awaited<ReturnType<Awaited<ReturnType<typeof createSqlite>>['tables']>>) =>
+  Object.fromEntries(tables.map(t => [t.name, { fks: t.foreignKeys, unique: t.columns.filter(c => c.unique).map(c => c.name) }]))
+const EXPECTED_SCHEMA = {
+  ausweis: { fks: [{ columns: ['schueler_id'], table: 'schueler', refColumns: ['id'] }], unique: ['schueler_id'] },
+  klasse: { fks: [], unique: ['name'] },
+  schueler: { fks: [{ columns: ['klasse_id'], table: 'klasse', refColumns: ['id'] }], unique: [] },
+}
+
 describe('SQLite', () => {
   it('führt Skripte aus, sichert als SQL und lädt wieder', async () => {
     const db = await createSqlite()
@@ -37,6 +50,12 @@ describe('SQLite', () => {
     await db.script('CREATE TABLE b (a INTEGER REFERENCES a(id));')
     await expect(db.query('INSERT INTO b VALUES (5)')).rejects.toThrow(/FOREIGN KEY/)
   })
+
+  it('liefert Fremdschlüssel und eindeutige Spalten', async () => {
+    const db = await createSqlite()
+    await db.script(SCHEMA)
+    expect(schemaOf(await db.tables())).toEqual(EXPECTED_SCHEMA)
+  })
 })
 
 describe('PostgreSQL (PGlite)', () => {
@@ -63,6 +82,13 @@ describe('PostgreSQL (PGlite)', () => {
     expect(table!.columns[0]).toMatchObject({ name: 'id', type: 'integer', primaryKey: true, notNull: true })
     await db.close()
     await copy.close()
+  }, 60_000)
+
+  it('liefert Fremdschlüssel und eindeutige Spalten', async () => {
+    const db = await createPostgres()
+    await db.script(SCHEMA)
+    expect(schemaOf(await db.tables())).toEqual(EXPECTED_SCHEMA)
+    await db.close()
   }, 60_000)
 
   it('meldet Fehler mit Zeile', async () => {

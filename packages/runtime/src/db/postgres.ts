@@ -66,11 +66,31 @@ export async function createPostgres(initial?: string): Promise<SqlEngine> {
         WHERE c.relkind IN ('r', 'v', 'p')
         GROUP BY c.oid, c.relname, c.relkind
         ORDER BY c.relname`)
+      // Fremdschlüssel (für das ER-Diagramm) und eindeutige Einzelspalten (1:1-Beziehungen)
+      const constraints = await pg.query<{ table: string, type: 'f' | 'u', columns: string[], target: string | null, ref_columns: string[] | null }>(`
+        SELECT c.relname AS table, con.contype AS type,
+          ARRAY(SELECT a.attname FROM unnest(con.conkey) WITH ORDINALITY k(n, i) JOIN pg_attribute a ON a.attrelid = con.conrelid AND a.attnum = k.n ORDER BY k.i) AS columns,
+          t.relname AS target,
+          ARRAY(SELECT a.attname FROM unnest(con.confkey) WITH ORDINALITY k(n, i) JOIN pg_attribute a ON a.attrelid = con.confrelid AND a.attnum = k.n ORDER BY k.i) AS ref_columns
+        FROM pg_constraint con
+        JOIN pg_class c ON c.oid = con.conrelid
+        JOIN pg_namespace n ON n.oid = c.relnamespace AND n.nspname = 'public'
+        LEFT JOIN pg_class t ON t.oid = con.confrelid
+        WHERE con.contype IN ('f', 'u')
+        ORDER BY con.conname`)
       const tables: SqlTable[] = []
       for (const row of result.rows) {
         const kind = row.kind === 'v' ? 'view' : 'table'
         const count = kind === 'table' ? await pg.query<{ n: number }>(`SELECT count(*)::int AS n FROM "${row.name.replace(/"/g, '""')}"`) : null
-        tables.push({ name: row.name, kind, rows: count?.rows[0]?.n ?? null, columns: row.columns.map(c => ({ name: c.name, type: c.type, primaryKey: c.pk, notNull: c.notnull })) })
+        const own = constraints.rows.filter(con => con.table === row.name)
+        const unique = new Set(own.filter(con => con.type === 'u' && con.columns.length === 1).map(con => con.columns[0]))
+        tables.push({
+          name: row.name,
+          kind,
+          rows: count?.rows[0]?.n ?? null,
+          columns: row.columns.map(c => ({ name: c.name, type: c.type, primaryKey: c.pk, notNull: c.notnull, unique: unique.has(c.name) || undefined })),
+          foreignKeys: own.filter(con => con.type === 'f' && con.target).map(con => ({ columns: con.columns, table: con.target!, refColumns: con.ref_columns ?? [] })),
+        })
       }
       return tables
     },

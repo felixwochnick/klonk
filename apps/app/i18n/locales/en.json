@@ -152,7 +152,8 @@
     "tabs": {
       "world": "World",
       "docs": "Docs",
-      "ai": "AI"
+      "ai": "AI",
+      "diagrams": "Diagram"
     }
   },
   "script": {
@@ -511,7 +512,12 @@
       "world_too_high": "Cell {x}|{y} has more bricks than the world is high ({height}).",
       "world_design": "“{name}” has no custom design – choose male, female or diverse.",
       "world_invalid": "The world is not valid like this ({reason})."
-    }
+    },
+    "views": {
+      "sql": "SQL",
+      "er": "ER diagram"
+    },
+    "foreignKey": "Foreign key to {table}"
   },
   "learn": {
     "title": "Learning modules",
@@ -608,5 +614,58 @@
     "languageFor": "Language for {module}",
     "openInLearn": "Check in the learning view",
     "learnTaskHint": "Task “{task}” from {module}"
+  },
+  "diagrams": {
+    "tab": "Diagram",
+    "views": {
+      "structogram": "Structogram",
+      "classes": "Class diagram",
+      "objects": "Object diagram"
+    },
+    "files": {
+      "structogram": "structogram",
+      "classes": "class-diagram",
+      "objects": "object-diagram",
+      "er": "er-diagram"
+    },
+    "main": "Main program",
+    "yes": "true",
+    "no": "false",
+    "otherwise": "else",
+    "allRoutines": "All structograms",
+    "routine": "Choose structogram",
+    "scope": {
+      "file": "This file",
+      "project": "Whole project"
+    },
+    "scopeLabel": "Classes from",
+    "variables": "Variables",
+    "more": "… more",
+    "lastPause": "State at the last pause",
+    "truncated": "Only some of the objects",
+    "stale": "The code currently contains an error – the diagram shows the last valid state.",
+    "unavailable": "The C# analysis is currently not available.",
+    "empty": {
+      "structogram": "The structogram appears here as soon as the program contains statements.",
+      "classes": "The class diagram appears here as soon as the code contains classes.",
+      "noClasses": "Klonk-Script and blocks have no classes – use the structogram.",
+      "objects": "Set a breakpoint and run the program: when it pauses, the object diagram shows all objects and their references.",
+      "noObjects": "There are no variables at this point yet."
+    },
+    "zoomIn": "Zoom in",
+    "zoomOut": "Zoom out",
+    "zoomReset": "Original size",
+    "export": "Download",
+    "exportSvg": "Download as SVG",
+    "exportPng": "Download as PNG",
+    "er": {
+      "notation": "Notation",
+      "notations": {
+        "chen": "Chen (1:n)",
+        "minmax": "Chen (min,max)",
+        "crowsfoot": "Crow's foot",
+        "schema": "Relational schema"
+      }
+    }
   }
 }

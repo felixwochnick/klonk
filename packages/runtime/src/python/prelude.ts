@@ -150,11 +150,98 @@ def _klonk_variables(frame):
         result[name] = text if len(text) <= 200 else text[:200] + '…'
     return result
 
+_KLONK_HEAP_LIMITS = (60, 30, 60)
+_KLONK_SKIP_TYPES = (types.FunctionType, types.MethodType, types.BuiltinFunctionType, types.ModuleType)
+
+def _klonk_heap(frame):
+    # Speicherabbild für das Objektdiagramm: Objekte ab den Variablen (Breitensuche), gleiche Objekte = gleiche ID
+    import json
+    max_objects, max_fields, max_text = _KLONK_HEAP_LIMITS
+    ids = {}
+    queue = []
+    truncated = [False]
+
+    def text(value):
+        try:
+            t = repr(value)
+        except Exception:
+            t = '?'
+        return t if len(t) <= max_text else t[:max_text - 1] + '…'
+
+    def plain(value):
+        if value is None or isinstance(value, (bool, int, float, complex, str, bytes, type, range)):
+            return True
+        return not (isinstance(value, (list, tuple, dict, set, frozenset, Klonk, Database)) or hasattr(value, '__dict__') or hasattr(type(value), '__slots__'))
+
+    def ref(value):
+        if isinstance(value, _KLONK_SKIP_TYPES):
+            return None
+        if plain(value):
+            return {'value': text(value)}
+        key = id(value)
+        if key not in ids:
+            if len(ids) >= max_objects:
+                truncated[0] = True
+                return {'value': '…'}
+            ids[key] = len(ids) + 1
+            queue.append(value)
+        return {'ref': ids[key]}
+
+    variables = []
+    for name, value in frame.f_locals.items():
+        if name.startswith('__') or value is _klonk_module or getattr(_klonk_module, name, None) is value:
+            continue
+        if isinstance(value, (type, *_KLONK_SKIP_TYPES)):
+            continue
+        v = ref(value)
+        if v is not None:
+            variables.append([name, v])
+
+    objects = []
+    i = 0
+    while i < len(queue):
+        obj = queue[i]
+        i += 1
+        entry = {'id': ids[id(obj)], 'className': type(obj).__name__, 'fields': []}
+
+        def add(name, value):
+            if len(entry['fields']) >= max_fields:
+                entry['more'] = True
+                return
+            v = ref(value)
+            if v is not None:
+                entry['fields'].append([name, v])
+
+        if isinstance(obj, Klonk):
+            entry['robot'] = obj.name
+            add('name', obj.name)
+        elif isinstance(obj, Database):
+            add('name', obj.name)
+            add('engine', obj.engine)
+        elif isinstance(obj, (list, tuple)):
+            for n, item in enumerate(obj):
+                add('[' + str(n) + ']', item)
+        elif isinstance(obj, dict):
+            for key, item in obj.items():
+                add('[' + text(key) + ']', item)
+        elif isinstance(obj, (set, frozenset)):
+            for n, item in enumerate(obj):
+                add('[' + str(n) + ']', item)
+        else:
+            fields = dict(getattr(obj, '__dict__', {}))
+            for slot in getattr(type(obj), '__slots__', ()):
+                if hasattr(obj, slot):
+                    fields[slot] = getattr(obj, slot)
+            for name, value in fields.items():
+                add(name, value)
+        objects.append(entry)
+    return json.dumps({'variables': variables, 'objects': objects, 'truncated': truncated[0]})
+
 def _klonk_trace(frame, event, arg):
     if frame.f_code.co_filename != _KLONK_FILE:
         return None
     if event == 'line':
-        _klonk_checkpoint(frame.f_lineno, lambda: _klonk_variables(frame))
+        _klonk_checkpoint(frame.f_lineno, lambda: _klonk_variables(frame), lambda: _klonk_heap(frame))
     return _klonk_trace
 
 def _klonk_start():

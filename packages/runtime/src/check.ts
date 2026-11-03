@@ -8,6 +8,7 @@ import { DEBUG_JAVA, ROBOT_JAVA } from './java/robot'
 import { loadFromOrigin as loadPython } from './python/run'
 import { pythonStub } from './python/stub'
 import type { ScriptLanguage } from '@klonk/klonk-script'
+import type { Outline } from '@klonk/diagrams'
 
 export type { CompletionItem, HoverInfo } from './java/complete'
 
@@ -30,7 +31,8 @@ export type CheckDiagnostic = {
 /** Anfrage an den Sprachdienst; Positionen 1-basiert (Zeile/Spalte) bzw. 0-basiert (`offset`) */
 export type ToChecker = {
   id: number
-  type: 'check' | 'complete' | 'hover'
+  /** `outline`: Klassen und Struktogramme (nur C# – die übrigen Sprachen wertet @klonk/diagrams direkt aus) */
+  type: 'check' | 'complete' | 'hover' | 'outline'
   language: CheckLanguage
   source: string
   files: Record<string, string>
@@ -46,6 +48,7 @@ export type FromChecker
   = | { id: number, diagnostics: CheckDiagnostic[] }
     | { id: number, items: CompletionItem[] }
     | { id: number, hover: HoverInfo | null }
+    | { id: number, outline: Outline }
     | { id: number, unavailable: true }
 
 export type CheckLoaders = {
@@ -259,6 +262,11 @@ def _klonk_check(source):
     },
     complete,
     hover,
+    /** C#: Klassen und Struktogramme über Roslyn (Semantikmodell) */
+    async outline(source: string, files: Record<string, string> = {}): Promise<Outline> {
+      const exports = await csharpExports()
+      return JSON.parse(exports.Host.Outline(source, csharpLibraries(source, files))) as Outline
+    },
   }
 }
 

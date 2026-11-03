@@ -148,7 +148,7 @@ const shownWorld = computed(() => (showGoal.value && goalWorld.value ? goalWorld
 
 // Ausführen mit Animation auf der gewählten Welt
 const speed = ref(300)
-const idle: RunnerSnapshot = { state: 'idle', line: null, pausedRange: null, variables: {}, output: [], error: null }
+const idle: RunnerSnapshot = { state: 'idle', line: null, pausedRange: null, variables: {}, heap: null, output: [], error: null }
 const snapshot = ref<RunnerSnapshot>(idle)
 /** Ergebnis des letzten Laufs auf der angezeigten Welt (null = Ziel erreicht) */
 const runResult = ref<{ failure: CheckFailure | null } | null>(null)

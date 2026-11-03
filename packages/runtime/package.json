@@ -17,6 +17,7 @@
   "dependencies": {
     "@electric-sql/pglite": "0.5.10",
     "@electric-sql/pglite-tools": "0.4.10",
+    "@klonk/diagrams": "workspace:*",
     "@klonk/klonk-script": "workspace:*",
     "@klonk/world": "workspace:*",
     "@sqlite.org/sqlite-wasm": "3.54.1-build1",

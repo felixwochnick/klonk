@@ -152,7 +152,8 @@
     "tabs": {
       "world": "Welt",
       "docs": "Doku",
-      "ai": "KI"
+      "ai": "KI",
+      "diagrams": "Diagramm"
     }
   },
   "script": {
@@ -511,7 +512,12 @@
       "world_too_high": "Auf Feld {x}|{y} liegen mehr Ziegel, als die Welt hoch ist ({height}).",
       "world_design": "„{name}“ hat kein eigenes Design – wähle männlich, weiblich oder divers.",
       "world_invalid": "So ist die Welt nicht gültig ({reason})."
-    }
+    },
+    "views": {
+      "sql": "SQL",
+      "er": "ER-Diagramm"
+    },
+    "foreignKey": "Fremdschlüssel auf {table}"
   },
   "learn": {
     "title": "Lernmodule",
@@ -608,5 +614,58 @@
     "languageFor": "Sprache für {module}",
     "openInLearn": "In der Lernansicht prüfen",
     "learnTaskHint": "Aufgabe „{task}“ aus {module}"
+  },
+  "diagrams": {
+    "tab": "Diagramm",
+    "views": {
+      "structogram": "Struktogramm",
+      "classes": "Klassendiagramm",
+      "objects": "Objektdiagramm"
+    },
+    "files": {
+      "structogram": "struktogramm",
+      "classes": "klassendiagramm",
+      "objects": "objektdiagramm",
+      "er": "er-diagramm"
+    },
+    "main": "Hauptprogramm",
+    "yes": "wahr",
+    "no": "falsch",
+    "otherwise": "sonst",
+    "allRoutines": "Alle Struktogramme",
+    "routine": "Struktogramm wählen",
+    "scope": {
+      "file": "Diese Datei",
+      "project": "Ganzes Projekt"
+    },
+    "scopeLabel": "Klassen aus",
+    "variables": "Variablen",
+    "more": "… weitere",
+    "lastPause": "Stand beim letzten Anhalten",
+    "truncated": "Nur ein Teil der Objekte",
+    "stale": "Der Code enthält gerade einen Fehler – das Diagramm zeigt den letzten gültigen Stand.",
+    "unavailable": "Die C#-Auswertung ist gerade nicht verfügbar.",
+    "empty": {
+      "structogram": "Hier erscheint das Struktogramm, sobald das Programm Anweisungen enthält.",
+      "classes": "Hier erscheint das Klassendiagramm, sobald der Code Klassen enthält.",
+      "noClasses": "Klonk-Script und Blöcke kennen keine Klassen – nutze das Struktogramm.",
+      "objects": "Setze einen Haltepunkt und führe das Programm aus: Beim Anhalten zeigt das Objektdiagramm alle Objekte und ihre Verweise.",
+      "noObjects": "An dieser Stelle gibt es noch keine Variablen."
+    },
+    "zoomIn": "Vergrößern",
+    "zoomOut": "Verkleinern",
+    "zoomReset": "Originalgröße",
+    "export": "Herunterladen",
+    "exportSvg": "Als SVG herunterladen",
+    "exportPng": "Als PNG herunterladen",
+    "er": {
+      "notation": "Darstellung",
+      "notations": {
+        "chen": "Chen (1:n)",
+        "minmax": "Chen (min,max)",
+        "crowsfoot": "Krähenfuß",
+        "schema": "Relationenschema"
+      }
+    }
   }
 }

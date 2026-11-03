@@ -1,6 +1,7 @@
 import type { RobotDesign, WorldData } from '@klonk/world'
 import type { RobotCommand, SourceRange, Value } from '@klonk/klonk-script'
 import type { SqlEngineName, SqlResult, SqlValue } from './db/types'
+import type { HeapSnapshot } from '@klonk/diagrams'
 
 /** Sprachen, die der Runner ausführen kann */
 export type RunLanguage = 'klonk' | 'javascript' | 'typescript' | 'python' | 'java' | 'csharp'
@@ -51,7 +52,8 @@ export type FromWorker
     | { type: 'db', request: DbRequest }
     /** Programm speichert ein Design im Projekt (`saveDesign`) */
     | { type: 'saveDesign', name: string, design: RobotDesign }
-    | { type: 'paused', range: SourceRange, variables: Record<string, Value>, reason: 'breakpoint' | 'step' | 'pause' }
+    /** `heap`: Objekte und Verweise für das Objektdiagramm (JS/TS, Python, Java, C#) */
+    | { type: 'paused', range: SourceRange, variables: Record<string, Value>, reason: 'breakpoint' | 'step' | 'pause', heap?: HeapSnapshot }
     | { type: 'resumed' }
     | { type: 'error', error: RunError }
     | { type: 'done' }

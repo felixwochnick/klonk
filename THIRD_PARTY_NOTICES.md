@@ -37,6 +37,8 @@ Their licenses apply unchanged; the license texts are included with the packages
 | SQLite (@sqlite.org/sqlite-wasm, Datenbanken / databases) | 3.54.1 | Public Domain (Wrapper: Apache-2.0) | https://sqlite.org/wasm |
 | PGlite (@electric-sql/pglite, PostgreSQL im Browser / in the browser) | 0.5.10 | Apache-2.0 (PostgreSQL: PostgreSQL License) | https://github.com/electric-sql/pglite |
 | pg_dump (@electric-sql/pglite-tools) | 0.4.10 | Apache-2.0 (PostgreSQL: PostgreSQL License) | https://github.com/electric-sql/pglite |
+| Lezer (@lezer/common, @lezer/java, @lezer/javascript, @lezer/python – Diagramme / diagrams) | 1.x | MIT | https://github.com/lezer-parser |
+| dagre (@dagrejs/dagre, Diagramm-Layout / diagram layout) | 3.1.2 | MIT | https://github.com/dagrejs/dagre |
 | WebLLM (@mlc-ai/web-llm, KI im Browser / AI in the browser) | 0.2.87 | Apache-2.0 | https://github.com/mlc-ai/web-llm |
 | Workbox (über @vite-pwa/nuxt) | 7 | MIT | https://github.com/GoogleChrome/workbox |
 | Lucide Icons | – | ISC | https://github.com/lucide-icons/lucide |

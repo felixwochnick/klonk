@@ -28,6 +28,7 @@ async function work() {
       try {
         if (next.type === 'complete') reply = { id: next.id, items: await checker.complete(next) }
         else if (next.type === 'hover') reply = { id: next.id, hover: await checker.hover(next) }
+        else if (next.type === 'outline') reply = { id: next.id, outline: await checker.outline(next.source, next.files) }
         else reply = { id: next.id, diagnostics: await checker.check(next.language, next.source, next.files) }
       }
       catch (error) {
@@ -45,5 +46,5 @@ async function work() {
 
 function first() {
   const all = [...pending.values()]
-  return all.find(r => r.type !== 'check') ?? all[0]
+  return all.find(r => r.type === 'complete' || r.type === 'hover') ?? all[0]
 }

@@ -1,6 +1,7 @@
 import type { RobotCommand, SourceRange } from '@klonk/klonk-script'
 import { World } from '@klonk/world'
 import type { FromWorker, ToWorker } from '../protocol'
+import { jsHeap } from '../heap'
 import { ApiError, createApi, createDatabaseClass, createKlonkClass, display } from './api'
 import { createDbCall } from '../db/channel'
 import { CHECKPOINT, InstrumentationError, instrument } from './instrument'
@@ -44,8 +45,9 @@ export function runJavaScript(message: Extract<ToWorker, { type: 'run' }>, post:
     if (!pauseRequested && !stepping && !atBreakpoint) return
     Atomics.store(control, CONTROL.PAUSE, 0)
     Atomics.store(control, CONTROL.SIGNAL, 0)
-    const vars = Object.fromEntries(Object.entries(variables()).filter(([, v]) => typeof v !== 'function').map(([k, v]) => [k, display(v)]))
-    post({ type: 'paused', range: lineRange(current), variables: vars, reason: pauseRequested ? 'pause' : atBreakpoint ? 'breakpoint' : 'step' })
+    const raw = Object.fromEntries(Object.entries(variables()).filter(([, v]) => typeof v !== 'function'))
+    const vars = Object.fromEntries(Object.entries(raw).map(([k, v]) => [k, display(v)]))
+    post({ type: 'paused', range: lineRange(current), variables: vars, reason: pauseRequested ? 'pause' : atBreakpoint ? 'breakpoint' : 'step', heap: jsHeap(raw) })
     Atomics.wait(control, CONTROL.SIGNAL, 0)
     stepping = Atomics.load(control, CONTROL.SIGNAL) === 2
     post({ type: 'resumed' })
