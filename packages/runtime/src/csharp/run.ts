@@ -5,6 +5,7 @@ import type { FromWorker, RunError, ToWorker } from '../protocol'
 import type { ApiError } from '../js/api'
 import { ROBOT_METHODS, createApi } from '../js/api'
 import { CONTROL, views } from '../js/shared'
+import { createDbCall } from '../db/channel'
 
 /** Wo der C#-Host liegt (Roslyn auf .NET-WebAssembly, `node scripts/build-csharp.ts`; eigene Origin wegen COEP) */
 export const DOTNET_URL = assetUrl('dotnet')
@@ -63,6 +64,7 @@ export async function runCSharp(
     designs: message.designs,
     maxCharacters: message.maxCharacters,
     saveDesign: message.saveDesigns ? (name, design) => post({ type: 'saveDesign', name, design }) : undefined,
+    database: createDbCall(message.database, post),
     onError: (error) => {
       apiError = error
     },
@@ -77,6 +79,7 @@ export async function runCSharp(
       let result: unknown
       if (name === '$robot') result = api.robot(values[0]).name
       else if (name === '$names') result = api.names().join('\n')
+      else if (name === '$db') result = api.db.json(String(values[0]))
       else if (name === '$create') result = api.create(values[0], values[1] || undefined, values[2], values[3]).name
       else if (methods.has(name)) result = api.robot(values[0])[name]!(...values.slice(1))
       else if (typeof api.globals[name] === 'function') result = (api.globals[name] as (...a: unknown[]) => unknown)(...values)

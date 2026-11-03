@@ -1,5 +1,7 @@
 import { BUILTINS, show, type BuiltinName, type RobotCommand, type Value } from '@klonk/klonk-script'
 import { BRICK_COLORS, MARK_COLORS, WorldError, parseDesign, resolveLook, type RobotDesign, type World } from '@klonk/world'
+import type { DbRequest, DbResponse } from '../protocol'
+import { SQL_ENGINES, type SqlEngineName, type SqlResult, type SqlValue } from '../db/types'
 
 export type ApiHost = {
   world: World
@@ -11,6 +13,8 @@ export type ApiHost = {
   maxCharacters?: number
   /** Design ins Projekt speichern (nur mit Lizenz und geöffnetem Projekt) */
   saveDesign?: (name: string, design: RobotDesign) => void
+  /** Datenbankzugriff (synchron, siehe db/channel.ts) */
+  database?: (request: DbRequest) => DbResponse
   /** Jeder API-Fehler, bevor er geworfen wird (Sprachen, deren Laufzeit JS-Fehler umverpackt, merken ihn sich) */
   onError?: (error: ApiError) => void
 }
@@ -21,6 +25,18 @@ export class ApiError extends Error {
     super(code)
   }
 }
+
+/** Fehler der Datenbank (z. B. Syntaxfehler im SQL) – in Programmen abfangbar, Meldung der Datenbank */
+export class DatabaseError extends ApiError {
+  constructor(message: string) {
+    super('sql_error', { message })
+    this.name = 'DatabaseError'
+    this.message = message
+  }
+}
+
+/** Geöffnete Datenbank aus Sicht der Programme */
+export type DatabaseInfo = { handle: number, name: string, engine: SqlEngineName }
 
 /** Farbe in kanonischer Form (`'Red'`, `'red'` ⇒ `'red'`) – nur englische Namen */
 function color<T extends string>(value: unknown, allowed: readonly T[]): T {
@@ -74,6 +90,15 @@ export type RobotApi = {
   print: (...values: unknown[]) => void
   /** Neue Figur (Aussehen: Standardmodell oder eigenes Design; Feld 1-basiert, sonst neben der zuletzt genutzten) */
   create: (name: unknown, look?: unknown, x?: unknown, y?: unknown) => RobotHandle
+  /** Datenbanken: Projektdatenbank öffnen, temporäre anlegen, Abfragen (wirft DatabaseError bei SQL-Fehlern) */
+  db: {
+    open: (name: unknown) => DatabaseInfo
+    memory: (engine?: unknown) => DatabaseInfo
+    query: (handle: number, sql: unknown, params?: unknown) => SqlResult
+    tables: (handle: number) => string[]
+    /** Für Python/Java/C#: Anfrage und Antwort als JSON-Text, SQL-Fehler als `{ "sqlError": … }` statt Ausnahme */
+    json: (request: string) => string
+  }
 }
 
 /**
@@ -198,10 +223,122 @@ export function createApi(host: ApiHost): RobotApi {
     host.saveDesign(text, parsed)
   })
 
+  // Datenbanken
+  const fail = (error: ApiError): never => {
+    host.onError?.(error)
+    throw error
+  }
+  const dbCall = (request: DbRequest) => {
+    const response = host.database ? host.database(request) : { ok: false as const, code: 'db_unavailable', params: {} }
+    if (response.ok) return response
+    return fail(response.code === 'sql_error' ? new DatabaseError(String(response.params.message ?? '')) : new ApiError(response.code, response.params))
+  }
+  const info = (response: DbResponse & { ok: true }): DatabaseInfo => ({ handle: response.handle!, name: response.name!, engine: response.engine! })
+  const toParams = (params: unknown): SqlValue[] => {
+    if (params === undefined || params === null) return []
+    const values = Array.isArray(params) ? params : [params]
+    return values.map(v => (v === undefined ? null : typeof v === 'bigint' ? Number(v) : v instanceof Date ? v.toISOString() : v) as SqlValue)
+  }
+  const db: RobotApi['db'] = {
+    open: (name) => {
+      if (typeof name !== 'string' || !name.trim()) fail(new ApiError('db_name', { value: String(name) }))
+      return info(dbCall({ op: 'open', name: (name as string).trim() }))
+    },
+    memory: (engine = 'sqlite') => {
+      const value = String(engine ?? 'sqlite').toLowerCase()
+      const name = (value === 'postgresql' || value === 'pglite' ? 'postgres' : value) as SqlEngineName
+      if (!SQL_ENGINES.includes(name)) fail(new ApiError('db_engine', { value: String(engine) }))
+      return info(dbCall({ op: 'memory', engine: name }))
+    },
+    query: (handle, sql, params) => {
+      if (typeof sql !== 'string') fail(new ApiError('db_sql', { value: String(sql) }))
+      return dbCall({ op: 'query', handle, sql: sql as string, params: toParams(params) }).result!
+    },
+    tables: handle => dbCall({ op: 'tables', handle }).tables!,
+    json: (request) => {
+      const parsed = JSON.parse(request) as { op: string, name?: string, engine?: string, handle?: number, sql?: string, params?: unknown[] }
+      try {
+        switch (parsed.op) {
+          case 'open': return JSON.stringify(db.open(parsed.name))
+          case 'memory': return JSON.stringify(db.memory(parsed.engine))
+          case 'query': return JSON.stringify(db.query(parsed.handle!, parsed.sql, parsed.params ?? []))
+          case 'tables': return JSON.stringify(db.tables(parsed.handle!))
+          default: throw new Error(`unknown database request ${parsed.op}`)
+        }
+      }
+      catch (error) {
+        if (error instanceof DatabaseError) return JSON.stringify({ sqlError: error.message })
+        throw error
+      }
+    },
+  }
+
   /** Ausgabe wie Klonk-Script (für console.log in JS) */
   const print = (...values: unknown[]) => host.print(values.map(v => display(v)).join(' '))
 
-  return { globals, print, robot, create, names: () => w().getCharacters().map(c => c.id) }
+  return { globals, print, robot, create, names: () => w().getCharacters().map(c => c.id), db }
+}
+
+/** Ergebniszeilen als Objekte (Spaltenname ⇒ Wert) */
+export function rowObjects(result: SqlResult) {
+  return result.rows.map(row => Object.fromEntries(result.columns.map((column, i) => [column, row[i] ?? null])))
+}
+
+/**
+ * Klasse `Database` für JS/TS: `Database.open("schule")` (Projektdatei schule.sqlite.sql bzw. schule.postgres.sql),
+ * `Database.memory("postgres")`; `query` liefert Objekte, `execute` die Zahl geänderter Zeilen.
+ */
+export function createDatabaseClass(api: RobotApi) {
+  const infos = new WeakMap<object, DatabaseInfo>()
+  const of = (db: object) => {
+    const found = infos.get(db)
+    if (!found) throw new ApiError('expected_database')
+    return found
+  }
+  class Database {
+    declare readonly name: string
+    declare readonly engine: SqlEngineName
+    private constructor(info: DatabaseInfo) {
+      infos.set(this, info)
+      Object.defineProperty(this, 'name', { value: info.name, enumerable: true })
+      Object.defineProperty(this, 'engine', { value: info.engine, enumerable: true })
+    }
+
+    /** Datenbank des Projekts öffnen (Dateiname ohne Endung) */
+    static open(name: string) {
+      return new Database(api.db.open(name))
+    }
+
+    /** Neue, leere Datenbank nur für diesen Lauf: "sqlite" (Standard) oder "postgres" */
+    static memory(engine: SqlEngineName = 'sqlite') {
+      return new Database(api.db.memory(engine))
+    }
+
+    /** Abfrage ⇒ Zeilen als Objekte */
+    query(sql: string, params?: unknown[]) {
+      return rowObjects(api.db.query(of(this).handle, sql, params))
+    }
+
+    /** Erste Zeile oder null */
+    queryOne(sql: string, params?: unknown[]) {
+      return this.query(sql, params)[0] ?? null
+    }
+
+    /** Ändernde Anweisung (INSERT, UPDATE, DELETE, CREATE …) ⇒ Zahl geänderter Zeilen */
+    execute(sql: string, params?: unknown[]) {
+      return api.db.query(of(this).handle, sql, params).changes ?? 0
+    }
+
+    /** Namen der Tabellen und Sichten */
+    tables() {
+      return api.db.tables(of(this).handle)
+    }
+
+    [ROBOT_DISPLAY]() {
+      return `Database(${JSON.stringify(this.name)}, ${this.engine})`
+    }
+  }
+  return Database
 }
 
 /** Darstellung einer Figur in Ausgabe und Variablenansicht */

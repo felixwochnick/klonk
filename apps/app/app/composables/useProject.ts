@@ -17,6 +17,9 @@ const breakpointsByFile = ref<Record<string, number[]>>({})
 let saveTimer: ReturnType<typeof setTimeout> | undefined
 let loadedContent = ''
 
+/** Dateien, die keine importierbaren Programme sind */
+const NOT_IMPORTABLE = new Set<FileKind>(['world', 'design', 'other', 'blocks', 'database', 'sql'])
+
 const LAST_FILE_KEY = (p: Project) => `klonk:project:${p.source}:${p instanceof CloudProject ? p.meta.id : p.name}`
 
 /**
@@ -27,7 +30,8 @@ export function useProject() {
   const { t } = useI18n()
   const toast = useToast()
   const kind = computed<FileKind | null>(() => (currentPath.value ? fileKind(currentPath.value) : null))
-  const programFiles = computed(() => files.value.filter(f => f.kind !== 'world' && f.kind !== 'design' && f.kind !== 'other'))
+  const programFiles = computed(() => files.value.filter(f => f.kind !== 'world' && f.kind !== 'design' && f.kind !== 'other' && f.kind !== 'database'))
+  const databaseFiles = computed(() => files.value.filter(f => f.kind === 'database'))
   const designFiles = computed(() => files.value.filter(f => f.kind === 'design'))
   const worldFiles = computed(() => files.value.filter(f => f.kind === 'world'))
 
@@ -109,15 +113,16 @@ export function useProject() {
   }
 
   /** Neue Datei anlegen (Endung je nach Art) und öffnen */
-  async function create(baseName: string, fileKind: Exclude<FileKind, 'other'>, initial = '') {
+  async function create(baseName: string, targetKind: Exclude<FileKind, 'other'>, initial = '') {
     if (!project.value) return null
     const name = baseName.trim()
-    const path = name.toLowerCase().endsWith(KIND_EXTENSION[fileKind]) ? name : `${name}${KIND_EXTENSION[fileKind]}`
+    // Endung schon passend (z. B. `x.postgres.sql` als Datenbank) ⇒ so lassen
+    const path = fileKind(name) === targetKind ? name : `${name}${KIND_EXTENSION[targetKind]}`
     if (!path.split('/').every(isValidName)) throw new Error('invalid_name')
     if (await project.value.exists(path)) throw new Error('exists')
     await project.value.write(path, initial)
     await refresh()
-    if (fileKind === 'world') {
+    if (targetKind === 'world') {
       worldPath.value ??= path
       rememberSelection()
     }
@@ -234,7 +239,7 @@ export function useProject() {
     if (!project.value) return {}
     await flush()
     const result: Record<string, string> = {}
-    for (const file of files.value.filter(f => f.kind !== 'world' && f.kind !== 'design' && f.kind !== 'other' && f.kind !== 'blocks')) result[file.path] = await project.value.read(file.path)
+    for (const file of files.value.filter(f => !NOT_IMPORTABLE.has(f.kind))) result[file.path] = await project.value.read(file.path)
     return result
   }
 
@@ -269,6 +274,16 @@ export function useProject() {
     await refresh()
   }
 
+  /** Datei schreiben, ohne sie zu öffnen (z. B. gesicherte Datenbank) – ist sie offen, den Inhalt mitziehen */
+  async function writeFile(path: string, text: string) {
+    if (!project.value) return
+    await project.value.write(path, text)
+    if (currentPath.value === path) {
+      loadedContent = text
+      content.value = text
+    }
+  }
+
   function selectWorld(path: string | null) {
     worldPath.value = path
     rememberSelection()
@@ -288,8 +303,8 @@ export function useProject() {
   })
 
   return {
-    project, files, folders, language, programFiles, designFiles, worldFiles, currentPath, content, kind, worldPath, status, breakpoints, readOnly, sync,
-    open, openCloud, close, select, create, rename, remove, setLanguage, createFolder, renameFolder, removeFolder, update, flush, refresh, readWorld, writeWorld, importableFiles, readDesigns, writeDesign, selectWorld,
+    project, files, folders, language, programFiles, designFiles, worldFiles, databaseFiles, currentPath, content, kind, worldPath, status, breakpoints, readOnly, sync,
+    open, openCloud, close, select, create, rename, remove, setLanguage, createFolder, renameFolder, removeFolder, update, flush, refresh, readWorld, writeWorld, importableFiles, readDesigns, writeDesign, writeFile, selectWorld,
     openBrowserProject: async (name: string, createIt = false) => open(await openBrowserProject(name, createIt)),
   }
 }

@@ -1,7 +1,8 @@
 import type { RobotCommand, SourceRange } from '@klonk/klonk-script'
 import { World } from '@klonk/world'
 import type { FromWorker, ToWorker } from '../protocol'
-import { ApiError, createApi, createKlonkClass, display } from './api'
+import { ApiError, createApi, createDatabaseClass, createKlonkClass, display } from './api'
+import { createDbCall } from '../db/channel'
 import { CHECKPOINT, InstrumentationError, instrument } from './instrument'
 import { CONTROL, views } from './shared'
 import { EXPORT, IMPORT, createNamespace, resolveImport, transformModule, type ModuleNamespace } from './modules'
@@ -64,9 +65,10 @@ export function runJavaScript(message: Extract<ToWorker, { type: 'run' }>, post:
       designs: message.designs,
       maxCharacters: message.maxCharacters,
       saveDesign: message.saveDesigns ? (name, design) => post({ type: 'saveDesign', name, design }) : undefined,
+      database: createDbCall(message.database, post),
     })
-    // Bibliothek "klonk": Klasse Klonk, wait, Farben und Designs – nur per import verfügbar; Ausgabe mit console.log
-    const klonk: ModuleNamespace = { ...api.globals, Klonk: createKlonkClass(api) }
+    // Bibliothek "klonk": Klassen Klonk und Database, wait, Farben und Designs – nur per import verfügbar; Ausgabe mit console.log
+    const klonk: ModuleNamespace = { ...api.globals, Klonk: createKlonkClass(api), Database: createDatabaseClass(api) }
     klonk.default = klonk
 
     // Projektdateien (nur mit Lizenz): ohne Prüfpunkte, je Datei einmal ausgeführt

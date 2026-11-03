@@ -1,5 +1,6 @@
 import type { RobotDesign, WorldData } from '@klonk/world'
 import type { RobotCommand, SourceRange, Value } from '@klonk/klonk-script'
+import type { SqlEngineName, SqlResult, SqlValue } from './db/types'
 
 /** Sprachen, die der Runner ausführen kann */
 export type RunLanguage = 'klonk' | 'javascript' | 'typescript' | 'python' | 'java' | 'csharp'
@@ -30,6 +31,8 @@ export type ToWorker
     pauseOnStart?: boolean
     /** JS/TS/Python/Java/C#: gemeinsamer Speicher für Pause/Haltepunkte/Tempo (siehe js/shared.ts) */
     shared?: SharedArrayBuffer
+    /** JS/TS/Python/Java/C#: Antworten der Datenbanken (siehe db/channel.ts) */
+    database?: SharedArrayBuffer
   }
   | { type: 'pause' }
   | { type: 'resume' }
@@ -44,9 +47,23 @@ export type FromWorker
   = | { type: 'line', line: number }
     | { type: 'command', command: RobotCommand }
     | { type: 'output', text: string }
+    /** Datenbankzugriff (`Database.open`, `query` …) – Antwort kommt über den gemeinsamen Speicher */
+    | { type: 'db', request: DbRequest }
     /** Programm speichert ein Design im Projekt (`saveDesign`) */
     | { type: 'saveDesign', name: string, design: RobotDesign }
     | { type: 'paused', range: SourceRange, variables: Record<string, Value>, reason: 'breakpoint' | 'step' | 'pause' }
     | { type: 'resumed' }
     | { type: 'error', error: RunError }
     | { type: 'done' }
+
+/** Datenbankzugriff aus Programmen: Projektdatenbank (Dateiname ohne Endung) oder temporäre Datenbank */
+export type DbRequest
+  = | { op: 'open', name: string }
+    | { op: 'memory', engine: SqlEngineName }
+    | { op: 'query', handle: number, sql: string, params: SqlValue[] }
+    | { op: 'tables', handle: number }
+
+export type DbResponse
+  = | { ok: true, handle?: number, name?: string, engine?: SqlEngineName, result?: SqlResult, tables?: string[] }
+    /** `sql_error` = Fehler der Datenbank (Meldung in `params.message`), sonst Fehler der API (übersetzt) */
+    | { ok: false, code: string, params: Record<string, string | number> }

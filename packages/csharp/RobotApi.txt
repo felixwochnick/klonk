@@ -91,6 +91,9 @@ namespace klonk
 
         public static void Wait(double seconds = 1) => Call("wait", N(seconds));
 
+        // Datenbanken (Klasse Database): Anfrage und Antwort als JSON-Text
+        internal static string CallDatabase(string request) => Call("$db", S(request));
+
         // Debugger (vom Instrumentierer eingefügt)
         public static bool __cp(int line) => CheckpointHost(line);
         public static void __pause() => PauseHost();
@@ -115,5 +118,109 @@ namespace klonk
             }
             return value.ToString() ?? "";
         }
+    }
+
+    /// <summary>Fehler der Datenbank, z. B. ein Syntaxfehler im SQL</summary>
+    public sealed class DatabaseException : System.Exception
+    {
+        public DatabaseException(string message) : base(message) { }
+    }
+
+    /// <summary>Eine Ergebniszeile von Database.Query: Spaltenname ⇒ Wert (long, double, string, bool oder null)</summary>
+    public sealed class Row : System.Collections.Generic.Dictionary<string, object?>
+    {
+        public string? GetString(string column) => this[column] switch { null => null, string s => s, bool b => b ? "true" : "false", System.IFormattable f => f.ToString(null, System.Globalization.CultureInfo.InvariantCulture), var v => v.ToString() };
+        public int GetInt(string column) => (int)GetLong(column);
+        public long GetLong(string column) => this[column] switch { null => 0, long l => l, double d => (long)d, bool b => b ? 1 : 0, _ => long.Parse(GetString(column)!, System.Globalization.CultureInfo.InvariantCulture) };
+        public double GetDouble(string column) => this[column] switch { null => 0, long l => l, double d => d, bool b => b ? 1 : 0, _ => double.Parse(GetString(column)!, System.Globalization.CultureInfo.InvariantCulture) };
+        public bool GetBool(string column) => this[column] switch { bool b => b, long l => l != 0, double d => d != 0, _ => false };
+        public bool IsNull(string column) => this[column] is null;
+        public override string ToString() => "{ " + string.Join(", ", System.Linq.Enumerable.Select(this, p => p.Key + ": " + (p.Value is string s ? "\"" + s + "\"" : GetString(p.Key) ?? "null"))) + " }";
+    }
+
+    /// <summary>
+    /// Datenbank des Projekts (Database.Open("schule") ⇒ Datei schule.sqlite.sql bzw. schule.postgres.sql) oder nur für
+    /// diesen Lauf (Database.Memory("postgres")). Platzhalter: SQLite ?, PostgreSQL $1.
+    /// </summary>
+    public sealed class Database
+    {
+        private readonly int handle;
+        /// <summary>Name der Datenbank (Dateiname ohne Endung bzw. "memory")</summary>
+        public string Name { get; }
+        /// <summary>"sqlite" oder "postgres"</summary>
+        public string Engine { get; }
+
+        private Database(Newtonsoft.Json.Linq.JObject info)
+        {
+            handle = (int)info["handle"]!;
+            Name = (string)info["name"]!;
+            Engine = (string)info["engine"]!;
+        }
+
+        private static Newtonsoft.Json.Linq.JToken Call(Newtonsoft.Json.Linq.JObject request)
+        {
+            var answer = Newtonsoft.Json.Linq.JToken.Parse(Klonk.CallDatabase(request.ToString(Newtonsoft.Json.Formatting.None)));
+            if (answer is Newtonsoft.Json.Linq.JObject o && o["sqlError"] is { } error) throw new DatabaseException((string)error!);
+            return answer;
+        }
+
+        /// <summary>Datenbank des Projekts öffnen (Dateiname ohne Endung)</summary>
+        public static Database Open(string name) => new((Newtonsoft.Json.Linq.JObject)Call(new() { ["op"] = "open", ["name"] = name }));
+        /// <summary>Neue, leere Datenbank nur für diesen Lauf: "sqlite" (Standard) oder "postgres"</summary>
+        public static Database Memory(string engine = "sqlite") => new((Newtonsoft.Json.Linq.JObject)Call(new() { ["op"] = "memory", ["engine"] = engine }));
+
+        private Newtonsoft.Json.Linq.JObject Run(string sql, object?[] args)
+        {
+            var values = new Newtonsoft.Json.Linq.JArray();
+            foreach (var arg in args) values.Add(arg switch { null => Newtonsoft.Json.Linq.JValue.CreateNull(), System.DateTime d => new Newtonsoft.Json.Linq.JValue(d.ToString("o")), _ => Newtonsoft.Json.Linq.JToken.FromObject(arg) });
+            return (Newtonsoft.Json.Linq.JObject)Call(new() { ["op"] = "query", ["handle"] = handle, ["sql"] = sql, ["params"] = values });
+        }
+
+        // Arme als object: sonst wäre JToken der gemeinsame Typ und Newtonsoft verpackte die Werte implizit wieder
+        private static object? Value(Newtonsoft.Json.Linq.JToken? token) => token?.Type switch
+        {
+            null or Newtonsoft.Json.Linq.JTokenType.Null => null,
+            Newtonsoft.Json.Linq.JTokenType.Integer => (object)(long)token,
+            Newtonsoft.Json.Linq.JTokenType.Float => (object)(double)token,
+            Newtonsoft.Json.Linq.JTokenType.Boolean => (object)(bool)token,
+            Newtonsoft.Json.Linq.JTokenType.String => (object?)(string?)token,
+            _ => (object)token,
+        };
+
+        /// <summary>Abfrage ⇒ Zeilen (Spalte ⇒ Wert)</summary>
+        public System.Collections.Generic.List<Row> Query(string sql, params object?[] args)
+        {
+            var result = Run(sql, args);
+            var columns = (Newtonsoft.Json.Linq.JArray)result["columns"]!;
+            var list = new System.Collections.Generic.List<Row>();
+            foreach (var values in (Newtonsoft.Json.Linq.JArray)result["rows"]!)
+            {
+                var row = new Row();
+                for (var c = 0; c < columns.Count; c++) row[(string)columns[c]!] = Value(values[c]);
+                list.Add(row);
+            }
+            return list;
+        }
+
+        /// <summary>Erste Zeile oder null</summary>
+        public Row? QueryOne(string sql, params object?[] args)
+        {
+            var rows = Query(sql, args);
+            return rows.Count > 0 ? rows[0] : null;
+        }
+
+        /// <summary>Ändernde Anweisung (INSERT, UPDATE, DELETE, CREATE …) ⇒ Zahl geänderter Zeilen</summary>
+        public int Execute(string sql, params object?[] args) => Run(sql, args)["changes"] is { Type: Newtonsoft.Json.Linq.JTokenType.Integer } n ? (int)n : 0;
+
+        /// <summary>Namen der Tabellen und Sichten</summary>
+        public System.Collections.Generic.List<string> Tables()
+        {
+            var names = (Newtonsoft.Json.Linq.JArray)Call(new() { ["op"] = "tables", ["handle"] = handle });
+            var list = new System.Collections.Generic.List<string>();
+            foreach (var name in names) list.Add((string)name!);
+            return list;
+        }
+
+        public override string ToString() => "Database(\"" + Name + "\", " + Engine + ")";
     }
 }

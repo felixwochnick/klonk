@@ -4,7 +4,7 @@
  * Browser-Projekte (Origin Private File System, alle modernen Browser).
  */
 
-export type FileKind = 'blocks' | 'klonk' | 'javascript' | 'typescript' | 'python' | 'java' | 'csharp' | 'world' | 'design' | 'other'
+export type FileKind = 'blocks' | 'klonk' | 'javascript' | 'typescript' | 'python' | 'java' | 'csharp' | 'world' | 'design' | 'database' | 'sql' | 'other'
 
 export type ProjectFile = {
   /** Pfad relativ zum Projektordner, mit `/` getrennt */
@@ -21,6 +21,8 @@ export function fileKind(name: string): FileKind {
   const lower = name.toLowerCase()
   if (lower.endsWith('.klonkworld.json')) return 'world'
   if (lower.endsWith('.klonkdesign.json')) return 'design'
+  if (databaseEngine(lower)) return 'database'
+  if (lower.endsWith('.sql')) return 'sql'
   if (lower.endsWith('.blocks')) return 'blocks'
   if (lower.endsWith('.klonk')) return 'klonk'
   if (lower.endsWith('.ts')) return 'typescript'
@@ -41,6 +43,28 @@ export const KIND_EXTENSION: Record<Exclude<FileKind, 'other'>, string> = {
   csharp: '.cs',
   world: '.klonkworld.json',
   design: '.klonkdesign.json',
+  database: '.sqlite.sql',
+  sql: '.sql',
+}
+
+/**
+ * Datenbanken liegen als SQL-Text im Projekt (Schema + Daten, lesbar und mit der Cloud abgleichbar):
+ * `name.sqlite.sql` (SQLite) bzw. `name.postgres.sql` (PostgreSQL/PGlite). Einfache `.sql`-Dateien sind Abfragen.
+ */
+export const DATABASE_EXTENSIONS = { sqlite: '.sqlite.sql', postgres: '.postgres.sql' } as const
+
+export function databaseEngine(path: string): keyof typeof DATABASE_EXTENSIONS | null {
+  const lower = path.toLowerCase()
+  if (lower.endsWith(DATABASE_EXTENSIONS.sqlite)) return 'sqlite'
+  if (lower.endsWith(DATABASE_EXTENSIONS.postgres)) return 'postgres'
+  return null
+}
+
+/** Name einer Datenbank (Dateiname ohne Endung) – so öffnen Programme sie: `Database.open("schule")` */
+export function databaseName(path: string) {
+  const name = path.slice(path.lastIndexOf('/') + 1)
+  const engine = databaseEngine(name)
+  return engine ? name.slice(0, -DATABASE_EXTENSIONS[engine].length) : name
 }
 
 /** Erlaubte Datei- und Ordnernamen (keine Pfadtricks) */

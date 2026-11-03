@@ -69,6 +69,29 @@ export function robotApiDeclarations(lang: ScriptLanguage) {
     doc(lang === 'de' ? 'Design ins Projekt speichern (Datei name.klonkdesign.json, Lizenz)' : 'Save a design to the project (file name.klonkdesign.json, license)'),
     'export function saveDesign(name: string, design: KlonkDesign | string): void',
   )
+  const de = lang === 'de'
+  lines.push(
+    doc(de ? 'Datenbank des Projekts (Database.open("schule") ⇒ Datei schule.sqlite.sql bzw. schule.postgres.sql) oder nur für diesen Lauf (Database.memory()). Platzhalter: SQLite ?, PostgreSQL $1' : 'Project database (Database.open("school") ⇒ file school.sqlite.sql or school.postgres.sql) or one just for this run (Database.memory()). Placeholders: SQLite ?, PostgreSQL $1'),
+    'export class Database {',
+    '  private constructor()',
+    '  readonly name: string',
+    '  readonly engine: \'sqlite\' | \'postgres\'',
+    doc(de ? 'Datenbank des Projekts öffnen (Dateiname ohne Endung)' : 'Open a project database (file name without extension)', '  '),
+    '  static open(name: string): Database',
+    doc(de ? 'Neue, leere Datenbank nur für diesen Lauf' : 'New, empty database just for this run', '  '),
+    '  static memory(engine?: \'sqlite\' | \'postgres\'): Database',
+    doc(de ? 'Abfrage ⇒ Zeilen als Objekte (Spalte ⇒ Wert)' : 'Query ⇒ rows as objects (column ⇒ value)', '  '),
+    '  query<T = Record<string, any>>(sql: string, params?: unknown[]): T[]',
+    doc(de ? 'Erste Zeile oder null' : 'First row or null', '  '),
+    '  queryOne<T = Record<string, any>>(sql: string, params?: unknown[]): T | null',
+    doc(de ? 'Ändernde Anweisung (INSERT, UPDATE, DELETE, CREATE …) ⇒ Zahl geänderter Zeilen' : 'Changing statement (INSERT, UPDATE, DELETE, CREATE …) ⇒ number of changed rows', '  '),
+    '  execute(sql: string, params?: unknown[]): number',
+    doc(de ? 'Namen der Tabellen und Sichten' : 'Names of the tables and views', '  '),
+    '  tables(): string[]',
+    '}',
+    doc(de ? 'Fehler der Datenbank (z. B. Syntaxfehler im SQL) – mit try/catch abfangbar' : 'Database error (e.g. SQL syntax error) – catch it with try/catch'),
+    'export class DatabaseError extends Error {}',
+  )
   // console schreibt wie print in die Ausgabe (ohne DOM-Typen sonst unbekannt)
   const console = 'declare const console: { log(...values: unknown[]): void, info(...values: unknown[]): void, warn(...values: unknown[]): void, error(...values: unknown[]): void }'
   return `declare module 'klonk' {\n${lines.map(l => `  ${l}`).join('\n')}\n}\n${console}\n`

@@ -1,7 +1,8 @@
 import type { RobotCommand, SourceRange, Value } from '@klonk/klonk-script'
 import type { World, RobotDesign } from '@klonk/world'
 import { CONTROL, createSharedState, views, writeBreakpoints } from './js/shared'
-import type { FromWorker, RunError, RunLanguage, ToWorker } from './protocol'
+import { createDbBuffer, writeDbResponse } from './db/channel'
+import type { DbRequest, DbResponse, FromWorker, RunError, RunLanguage, ToWorker } from './protocol'
 
 export type RunnerState = 'idle' | 'running' | 'paused' | 'done' | 'error' | 'stopped'
 
@@ -41,8 +42,13 @@ export class ProgramRunner {
   /** JS/TS: Steuerung über gemeinsamen Speicher (der Nutzercode blockiert den Worker) */
   private shared?: SharedArrayBuffer
 
+  /** Antworten der Datenbanken für den blockierten Worker */
+  private database?: SharedArrayBuffer
+
   /** Programm speichert ein Design (`saveDesign`) – der Aufrufer schreibt es ins Projekt */
   onSaveDesign?: (name: string, design: RobotDesign) => void
+  /** Datenbankzugriff aus Programmen (Projektdatenbanken, temporäre) – ohne Handler gibt es keine Datenbanken */
+  onDatabase?: (request: DbRequest) => Promise<DbResponse>
 
   constructor(
     private createWorker: () => Worker,
@@ -60,6 +66,7 @@ export class ProgramRunner {
 
     const js = options.language !== 'klonk'
     this.shared = undefined
+    this.database = undefined
     if (js) {
       if (typeof SharedArrayBuffer === 'undefined' || !globalThis.crossOriginIsolated) {
         this.update({ state: 'error', error: { code: 'isolation_required', params: {} } })
@@ -68,6 +75,7 @@ export class ProgramRunner {
       this.shared = createSharedState()
       writeBreakpoints(this.shared, options.breakpoints ?? [])
       Atomics.store(views(this.shared).control, CONTROL.DELAY, options.delay ?? 300)
+      this.database = createDbBuffer()
     }
 
     const worker = this.createWorker()
@@ -95,7 +103,7 @@ export class ProgramRunner {
       designs: options.designs,
       saveDesigns: options.saveDesigns,
       maxCharacters: Number.isFinite(options.maxCharacters) ? options.maxCharacters : undefined,
-    }, this.shared)
+    }, this.shared, this.database)
   }
 
   pause() {
@@ -155,6 +163,9 @@ export class ProgramRunner {
       case 'saveDesign':
         this.onSaveDesign?.(message.name, message.design)
         break
+      case 'db':
+        void this.answerDatabase(message.request)
+        break
       case 'paused':
         this.update({ state: 'paused', line: message.range.line, pausedRange: message.range, variables: message.variables })
         break
@@ -172,10 +183,26 @@ export class ProgramRunner {
     }
   }
 
-  private post(message: ToWorker, shared?: SharedArrayBuffer) {
+  /** Datenbankanfrage beantworten – nur, solange derselbe Lauf noch wartet */
+  private async answerDatabase(request: DbRequest) {
+    const worker = this.worker
+    const buffer = this.database
+    if (!buffer) return
+    let response: DbResponse
+    try {
+      response = this.onDatabase ? await this.onDatabase(request) : { ok: false, code: 'db_unavailable', params: {} }
+    }
+    catch (error) {
+      response = { ok: false, code: 'internal', params: { message: String((error as Error)?.message ?? error) } }
+    }
+    if (this.worker === worker && this.database === buffer) writeDbResponse(buffer, response)
+  }
+
+  private post(message: ToWorker, shared?: SharedArrayBuffer, database?: SharedArrayBuffer) {
     // Reaktive Proxys (z. B. aus Vue) lassen sich nicht an Worker senden – als einfache Daten kopieren
     const plain = JSON.parse(JSON.stringify(message)) as ToWorker
     if (shared && plain.type === 'run') plain.shared = shared
+    if (database && plain.type === 'run') plain.database = database
     this.worker?.postMessage(plain)
   }
 

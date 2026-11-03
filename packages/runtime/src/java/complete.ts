@@ -134,7 +134,7 @@ function baseType(type: string) {
 }
 
 /** Klassen der mitgelieferten Bibliothek (klonk.JsonObject …) – ohne Hilfsklassen im Inneren */
-const LIBRARY_CLASSES = Object.values(JAVA_LIBRARY).flatMap(source => classesOf(source)).filter(t => !['Parser', 'Reader', 'Line'].includes(t.name))
+const LIBRARY_CLASSES = Object.values(JAVA_LIBRARY).flatMap(source => classesOf(source)).filter(t => !['Parser', 'Reader', 'Line', 'Global', 'Api'].includes(t.name))
 
 export function createJavaService(lang: ScriptLanguage) {
   const klonk = klonkType(lang)
