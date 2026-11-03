@@ -103,7 +103,8 @@
     "world": "Welt",
     "code": "Programmieren",
     "projects": "Projekte",
-    "wardrobe": "Kleiderschrank"
+    "wardrobe": "Kleiderschrank",
+    "learn": "Lernen"
   },
   "editor": {
     "title": "Programmieren",
@@ -497,5 +498,60 @@
       "world_design": "„{name}“ hat kein eigenes Design – wähle männlich, weiblich oder divers.",
       "world_invalid": "So ist die Welt nicht gültig ({reason})."
     }
+  },
+  "learn": {
+    "title": "Lernmodule",
+    "intro": "Grundkurs Klonk-Script: Schritt für Schritt vom ersten Befehl bis zu Variablen. Jedes Modul erklärt ein neues Thema und hat Aufgaben, die Klonk automatisch prüft – mit Blöcken oder Klonk-Script.",
+    "moduleNumber": "Modul {n}",
+    "progress": "{solved} von {total} Aufgaben gelöst",
+    "start": "Starten",
+    "continue": "Weitermachen",
+    "completed": "Abgeschlossen",
+    "storageHint": "Dein Fortschritt und deine Programme werden nur in diesem Browser gespeichert.",
+    "allModules": "Alle Module",
+    "notFound": "Dieses Modul oder diese Aufgabe gibt es nicht.",
+    "objectives": "Lernziele",
+    "introduction": "Einführung",
+    "tasks": "Aufgaben",
+    "taskNumber": "Aufgabe {n} von {total}",
+    "severalWorlds": "Dein Programm wird in {n} Welten geprüft – du findest sie über die Reiter über der Welt.",
+    "hint": "Tipp {n}",
+    "showSolution": "Musterlösung zeigen",
+    "hideSolution": "Musterlösung ausblenden",
+    "next": "Nächste Aufgabe",
+    "world": "Welt {n}",
+    "showGoal": "Ziel zeigen",
+    "goal": "Ziel",
+    "goalReached": "Ziel erreicht",
+    "goalMissed": "Ziel nicht erreicht",
+    "directions": {
+      "north": "Norden",
+      "east": "Osten",
+      "south": "Süden",
+      "west": "Westen"
+    },
+    "constructs": {
+      "repeatTimes": "eine Zählschleife (wiederhole … mal)",
+      "repeatWhile": "eine bedingte Schleife (wiederhole solange/bis)",
+      "if": "eine Verzweigung (wenn … dann)",
+      "procedure": "eine eigene Anweisung (anweisung … ende)",
+      "variable": "eine Variable (var)"
+    },
+    "check": {
+      "button": "Prüfen",
+      "empty": "Schreib zuerst ein Programm.",
+      "solved": "Geschafft! Dein Programm löst die Aufgabe in allen Welten.",
+      "syntax": "Dein Programm enthält einen Fehler: {message}",
+      "missing": "Die Aufgabe verlangt {constructs}.",
+      "position": "In Welt {world} steht Klonk am Ende auf Feld {x}{'|'}{y} – das Ziel ist Feld {expectedX}{'|'}{expectedY}.",
+      "direction": "In Welt {world} schaut Klonk am Ende nach {direction}, soll aber nach {expected} schauen.",
+      "cell": "In Welt {world} sieht Feld {x}{'|'}{y} am Ende anders aus als verlangt. Vergleiche mit „Ziel zeigen“.",
+      "output": "In Welt {world} passt die Ausgabe nicht: erwartet {expected}, ausgegeben {actual}.",
+      "nothing": "nichts",
+      "character_missing": "In Welt {world} gibt es Klonk am Ende nicht mehr.",
+      "error": "In Welt {world} bricht das Programm ab: {message}",
+      "timeout": "In Welt {world} endet das Programm nicht – vielleicht eine Endlosschleife?"
+    },
+    "teacherNotes": "Hinweise für Lehrkräfte"
   }
 }

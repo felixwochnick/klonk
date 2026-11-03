@@ -19,7 +19,7 @@ Elastic License 2.0 (siehe/see apps/*/LICENSE, packages/*/LICENSE)
 Die Plattform / the platform:
 
   apps/app, apps/admin, apps/auth, apps/docs,
-  packages/core, packages/ui, packages/runtime, packages/csharp
+  packages/core, packages/ui, packages/runtime, packages/csharp, packages/learn
 
 Kurz gesagt (rechtsverbindlich ist nur der Lizenztext):
 In short (only the license text is legally binding):

@@ -17,6 +17,7 @@ const { user } = useAuth()
         :items="[
           { label: t('nav.projects'), icon: 'i-lucide-folder-tree', to: '/projects' },
           { label: t('nav.code'), icon: 'i-lucide-code', to: '/', exact: true },
+          { label: t('nav.learn'), icon: 'i-lucide-graduation-cap', to: '/learn' },
           { label: t('nav.wardrobe'), icon: 'i-lucide-shirt', to: '/designs' },
           { label: t('nav.world'), icon: 'i-lucide-boxes', to: '/world' },
         ]"

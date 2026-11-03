@@ -32,6 +32,7 @@ pnpm-Workspace (`pnpm-workspace.yaml`), Node ≥ 22.
 | `packages/ui` | `@klonk/ui` | **Nuxt-Layer für einheitliches Design**: Nuxt UI, Theme (`theme.css`, `app.config.ts`), i18n-Grundkonfiguration, `KlonkLogo`, `LocaleSwitch`, Hydration-Marker | – |
 | `packages/world` | `@klonk/world` | **Weltmodell** (ohne Darstellung, läuft auch im Worker): Raster, Ziegelstapel, Marken, Quader, Figuren, Befehle, Ereignisse, JSON-Format (`WorldData`, zod) | – |
 | `packages/klonk-script` | `@klonk/klonk-script` | **Klonk-Script**: Sprachtabellen de/en (`languages.ts` – neue Sprache = neue Spalte), Lexer, Parser (AST), async Interpreter mit Prüfpunkten, Übersetzen | – |
+| `packages/learn` | `@klonk/learn` | **Lernmodule**: Aufgaben als Daten (`src/modules/*.ts`, Welten als Textkarten `map()`), Prüfung (`compareOutcome`, `missingConstructs`) | – |
 | `packages/runtime` | `@klonk/runtime` | **Ausführung**: Worker (`@klonk/runtime/worker?worker`), sprachunabhängiges Protokoll (`protocol.ts`), `ProgramRunner` (Hauptthread, spielt Roboterbefehle auf der angezeigten Welt nach); JS/TS in `src/js/` | – |
 | `packages/core` | `@klonk/core` | **Nuxt-Layer für Server & Auth**: Drizzle-Schema, Migrationen, RLS, Sessions (nuxt-auth-utils), Login-API, `/login`, `/change-password`, `UserMenu` | – |
 
@@ -258,7 +259,16 @@ node scripts/build-csharp.ts        # C#-Host bauen (.NET-SDK 10 nötig; Ausgabe
 - **Monaco-Modelle:** eines je Sprache mit Dateiendung (`file:///__klonk/<n>/program.ts`, im Projekt `file:///<pfad>`) – der TS-Dienst erkennt TS/JS an der Endung.
 - **Code in voller Breite** (`focus`, vom User so gewünscht – kein Browser-Vollbild): Projekt/Welt aus, Ausgabe kompakt unter dem Editor.
   Rechts Tabs **Welt | Doku** (`LanguageDocs.vue`: Kurzreferenz je Sprache aus den Tabellen, Link `public.docsUrl`); Ausführen zeigt die Welt.
-- **Navigation:** Projekte · Programmieren · Kleiderschrank (`/designs`, Designs des Projekts) · Welt.
+- **Navigation:** Projekte · Programmieren · Lernen (`/learn`) · Kleiderschrank (`/designs`, Designs des Projekts) · Welt.
+- **Lernmodule** (vom User so festgelegt: Aufgabenmodus in der App, thematisch gegliedert, zuerst Grundkurs Klonk-Script): Daten in `@klonk/learn`
+  (Texte de/en als Markdown im Paket, nicht in i18n), Seiten `/learn`, `/learn/<modul>`, `/learn/<modul>/<aufgabe>` (`pages/learn/`, `key: fullPath`).
+  Zielzustand = Ergebnis der **Musterlösung** in jeder Startwelt (`expectedOutcomes`, läuft im Hauptthread); geprüft wird je Aufgabe nur, was
+  `check` verlangt (Position/Richtung/Felder/Zahlen der Ausgabe) + `requires` am Syntaxbaum. Nutzerprogramme laufen beim Prüfen headless im
+  Runner-Worker mit `delay: 0` und 5-s-Zeitlimit (`utils/learn-check.ts`). Fortschritt + Programme nur in localStorage `klonk:learn` (`useLearn`).
+  Musterlösung sichtbar nach dem Lösen, für Rolle ≠ member, Betreiber und Privatkonten. Unit-Tests lösen jede Aufgabe mit der Musterlösung (de/en)
+  in allen Welten. **Aufgaben, Lösungen und Lehrkraft-Hinweise nie in die öffentliche Doku** (vom User so festgelegt) – Hinweise für
+  Lehrkräfte zeigt die Modulseite der App nur für Rolle ≠ member bzw. Betreiber.
+  vue-i18n: `|` in Texten als `{'|'}` schreiben (sonst Pluralform).
 - **Laufzeiten versioniert:** `/pyodide|teavm|pylibs|dotnet/<hash>/` (`assetVersion()` in `apps/app/nuxt.config.ts`, Vite-`define`
   `__KLONK_ASSETS__`, `runtime/src/assets.ts`) – sonst lieferten Browser-/PWA-Cache nach einem Neubau alte Dateien (z. B. alter C#-Host).
 - **Ohne Lizenz + Projektdateien:** Runner bekommt die Dateien immer, nutzt sie nur mit `allowImports`; Java/C#/Python melden dann `feature_libraries` statt „package/namespace/module not found“.
@@ -280,15 +290,16 @@ node scripts/build-csharp.ts        # C#-Host bauen (.NET-SDK 10 nötig; Ausgabe
 - **Auth:** siehe „Konten & Anmeldung“. Schulen und Unternehmen wählen selbst OIDC, LDAP und/oder lokale Konten.
 - **Docs-Gliederung** (vom User so festgelegt: die Docs erklären zuerst die Anwendung, Selbsthosten kommt zuletzt): `1.getting-started`
   (Was ist Klonk?, Das erste Programm), `2.world`, `3.klonk-script` (Navigation „Programmieren“; Slug bleibt, `LanguageDocs.vue` verlinkt
-  dorthin), `4.teaching`, `5.administration`, `6.self-hosting` (Installation, Quelltext-Lizenz). Interne Links immer mit `/de/` bzw. `/en/`.
+  dorthin), `4.teaching` (Übersicht, Lernmodule, Für Schulen, Länder), `5.administration`, `6.self-hosting` (Installation, Quelltext-Lizenz). Interne Links immer mit `/de/` bzw. `/en/`.
 - **Unterricht (Docs):** `apps/docs/content/{de,en}/4.teaching/` gegliedert **Land → Bundesland → Schulform → Klasse**
-  (`3.germany/3.bavaria/2.gymnasium/N.grade-X.md`, je Ebene `.navigation.yml` + `1.overview.md`). Je Klasse: Lernbereiche mit
+  (`4.germany/3.bavaria/2.gymnasium/N.grade-X.md`, je Ebene `.navigation.yml` + `1.overview.md`). Je Klasse: Lernbereiche mit
   Eignung (★★★/★★/★/–), Link zum Lehrplan-Volltext, Unterrichtsideen; Codebeispiele müssen mit der echten API laufen.
   Ordner alphabetisch nummeriert (`2.baden-wuerttemberg`, `3.bavaria`, `4.hesse`, `5.lower-saxony`, `6.north-rhine-westphalia`,
   `7.saxony`), Stufenbündel als `grade-5-6.md`, Oberstufe `upper-secondary.md`. Bayern: Gymnasium, Realschule (IT modular ⇒
   Anfangs-/Aufbauunterricht), Mittelschule, FOS/BOS (KIT/KIWI ab 2026/27); übrige Länder bisher nur Gymnasium.
-  Zielgruppe: Lehrkräfte, Schulleitungen, Kultusverwaltung (Sie-Form, sachlich, Lehrplanbegriffe, keine Werbesprache; vom User so festgelegt); Betrieb/Datenschutz/Lizenz für Schulen in `4.teaching/2.schools.md`.
-  Neue Länder/Schulformen ⇒ Tabellen in `4.teaching/1.overview.md`, `3.germany/1.overview.md` (inkl. „Wie das Fach heißt“) und der Landesübersicht ergänzen.
+  Zielgruppe: Lehrkräfte, Schulleitungen, Kultusverwaltung (Sie-Form, sachlich, Lehrplanbegriffe, keine Werbesprache; vom User so festgelegt); Betrieb/Datenschutz/Lizenz für Schulen in `4.teaching/3.schools.md`.
+  Lernmodule in der Doku nur als Übersicht `4.teaching/2.modules/1.overview.md` (Konzept, Modulliste, Lehrplan-Zuordnung – keine Aufgaben/Lösungen); Klassenseiten nennen passende Module (Abschnitt „Passende Lernmodule“).
+  Neue Länder/Schulformen ⇒ Tabellen in `4.teaching/1.overview.md`, `4.germany/1.overview.md` (inkl. „Wie das Fach heißt“) und der Landesübersicht ergänzen.
   Marken gibt es nur in vier Farben (gelb/rot/blau/grün) – Beispiele dürfen keine anderen Markenfarben nutzen.
 - **Klonk Cloud** (vom User so festgelegt; selbst gehostet immer frei, gehostet Lizenz-Feature `cloud`, `cloudEnabled()`): dritte Projektquelle
   `source: 'cloud'` – `CloudProject` (`utils/cloud-project.ts`) erweitert `Project` um eine lokale Kopie im OPFS (`klonk-cloud/<id>`,
@@ -409,3 +420,5 @@ node scripts/build-csharp.ts        # C#-Host bauen (.NET-SDK 10 nötig; Ausgabe
 13. [x] Klonk Cloud: Projekte synchronisieren (offline-fähig), Gruppen mit gemeinsamem Ordner, Aufgaben + Abgaben
 14. [x] Datenbanken: SQLite + PostgreSQL (PGlite) im Browser, SQL-Konsole, Welt als Datenbank, Datenbank-API in JS/TS/Python/Java/C#
 14b. [ ] ER-Modellierung (Diagramm ⇒ Tabellen), MySQL-Dialekt
+15. [x] Lernmodule: Grundkurs Klonk-Script (6 Module, 20 Aufgaben, automatische Prüfung, Hinweise für Lehrkräfte in der App)
+15b. [ ] Lernmodule für Python/Java (Objekte, Klassen)
