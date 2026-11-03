@@ -79,6 +79,9 @@ services:
       # Website auf der Hauptdomain (leer = Weiterleitung zur App)
       KLONK_WEBSITE_UPSTREAM: ${KLONK_WEBSITE_UPSTREAM:-}
       IONOS_API_TOKEN: ${IONOS_API_TOKEN:-}
+      # Zugangssperre: off | authentik (Forward-Auth, KLONK_GATE_URL = Authentik)
+      KLONK_GATE: ${KLONK_GATE:-off}
+      KLONK_GATE_URL: ${KLONK_GATE_URL:-}
     ports:
       - "${KLONK_HTTP_PORT:-80}:80"
       - "${KLONK_HTTPS_PORT:-443}:443"

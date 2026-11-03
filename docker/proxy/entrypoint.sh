@@ -23,6 +23,16 @@ case "$KLONK_TLS" in
     ;;
 esac
 
+export KLONK_GATE="${KLONK_GATE:-off}"
+case "$KLONK_GATE" in
+  off) ;;
+  authentik) : "${KLONK_GATE_URL:?KLONK_GATE_URL fehlt (Authentik bzw. Outpost, z. B. https://id.example)}" ;;
+  *)
+    echo "Unbekannter KLONK_GATE-Modus: $KLONK_GATE (off | authentik)" >&2
+    exit 1
+    ;;
+esac
+
 # Leere Variablen aus Compose zählen als gesetzt – Caddy-Defaults greifen dann nicht
 export KLONK_ACME_EMAIL="${KLONK_ACME_EMAIL:-admin@localhost}"
 
@@ -36,5 +46,5 @@ grep -rlF 'docs.klonk-domain.invalid' /srv/docs 2>/dev/null | while read -r file
     "$file"
 done
 
-echo "[klonk-proxy] Version: ${KLONK_VERSION:-dev}, Domain: $KLONK_DOMAIN, TLS: $KLONK_TLS"
+echo "[klonk-proxy] Version: ${KLONK_VERSION:-dev}, Domain: $KLONK_DOMAIN, TLS: $KLONK_TLS, Zugang: $KLONK_GATE"
 exec caddy run --config /etc/caddy/Caddyfile --adapter caddyfile
