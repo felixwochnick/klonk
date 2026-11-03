@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import type { GeneratedProgram } from '~/utils/blocks/generator'
-import { compareOutcome, expectedOutcomes, findModule, type CheckFailure, type Outcome } from '@klonk/learn'
+import { compareOutcome, expectedOutcomes, findModule, LEARN_MANIFEST, parseManifest, serializeManifest, taskFile, type CheckFailure, type LearnLanguage, type LearnManifest, type Outcome } from '@klonk/learn'
 import { World } from '@klonk/world'
 import { ProgramRunner, type RunError, type RunnerSnapshot } from '@klonk/runtime'
 import RunnerWorker from '@klonk/runtime/worker?worker'
 import type { LearnCheckResult } from '~/utils/learn-check'
+import type { CloudProject } from '~/utils/cloud-project'
 
 // Nächste Aufgabe = gleiche Seite mit anderen Parametern ⇒ neu aufbauen (Runner, Welt, Editor)
 definePageMeta({ key: route => route.fullPath })
@@ -14,6 +15,7 @@ const route = useRoute()
 const learn = useLearn()
 const { user } = useAuth()
 const { maxCharacters } = useLicense()
+const apiError = useApiError()
 const lang = computed(() => (locale.value === 'en' ? 'en' : 'de'))
 
 const module = findModule(String(route.params.module))
@@ -21,8 +23,72 @@ const task = module?.tasks.find(x => x.id === String(route.params.task))
 const taskIndex = module && task ? module.tasks.indexOf(task) : -1
 useSeoMeta({ title: () => task?.title[lang.value] ?? t('learn.title') })
 
-// Programm der Aufgabe (im Browser gespeichert)
-const program = module && task ? learn.program(module.id, task.id) : reactive({ language: 'blocks' as const, blocks: '', klonk: '' })
+// Programm der Aufgabe: im Cloud-Projekt des Moduls – das eigene oder (Gruppenleitung, `?project=`) das einer anderen Person, nur lesen
+const foreign = typeof route.query.project === 'string' ? { id: route.query.project, name: String(route.query.name ?? '') } : null
+const program = reactive<{ language: LearnLanguage, blocks: string, klonk: string }>({ language: 'blocks', blocks: '', klonk: '' })
+const ready = ref(false)
+const loadError = ref<string | null>(null)
+const readOnly = ref(!!foreign)
+const solvedHere = ref(false)
+let project: CloudProject | undefined
+let manifest: LearnManifest | undefined
+let saved = { language: '', blocks: '', klonk: '' }
+
+async function loadProgram() {
+  if (!project || !module || !task) return
+  manifest = parseManifest(await project.read(LEARN_MANIFEST).catch(() => null), module.id)
+  const read = (language: LearnLanguage) => project!.read(taskFile(task.id, language)).catch(() => '')
+  program.language = manifest.languages[task.id] ?? 'blocks'
+  program.blocks = await read('blocks')
+  program.klonk = await read('klonk')
+  solvedHere.value = !!manifest.solved[task.id]
+  saved = { ...program }
+}
+
+onMounted(async () => {
+  if (!module || !task) return
+  try {
+    project = foreign ? await learn.openForeign(foreign.id, foreign.name) : await learn.openOwn(module.id, lang.value)
+    readOnly.value = project.readOnly
+    await loadProgram()
+    // Gruppenleitung sieht Änderungen der Lernenden, sobald sie hochgeladen sind
+    if (project.readOnly) project.onRemoteChange = () => void loadProgram()
+    ready.value = true
+  }
+  catch (error) {
+    loadError.value = apiError(error)
+  }
+})
+
+// Speichern (lokal, die Cloud-Kopie lädt im Hintergrund hoch)
+let saveTimer: ReturnType<typeof setTimeout> | undefined
+async function save() {
+  if (!project || project.readOnly || !manifest || !task || !ready.value) return
+  if (program.blocks !== saved.blocks) await project.write(taskFile(task.id, 'blocks'), program.blocks)
+  if (program.klonk !== saved.klonk) await project.write(taskFile(task.id, 'klonk'), program.klonk)
+  if (program.language !== saved.language) {
+    manifest.languages[task.id] = program.language
+    await project.write(LEARN_MANIFEST, serializeManifest(manifest))
+  }
+  saved = { ...program }
+}
+watch(() => [program.language, program.blocks, program.klonk], () => {
+  if (!ready.value || readOnly.value) return
+  clearTimeout(saveTimer)
+  saveTimer = setTimeout(() => void save(), 400)
+})
+onBeforeUnmount(() => {
+  clearTimeout(saveTimer)
+  void save().finally(() => project?.stop())
+})
+
+async function markSolved() {
+  if (!project || project.readOnly || !manifest || !module || !task) return
+  manifest.solved[task.id] ??= new Date().toISOString()
+  await project.write(LEARN_MANIFEST, serializeManifest(manifest))
+  solvedHere.value = true
+  learn.markSolved(module.id, task.id)
+}
 const language = computed({
   get: () => program.language,
   set: (value) => {
@@ -126,7 +192,7 @@ async function check() {
   finally {
     checking.value = false
   }
-  if (result.value.status === 'solved') learn.markSolved(module.id, task.id)
+  if (result.value.status === 'solved') await markSolved()
   else if ('world' in result.value && result.value.world !== variant.value) selectVariant(result.value.world)
 }
 
@@ -155,8 +221,8 @@ const resultText = computed(() => {
   return null
 })
 
-const solved = computed(() => !!module && !!task && learn.isSolved(module.id, task.id))
-const next = computed(() => (module && task ? learn.following(module.id, task.id) : null))
+const solved = computed(() => solvedHere.value)
+const next = computed(() => (module && task && !foreign ? learn.following(module.id, task.id) : null))
 // Musterlösung: nach dem Lösen, für Lehrkräfte/Admins und für Privatkonten (ohne Organisation) jederzeit
 const canSeeSolution = computed(() => solved.value || !user.value || !user.value.organizationId || user.value.role !== 'member' || user.value.platformRole !== 'user')
 const showSolution = ref(false)
@@ -191,11 +257,11 @@ const showSolution = ref(false)
     <!-- Werkzeugleiste -->
     <div class="flex flex-wrap items-center gap-2 border-b border-(--ui-border) px-3 py-2">
       <UButton
-        :to="`/learn/${module.id}`"
+        :to="foreign && typeof route.query.back === 'string' ? route.query.back : `/learn/${module.id}`"
         icon="i-lucide-arrow-left"
         variant="ghost"
         color="neutral"
-        :label="module.title[lang]"
+        :label="foreign ? t('learn.backToProgress') : module.title[lang]"
         class="max-w-64"
       />
       <UButton
@@ -265,7 +331,7 @@ const showSolution = ref(false)
         <USelect
           v-model="language"
           :items="languageItems"
-          :disabled="running"
+          :disabled="running || readOnly || !ready"
           icon="i-lucide-file-code"
           class="w-40"
           data-testid="language"
@@ -276,7 +342,7 @@ const showSolution = ref(false)
           color="success"
           :label="t('learn.check.button')"
           :loading="checking"
-          :disabled="running || !expected"
+          :disabled="running || !expected || !ready"
           data-testid="learn-check"
           @click="check"
         />
@@ -286,6 +352,25 @@ const showSolution = ref(false)
     <div class="grid min-h-0 flex-1 grid-cols-1 lg:grid-cols-[22rem_minmax(0,1fr)_minmax(0,1fr)]">
       <!-- Aufgabe -->
       <aside class="overflow-y-auto border-b border-(--ui-border) p-4 lg:border-b-0 lg:border-e">
+        <UAlert
+          v-if="foreign"
+          class="mb-4"
+          color="info"
+          variant="subtle"
+          icon="i-lucide-eye"
+          :title="t('learn.viewing', { name: foreign.name })"
+          :description="t('learn.viewingHint')"
+          data-testid="learn-viewing"
+        />
+        <UAlert
+          v-if="loadError"
+          class="mb-4"
+          color="error"
+          variant="subtle"
+          icon="i-lucide-cloud-off"
+          :description="loadError"
+          data-testid="learn-load-error"
+        />
         <p class="text-xs font-semibold uppercase tracking-wide text-(--ui-text-muted)">
           {{ t('learn.taskNumber', { n: taskIndex + 1, total: module.tasks.length }) }}
         </p>
@@ -370,11 +455,21 @@ const showSolution = ref(false)
 
       <!-- Programm -->
       <section class="flex min-h-80 flex-col border-b border-(--ui-border) lg:border-b-0 lg:border-e">
-        <ClientOnly v-if="isBlocks">
+        <div
+          v-if="!ready"
+          class="flex flex-1 items-center justify-center text-(--ui-text-muted)"
+        >
+          <UIcon
+            v-if="!loadError"
+            name="i-lucide-loader-circle"
+            class="size-6 animate-spin"
+          />
+        </div>
+        <ClientOnly v-else-if="isBlocks">
           <div class="relative min-h-80 flex-1">
             <KlonkBlocks
               v-model="program.blocks"
-              :read-only="running"
+              :read-only="running || readOnly"
               :active-block="running ? lineToBlock(snapshot.line) : null"
               :error-block="snapshot.state === 'error' ? lineToBlock(snapshot.error?.range?.line) : null"
               @program="onBlocksProgram"
@@ -386,7 +481,7 @@ const showSolution = ref(false)
             v-model="program.klonk"
             v-model:breakpoints="breakpoints"
             language="klonk"
-            :read-only="running"
+            :read-only="running || readOnly"
             :active-line="running ? snapshot.line : null"
             :error-line="errorLine"
             :error-message="errorMessage"

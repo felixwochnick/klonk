@@ -4,7 +4,7 @@ import { drizzle } from 'drizzle-orm/postgres-js'
 import { migrate } from 'drizzle-orm/postgres-js/migrator'
 import postgres from 'postgres'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { aiCreditGrants, aiUsage, cloudAssignments, cloudFiles, cloudProjects, groupMembers, groups, instanceSettings, organizationAiSettings, organizationAuthSettings, organizations, sessions, userLicenses, users } from '../server/database/schema'
+import { aiCreditGrants, aiUsage, cloudAssignments, cloudFiles, cloudProjects, groupLearnModules, groupMembers, groups, instanceSettings, organizationAiSettings, organizationAuthSettings, organizations, sessions, userLicenses, users } from '../server/database/schema'
 import { createDb, runAsUser, type Db } from '../server/utils/db'
 
 // Integrationstest gegen eine echte Postgres-Instanz (pnpm db:up) in einer eigenen Test-Datenbank
@@ -309,5 +309,52 @@ describe('RLS: Gruppen und Klonk Cloud', () => {
     // Abgabe nur zu Aufgaben der eigenen Gruppe; fremde Projekte nicht anlegen
     await expectDbError(as('outsider', tx => tx.insert(cloudProjects).values({ ownerId: ids.outsider!, name: 'A', assignmentId: assignment!.id })), /row-level security/)
     await expectDbError(as('outsider', tx => tx.insert(cloudProjects).values({ ownerId: ids.studentA!, name: 'B' })), /row-level security/)
+  })
+})
+
+describe('RLS: Lernmodule', () => {
+  const as = <T>(who: string, fn: Parameters<typeof runAsUser<T>>[2]) => runAsUser(db, ids[who]!, fn)
+  const startModule = (who: string, module: string) => as(who, tx => tx.insert(cloudProjects).values({ ownerId: ids[who]!, name: `Modul ${module}`, learnModule: module }).returning())
+
+  it('Lernende starten nur freigegebene Module, Privatkonten und Lehrkräfte alle', async () => {
+    await expectDbError(startModule('studentA', 'sequence'), /row-level security/)
+    // Freigeben darf nur, wer die Gruppe verwaltet
+    await expectDbError(as('studentA', tx => tx.insert(groupLearnModules).values({ groupId: ids.group!, moduleId: 'sequence' })), /row-level security/)
+    await as('teacherA', tx => tx.insert(groupLearnModules).values({ groupId: ids.group!, moduleId: 'sequence', enabledBy: ids.teacherA! }))
+    expect(await as('studentA', tx => tx.select({ moduleId: groupLearnModules.moduleId }).from(groupLearnModules))).toEqual([{ moduleId: 'sequence' }])
+    expect(await as('outsider', tx => tx.select().from(groupLearnModules))).toEqual([])
+
+    const [project] = await startModule('studentA', 'sequence')
+    ids.learnProject = project!.id
+    await expectDbError(startModule('studentA', 'repeat'), /row-level security/)
+    await expectDbError(startModule('outsider', 'sequence'), /row-level security/)
+    await startModule('private', 'variables')
+    await startModule('teacherA', 'variables')
+  })
+
+  it('Gruppenleitung liest Modulprojekte ihrer Mitglieder, solange das Modul freigegeben ist', async () => {
+    await as('studentA', tx => tx.insert(cloudFiles).values({ projectId: ids.learnProject!, path: 'to-the-mark.klonk', content: 'schritt(4)', revision: 1 }))
+    const read = (who: string) => as(who, tx => tx.select({ content: cloudFiles.content }).from(cloudFiles).where(eq(cloudFiles.projectId, ids.learnProject!)))
+    expect(await read('teacherA')).toEqual([{ content: 'schritt(4)' }])
+    expect(await read('adminB')).toEqual([])
+    expect(await read('student2A')).toEqual([])
+    // Betreiber:innen sehen keine persönlichen Projekte
+    expect(await read('owner')).toEqual([])
+    // Lesen ja, ändern nein
+    await expectDbError(as('teacherA', tx => tx.insert(cloudFiles).values({ projectId: ids.learnProject!, path: 'x.klonk', revision: 2 })), /row-level security/)
+
+    await as('teacherA', tx => tx.delete(groupLearnModules).where(eq(groupLearnModules.groupId, ids.group!)))
+    expect(await read('teacherA')).toEqual([])
+    expect(await read('studentA')).toEqual([{ content: 'schritt(4)' }])
+  })
+
+  it('Eigene Projekte lassen sich nicht nachträglich zum Modulprojekt machen', async () => {
+    await as('teacherA', tx => tx.insert(groupLearnModules).values({ groupId: ids.group!, moduleId: 'repeat' }))
+    const [own] = await as('studentA', tx => tx.insert(cloudProjects).values({ ownerId: ids.studentA!, name: 'Tagebuch' }).returning())
+    await expectDbError(as('studentA', tx => tx.update(cloudProjects).set({ learnModule: 'repeat' }).where(eq(cloudProjects.id, own!.id))), /row-level security/)
+    await expectDbError(as('studentA', tx => tx.update(cloudProjects).set({ learnModule: null }).where(eq(cloudProjects.id, ids.learnProject!))), /row-level security/)
+    // Normale Änderungen (z. B. Revision beim Schreiben) gehen weiter
+    await as('studentA', tx => tx.update(cloudProjects).set({ name: 'Tagebuch 2' }).where(eq(cloudProjects.id, own!.id)))
+    await as('studentA', tx => tx.update(cloudProjects).set({ name: 'Lernmodul' }).where(eq(cloudProjects.id, ids.learnProject!)))
   })
 })

@@ -83,7 +83,9 @@
     "cloud_not_found": "Cloud project not found.",
     "cloud_read_only": "You may only read here.",
     "cloud_exists": "A cloud project with this name already exists.",
-    "cloud_invalid_path": "Invalid file name."
+    "cloud_invalid_path": "Invalid file name.",
+    "learn_not_found": "This learning module or group does not exist.",
+    "learn_not_enabled": "This learning module has not been enabled for you."
   },
   "settings": {
     "title": "Settings",
