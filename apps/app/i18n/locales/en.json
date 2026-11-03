@@ -103,7 +103,8 @@
     "world": "World",
     "code": "Code",
     "projects": "Projects",
-    "wardrobe": "Wardrobe"
+    "wardrobe": "Wardrobe",
+    "learn": "Learn"
   },
   "editor": {
     "title": "Code",
@@ -409,6 +410,60 @@
       "license": "The configured language model requires a license – the assistant runs for free in your browser.",
       "quota": "Your organization's AI credits are used up – the assistant now runs for free in your browser.",
       "daily": "You have reached your daily limit – until tomorrow the assistant runs in your browser."
+    }
+  },
+  "learn": {
+    "title": "Learning modules",
+    "intro": "Klonk-Script basics: step by step from the first command to variables. Each module explains a new topic and has tasks that Klonk checks automatically – with blocks or Klonk-Script.",
+    "moduleNumber": "Module {n}",
+    "progress": "{solved} of {total} tasks solved",
+    "start": "Start",
+    "continue": "Continue",
+    "completed": "Completed",
+    "storageHint": "Your progress and your programs are only stored in this browser.",
+    "allModules": "All modules",
+    "notFound": "This module or task does not exist.",
+    "objectives": "Learning objectives",
+    "introduction": "Introduction",
+    "tasks": "Tasks",
+    "taskNumber": "Task {n} of {total}",
+    "severalWorlds": "Your program is checked in {n} worlds – you can find them via the tabs above the world.",
+    "hint": "Hint {n}",
+    "showSolution": "Show sample solution",
+    "hideSolution": "Hide sample solution",
+    "next": "Next task",
+    "world": "World {n}",
+    "showGoal": "Show goal",
+    "goal": "Goal",
+    "goalReached": "Goal reached",
+    "goalMissed": "Goal not reached",
+    "directions": {
+      "north": "north",
+      "east": "east",
+      "south": "south",
+      "west": "west"
+    },
+    "constructs": {
+      "repeatTimes": "a counting loop (repeat … times)",
+      "repeatWhile": "a conditional loop (repeat while/until)",
+      "if": "a branch (if … then)",
+      "procedure": "a procedure of your own (procedure … end)",
+      "variable": "a variable (var)"
+    },
+    "check": {
+      "button": "Check",
+      "empty": "Write a program first.",
+      "solved": "Well done! Your program solves the task in all worlds.",
+      "syntax": "Your program contains an error: {message}",
+      "missing": "The task requires {constructs}.",
+      "position": "In world {world} Klonk ends up on cell {x}{'|'}{y} – the goal is cell {expectedX}{'|'}{expectedY}.",
+      "direction": "In world {world} Klonk ends up facing {direction}, but should face {expected}.",
+      "cell": "In world {world} cell {x}{'|'}{y} looks different at the end than required. Compare with “Show goal”.",
+      "output": "In world {world} the output does not match: expected {expected}, printed {actual}.",
+      "nothing": "nothing",
+      "character_missing": "In world {world} Klonk no longer exists at the end.",
+      "error": "In world {world} the program stops: {message}",
+      "timeout": "In world {world} the program does not end – maybe an endless loop?"
     }
   }
 }

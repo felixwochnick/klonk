@@ -1,0 +1,25 @@
+{
+  "name": "@klonk/learn",
+  "private": true,
+  "license": "Elastic-2.0",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@klonk/klonk-script": "workspace:*",
+    "@klonk/world": "workspace:*"
+  },
+  "devDependencies": {
+    "@nuxt/eslint-config": "^1.17.0",
+    "@types/node": "^26.6.6",
+    "eslint": "^10.14.0",
+    "typescript": "^5.9.3",
+    "vitest": "^5.0.5"
+  }
+}

@@ -15,6 +15,7 @@
     "@iconify-json/simple-icons": "^1.2.101",
     "@klonk/core": "workspace:*",
     "@klonk/klonk-script": "workspace:*",
+    "@klonk/learn": "workspace:*",
     "@klonk/runtime": "workspace:*",
     "@klonk/ui": "workspace:*",
     "@klonk/world": "workspace:*",
