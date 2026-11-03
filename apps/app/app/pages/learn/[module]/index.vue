@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { findModule } from '@klonk/learn'
+import { findModule, LEARN_MODULES } from '@klonk/learn'
 
 const { t, locale } = useI18n()
 const route = useRoute()
@@ -7,7 +7,9 @@ const learn = useLearn()
 const lang = computed(() => (locale.value === 'en' ? 'en' : 'de'))
 
 const module = computed(() => findModule(String(route.params.module)))
-const index = computed(() => learn.modules.findIndex(m => m.id === module.value?.id))
+const index = computed(() => LEARN_MODULES.findIndex(m => m.id === module.value?.id))
+// Lernende einer Organisation: nur freigegebene Module (ohne Cloud keine)
+const locked = computed(() => !!module.value && !!learn.status.value && !learn.canStart(module.value.id))
 useSeoMeta({ title: () => module.value?.title[lang.value] ?? t('learn.title') })
 
 // Hinweise für Lehrkräfte nur in der App (nicht in der öffentlichen Doku) und nur für Lehrkräfte, Admins, Betreiber
@@ -79,6 +81,15 @@ const isTeacher = computed(() => !!user.value && (user.value.role !== 'member' |
       </article>
 
       <aside>
+        <UAlert
+          v-if="locked"
+          class="mb-4"
+          color="warning"
+          variant="subtle"
+          icon="i-lucide-lock"
+          :description="learn.status.value?.cloud ? t('learn.notEnabled') : t('learn.cloudRequired')"
+          data-testid="learn-locked"
+        />
         <h2 class="mb-3 font-semibold">
           {{ t('learn.tasks') }}
         </h2>
@@ -91,7 +102,8 @@ const isTeacher = computed(() => !!user.value && (user.value.role !== 'member' |
             :key="task.id"
           >
             <UButton
-              :to="`/learn/${module.id}/${task.id}`"
+              :to="locked ? undefined : `/learn/${module.id}/${task.id}`"
+              :disabled="locked"
               variant="outline"
               color="neutral"
               block
@@ -108,8 +120,9 @@ const isTeacher = computed(() => !!user.value && (user.value.role !== 'member' |
           </li>
         </ol>
         <UButton
-          :to="`/learn/${module.id}/${learn.nextTaskId(module)}`"
-          :label="learn.solvedCount(module) ? t('learn.continue') : t('learn.start')"
+          :to="locked ? undefined : `/learn/${module.id}/${learn.nextTaskId(module)}`"
+          :label="learn.progress(module.id) ? t('learn.continue') : t('learn.start')"
+          :disabled="locked || !learn.status.value"
           trailing-icon="i-lucide-arrow-right"
           class="mt-4"
           block

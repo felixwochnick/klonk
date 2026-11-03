@@ -207,6 +207,8 @@ export const cloudProjects = pgTable('cloud_projects', {
   groupId: uuid().references(() => groups.id, { onDelete: 'cascade' }),
   /** Bearbeitung einer Aufgabe (Abgabe): die Gruppenleitung darf lesen */
   assignmentId: uuid().references((): AnyPgColumn => cloudAssignments.id, { onDelete: 'set null' }),
+  /** Projekt eines Lernmoduls (ID aus @klonk/learn): die Gruppenleitung darf lesen, wenn das Modul in der Gruppe freigegeben ist */
+  learnModule: text(),
   name: text().notNull(),
   revision: bigint({ mode: 'number' }).notNull().default(0),
   /** Summe der Dateigrößen in Bytes (Kontingent) */
@@ -217,6 +219,7 @@ export const cloudProjects = pgTable('cloud_projects', {
   uniqueIndex('cloud_projects_owner_name_idx').on(t.ownerId, t.name).where(sql`${t.ownerId} IS NOT NULL`),
   uniqueIndex('cloud_projects_group_idx').on(t.groupId).where(sql`${t.groupId} IS NOT NULL`),
   index('cloud_projects_assignment_idx').on(t.assignmentId),
+  uniqueIndex('cloud_projects_owner_learn_idx').on(t.ownerId, t.learnModule).where(sql`${t.learnModule} IS NOT NULL`),
   check('cloud_projects_owner_or_group', sql`(${t.ownerId} IS NULL) <> (${t.groupId} IS NULL)`),
 ])
 
@@ -242,3 +245,11 @@ export const cloudAssignments = pgTable('cloud_assignments', {
   createdBy: uuid().references(() => users.id, { onDelete: 'set null' }),
   createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
 }, t => [uniqueIndex('cloud_assignments_group_path_idx').on(t.groupId, t.path)])
+
+/** Lernmodule, die die Gruppenleitung für eine Gruppe freigegeben hat (Modul-IDs aus @klonk/learn) */
+export const groupLearnModules = pgTable('group_learn_modules', {
+  groupId: uuid().notNull().references(() => groups.id, { onDelete: 'cascade' }),
+  moduleId: text().notNull(),
+  enabledBy: uuid().references(() => users.id, { onDelete: 'set null' }),
+  createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+}, t => [primaryKey({ columns: [t.groupId, t.moduleId] })])

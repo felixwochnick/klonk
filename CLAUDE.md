@@ -260,14 +260,22 @@ node scripts/build-csharp.ts        # C#-Host bauen (.NET-SDK 10 nötig; Ausgabe
 - **Code in voller Breite** (`focus`, vom User so gewünscht – kein Browser-Vollbild): Projekt/Welt aus, Ausgabe kompakt unter dem Editor.
   Rechts Tabs **Welt | Doku** (`LanguageDocs.vue`: Kurzreferenz je Sprache aus den Tabellen, Link `public.docsUrl`); Ausführen zeigt die Welt.
 - **Navigation:** Projekte · Programmieren · Lernen (`/learn`) · Kleiderschrank (`/designs`, Designs des Projekts) · Welt.
-- **Lernmodule** (vom User so festgelegt: Aufgabenmodus in der App, thematisch gegliedert, zuerst Grundkurs Klonk-Script): Daten in `@klonk/learn`
-  (Texte de/en als Markdown im Paket, nicht in i18n), Seiten `/learn`, `/learn/<modul>`, `/learn/<modul>/<aufgabe>` (`pages/learn/`, `key: fullPath`).
-  Zielzustand = Ergebnis der **Musterlösung** in jeder Startwelt (`expectedOutcomes`, läuft im Hauptthread); geprüft wird je Aufgabe nur, was
-  `check` verlangt (Position/Richtung/Felder/Zahlen der Ausgabe) + `requires` am Syntaxbaum. Nutzerprogramme laufen beim Prüfen headless im
-  Runner-Worker mit `delay: 0` und 5-s-Zeitlimit (`utils/learn-check.ts`). Fortschritt + Programme nur in localStorage `klonk:learn` (`useLearn`).
-  Musterlösung sichtbar nach dem Lösen, für Rolle ≠ member, Betreiber und Privatkonten. Unit-Tests lösen jede Aufgabe mit der Musterlösung (de/en)
-  in allen Welten. **Aufgaben, Lösungen und Lehrkraft-Hinweise nie in die öffentliche Doku** (vom User so festgelegt) – Hinweise für
-  Lehrkräfte zeigt die Modulseite der App nur für Rolle ≠ member bzw. Betreiber.
+- **Lernmodule** (vom User so festgelegt: Aufgabenmodus in der App, thematisch gegliedert, zuerst Grundkurs Klonk-Script; **Speicherung in der
+  Klonk Cloud, Freigabe je Gruppe, Lernstand für die Gruppenleitung**): Daten in `@klonk/learn` (Texte de/en als Markdown im Paket, nicht in i18n),
+  Seiten `/learn`, `/learn/<modul>`, `/learn/<modul>/<aufgabe>` (`key: fullPath`; `?project=<id>&name=…&back=…` = Programm einer anderen
+  Person nur lesen), `/learn/groups/<id>` (Freigabe + Lernstand). Jedes gestartete Modul = **eigenes Cloud-Projekt** (`cloud_projects.learn_module`,
+  eindeutig je Konto): `<aufgabe>.blocks|klonk` + Manifest `klonk.json` `{ learn: { module, languages, solved } }` (`packages/learn/src/project.ts`).
+  Freigabe in `group_learn_modules` (Gruppenleitung/Admins, `setGroupLearnModules`). Startbar (`klonk.can_start_learn_module`): Privatkonten und
+  Lehrkräfte/Admins alle, Lernende nur in einer ihrer Gruppen freigegebene; **ohne Cloud keine Lernmodule** (`requireCloud`). Gruppenleitung liest
+  Modulprojekte ihrer Mitglieder nur für freigegebene Module (`klonk.leads_learner` in `can_read_cloud_project` + Policy), `learn_module` lässt sich
+  per UPDATE nicht ändern. Server: `apps/app/server/utils/learn.ts` (`/api/learn`, `/api/learn/modules/:id/start`, `/api/learn/groups/:id[/modules]`),
+  Lernstand = aus `klonk.json` + Aufgabendateien (`progressFromFiles`). Prüfung im Browser (Status „gelöst“ ist nicht fälschungssicher).
+  Zielzustand = Ergebnis der **Musterlösung** in jeder Startwelt (`expectedOutcomes`); geprüft wird je Aufgabe nur, was `check` verlangt
+  (Position/Richtung/Felder/Zahlen der Ausgabe) + `requires` am Syntaxbaum. Nutzerprogramme laufen beim Prüfen headless im Runner-Worker mit
+  `delay: 0` und 5-s-Zeitlimit (`utils/learn-check.ts`). Musterlösung sichtbar nach dem Lösen, für Rolle ≠ member, Betreiber und Privatkonten.
+  Unit-Tests lösen jede Aufgabe mit der Musterlösung (de/en) in allen Welten. **Aufgaben, Lösungen und Lehrkraft-Hinweise nie in die öffentliche
+  Doku** (vom User so festgelegt) – Hinweise für Lehrkräfte zeigt die Modulseite der App nur für Rolle ≠ member bzw. Betreiber.
+  E2E `e2e/learn.spec.ts` (Konto tom, Gruppe 9c; Programme per Cloud-API vorbelegt).
   vue-i18n: `|` in Texten als `{'|'}` schreiben (sonst Pluralform).
 - **Laufzeiten versioniert:** `/pyodide|teavm|pylibs|dotnet/<hash>/` (`assetVersion()` in `apps/app/nuxt.config.ts`, Vite-`define`
   `__KLONK_ASSETS__`, `runtime/src/assets.ts`) – sonst lieferten Browser-/PWA-Cache nach einem Neubau alte Dateien (z. B. alter C#-Host).
@@ -420,5 +428,5 @@ node scripts/build-csharp.ts        # C#-Host bauen (.NET-SDK 10 nötig; Ausgabe
 13. [x] Klonk Cloud: Projekte synchronisieren (offline-fähig), Gruppen mit gemeinsamem Ordner, Aufgaben + Abgaben
 14. [x] Datenbanken: SQLite + PostgreSQL (PGlite) im Browser, SQL-Konsole, Welt als Datenbank, Datenbank-API in JS/TS/Python/Java/C#
 14b. [ ] ER-Modellierung (Diagramm ⇒ Tabellen), MySQL-Dialekt
-15. [x] Lernmodule: Grundkurs Klonk-Script (6 Module, 20 Aufgaben, automatische Prüfung, Hinweise für Lehrkräfte in der App)
+15. [x] Lernmodule: Grundkurs Klonk-Script (6 Module, 20 Aufgaben, automatische Prüfung, Cloud-Projekt je Modul, Freigabe je Gruppe, Lernstand)
 15b. [ ] Lernmodule für Python/Java (Objekte, Klassen)

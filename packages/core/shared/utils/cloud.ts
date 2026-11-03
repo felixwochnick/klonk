@@ -16,6 +16,8 @@ export type CloudProjectInfo = {
   writable: boolean
   groupId: string | null
   assignmentId: string | null
+  /** Projekt eines Lernmoduls (ID aus @klonk/learn) */
+  learnModule: string | null
   size: number
   updatedAt: string
 }

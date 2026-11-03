@@ -69,6 +69,7 @@ export async function cloudStatus(user: SessionUser, event: H3Event): Promise<Cl
       writable: enabled && writable,
       groupId: p.groupId,
       assignmentId: p.assignmentId,
+      learnModule: p.learnModule,
       size: p.size,
       updatedAt: p.updatedAt.toISOString(),
     })
@@ -207,7 +208,7 @@ async function freeName(tx: Tx, ownerId: string, name: string) {
 export type CloudUpload = { files: { path: string, content: string }[], folders: string[] }
 
 /** Eigenes Projekt anlegen, optional mit Inhalt (Hochladen eines lokalen Projekts oder Kopie einer Aufgabe) */
-export async function createCloudProject(tx: Tx, user: SessionUser, input: { name: string, assignmentId?: string | null, unique?: boolean } & CloudUpload) {
+export async function createCloudProject(tx: Tx, user: SessionUser, input: { name: string, assignmentId?: string | null, learnModule?: string | null, unique?: boolean } & CloudUpload) {
   if (input.files.length + input.folders.length > CLOUD_LIMITS.files) throw createError({ statusCode: 413, message: 'cloud_too_many_files' })
   const sizes = input.files.map(f => byteLength(f.content))
   if (sizes.some(s => s > CLOUD_LIMITS.fileBytes)) throw createError({ statusCode: 413, message: 'cloud_file_too_large' })
@@ -221,7 +222,7 @@ export async function createCloudProject(tx: Tx, user: SessionUser, input: { nam
 
   const hasContent = input.files.length + input.folders.length > 0
   const [project] = await tx.insert(cloudProjects)
-    .values({ ownerId: user.id, name, assignmentId: input.assignmentId ?? null, revision: hasContent ? 1 : 0, size })
+    .values({ ownerId: user.id, name, assignmentId: input.assignmentId ?? null, learnModule: input.learnModule ?? null, revision: hasContent ? 1 : 0, size })
     .returning()
   if (hasContent) {
     await tx.insert(cloudFiles).values([

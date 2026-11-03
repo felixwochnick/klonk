@@ -9,6 +9,7 @@ import type { LearnModule } from './types'
 export * from './types'
 export * from './check'
 export { map } from './map'
+export * from './project'
 
 /** Grundkurs Klonk-Script – Reihenfolge = empfohlene Reihenfolge im Unterricht */
 export const LEARN_MODULES: LearnModule[] = [sequence, repeat, whileLoop, conditions, procedures, variables]
@@ -20,6 +21,3 @@ export function findModule(id: string) {
 export function findTask(moduleId: string, taskId: string) {
   return findModule(moduleId)?.tasks.find(t => t.id === taskId)
 }
-
-/** Schlüssel einer Aufgabe für Fortschritt und gespeicherte Programme */
-export const taskKey = (moduleId: string, taskId: string) => `${moduleId}/${taskId}`

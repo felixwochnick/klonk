@@ -1,52 +1,32 @@
-import { LEARN_MODULES, type LearnModule, taskKey } from '@klonk/learn'
+import { LEARN_MODULES, type LearnModule, type LearnStatus } from '@klonk/learn'
+import { openCloudProject } from '~/utils/cloud-project'
 
-/** Programm einer Aufgabe: Blöcke (Blockly-JSON) und Klonk-Script getrennt, damit Umschalten nichts löscht */
-export type LearnProgram = { language: 'blocks' | 'klonk', blocks: string, klonk: string }
-
-type LearnState = { solved: Record<string, true>, programs: Record<string, LearnProgram> }
-
-const STORAGE_KEY = 'klonk:learn'
-
-// Modulweit: alle Lern-Seiten teilen sich denselben Stand (nur im Browser gespeichert)
-const state = ref<LearnState>({ solved: {}, programs: {} })
-let loaded = false
-
-function load() {
-  if (loaded || import.meta.server) return
-  loaded = true
-  try {
-    const stored = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? 'null') as Partial<LearnState> | null
-    if (stored) state.value = { solved: stored.solved ?? {}, programs: stored.programs ?? {} }
-  }
-  catch {
-    // ungültig ⇒ neu beginnen
-  }
-  watch(state, (value) => {
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(value))
-    }
-    catch {
-      // z. B. privater Modus
-    }
-  }, { deep: true })
-}
-
-/** Fortschritt und Programme der Lernmodule (localStorage `klonk:learn`) */
+/**
+ * Lernmodule: jedes gestartete Modul ist ein Cloud-Projekt des Kontos (Programme je Aufgabe, Lernstand in `klonk.json`).
+ * Welche Module startbar sind und den Lernstand liefert `/api/learn`; Lernende einer Organisation sehen nur, was in einer
+ * ihrer Gruppen freigegeben ist.
+ */
 export function useLearn() {
-  load()
+  const { data: status, refresh, status: fetchState } = useFetch<LearnStatus | null>('/api/learn', {
+    key: 'learn-status',
+    server: false,
+    headers: clientHostHeaders(),
+    default: () => null,
+  })
+  const loading = computed(() => fetchState.value === 'pending' || fetchState.value === 'idle')
 
-  const isSolved = (moduleId: string, taskId: string) => !!state.value.solved[taskKey(moduleId, taskId)]
+  /** Module, die das Konto starten darf (in Kursreihenfolge) */
+  const modules = computed(() => LEARN_MODULES.filter(m => status.value?.modules.includes(m.id)))
+  const canStart = (moduleId: string) => !!status.value?.cloud && !!status.value.modules.includes(moduleId)
+
+  const progress = (moduleId: string) => status.value?.projects[moduleId] ?? null
+  const isSolved = (moduleId: string, taskId: string) => !!progress(moduleId)?.solved.includes(taskId)
   const solvedCount = (module: LearnModule) => module.tasks.filter(t => isSolved(module.id, t.id)).length
 
+  /** Gelöst merken, bis die Übersicht neu geladen ist */
   function markSolved(moduleId: string, taskId: string) {
-    state.value.solved[taskKey(moduleId, taskId)] = true
-  }
-
-  /** Gespeichertes Programm (wird beim ersten Zugriff angelegt) */
-  function program(moduleId: string, taskId: string): LearnProgram {
-    const key = taskKey(moduleId, taskId)
-    state.value.programs[key] ??= { language: 'blocks', blocks: '', klonk: '' }
-    return state.value.programs[key]
+    const entry = status.value?.projects[moduleId]
+    if (entry && !entry.solved.includes(taskId)) entry.solved.push(taskId)
   }
 
   /** Erste ungelöste Aufgabe des Moduls (sonst die erste) */
@@ -54,16 +34,35 @@ export function useLearn() {
     return (module.tasks.find(t => !isSolved(module.id, t.id)) ?? module.tasks[0]!).id
   }
 
-  /** Aufgabe nach dieser – auch über das Modulende hinweg */
+  /** Aufgabe nach dieser – auch ins nächste startbare Modul */
   function following(moduleId: string, taskId: string): { module: string, task: string } | null {
-    const m = LEARN_MODULES.findIndex(x => x.id === moduleId)
-    const module = LEARN_MODULES[m]
+    const module = findModuleById(moduleId)
     if (!module) return null
     const t = module.tasks.findIndex(x => x.id === taskId)
     if (module.tasks[t + 1]) return { module: moduleId, task: module.tasks[t + 1]!.id }
-    const next = LEARN_MODULES[m + 1]
+    const list = modules.value
+    const next = list[list.findIndex(m => m.id === moduleId) + 1]
     return next ? { module: next.id, task: next.tasks[0]!.id } : null
   }
 
-  return { modules: LEARN_MODULES, isSolved, solvedCount, markSolved, program, nextTaskId, following }
+  /** Eigenes Modulprojekt (beim ersten Mal anlegen) öffnen */
+  async function openOwn(moduleId: string, lang: 'de' | 'en') {
+    let entry = progress(moduleId)
+    if (!entry) {
+      await $fetch(`/api/learn/modules/${moduleId}/start` as string, { method: 'POST', headers: clientHostHeaders(), body: { lang } })
+      await refresh()
+      entry = progress(moduleId)
+      if (!entry) throw new Error('learn_not_found')
+    }
+    return openCloudProject({ id: entry.projectId, name: moduleId, kind: 'personal', writable: true })
+  }
+
+  /** Modulprojekt einer anderen Person (Gruppenleitung, nur lesen) öffnen */
+  function openForeign(projectId: string, name: string) {
+    return openCloudProject({ id: projectId, name, kind: 'personal', writable: false })
+  }
+
+  return { status, refresh, loading, modules, canStart, progress, isSolved, solvedCount, markSolved, nextTaskId, following, openOwn, openForeign }
 }
+
+const findModuleById = (id: string) => LEARN_MODULES.find(m => m.id === id)
