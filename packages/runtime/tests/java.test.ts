@@ -6,7 +6,7 @@ import type { FromWorker, ToWorker } from '../src/protocol'
 import { instrumentJava } from '../src/java/instrument'
 import { DEBUG_JAVA, ROBOT_JAVA } from '../src/java/robot'
 import { runJava } from '../src/java/run'
-import { createSharedState } from '../src/js/shared'
+import { CONTROL, createSharedState, views } from '../src/js/shared'
 
 describe('Java: Instrumentierung', () => {
   it('Prüfpunkt vor jeder Anweisung, Zeilen bleiben gleich, Variablen im Sichtbereich', () => {
@@ -176,5 +176,58 @@ public class Main {
     messages.length = 0
     await run(main, { path: 'src/Main.java', allowImports: false, files }, '')
     expect(messages.at(-1)).toMatchObject({ type: 'error', error: { code: 'feature_libraries', range: { line: 2 } } })
+  })
+})
+
+describe('Java: Speicherabbild (Objektdiagramm)', { timeout: 120_000 }, () => {
+  it('eigene Klassen mit geerbten Attributen, Listen, Figuren, Zyklen und this', async () => {
+    messages.length = 0
+    const shared = createSharedState()
+    views(shared).breakpoints[18] = 1
+    let heap: unknown
+    await runJava({
+      type: 'run',
+      language: 'java',
+      source: `import klonk.Klonk;
+import java.util.ArrayList;
+class Figur {
+  protected String name;
+  Figur(String name) { this.name = name; }
+}
+class Held extends Figur {
+  private Held freund;
+  private int punkte = 7;
+  private Klonk figur = new Klonk();
+  Held(String name) { super(name); }
+  void verbinden(Held anderer) { freund = anderer; anderer.freund = this; }
+}
+public class Main {
+  public static void main(String[] args) {
+    Held a = new Held("Klara"); Held b = new Held("Ben"); a.verbinden(b);
+    ArrayList<Held> team = new ArrayList<>(); team.add(a); team.add(b);
+    System.out.println(team.size());
+  }
+}`,
+      world, breakpoints: [], delay: 0, allowImports: false, files: {}, shared,
+    }, (m) => {
+      messages.push(m)
+      if (m.type === 'paused') {
+        heap = m.heap
+        Atomics.store(views(shared).control, CONTROL.SIGNAL, 1)
+      }
+    }, toolchain)
+    expect(messages.at(-1)).toEqual({ type: 'done' })
+    expect(heap).toEqual({
+      variables: [['args', { ref: 1 }], ['a', { ref: 2 }], ['b', { ref: 3 }], ['team', { ref: 4 }]],
+      objects: [
+        { id: 1, className: 'Array', fields: [] },
+        { id: 2, className: 'Held', fields: [['name', { value: '"Klara"' }], ['freund', { ref: 3 }], ['punkte', { value: '7' }], ['figur', { ref: 5 }]] },
+        { id: 3, className: 'Held', fields: [['name', { value: '"Ben"' }], ['freund', { ref: 2 }], ['punkte', { value: '7' }], ['figur', { ref: 6 }]] },
+        { id: 4, className: 'ArrayList', fields: [['[0]', { ref: 2 }], ['[1]', { ref: 3 }]] },
+        { id: 5, className: 'Klonk', robot: 'k', fields: [['name', { value: '"k"' }]] },
+        { id: 6, className: 'Klonk', robot: 'k', fields: [['name', { value: '"k"' }]] },
+      ],
+      truncated: false,
+    })
   })
 })

@@ -1,0 +1,28 @@
+{
+  "name": "@klonk/diagrams",
+  "private": true,
+  "license": "Elastic-2.0",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@dagrejs/dagre": "3.1.2",
+    "@klonk/klonk-script": "workspace:*",
+    "@lezer/common": "1.5.4",
+    "@lezer/java": "1.1.3",
+    "@lezer/javascript": "1.5.4",
+    "@lezer/python": "1.1.18"
+  },
+  "devDependencies": {
+    "@nuxt/eslint-config": "^1.17.0",
+    "eslint": "^10.14.0",
+    "typescript": "^5.9.3",
+    "vitest": "^5.0.5"
+  }
+}

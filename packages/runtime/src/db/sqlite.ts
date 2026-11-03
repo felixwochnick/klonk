@@ -1,5 +1,5 @@
 import type { Database, Sqlite3Static } from '@sqlite.org/sqlite-wasm'
-import { SqlError, lineAt, toSqlValue, type SqlEngine, type SqlResult, type SqlTable, type SqlValue } from './types'
+import { SqlError, lineAt, toSqlValue, type SqlEngine, type SqlForeignKey, type SqlResult, type SqlTable, type SqlValue } from './types'
 
 let module: Promise<Sqlite3Static> | undefined
 
@@ -132,7 +132,29 @@ export async function createSqlite(initial?: string | Uint8Array): Promise<SqlEn
       return objects.map((object): SqlTable => {
         const columns = db.exec({ sql: 'SELECT name, type, pk, "notnull" FROM pragma_table_info(?)', bind: [object.name], rowMode: 'object', returnValue: 'resultRows' }) as { name: string, type: string, pk: number, notnull: number }[]
         const rows = object.type === 'table' ? Number(db.selectValue(`SELECT count(*) FROM ${quoteIdent(object.name)}`)) : null
-        return { name: object.name, kind: object.type, rows, columns: columns.map(c => ({ name: c.name, type: c.type, primaryKey: c.pk > 0, notNull: !!c.notnull })) }
+        // Fremdschlüssel (für das ER-Diagramm) und eindeutige Einzelspalten (1:1-Beziehungen)
+        const fkRows = db.exec({ sql: 'SELECT id, "table", "from", "to" FROM pragma_foreign_key_list(?) ORDER BY id, seq', bind: [object.name], rowMode: 'object', returnValue: 'resultRows' }) as { id: number, table: string, from: string, to: string | null }[]
+        const foreignKeys = new Map<number, SqlForeignKey>()
+        for (const fk of fkRows) {
+          const entry = foreignKeys.get(fk.id) ?? { columns: [], table: fk.table, refColumns: [] }
+          entry.columns.push(fk.from)
+          if (fk.to) entry.refColumns.push(fk.to)
+          foreignKeys.set(fk.id, entry)
+        }
+        const unique = new Set((db.exec({
+          sql: `SELECT ii.name FROM pragma_index_list(?) il JOIN pragma_index_info(il.name) ii WHERE il."unique" = 1 AND il.origin != 'pk'
+                AND (SELECT count(*) FROM pragma_index_info(il.name)) = 1`,
+          bind: [object.name],
+          rowMode: 0,
+          returnValue: 'resultRows',
+        }) as string[]))
+        return {
+          name: object.name,
+          kind: object.type,
+          rows,
+          columns: columns.map(c => ({ name: c.name, type: c.type, primaryKey: c.pk > 0, notNull: !!c.notnull, unique: unique.has(c.name) || undefined })),
+          foreignKeys: [...foreignKeys.values()],
+        }
       })
     },
     async exportFile() {

@@ -22,6 +22,7 @@ public static partial class Host
     [JSImport("checkpoint", "klonk")] internal static partial bool JsCheckpoint(int line);
     [JSImport("variable", "klonk")] internal static partial void JsVariable(string name, string value);
     [JSImport("pause", "klonk")] internal static partial void JsPause();
+    [JSImport("heap", "klonk")] internal static partial void JsHeap(string json);
     [JSImport("print", "klonk")] internal static partial void JsPrint(string text);
 
     const string UserFile = "Program.cs";
@@ -42,6 +43,7 @@ public static partial class Host
         AppDomain.CurrentDomain.SetData("klonk.checkpoint", new Func<int, bool>(JsCheckpoint));
         AppDomain.CurrentDomain.SetData("klonk.variable", new Action<string, string>(JsVariable));
         AppDomain.CurrentDomain.SetData("klonk.pause", new Action(JsPause));
+        AppDomain.CurrentDomain.SetData("klonk.heap", new Action<string>(JsHeap));
 
         // 1. Übersetzen (Fehler mit Zeilen des Originals)
         var parse = new CSharpParseOptions(LanguageVersion.Latest);
@@ -270,6 +272,10 @@ public static partial class Host
         {
             var vars = new StringBuilder();
             var enclosing = model.GetEnclosingSymbol(statement.SpanStart);
+            // Objektmethoden: `this` zeigt das eigene Objekt (Objektdiagramm)
+            if (enclosing is IMethodSymbol { IsStatic: false, MethodKind: MethodKind.Ordinary or MethodKind.Constructor or MethodKind.PropertyGet or MethodKind.PropertySet } method
+                && method.ContainingType.TypeKind is TypeKind.Class or TypeKind.Struct)
+                vars.Append("global::klonk.Klonk.__v(\"this\", this); ");
             var flow = model.AnalyzeDataFlow(statement);
             if (flow is { Succeeded: true })
             {

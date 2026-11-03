@@ -1,6 +1,7 @@
 import type { RobotCommand, SourceRange, Value } from '@klonk/klonk-script'
 import { assetUrl } from '../assets'
 import { World } from '@klonk/world'
+import type { HeapSnapshot } from '../heap'
 import type { FromWorker, RunError, ToWorker } from '../protocol'
 import type { ApiError } from '../js/api'
 import { ROBOT_METHODS, createApi } from '../js/api'
@@ -16,7 +17,7 @@ const BLOCKED_GLOBALS = ['fetch', 'XMLHttpRequest', 'WebSocket', 'EventSource', 
 type HostResult = { ok?: boolean, error?: string, message?: string, line?: number, name?: string }
 export type DotnetHost = {
   setModuleImports(module: string, imports: Record<string, unknown>): void
-  getAssemblyExports(assembly: string): Promise<{ Host: { Run(source: string, files: string[]): string, Check(source: string, files: string[]): string, Complete(source: string, files: string[], position: number): string, Hover(source: string, files: string[], position: number): string } }>
+  getAssemblyExports(assembly: string): Promise<{ Host: { Run(source: string, files: string[]): string, Check(source: string, files: string[]): string, Complete(source: string, files: string[], position: number): string, Hover(source: string, files: string[], position: number): string, Outline(source: string, files: string[]): string } }>
 }
 
 /**
@@ -49,6 +50,7 @@ export async function runCSharp(
   let stepping = !!message.pauseOnStart
   let pauseReason: 'pause' | 'breakpoint' | 'step' = 'step'
   let variables: Record<string, Value> = {}
+  let heap: HeapSnapshot | undefined
   let apiError: ApiError | undefined
 
   const sleep = (ms: number) => {
@@ -103,10 +105,20 @@ export async function runCSharp(
     variable: (name: string, value: string) => {
       variables[name] = value
     },
+    // Speicherabbild fürs Objektdiagramm (JSON aus RobotApi.txt, kommt direkt vor pause())
+    heap: (json: string) => {
+      try {
+        heap = JSON.parse(json) as HeapSnapshot
+      }
+      catch {
+        heap = undefined
+      }
+    },
     pause: () => {
       Atomics.store(control, CONTROL.PAUSE, 0)
       Atomics.store(control, CONTROL.SIGNAL, 0)
-      post({ type: 'paused', range: lineRange(line), variables, reason: pauseReason })
+      post({ type: 'paused', range: lineRange(line), variables, reason: pauseReason, heap })
+      heap = undefined
       Atomics.wait(control, CONTROL.SIGNAL, 0)
       stepping = Atomics.load(control, CONTROL.SIGNAL) === 2
       post({ type: 'resumed' })

@@ -144,3 +144,92 @@ Console.WriteLine(xml.ToString(SaveOptions.DisableFormatting) + " " + XElement.P
     expect(messages.at(-1)).toMatchObject({ type: 'error', error: { code: 'feature_libraries' } })
   })
 })
+
+describe.skipIf(!built)('C#: Diagramme', { timeout: 180_000 }, () => {
+  beforeEach(() => {
+    messages.length = 0
+  })
+
+  it('Speicherabbild beim Anhalten: Reflection mit geerbten Feldern, Auto-Properties, Listen, Figuren, this', async () => {
+    const shared = createSharedState()
+    views(shared).breakpoints[17] = 1
+    let heap: unknown
+    await runCSharp({
+      type: 'run',
+      language: 'csharp',
+      source: `using klonk;
+var a = new Held("Klara");
+var b = new Held("Ben");
+a.Verbinden(b);
+var team = new List<Held> { a, b };
+Console.WriteLine(team.Count);
+class Figur
+{
+    public string Name { get; }
+    public Figur(string name) { Name = name; }
+}
+class Held : Figur
+{
+    private Held? freund;
+    private Klonk figur = new Klonk();
+    public Held(string name) : base(name) { }
+    public void Verbinden(Held anderer) { freund = anderer; anderer.freund = this; }
+}`,
+      world, breakpoints: [], delay: 0, allowImports: false, files: {}, shared,
+    }, (m) => {
+      messages.push(m)
+      if (m.type === 'paused') {
+        heap = m.heap
+        Atomics.store(views(shared).control, CONTROL.SIGNAL, 1)
+      }
+    }, createHost)
+    expect(messages.at(-1)).toEqual({ type: 'done' })
+    expect(heap).toEqual({
+      variables: [['this', { ref: 1 }], ['anderer', { ref: 2 }]],
+      objects: [
+        // Angehalten vor `freund = anderer` – noch keine Verweise zwischen den beiden
+        { id: 1, className: 'Held', fields: [['Name', { value: '"Klara"' }], ['freund', { value: 'null' }], ['figur', { ref: 3 }]] },
+        { id: 2, className: 'Held', fields: [['Name', { value: '"Ben"' }], ['freund', { value: 'null' }], ['figur', { ref: 4 }]] },
+        { id: 3, className: 'Klonk', robot: 'k', fields: [['Name', { value: '"k"' }]] },
+        { id: 4, className: 'Klonk', robot: 'k', fields: [['Name', { value: '"k"' }]] },
+      ],
+      truncated: false,
+    })
+  })
+
+  it('Auswertung für Klassendiagramm und Struktogramm (Roslyn)', async () => {
+    const h = await createHost()
+    const exports = await (h as { getAssemblyExports: (name: string) => Promise<{ Host: { Outline: (source: string, files: string[]) => string } }> }).getAssemblyExports('Klonk.CSharp')
+    const outline = JSON.parse(exports.Host.Outline(`using klonk;
+var t = new Hund("Bello");
+t.Laut();
+abstract class Tier
+{
+    public string Name { get; }
+    protected Tier(string name) { Name = name; }
+    public abstract void Laut();
+}
+class Hund : Tier, IComparable<Hund>
+{
+    private int bellen;
+    public Hund(string name) : base(name) { }
+    public override void Laut()
+    {
+        while (bellen < 2) { Console.WriteLine("Wuff"); bellen++; }
+        switch (bellen) { case 1: case 2: Hilfe(); break; default: return; }
+    }
+    void Hilfe() { }
+    public int CompareTo(Hund? other) => 0;
+}`, []))
+    const hund = outline.classes.find((c: { name: string }) => c.name === 'Hund')
+    expect(hund).toMatchObject({ kind: 'class', extends: ['Tier'], implements: ['IComparable<Hund>'] })
+    expect(hund.attributes).toEqual([expect.objectContaining({ name: 'bellen', type: 'int', visibility: 'private' })])
+    expect(outline.classes.find((c: { name: string }) => c.name === 'Tier')).toMatchObject({ isAbstract: true, attributes: [expect.objectContaining({ name: 'Name', visibility: 'public' })] })
+    expect(outline.routines[0]).toMatchObject({ kind: 'main', body: [{ kind: 'action', text: 'var t = new Hund("Bello")' }, { kind: 'action', text: 't.Laut()' }] })
+    const laut = outline.routines.find((r: { name: string }) => r.name === 'Laut')
+    expect(laut.body).toEqual([
+      { kind: 'loop', line: 16, test: 'pre', header: 'while (bellen < 2)', body: [{ kind: 'action', line: 16, text: 'Console.WriteLine("Wuff")' }, { kind: 'action', line: 16, text: 'bellen++' }] },
+      { kind: 'switch', line: 17, subject: 'bellen', cases: [{ label: '1, 2', body: [{ kind: 'call', line: 17, text: 'Hilfe()' }] }, { label: null, body: [{ kind: 'exit', line: 17, text: 'return' }] }] },
+    ])
+  })
+})

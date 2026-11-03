@@ -1,5 +1,6 @@
 import type { CheckDiagnostic, CheckLanguage, CompletionItem, FromChecker, HoverInfo, ToChecker } from '@klonk/runtime'
 import CheckWorker from '@klonk/runtime/check-worker?worker'
+import type { Outline } from '@klonk/diagrams'
 
 // Ein gemeinsamer Sprachdienst-Worker für alle Editoren (lädt Pyodide/Jedi, javac, Roslyn erst bei Bedarf)
 let worker: Worker | undefined
@@ -36,6 +37,12 @@ export async function completeProgram(message: Omit<ToChecker, 'id' | 'type'>): 
 export async function hoverProgram(message: Omit<ToChecker, 'id' | 'type'>): Promise<HoverInfo | null | undefined> {
   const reply = await request({ ...message, type: 'hover' })
   return 'hover' in reply ? reply.hover : undefined
+}
+
+/** C#: Klassen und Struktogramme (Roslyn); `null` = gerade nicht verfügbar */
+export async function outlineCSharp(source: string, files: Record<string, string> = {}): Promise<Outline | null> {
+  const reply = await request({ type: 'outline', language: 'csharp', source, files })
+  return 'outline' in reply ? reply.outline : null
 }
 
 export const CHECKED_LANGUAGES: readonly string[] = ['python', 'java', 'csharp'] satisfies CheckLanguage[]

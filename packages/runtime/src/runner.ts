@@ -3,6 +3,7 @@ import type { World, RobotDesign } from '@klonk/world'
 import { CONTROL, createSharedState, views, writeBreakpoints } from './js/shared'
 import { createDbBuffer, writeDbResponse } from './db/channel'
 import type { DbRequest, DbResponse, FromWorker, RunError, RunLanguage, ToWorker } from './protocol'
+import type { HeapSnapshot } from './heap'
 
 export type RunnerState = 'idle' | 'running' | 'paused' | 'done' | 'error' | 'stopped'
 
@@ -12,6 +13,8 @@ export type RunnerSnapshot = {
   line: number | null
   pausedRange: SourceRange | null
   variables: Record<string, Value>
+  /** Speicherabbild beim (letzten) Anhalten – für das Objektdiagramm */
+  heap: HeapSnapshot | null
   output: string[]
   error: RunError | null
 }
@@ -167,7 +170,7 @@ export class ProgramRunner {
         void this.answerDatabase(message.request)
         break
       case 'paused':
-        this.update({ state: 'paused', line: message.range.line, pausedRange: message.range, variables: message.variables })
+        this.update({ state: 'paused', line: message.range.line, pausedRange: message.range, variables: message.variables, heap: message.heap ?? null })
         break
       case 'resumed':
         this.update({ state: 'running', pausedRange: null })
@@ -235,5 +238,5 @@ export function applyCommand(world: World, command: RobotCommand) {
 }
 
 function emptySnapshot(): RunnerSnapshot {
-  return { state: 'idle', line: null, pausedRange: null, variables: {}, output: [], error: null }
+  return { state: 'idle', line: null, pausedRange: null, variables: {}, heap: null, output: [], error: null }
 }

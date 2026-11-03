@@ -32,6 +32,7 @@ public final class Klonk {
         void sleepSeconds(double seconds);
         boolean checkpoint(int line);
         void variable(String name, String value);
+        void heap(String json);
         void pause();
     }
 
@@ -153,21 +154,192 @@ public final class Klonk {
  * Debugger-Aufrufe für den Instrumentierer (`__cp`, `__v`, `__pause`). Eigene Klasse, damit der unsichtbare
  * Import in Zeile 1 nicht die Roboter-API mitbringt – die importiert das Programm selbst (`import klonk.Klonk;`).
  * Unqualifiziert über den statischen Import – eine Variable namens `klonk` würde `klonk.Debug.__cp` verdecken.
+ *
+ * Speicherabbild fürs Objektdiagramm ohne Reflection (gibt es im Browser-javac nicht): Der Instrumentierer lässt jede
+ * eigene Klasse `__Inspect` implementieren; `__klonkInspect()` meldet Klasse (`__cls`) und Attribute (`__f`).
  */
-export const DEBUG_JAVA = `package klonk;
+export const DEBUG_JAVA = String.raw`package klonk;
 
 public final class Debug {
     private Debug() {}
 
-    public static boolean __cp(int line) { return Klonk.API.checkpoint(line); }
-    public static void __pause() { Klonk.API.pause(); }
-    public static void __v(String name, int value) { Klonk.API.variable(name, String.valueOf(value)); }
-    public static void __v(String name, long value) { Klonk.API.variable(name, String.valueOf(value)); }
-    public static void __v(String name, double value) { Klonk.API.variable(name, String.valueOf(value)); }
-    public static void __v(String name, float value) { Klonk.API.variable(name, String.valueOf(value)); }
-    public static void __v(String name, boolean value) { Klonk.API.variable(name, String.valueOf(value)); }
-    public static void __v(String name, char value) { Klonk.API.variable(name, "'" + value + "'"); }
-    public static void __v(String name, Object value) { Klonk.API.variable(name, value instanceof String ? "\\"" + value + "\\"" : Klonk.show(value)); }
+    public interface __Inspect { void __klonkInspect(); }
+
+    private static final class Prim {
+        final String text;
+        Prim(String text) { this.text = text; }
+    }
+
+    // Variablen des Haltepunkts (für das Speicherabbild)
+    private static final java.util.ArrayList<String> names = new java.util.ArrayList<String>();
+    private static final java.util.ArrayList<Object> values = new java.util.ArrayList<Object>();
+
+    public static boolean __cp(int line) {
+        boolean stop = Klonk.API.checkpoint(line);
+        if (stop) {
+            names.clear();
+            values.clear();
+        }
+        return stop;
+    }
+    public static void __pause() {
+        Klonk.API.heap(heap());
+        Klonk.API.pause();
+    }
+    private static void keep(String name, Object value) {
+        names.add(name);
+        values.add(value);
+    }
+    public static void __v(String name, int value) { Klonk.API.variable(name, String.valueOf(value)); keep(name, new Prim(String.valueOf(value))); }
+    public static void __v(String name, long value) { Klonk.API.variable(name, String.valueOf(value)); keep(name, new Prim(String.valueOf(value))); }
+    public static void __v(String name, double value) { Klonk.API.variable(name, String.valueOf(value)); keep(name, new Prim(String.valueOf(value))); }
+    public static void __v(String name, float value) { Klonk.API.variable(name, String.valueOf(value)); keep(name, new Prim(String.valueOf(value))); }
+    public static void __v(String name, boolean value) { Klonk.API.variable(name, String.valueOf(value)); keep(name, new Prim(String.valueOf(value))); }
+    public static void __v(String name, char value) { Klonk.API.variable(name, "'" + value + "'"); keep(name, new Prim("'" + value + "'")); }
+    public static void __v(String name, Object value) { Klonk.API.variable(name, value instanceof String ? "\"" + value + "\"" : Klonk.show(value)); keep(name, value); }
+
+    // Speicherabbild als JSON (Breitensuche ab den Variablen, gleiche Objekte = gleiche ID)
+    private static final java.util.ArrayList<Object> objects = new java.util.ArrayList<Object>();
+    private static StringBuilder fields = new StringBuilder();
+    private static String className = "Object";
+    private static int fieldCount;
+    private static boolean more;
+    private static boolean truncated;
+
+    public static void __cls(String name) { className = name; }
+    public static void __f(String name, int value) { field(name, new Prim(String.valueOf(value))); }
+    public static void __f(String name, long value) { field(name, new Prim(String.valueOf(value))); }
+    public static void __f(String name, double value) { field(name, new Prim(String.valueOf(value))); }
+    public static void __f(String name, float value) { field(name, new Prim(String.valueOf(value))); }
+    public static void __f(String name, boolean value) { field(name, new Prim(String.valueOf(value))); }
+    public static void __f(String name, char value) { field(name, new Prim("'" + value + "'")); }
+    public static void __f(String name, Object value) { field(name, value); }
+
+    private static void field(String name, Object value) {
+        if (fieldCount >= 30) {
+            more = true;
+            return;
+        }
+        if (fieldCount++ > 0) fields.append(',');
+        fields.append('[').append(quote(name)).append(',').append(value(value)).append(']');
+    }
+
+    private static String prim(String text) {
+        if (text.length() > 60) text = text.substring(0, 59) + "…";
+        return "{\"value\":" + quote(text) + "}";
+    }
+
+    private static String value(Object v) {
+        if (v instanceof Prim) return prim(((Prim) v).text);
+        if (v == null) return prim("null");
+        if (v instanceof String) return prim("\"" + v + "\"");
+        if (v instanceof Number || v instanceof Boolean) return prim(String.valueOf(v));
+        if (v instanceof Character) return prim("'" + v + "'");
+        if (v instanceof Enum) return prim(((Enum<?>) v).name());
+        for (int i = 0; i < objects.size(); i++) if (objects.get(i) == v) return "{\"ref\":" + (i + 1) + "}";
+        if (objects.size() >= 60) {
+            truncated = true;
+            return prim("…");
+        }
+        objects.add(v);
+        return "{\"ref\":" + objects.size() + "}";
+    }
+
+    private static String quote(String text) {
+        StringBuilder out = new StringBuilder("\"");
+        for (int i = 0; i < text.length(); i++) {
+            char c = text.charAt(i);
+            if (c == '"' || c == '\\') out.append('\\').append(c);
+            else if (c == '\n') out.append("\\n");
+            else if (c < 32) out.append(' ');
+            else out.append(c);
+        }
+        return out.append('"').toString();
+    }
+
+    private static String heap() {
+        objects.clear();
+        truncated = false;
+        StringBuilder out = new StringBuilder("{\"variables\":[");
+        for (int i = 0; i < names.size(); i++) {
+            if (i > 0) out.append(',');
+            out.append('[').append(quote(names.get(i))).append(',').append(value(values.get(i))).append(']');
+        }
+        out.append("],\"objects\":[");
+        for (int i = 0; i < objects.size(); i++) {
+            Object o = objects.get(i);
+            fields = new StringBuilder();
+            fieldCount = 0;
+            more = false;
+            className = "Object";
+            String robot = null;
+            if (o instanceof __Inspect) {
+                ((__Inspect) o).__klonkInspect();
+            }
+            else if (o instanceof Klonk) {
+                className = "Klonk";
+                robot = ((Klonk) o).name;
+                field("name", robot);
+            }
+            else if (o instanceof Database) {
+                className = "Database";
+                field("name", ((Database) o).name);
+                field("engine", ((Database) o).engine);
+            }
+            else if (o instanceof java.util.List) {
+                className = o instanceof java.util.ArrayList ? "ArrayList" : o instanceof java.util.LinkedList ? "LinkedList" : "List";
+                int n = 0;
+                for (Object item : (java.util.List<?>) o) field("[" + n++ + "]", item);
+            }
+            else if (o instanceof java.util.Map) {
+                className = o instanceof java.util.HashMap ? "HashMap" : o instanceof java.util.TreeMap ? "TreeMap" : "Map";
+                java.util.Map<?, ?> map = (java.util.Map<?, ?>) o;
+                for (Object key : map.keySet()) field("[" + (key instanceof String ? "\"" + key + "\"" : String.valueOf(key)) + "]", map.get(key));
+            }
+            else if (o instanceof java.util.Collection) {
+                className = o instanceof java.util.HashSet ? "HashSet" : o instanceof java.util.TreeSet ? "TreeSet" : "Collection";
+                int n = 0;
+                for (Object item : (java.util.Collection<?>) o) field("[" + n++ + "]", item);
+            }
+            else if (o instanceof Object[]) {
+                className = "Array";
+                Object[] array = (Object[]) o;
+                for (int n = 0; n < array.length; n++) field("[" + n + "]", array[n]);
+            }
+            else if (o instanceof int[]) {
+                className = "int[]";
+                int[] array = (int[]) o;
+                for (int n = 0; n < array.length; n++) __f("[" + n + "]", array[n]);
+            }
+            else if (o instanceof double[]) {
+                className = "double[]";
+                double[] array = (double[]) o;
+                for (int n = 0; n < array.length; n++) __f("[" + n + "]", array[n]);
+            }
+            else if (o instanceof boolean[]) {
+                className = "boolean[]";
+                boolean[] array = (boolean[]) o;
+                for (int n = 0; n < array.length; n++) __f("[" + n + "]", array[n]);
+            }
+            else if (o instanceof char[]) {
+                className = "char[]";
+                char[] array = (char[]) o;
+                for (int n = 0; n < array.length; n++) __f("[" + n + "]", array[n]);
+            }
+            else if (o instanceof long[]) {
+                className = "long[]";
+                long[] array = (long[]) o;
+                for (int n = 0; n < array.length; n++) __f("[" + n + "]", array[n]);
+            }
+            if (i > 0) out.append(',');
+            out.append("{\"id\":").append(i + 1).append(",\"className\":").append(quote(className)).append(",\"fields\":[").append(fields.toString()).append(']');
+            if (robot != null) out.append(",\"robot\":").append(quote(robot));
+            if (more) out.append(",\"more\":true");
+            out.append('}');
+        }
+        out.append("],\"truncated\":").append(truncated).append('}');
+        return out.toString();
+    }
 }
 `
 

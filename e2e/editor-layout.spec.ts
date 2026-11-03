@@ -101,7 +101,7 @@ test('Blöcke passen sich an, Vollbild-Code', async ({ page }) => {
 test('Tab „Doku“ zeigt die Kurzreferenz der Sprache; Navigation mit Kleiderschrank', async ({ page }) => {
   await page.evaluate(() => localStorage.setItem('klonk:program', JSON.stringify({ language: 'python', programs: {} })))
   await gotoHydrated(page, `${APP_URL}/`)
-  await expect(page.getByRole('navigation').getByRole('link')).toHaveText(['Projekte', 'Programmieren', 'Kleiderschrank', 'Welt'])
+  await expect(page.getByRole('navigation').getByRole('link')).toHaveText(['Projekte', 'Programmieren', 'Lernen', 'Kleiderschrank', 'Welt'])
   await page.getByTestId('tab-docs').click()
   await expect(page.getByTestId('language-docs')).toContainText('from klonk import Klonk')
   await expect(page.getByTestId('language-docs')).toContainText('klonk.turn_left()')

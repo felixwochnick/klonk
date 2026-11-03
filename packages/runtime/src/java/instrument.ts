@@ -5,6 +5,9 @@ import MagicString from 'magic-string'
 const CP = '__cp'
 const VAR = '__v'
 const WAIT = '__pause'
+/** Speicherabbild: Schnittstelle und Methode je eigener Klasse (siehe Debug.java) */
+const INSPECT = '__Inspect'
+const INSPECT_METHOD = '__klonkInspect'
 
 type CstNode = {
   name: string
@@ -46,13 +49,20 @@ function identifiers(node: CstNode | undefined): string[] {
   return out
 }
 
+/** Namen aller Klassen in Quelltexten (für `super.__klonkInspect()` bei eigenen Oberklassen) */
+export function javaClassNames(sources: string[]) {
+  return new Set(sources.flatMap(source => [...source.matchAll(/\bclass\s+([A-Za-z_$][\w$]*)/g)].map(m => m[1]!)))
+}
+
 /**
  * Fügt in Java-Quelltext vor jeder Anweisung einen Prüfpunkt ein:
- * `if (__cp(zeile)) { __v("x", x); …; __pause(); }`.
- * Schleifen- und if-Rümpfe ohne Klammern werden geklammert. Nur Einfügungen ⇒ Zeilen bleiben gleich.
+ * `if (__cp(zeile)) { __v("x", x); …; __pause(); }` (in Objektmethoden auch `this`).
+ * Schleifen- und if-Rümpfe ohne Klammern werden geklammert. Eigene Klassen implementieren `__Inspect` und melden
+ * ihre Attribute fürs Objektdiagramm (`ownClasses`: eigene Klassen aller Dateien, für Attribute der Oberklasse).
+ * Nur Einfügungen ⇒ Zeilen bleiben gleich.
  * Gibt `null` zurück, wenn der Quelltext nicht geparst werden kann (dann meldet javac den Fehler).
  */
-export function instrumentJava(source: string): string | null {
+export function instrumentJava(source: string, ownClasses: Set<string> = javaClassNames([source])): string | null {
   let cst: CstNode
   try {
     cst = parse(source) as unknown as CstNode
@@ -65,13 +75,14 @@ export function instrumentJava(source: string): string | null {
   const scopes: (string[] | null)[] = []
 
   const visible = () => {
-    const names: string[] = []
+    // Äußere Bereiche zuerst, innerhalb eines Bereichs in Reihenfolge der Deklaration
+    const groups: string[][] = []
     for (let i = scopes.length - 1; i >= 0; i--) {
       const scope = scopes[i]
       if (scope === null) break
-      for (const name of scope ?? []) if (!names.includes(name)) names.push(name)
+      if (scope) groups.unshift(scope)
     }
-    return names.reverse()
+    return [...new Set(groups.flat())]
   }
   const checkpoint = (line: number) =>
     `if (${CP}(${line})) { ${visible().map(n => `${VAR}("${n}", ${n}); `).join('')}${WAIT}(); } `
@@ -98,9 +109,15 @@ export function instrumentJava(source: string): string | null {
       case 'methodDeclaration':
       case 'constructorDeclaration': {
         const params = identifiers(kid(kid(node, 'methodHeader') ?? node, 'methodDeclarator') ?? kid(node, 'constructorDeclarator'))
-        withScope(null, () => withScope(params, () => children(node)))
+        // Objektmethoden: `this` zeigt das eigene Objekt (Objektdiagramm)
+        const isStatic = kids(node, 'methodModifier').some(m => 'Static' in m.children)
+        withScope(null, () => withScope([...(isStatic ? [] : ['this']), ...params], () => children(node)))
         return
       }
+      case 'normalClassDeclaration':
+        inspectable(node)
+        children(node)
+        return
       case 'lambdaExpression': {
         const params = identifiers(kid(node, 'lambdaParameters'))
         const plain = kid(node, 'lambdaParameters')?.children.Identifier?.map(t => (t as CstToken).image) ?? []
@@ -160,6 +177,27 @@ export function instrumentJava(source: string): string | null {
         children(node)
     }
   }
+  /** Klasse meldet Name und Attribute (ohne statische) fürs Speicherabbild */
+  const inspectable = (node: CstNode) => {
+    const name = (kid(node, 'typeIdentifier')?.children.Identifier?.[0] as CstToken | undefined)?.image
+    const body = kid(node, 'classBody')
+    const close = body?.children.RCurly?.[0] as CstToken | undefined
+    if (!name || !body || !close) return
+    const fields: string[] = []
+    for (const declaration of kids(body, 'classBodyDeclaration')) {
+      const field = kid(kid(declaration, 'classMemberDeclaration') ?? declaration, 'fieldDeclaration')
+      if (!field || kids(field, 'fieldModifier').some(m => 'Static' in m.children)) continue
+      fields.push(...declared(field, false))
+    }
+    const parentTokens = kid(kid(node, 'classExtends') ?? node, 'classType')?.children.Identifier ?? []
+    const parent = (parentTokens.at(-1) as CstToken | undefined)?.image
+    const implementsClause = kid(node, 'classImplements')
+    if (implementsClause) out.appendLeft(implementsClause.location.endOffset + 1, `, ${INSPECT}`)
+    else out.appendLeft(body.location.startOffset, ` implements ${INSPECT} `)
+    const superCall = parent && ownClasses.has(parent) ? `super.${INSPECT_METHOD}(); ` : ''
+    out.appendLeft(close.startOffset, ` public void ${INSPECT_METHOD}() { ${superCall}__cls("${name}"); ${fields.map(f => `__f("${f}", this.${f}); `).join('')}} `)
+  }
+
   const children = (node: CstNode) => {
     for (const list of Object.values(node.children)) for (const c of list) if (isNode(c)) walk(c, node)
   }

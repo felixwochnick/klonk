@@ -3,7 +3,7 @@ import { loadPyodide } from 'pyodide'
 import { beforeEach, describe, expect, it } from 'vitest'
 import type { FromWorker, ToWorker } from '../src/protocol'
 import { runPython } from '../src/python/run'
-import { createSharedState } from '../src/js/shared'
+import { CONTROL, createSharedState, views } from '../src/js/shared'
 
 // Python (Pyodide) direkt in Node – im Browser lädt der Worker Pyodide von /pyodide/
 const messages: FromWorker[] = []
@@ -101,5 +101,38 @@ describe('Python', { timeout: 60_000 }, () => {
   it('ohne Lizenz ⇒ Hinweis auf Bibliotheken statt ModuleNotFoundError', async () => {
     await run('from tools import helfer\n', { files: { 'tools/helfer.py': 'x = 1\n' } })
     expect(messages.at(-1)).toMatchObject({ type: 'error', error: { code: 'feature_libraries' } })
+  })
+})
+
+describe('Python: Speicherabbild (Objektdiagramm)', { timeout: 60_000 }, () => {
+  it('Objekte, Listen, geteilte Verweise und Figuren', async () => {
+    const shared = createSharedState()
+    views(shared).breakpoints[13] = 1
+    let heap: unknown
+    // Beim Anhalten sofort „weiter“ setzen – sonst würde Atomics.wait den Testthread blockieren
+    await runPython({
+      type: 'run',
+      language: 'python',
+      source: 'from klonk import Klonk\nclass Held:\n    def __init__(self, name):\n        self.name = name\n        self.freund = None\n        self.figur = Klonk()\na = Held("Klara")\nb = Held("Ben")\na.freund = b\nb.freund = a\nteam = [a, b]\nn = 3\nprint(n)\n',
+      world, breakpoints: [13], delay: 0, allowImports: false, files: {}, shared,
+    }, (m) => {
+      messages.push(m)
+      if (m.type === 'paused') {
+        heap = m.heap
+        Atomics.store(views(shared).control, CONTROL.SIGNAL, 1)
+      }
+    }, () => loadPyodide())
+    expect(messages.at(-1)).toEqual({ type: 'done' })
+    expect(heap).toEqual({
+      variables: [['a', { ref: 1 }], ['b', { ref: 2 }], ['team', { ref: 3 }], ['n', { value: '3' }]],
+      objects: [
+        { id: 1, className: 'Held', fields: [['name', { value: '\'Klara\'' }], ['freund', { ref: 2 }], ['figur', { ref: 4 }]] },
+        { id: 2, className: 'Held', fields: [['name', { value: '\'Ben\'' }], ['freund', { ref: 1 }], ['figur', { ref: 5 }]] },
+        { id: 3, className: 'list', fields: [['[0]', { ref: 1 }], ['[1]', { ref: 2 }]] },
+        { id: 4, className: 'Klonk', robot: 'k', fields: [['name', { value: '\'k\'' }]] },
+        { id: 5, className: 'Klonk', robot: 'k', fields: [['name', { value: '\'k\'' }]] },
+      ],
+      truncated: false,
+    })
   })
 })

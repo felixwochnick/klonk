@@ -14,6 +14,7 @@
   "dependencies": {
     "@iconify-json/simple-icons": "^1.2.101",
     "@klonk/core": "workspace:*",
+    "@klonk/diagrams": "workspace:*",
     "@klonk/klonk-script": "workspace:*",
     "@klonk/learn": "workspace:*",
     "@klonk/runtime": "workspace:*",

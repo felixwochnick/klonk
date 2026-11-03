@@ -49,6 +49,9 @@ async function load() {
 }
 watch([() => props.path, databases.version], load, { immediate: true })
 
+/** Ziel eines Fremdschlüssels (Spalte ⇒ Tabelle) */
+const foreignTarget = (table: SqlTable, column: string) => table.foreignKeys?.find(fk => fk.columns.includes(column))?.table
+
 const sqlConsole = useTemplateRef<{ run: () => Promise<void> }>('sqlConsole')
 const quote = (name: string) => (/^[a-z_][a-z0-9_]*$/i.test(name) ? name : `"${name.replace(/"/g, '""')}"`)
 /** Tabelle anklicken ⇒ ihre ersten Zeilen zeigen */
@@ -56,6 +59,15 @@ async function showTable(table: SqlTable) {
   source.value = `SELECT * FROM ${quote(table.name)} LIMIT 100;`
   await nextTick()
   await sqlConsole.value?.run()
+}
+
+// Rechts: SQL-Konsole oder ER-Diagramm (Tabelle im Diagramm anklicken ⇒ ihre Zeilen in der Konsole)
+const view = ref<'sql' | 'er'>('sql')
+async function onDiagramTable(name: string) {
+  const table = tables.value.find(x => x.name === name)
+  if (!table) return
+  view.value = 'sql'
+  await showTable(table)
 }
 
 async function exportFile() {
@@ -156,16 +168,50 @@ defineExpose({ run: () => sqlConsole.value?.run() })
                 :aria-label="t('database.primaryKey')"
               />
               <span>{{ column.name }}</span>
+              <UIcon
+                v-if="foreignTarget(table, column.name)"
+                name="i-lucide-arrow-up-right"
+                class="size-3 text-(--ui-primary)"
+                :title="foreignTarget(table, column.name)"
+                :aria-label="t('database.foreignKey', { table: foreignTarget(table, column.name) })"
+              />
               <span class="text-(--ui-text-dimmed)">{{ column.type.toLowerCase() }}</span>
             </li>
           </ul>
         </li>
       </ul>
     </aside>
-    <SqlConsole
-      ref="sqlConsole"
-      v-model="source"
-      :targets="targets"
-    />
+    <div class="flex min-h-0 min-w-0 flex-1 flex-col">
+      <div
+        class="flex items-center gap-1 border-b border-(--ui-border) px-2 py-1"
+        role="tablist"
+      >
+        <UButton
+          v-for="tab in (['sql', 'er'] as const)"
+          :key="tab"
+          role="tab"
+          size="xs"
+          :aria-selected="view === tab"
+          :variant="view === tab ? 'soft' : 'ghost'"
+          :color="view === tab ? 'primary' : 'neutral'"
+          :icon="tab === 'sql' ? 'i-lucide-terminal' : 'i-lucide-network'"
+          :label="t(`database.views.${tab}`)"
+          :data-testid="`database-view-${tab}`"
+          @click="view = tab"
+        />
+      </div>
+      <SqlConsole
+        v-show="view === 'sql'"
+        ref="sqlConsole"
+        v-model="source"
+        :targets="targets"
+      />
+      <ErDiagram
+        v-if="view === 'er'"
+        :tables="tables"
+        :name="databaseName(path)"
+        @table="onDiagramTable"
+      />
+    </div>
   </div>
 </template>

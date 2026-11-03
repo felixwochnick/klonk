@@ -72,8 +72,11 @@ export function instrument(source: string): string {
     out.appendRight(node.end, '}')
   }
 
+  /** Methoden von Objekten (nicht statisch): `this` gehört zu den Variablen (Objektdiagramm) */
+  const methods = new WeakSet<AnyNode>()
+
   function fn(node: AnyNode) {
-    scopes.push([...(node.id && node.type === 'FunctionExpression' ? [node.id.name] : []), ...node.params.flatMap(patternNames)])
+    scopes.push([...(methods.has(node) ? ['this'] : []), ...(node.id && node.type === 'FunctionExpression' ? [node.id.name] : []), ...node.params.flatMap(patternNames)])
     for (const p of node.params) visit(p)
     if (node.body.type === 'BlockStatement') statements(node.body.body)
     else visit(node.body)
@@ -148,6 +151,9 @@ export function instrument(source: string): string {
       case 'LabeledStatement':
         body(node.body, false)
         return
+      case 'MethodDefinition':
+        if (!node.static) methods.add(node.value)
+        break
     }
     // Übrige Knoten: Kinder durchlaufen (Ausdrücke können Funktionen enthalten)
     for (const key of Object.keys(node)) {

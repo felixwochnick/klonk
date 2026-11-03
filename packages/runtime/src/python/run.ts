@@ -2,6 +2,7 @@ import type { RobotCommand, SourceRange } from '@klonk/klonk-script'
 import { assetUrl } from '../assets'
 import { World } from '@klonk/world'
 import type { PyodideInterface } from 'pyodide'
+import type { HeapSnapshot } from '../heap'
 import type { FromWorker, ToWorker } from '../protocol'
 import type { ApiError } from '../js/api'
 import { ROBOT_METHODS, createApi } from '../js/api'
@@ -50,7 +51,7 @@ export async function runPython(
     if (duration > 0) Atomics.wait(control, CONTROL.SLEEP, 0, duration)
   }
 
-  const checkpoint = (current: number, variables: () => Record<string, string>) => {
+  const checkpoint = (current: number, variables: () => Record<string, string>, heap?: () => HeapSnapshot | undefined) => {
     line = current
     const atBreakpoint = breakpoints[current] === 1 && current !== lastLine
     if (Atomics.load(control, CONTROL.DELAY) > 0 && current !== lastLine && performance.now() - lastLinePost >= 50) {
@@ -63,7 +64,7 @@ export async function runPython(
     if (!pauseRequested && !stepping && !atBreakpoint) return
     Atomics.store(control, CONTROL.PAUSE, 0)
     Atomics.store(control, CONTROL.SIGNAL, 0)
-    post({ type: 'paused', range: lineRange(current), variables: variables(), reason: pauseRequested ? 'pause' : atBreakpoint ? 'breakpoint' : 'step' })
+    post({ type: 'paused', range: lineRange(current), variables: variables(), reason: pauseRequested ? 'pause' : atBreakpoint ? 'breakpoint' : 'step', heap: heap?.() })
     Atomics.wait(control, CONTROL.SIGNAL, 0)
     stepping = Atomics.load(control, CONTROL.SIGNAL) === 2
     post({ type: 'resumed' })
@@ -88,12 +89,19 @@ export async function runPython(
     pyodide.registerJsModule('_klonk_js', { ...api.globals, globals: Object.keys(api.globals), robot: api.robot, create: api.create, names: api.names, methods: ROBOT_METHODS, db: api.db.json })
     pyodide.registerJsModule('_klonk_debug', {
       // Variablen erst beim Anhalten auslesen (Python-Funktion ⇒ Dict mit Darstellungen)
-      checkpoint: (current: number, variables: { (): { toJs: (o: object) => Record<string, string>, destroy: () => void } }) =>
+      checkpoint: (current: number, variables: { (): { toJs: (o: object) => Record<string, string>, destroy: () => void } }, heap: () => string) =>
         checkpoint(current, () => {
           const result = variables()
           const plain = result.toJs({ dict_converter: Object.fromEntries })
           result.destroy()
           return plain
+        }, () => {
+          try {
+            return JSON.parse(heap()) as HeapSnapshot
+          }
+          catch {
+            return undefined
+          }
         }),
     })
     pyodide.setStdout({ batched: text => post({ type: 'output', text }) })

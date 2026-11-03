@@ -1,11 +1,12 @@
 import type { RobotCommand, SourceRange, Value } from '@klonk/klonk-script'
 import { assetUrl } from '../assets'
 import { World } from '@klonk/world'
+import type { HeapSnapshot } from '../heap'
 import type { FromWorker, RunError, ToWorker } from '../protocol'
 import { ApiError, createApi } from '../js/api'
 import { CONTROL, views } from '../js/shared'
 import { createDbCall } from '../db/channel'
-import { instrumentJava } from './instrument'
+import { instrumentJava, javaClassNames } from './instrument'
 import { JAVA_LIBRARY } from './lib'
 import { DEBUG_IMPORT, DEBUG_JAVA, ROBOT_JAVA } from './robot'
 
@@ -173,10 +174,21 @@ export async function runJava(
   robot.variable = (name: string, value: string) => {
     variables[name] = value
   }
+  // Speicherabbild fürs Objektdiagramm (JSON aus Debug.java, kommt direkt vor pause())
+  let heap: HeapSnapshot | undefined
+  robot.heap = (json: string) => {
+    try {
+      heap = JSON.parse(String(json)) as HeapSnapshot
+    }
+    catch {
+      heap = undefined
+    }
+  }
   robot.pause = () => {
     Atomics.store(control, CONTROL.PAUSE, 0)
     Atomics.store(control, CONTROL.SIGNAL, 0)
-    post({ type: 'paused', range: lineRange(line), variables, reason: pauseReason })
+    post({ type: 'paused', range: lineRange(line), variables, reason: pauseReason, heap })
+    heap = undefined
     Atomics.wait(control, CONTROL.SIGNAL, 0)
     stepping = Atomics.load(control, CONTROL.SIGNAL) === 2
     post({ type: 'resumed' })
@@ -225,7 +237,9 @@ export async function runJava(
 
 /** Hauptdatei (+ mit Lizenz weitere .java-Dateien des Projekts, auch aus Unterordnern – der Compiler sieht sie flach), instrumentiert, mit Import der Roboter-API */
 function javaFiles(message: Extract<ToWorker, { type: 'run' }>) {
-  const prepare = (source: string) => withPackage(instrumentJava(source) ?? source, DEBUG_IMPORT)
+  const sources = [message.source, ...(message.allowImports ? Object.entries(message.files).filter(([path]) => path.endsWith('.java')).map(([, source]) => source) : [])]
+  const own = javaClassNames(sources)
+  const prepare = (source: string) => withPackage(instrumentJava(source, own) ?? source, DEBUG_IMPORT)
   const main = `${publicClass(message.source) ?? 'Main'}.java`
   const files: Record<string, string> = { [main]: prepare(message.source) }
   if (message.allowImports) {

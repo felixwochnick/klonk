@@ -34,6 +34,7 @@ pnpm-Workspace (`pnpm-workspace.yaml`), Node ≥ 22.
 | `packages/klonk-script` | `@klonk/klonk-script` | **Klonk-Script**: Sprachtabellen de/en (`languages.ts` – neue Sprache = neue Spalte), Lexer, Parser (AST), async Interpreter mit Prüfpunkten, Übersetzen | – |
 | `packages/learn` | `@klonk/learn` | **Lernmodule**: Aufgaben als Daten (`src/modules/*.ts`, Welten als Textkarten `map()`), Prüfung (`compareOutcome`, `missingConstructs`) | – |
 | `packages/runtime` | `@klonk/runtime` | **Ausführung**: Worker (`@klonk/runtime/worker?worker`), sprachunabhängiges Protokoll (`protocol.ts`), `ProgramRunner` (Hauptthread, spielt Roboterbefehle auf der angezeigten Welt nach); JS/TS in `src/js/` | – |
+| `packages/diagrams` | `@klonk/diagrams` | **Diagramme**: Struktogramm, UML-Klassen-/Objektdiagramm, ER-Diagramm (Modell, Auswertung, Layout, SVG) | – |
 | `packages/core` | `@klonk/core` | **Nuxt-Layer für Server & Auth**: Drizzle-Schema, Migrationen, RLS, Sessions (nuxt-auth-utils), Login-API, `/login`, `/change-password`, `UserMenu` | – |
 
 App, Admin und Auth erweitern beide Layer (`extends: ['@klonk/ui', '@klonk/core']`). Paket-Tests: `pnpm -r test`.
@@ -359,6 +360,22 @@ node scripts/build-csharp.ts        # C#-Host bauen (.NET-SDK 10 nötig; Ausgabe
   C#-`switch`-Ausdruck mit JToken-Armen packt Werte implizit wieder ein (Arme nach `object` casten). Runtime-Tests beantworten Anfragen synchron
   (`tests/db-host.ts`, sonst blockiert Atomics.wait den einzigen Thread). PGlite/pg_dump (~15 MB) nicht im PWA-Precache, `CacheFirst` bei Bedarf.
   E2E: `e2e/databases.spec.ts`.
+- **Diagramme** (vom User so festgelegt: automatisch aus dem Code bzw. der Datenbank): Paket `@klonk/diagrams` (ELv2) = Modell (`model.ts`),
+  Auswertung je Sprache (`languages/*.ts`: Klonk-Script über den eigenen Parser, JS/TS/Python/Java mit **Lezer** – fehlertolerant, beim Tippen;
+  C# über Roslyn `Host.Outline` in `packages/csharp/Outline.cs`, Anfrage `outline` an den Prüf-Worker, `outlineCSharp()`), Layout mit **dagre**,
+  SVG-Ausgabe als Text (`render/*`, alle Texte per `escapeXml`, Elemente mit `data-line`/`data-class`/`data-path`/`data-table` für Klicks).
+  **Struktogramm** (DIN 66261) für alle Sprachen, aktive Zeile hervorgehoben; **Klassendiagramm** (`classRelations()`: Vererbung, Implementierung,
+  Assoziationen aus Attributtypen, `*` bei Listen, Klonk/Database als Bibliotheksklasse) je Datei oder Projekt; Typen ohne Angabe aus der
+  Zuweisung geraten (`self.x = 0` ⇒ int). **Objektdiagramm** aus dem Speicherabbild `HeapSnapshot` im `paused`-Ereignis (`RunnerSnapshot.heap`):
+  JS `jsHeap()` (`runtime/src/heap.ts`, Methoden bekommen `this` als Variable), Python `_klonk_heap(frame)` im Vorspann, Java ohne Reflection:
+  Instrumentierer lässt eigene Klassen `__Inspect` implementieren (`__klonkInspect()` meldet `__cls`/`__f`, `super.…` bei eigenen Oberklassen,
+  `javaClassNames()`), JSON aus `Debug.java` über `Klonk.API.heap`; C# per Reflection (`Heap.Build` in `RobotApi.txt`, Delegat `klonk.heap`,
+  Instrumentierung setzt `this`). Grenzen `HEAP_LIMITS` (60 Objekte, 30 Felder). **ER-Diagramm** (`erModel()`): `SqlTable.foreignKeys` +
+  `unique` aus `pragma_foreign_key_list`/`pg_constraint`; Fremdschlüssel ⇒ 1:n (UNIQUE ⇒ 1:1), Zwischentabelle (PK = zwei FKs) ⇒ n:m;
+  Darstellungen Chen 1:n, Chen (min,max), Krähenfuß, Relationenschema. App: Tab **Diagramm** (`DiagramPanel.vue`, bleibt beim Ausführen offen),
+  `DiagramView.vue` (Zoom, Export SVG/PNG immer hell, Farben aus `--ui-*` als feste Werte – SVG-Attribute kennen kein `var()`), `ErDiagram.vue`
+  im `DatabaseEditor` (Tabs SQL | ER-Diagramm). Tests: `packages/diagrams/tests`, Heap-Tests in runtime (`heap.test.ts`, Python/Java mit
+  „sofort weiter“ beim Anhalten), E2E `e2e/diagrams.spec.ts`. Docs `3.klonk-script/12.diagrams.md`.
 - **KI-Assistent** (vom User so festgelegt): Tab **KI** neben Welt | Doku (`AiChat.vue`, `useAi()`), „Fehler erklären“
   im Fehlerkasten, Codeblöcke „Einfügen“/„Alles ersetzen“ (`KlonkEditor.insertText/replaceAll`, rückgängig machbar) nur bei voller Hilfe.
   **Tutor-Modus:** Lernende (`role member`) bekommen je nach Einstellung nur Hinweise, Lehrkräfte/Admins/Betreiber immer volle Hilfe.
@@ -447,6 +464,7 @@ node scripts/build-csharp.ts        # C#-Host bauen (.NET-SDK 10 nötig; Ausgabe
 12. [x] Weitere Sprachen: Python (Pyodide), Java (TeaVM), C# (Roslyn/.NET-WASM)
 13. [x] Klonk Cloud: Projekte synchronisieren (offline-fähig), Gruppen mit gemeinsamem Ordner, Aufgaben + Abgaben
 14. [x] Datenbanken: SQLite + PostgreSQL (PGlite) im Browser, SQL-Konsole, Welt als Datenbank, Datenbank-API in JS/TS/Python/Java/C#
-14b. [ ] ER-Modellierung (Diagramm ⇒ Tabellen), MySQL-Dialekt
+14b. [ ] ER-Modellierung (Diagramm zeichnen ⇒ Tabellen), MySQL-Dialekt
+15. [x] Diagramme: Struktogramm, Klassen- und Objektdiagramm aus dem Code, ER-Diagramm aus der Datenbank
 15. [x] Lernmodule: Grundkurs Klonk-Script (6 Module, 20 Aufgaben, automatische Prüfung, Cloud-Projekt je Modul, Freigabe je Gruppe, Lernstand)
 15b. [ ] Lernmodule für Python/Java (Objekte, Klassen)

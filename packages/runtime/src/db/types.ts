@@ -16,8 +16,10 @@ export type SqlResult = {
   truncated?: boolean
 }
 
-export type SqlColumn = { name: string, type: string, primaryKey: boolean, notNull: boolean }
-export type SqlTable = { name: string, kind: 'table' | 'view', columns: SqlColumn[], rows: number | null }
+export type SqlColumn = { name: string, type: string, primaryKey: boolean, notNull: boolean, unique?: boolean }
+/** Fremdschlüssel: Spalten dieser Tabelle ⇒ Spalten der Zieltabelle */
+export type SqlForeignKey = { columns: string[], table: string, refColumns: string[] }
+export type SqlTable = { name: string, kind: 'table' | 'view', columns: SqlColumn[], rows: number | null, foreignKeys?: SqlForeignKey[] }
 
 /** SQL-Fehler mit Zeile im Skript (falls bekannt) und den Ergebnissen davor */
 export class SqlError extends Error {

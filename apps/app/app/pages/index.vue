@@ -103,7 +103,7 @@ const startData = () => projectWorld.value ?? start.value.toJSON()
 const world = shallowRef(new World(start.value.toJSON()))
 const speed = ref(300)
 
-const snapshot = ref<RunnerSnapshot>({ state: 'idle', line: null, pausedRange: null, variables: {}, output: [], error: null })
+const snapshot = ref<RunnerSnapshot>({ state: 'idle', line: null, pausedRange: null, variables: {}, heap: null, output: [], error: null })
 let runner: ProgramRunner | undefined
 onMounted(() => {
   runner = new ProgramRunner(() => new RunnerWorker(), (s) => {
@@ -145,8 +145,8 @@ async function run(pauseOnStart = false) {
   if (isSql.value || isDatabase.value) return runSql()
   if (!runner) return
   databases.beginRun()
-  // Beim Ausführen die Welt zeigen
-  rightTab.value = 'world'
+  // Beim Ausführen die Welt zeigen – außer bei den Diagrammen (Struktogramm/Objektdiagramm laufen mit)
+  if (rightTab.value !== 'diagrams') rightTab.value = 'world'
   resetWorld()
   // Bibliotheken: Klonk-Script-/Python-Dateien des Projekts (nur mit Lizenz)
   // Projektdateien immer mitgeben: genutzt werden sie nur mit Lizenz, ohne erkennt der Runner den Grund für Fehler
@@ -231,7 +231,7 @@ function stop() {
 
 function reset() {
   runner?.stop()
-  snapshot.value = { state: 'idle', line: null, pausedRange: null, variables: {}, output: [], error: null }
+  snapshot.value = { state: 'idle', line: null, pausedRange: null, variables: {}, heap: null, output: [], error: null }
   resetWorld()
 }
 
@@ -279,7 +279,7 @@ function toggleFocus() {
 }
 
 // Rechts: 3D-Welt, Kurzreferenz der Sprache oder KI-Assistent (die Welt bleibt dabei geladen)
-const rightTab = ref<'world' | 'docs' | 'ai'>('world')
+const rightTab = ref<'world' | 'diagrams' | 'docs' | 'ai'>('world')
 
 // Datei aus einem Lernmodul (Aufgabenordner): Hinweis mit Link in die Lernansicht, wo geprüft wird
 const learnManifest = shallowRef<{ module: string, tasks: Record<string, string> } | null>(null)
@@ -303,8 +303,27 @@ const learnTask = computed(() => {
   return module && task ? { module, task } : null
 })
 const ai = useAi()
-const rightTabs = computed(() => (ai.enabled.value ? ['world', 'docs', 'ai'] as const : ['world', 'docs'] as const))
-const TAB_ICONS = { world: 'i-lucide-boxes', docs: 'i-lucide-book-open', ai: 'i-lucide-sparkles' }
+const rightTabs = computed(() => (ai.enabled.value ? ['world', 'diagrams', 'docs', 'ai'] as const : ['world', 'diagrams', 'docs'] as const))
+const TAB_ICONS = { world: 'i-lucide-boxes', diagrams: 'i-lucide-workflow', docs: 'i-lucide-book-open', ai: 'i-lucide-sparkles' }
+
+// Diagramme: Klick auf ein Element ⇒ Zeile im Editor (andere Datei ⇒ öffnen), Klonk-Figuren mit Lage aus der Welt
+async function revealFromDiagram(line: number, path?: string) {
+  if (isBlocks.value) return
+  if (path && inProject.value && path !== proj.currentPath.value) {
+    await proj.select(path)
+    await nextTick()
+  }
+  codeEditor.value?.revealLine(line)
+}
+function robotInfo(name: string) {
+  try {
+    const character = world.value.findCharacter(name)
+    return { x: character.x + 1, y: character.z + 1, direction: character.direction }
+  }
+  catch {
+    return null
+  }
+}
 
 /** Kontext für den KI-Assistenten: Sprache, API-Referenz, Code mit Zeilennummern, letzter Fehler, Ausgabe */
 function aiContext() {
@@ -673,6 +692,23 @@ const paneStyle = computed(() => ({
             :label="t(`editor.tabs.${tab}`)"
             :data-testid="`tab-${tab}`"
             @click="rightTab = tab"
+          />
+        </div>
+        <div
+          v-if="rightTab === 'diagrams'"
+          class="flex min-h-64 flex-1 flex-col"
+        >
+          <DiagramPanel
+            :language="language"
+            :source="runSource"
+            :path="inProject ? proj.currentPath.value : null"
+            :files="checkFiles"
+            :active-line="running ? snapshot.line : null"
+            :heap="snapshot.heap"
+            :paused="paused"
+            :robot="robotInfo"
+            @reveal="line => revealFromDiagram(line)"
+            @open="(path, line) => revealFromDiagram(line ?? 1, path)"
           />
         </div>
         <div
