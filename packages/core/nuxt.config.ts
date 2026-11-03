@@ -62,6 +62,11 @@ export default defineNuxtConfig({
       // Modell-Liste mit Preisen als JSON (AiPlatformModel[]), solange keine von klonk.* abgeglichen ist
       platformModels: '',
     },
+    // Klonk Cloud: Kontingente in MB (Selbsthosting frei einstellbar, gehostet laut Plattform)
+    cloud: {
+      userQuotaMb: 50,
+      groupQuotaMb: 200,
+    },
     // Lokaler Testmodus (alles frei auf localhost/*.localhost); `off` schaltet ihn ab
     licenseLocalMode: 'on',
     session: {

@@ -73,7 +73,17 @@
     "ai_no_models": "Bitte mindestens ein Modell freigeben.",
     "ai_platform_unavailable": "Die Klonk-KI gibt es nur auf der gehosteten Plattform.",
     "ai_quota": "Die KI-Credits sind aufgebraucht.",
-    "ai_daily_limit": "Das Tageslimit für den KI-Assistenten ist erreicht."
+    "ai_daily_limit": "Das Tageslimit für den KI-Assistenten ist erreicht.",
+    "group_exists": "Eine Gruppe mit diesem Namen gibt es schon.",
+    "group_not_found": "Gruppe nicht gefunden.",
+    "group_forbidden": "Diese Gruppe darfst du nicht ändern.",
+    "cloud_quota": "Der Cloud-Speicher ist voll.",
+    "cloud_file_too_large": "Die Datei ist zu groß für die Cloud (max. 1 MB).",
+    "cloud_too_many_files": "Das Projekt hat zu viele Dateien für die Cloud.",
+    "cloud_not_found": "Cloud-Projekt nicht gefunden.",
+    "cloud_read_only": "Hier darfst du nur lesen.",
+    "cloud_exists": "Ein Cloud-Projekt mit diesem Namen gibt es schon.",
+    "cloud_invalid_path": "Ungültiger Dateiname."
   },
   "settings": {
     "title": "Einstellungen",

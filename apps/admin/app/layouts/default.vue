@@ -13,6 +13,7 @@ const items = computed<NavigationMenuItem[][]>(() => [
       ? [
           { label: t('admin.nav.overview'), icon: 'i-lucide-house', to: '/', exact: true },
           { label: t('admin.nav.users'), icon: 'i-lucide-users', to: '/users' },
+          { label: t('admin.nav.groups'), icon: 'i-lucide-users-round', to: '/groups' },
         ]
       : []),
     ...(isAdmin.value

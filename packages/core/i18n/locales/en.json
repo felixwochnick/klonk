@@ -73,7 +73,17 @@
     "ai_no_models": "Please enable at least one model.",
     "ai_platform_unavailable": "Klonk AI is only available on the hosted platform.",
     "ai_quota": "The AI credits are used up.",
-    "ai_daily_limit": "The daily limit for the AI assistant has been reached."
+    "ai_daily_limit": "The daily limit for the AI assistant has been reached.",
+    "group_exists": "A group with this name already exists.",
+    "group_not_found": "Group not found.",
+    "group_forbidden": "You may not change this group.",
+    "cloud_quota": "The cloud storage is full.",
+    "cloud_file_too_large": "The file is too large for the cloud (max. 1 MB).",
+    "cloud_too_many_files": "The project has too many files for the cloud.",
+    "cloud_not_found": "Cloud project not found.",
+    "cloud_read_only": "You may only read here.",
+    "cloud_exists": "A cloud project with this name already exists.",
+    "cloud_invalid_path": "Invalid file name."
   },
   "settings": {
     "title": "Settings",

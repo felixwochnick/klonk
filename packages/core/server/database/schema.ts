@@ -1,4 +1,5 @@
-import { bigint, boolean, index, integer, jsonb, pgEnum, pgTable, text, timestamp, uniqueIndex, uuid } from 'drizzle-orm/pg-core'
+import { sql } from 'drizzle-orm'
+import { bigint, boolean, check, index, integer, jsonb, pgEnum, pgTable, primaryKey, text, timestamp, uniqueIndex, uuid, type AnyPgColumn } from 'drizzle-orm/pg-core'
 import type { AiModelChoice } from '../../shared/utils/ai'
 
 // Row Level Security ist in der Migration `0001_rls.sql` definiert (Rollen, Hilfsfunktionen, Policies)
@@ -176,3 +177,68 @@ export const userLicenses = pgTable('user_licenses', {
   token: text().notNull(),
   updatedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
 })
+
+/** Rolle in einer Gruppe: Gruppenleitung (Lehrkräfte, mehrere möglich) oder Mitglied */
+export const groupRole = pgEnum('group_role', ['leader', 'member'])
+
+/** Gruppen einer Organisation (Klassen, Kurse, Ausbildungsgruppen) – jede hat einen gemeinsamen Cloud-Ordner */
+export const groups = pgTable('groups', {
+  id: uuid().primaryKey().defaultRandom(),
+  organizationId: uuid().notNull().references(() => organizations.id, { onDelete: 'cascade' }),
+  name: text().notNull(),
+  /** Dürfen Mitglieder im gemeinsamen Ordner schreiben? (Gruppenleitung immer) */
+  membersCanWrite: boolean().notNull().default(false),
+  createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+}, t => [uniqueIndex('groups_organization_name_idx').on(t.organizationId, t.name)])
+
+export const groupMembers = pgTable('group_members', {
+  groupId: uuid().notNull().references(() => groups.id, { onDelete: 'cascade' }),
+  userId: uuid().notNull().references(() => users.id, { onDelete: 'cascade' }),
+  role: groupRole().notNull().default('member'),
+}, t => [primaryKey({ columns: [t.groupId, t.userId] }), index('group_members_user_idx').on(t.userId)])
+
+/**
+ * Klonk Cloud: Projekte eines Kontos oder der gemeinsame Ordner einer Gruppe (genau eins von beiden).
+ * `revision` steigt mit jeder Änderung – Clients holen nur Änderungen seit ihrem Stand.
+ */
+export const cloudProjects = pgTable('cloud_projects', {
+  id: uuid().primaryKey().defaultRandom(),
+  ownerId: uuid().references(() => users.id, { onDelete: 'cascade' }),
+  groupId: uuid().references(() => groups.id, { onDelete: 'cascade' }),
+  /** Bearbeitung einer Aufgabe (Abgabe): die Gruppenleitung darf lesen */
+  assignmentId: uuid().references((): AnyPgColumn => cloudAssignments.id, { onDelete: 'set null' }),
+  name: text().notNull(),
+  revision: bigint({ mode: 'number' }).notNull().default(0),
+  /** Summe der Dateigrößen in Bytes (Kontingent) */
+  size: bigint({ mode: 'number' }).notNull().default(0),
+  createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+}, t => [
+  uniqueIndex('cloud_projects_owner_name_idx').on(t.ownerId, t.name).where(sql`${t.ownerId} IS NOT NULL`),
+  uniqueIndex('cloud_projects_group_idx').on(t.groupId).where(sql`${t.groupId} IS NOT NULL`),
+  index('cloud_projects_assignment_idx').on(t.assignmentId),
+  check('cloud_projects_owner_or_group', sql`(${t.ownerId} IS NULL) <> (${t.groupId} IS NULL)`),
+])
+
+/** Dateien und (auch leere) Ordner; gelöschte bleiben als Grabstein, damit andere Geräte das Löschen mitbekommen */
+export const cloudFiles = pgTable('cloud_files', {
+  projectId: uuid().notNull().references(() => cloudProjects.id, { onDelete: 'cascade' }),
+  path: text().notNull(),
+  folder: boolean().notNull().default(false),
+  content: text(),
+  size: integer().notNull().default(0),
+  deleted: boolean().notNull().default(false),
+  /** Projekt-Revision der letzten Änderung */
+  revision: bigint({ mode: 'number' }).notNull(),
+  updatedBy: uuid().references(() => users.id, { onDelete: 'set null' }),
+  updatedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+}, t => [primaryKey({ columns: [t.projectId, t.path] }), index('cloud_files_revision_idx').on(t.projectId, t.revision)])
+
+/** Aufgabe: Ordner im gemeinsamen Ordner einer Gruppe, den Mitglieder als eigenes Projekt bearbeiten und abgeben */
+export const cloudAssignments = pgTable('cloud_assignments', {
+  id: uuid().primaryKey().defaultRandom(),
+  groupId: uuid().notNull().references(() => groups.id, { onDelete: 'cascade' }),
+  path: text().notNull(),
+  createdBy: uuid().references(() => users.id, { onDelete: 'set null' }),
+  createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+}, t => [uniqueIndex('cloud_assignments_group_path_idx').on(t.groupId, t.path)])

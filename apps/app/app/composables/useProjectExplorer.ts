@@ -13,6 +13,9 @@ export type ProjectDialog
     | { mode: 'folder', parent?: string }
     | { mode: 'rename', file: ProjectFile }
     | { mode: 'renameFolder', path: string }
+    /** Klonk Cloud: neues Projekt bzw. geöffnetes lokales Projekt hochladen */
+    | { mode: 'cloud' }
+    | { mode: 'upload' }
 
 /** Zeile der Baumansicht: Ordner (auf-/zuklappbar) oder Datei, mit Einrückung */
 export type TreeRow
@@ -31,7 +34,9 @@ const collapsed = ref(new Set<string>())
 export function useProjectExplorer(options: { onOpenFile?: (file: ProjectFile) => void } = {}) {
   const { t, locale } = useI18n()
   const toast = useToast()
+  const apiError = useApiError()
   const proj = useProject()
+  const cloud = useCloud()
   const { start } = useWorldEditor()
   const { files, folders } = proj
 
@@ -99,6 +104,8 @@ export function useProjectExplorer(options: { onOpenFile?: (file: ProjectFile) =
   const dialogTitle = computed(() => {
     const mode = dialog.value?.mode
     if (mode === 'project') return t('project.newBrowserProject')
+    if (mode === 'cloud') return t('cloud.newProject')
+    if (mode === 'upload') return t('cloud.upload')
     if (mode === 'init') return t('project.setup')
     if (mode === 'folder') return t('project.newFolder')
     return mode === 'rename' || mode === 'renameFolder' ? t('project.rename') : t('project.newFile')
@@ -108,14 +115,18 @@ export function useProjectExplorer(options: { onOpenFile?: (file: ProjectFile) =
   function openDialog(value: ProjectDialog) {
     dialog.value = value
     // Neues Projekt: zuletzt in der IDE genutzte Sprache vorschlagen
-    if (value.mode === 'project' || value.mode === 'init') dialogLanguage.value = program.language.value
-    dialogName.value = value.mode === 'rename'
-      ? value.file.path
-      : value.mode === 'renameFolder'
-        ? value.path
-        : value.mode === 'project' || value.mode === 'init'
-          ? (value.mode === 'init' ? proj.project.value?.name ?? '' : t('project.defaultProjectName'))
-          : value.mode === 'folder' ? t('project.defaultName.folder') : t(`project.defaultName.${value.kind}`)
+    if (value.mode === 'project' || value.mode === 'init' || value.mode === 'cloud') dialogLanguage.value = program.language.value
+    dialogName.value = value.mode === 'upload'
+      ? proj.project.value?.name ?? ''
+      : value.mode === 'cloud'
+        ? t('project.defaultProjectName')
+        : value.mode === 'rename'
+          ? value.file.path
+          : value.mode === 'renameFolder'
+            ? value.path
+            : value.mode === 'project' || value.mode === 'init'
+              ? (value.mode === 'init' ? proj.project.value?.name ?? '' : t('project.defaultProjectName'))
+              : value.mode === 'folder' ? t('project.defaultName.folder') : t(`project.defaultName.${value.kind}`)
   }
 
   async function submitDialog() {
@@ -131,6 +142,13 @@ export function useProjectExplorer(options: { onOpenFile?: (file: ProjectFile) =
       }
       else if (d.mode === 'init') {
         await createStarterFiles(dialogLanguage.value)
+      }
+      else if (d.mode === 'cloud') {
+        await cloud.create(name)
+        await createStarterFiles(dialogLanguage.value)
+      }
+      else if (d.mode === 'upload') {
+        await cloud.upload(name)
       }
       else if (d.mode === 'file') {
         const initial = d.kind === 'world'
@@ -159,7 +177,9 @@ export function useProjectExplorer(options: { onOpenFile?: (file: ProjectFile) =
       dialog.value = null
     }
     catch (error) {
-      fail(error)
+      // Server-Fehler (Cloud) mit Code, sonst Dateisystem
+      if ((error as { data?: { message?: string } })?.data?.message) toast.add({ title: apiError(error), color: 'error' })
+      else fail(error)
     }
   }
 
@@ -235,12 +255,16 @@ export function useProjectExplorer(options: { onOpenFile?: (file: ProjectFile) =
   const newItems = computed(() => newItemsIn())
 
   function folderActions(path: string): DropdownMenuItem[][] {
+    // Gemeinsamer Ordner einer Gruppe: Aufgaben verteilen bzw. bearbeiten
+    const assignment = cloud.folderActions(path)
+    if (proj.readOnly.value) return assignment.length ? [assignment] : []
     return [
       [{ label: t('project.newFile'), icon: 'i-lucide-plus', children: newItemsIn(path) }],
       [
         { label: t('project.rename'), icon: 'i-lucide-pencil', onSelect: () => openDialog({ mode: 'renameFolder', path }) },
         { label: t('project.delete'), icon: 'i-lucide-trash-2', color: 'error', onSelect: () => removeFolder(path) },
       ],
+      ...(assignment.length ? [assignment] : []),
     ]
   }
 
@@ -271,6 +295,7 @@ export function useProjectExplorer(options: { onOpenFile?: (file: ProjectFile) =
   })
 
   function fileActions(file: ProjectFile): DropdownMenuItem[][] {
+    if (proj.readOnly.value) return []
     const edit: DropdownMenuItem[] = file.kind === 'world'
       ? [{ label: t('project.editWorld'), icon: 'i-lucide-pencil-ruler', onSelect: () => editWorld(file) }]
       : []
@@ -291,7 +316,7 @@ export function useProjectExplorer(options: { onOpenFile?: (file: ProjectFile) =
   const kindLabel = (kind: FileKind) => (kind === 'world' ? t('project.world') : kind === 'design' ? t('project.design') : kind === 'other' ? t('project.otherFile') : t(`editor.languages.${kind}`))
 
   return {
-    proj, canFolders, canBrowser, browserProjects, recent, loadLists, fail,
+    proj, cloud, canFolders, canBrowser, browserProjects, recent, loadLists, fail,
     openFolder, openRecent, openBrowserProject, removeBrowserProject,
     dialog, dialogName, dialogLanguage, dialogTitle, openDialog, submitDialog,
     remove, openFile, newItems, newItemsIn, fileActions, kindLabel,

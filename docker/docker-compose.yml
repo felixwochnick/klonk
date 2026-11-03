@@ -25,6 +25,8 @@ x-env: &env
   NUXT_AI_API_KEY: ${KLONK_AI_API_KEY:-}
   NUXT_AI_WEBLLM_MODEL: ${KLONK_AI_WEBLLM_MODEL:-}
   NUXT_AI_STUDENTS: ${KLONK_AI_STUDENTS:-tutor}
+  NUXT_CLOUD_USER_QUOTA_MB: ${KLONK_CLOUD_USER_QUOTA_MB:-50}
+  NUXT_CLOUD_GROUP_QUOTA_MB: ${KLONK_CLOUD_GROUP_QUOTA_MB:-200}
   # Nur gehostete Plattform: Endpunkte der Klonk-KI (JSON, siehe CLAUDE.md)
   NUXT_AI_PLATFORM_PROVIDERS: ${KLONK_AI_PLATFORM_PROVIDERS:-}
   # Lizenz automatisch beim Lizenzserver (Origin von KLONK_SHOP_URL) verlängern; false = nie nach außen verbinden

@@ -11,7 +11,8 @@
       "login": "Anmeldung",
       "organizations": "Alle Organisationen",
       "license": "Lizenz",
-      "ai": "KI-Assistent"
+      "ai": "KI-Assistent",
+      "groups": "Gruppen"
     },
     "organizationType": {
       "school": "Schule",
@@ -117,7 +118,8 @@
         "characters": "Alle Figuren",
         "models": "Zusätzliche 3D-Modelle",
         "libraries": "Bibliotheken in Klonk-Script und TypeScript",
-        "ai": "KI-Assistent"
+        "ai": "KI-Assistent",
+        "cloud": "Klonk Cloud (Projekte synchronisieren, Gruppenordner)"
       },
       "plans": {
         "free": "Kostenlos",
@@ -214,6 +216,30 @@
           "platform": "Klonk-KI"
         }
       }
+    },
+    "groups": {
+      "description": "Gruppen sind Klassen, Kurse oder Ausbildungsgruppen. Jede Gruppe hat einen gemeinsamen Ordner in der Klonk Cloud, z. B. um Aufgaben zu verteilen.",
+      "name": "Name der Gruppe",
+      "namePlaceholder": "z. B. 7a oder Informatik Q11",
+      "create": "Anlegen",
+      "empty": "Noch keine Gruppen.",
+      "delete": "Gruppe löschen",
+      "confirmDelete": "Gruppe „{name}“ samt gemeinsamem Ordner löschen? Die Bearbeitungen der Mitglieder bleiben erhalten.",
+      "readOnly": "Diese Gruppe verwalten ihre Gruppenleitung und die Admins.",
+      "membersCanWrite": "Mitglieder dürfen im gemeinsamen Ordner schreiben",
+      "membersCanWriteHelp": "Aus: nur die Gruppenleitung ändert den Ordner, Mitglieder lesen und bearbeiten Aufgaben als eigene Kopie.",
+      "addMembers": "Mitglieder hinzufügen",
+      "searchAccounts": "Konten suchen …",
+      "add": "Hinzufügen",
+      "member": "Mitglied",
+      "role": "Rolle",
+      "roleOf": "Rolle von {name}",
+      "remove": "{name} entfernen",
+      "roles": {
+        "leader": "Gruppenleitung",
+        "member": "Mitglied"
+      },
+      "leaderHint": "Als Gruppenleitung kannst du weitere Lehrkräfte hinzufügen und ihnen ebenfalls die Leitung geben."
     }
   },
   "errors": {

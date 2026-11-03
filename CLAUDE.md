@@ -301,6 +301,19 @@ node scripts/build-csharp.ts        # C#-Host bauen (.NET-SDK 10 nötig; Ausgabe
   Lernmodule in der Doku nur als Übersicht `4.teaching/2.modules/1.overview.md` (Konzept, Modulliste, Lehrplan-Zuordnung – keine Aufgaben/Lösungen); Klassenseiten nennen passende Module (Abschnitt „Passende Lernmodule“).
   Neue Länder/Schulformen ⇒ Tabellen in `4.teaching/1.overview.md`, `4.germany/1.overview.md` (inkl. „Wie das Fach heißt“) und der Landesübersicht ergänzen.
   Marken gibt es nur in vier Farben (gelb/rot/blau/grün) – Beispiele dürfen keine anderen Markenfarben nutzen.
+- **Klonk Cloud** (vom User so festgelegt; selbst gehostet immer frei, gehostet Lizenz-Feature `cloud`, `cloudEnabled()`): dritte Projektquelle
+  `source: 'cloud'` – `CloudProject` (`utils/cloud-project.ts`) erweitert `Project` um eine lokale Kopie im OPFS (`klonk-cloud/<id>`,
+  Zustand `.klonk-sync.json`: Revision, Revision je Datei, Warteschlange) ⇒ offline nutzbar. Schreiben lokal + vormerken, Upload nach 800 ms
+  (`PUT /api/cloud/projects/:id/files` mit `baseRevision`), Abholen alle 15 s (`GET …/changes?since=`); Konflikt ⇒ Server gewinnt, eigene
+  Fassung als „(Konflikt)“-Kopie. Server: `core/server/utils/cloud.ts` (`writeCloudEntry` sperrt das Projekt per Revision++), Tabellen
+  `cloud_projects` (Konto **oder** Gruppe, `assignment_id` = Abgabe), `cloud_files` (Grabsteine für Löschungen), `cloud_assignments`.
+  Kontingente `NUXT_CLOUD_USER_QUOTA_MB`/`GROUP_QUOTA_MB` (50/200), Datei ≤ 1 MB (`CLOUD_LIMITS`). Ohne Abo bleibt Lesen möglich.
+  **Gruppen** (admin → Gruppen, `groups`/`group_members` mit Rolle `leader`|`member`): Lehrkräfte legen an und werden Leitung, Leitung/Admins
+  verwalten, `membersCanWrite` steuert Schreibrecht im gemeinsamen Ordner. **Aufgaben:** Leitung markiert einen Ordner im Gruppenordner
+  (`cloud_assignments`), Mitglieder „Aufgabe bearbeiten“ ⇒ eigene Kopie (`startAssignment`), Leitung sieht Abgaben (nur lesen).
+  RLS über SECURITY-DEFINER-Helfer (`klonk.group_role`, `can_manage_group`, `leads_group`, `can_read/can_write_cloud_project`);
+  Betreiber:innen sehen keine persönlichen Projekte/Abgaben. IDE: `useProject().readOnly` ⇒ Editoren schreibgeschützt.
+  E2E: `e2e/cloud.spec.ts` (eigene Browser-Kontexte = eigene Geräte).
 - **KI-Assistent** (vom User so festgelegt): Tab **KI** neben Welt | Doku (`AiChat.vue`, `useAi()`), „Fehler erklären“
   im Fehlerkasten, Codeblöcke „Einfügen“/„Alles ersetzen“ (`KlonkEditor.insertText/replaceAll`, rückgängig machbar) nur bei voller Hilfe.
   **Tutor-Modus:** Lernende (`role member`) bekommen je nach Einstellung nur Hinweise, Lehrkräfte/Admins/Betreiber immer volle Hilfe.
@@ -387,5 +400,6 @@ node scripts/build-csharp.ts        # C#-Host bauen (.NET-SDK 10 nötig; Ausgabe
 10. [x] PWA (Logo, Favicon, Offline)
 11. [x] KI-Assistent (schuleigenes LLM / WebLLM, Tutor-Modus, Fehler erklären, Code übernehmen)
 12. [x] Weitere Sprachen: Python (Pyodide), Java (TeaVM), C# (Roslyn/.NET-WASM)
-13. [x] Lernmodule: Grundkurs Klonk-Script (6 Module, 20 Aufgaben, automatische Prüfung, Hinweise für Lehrkräfte in der App)
-13b. [ ] Lernmodule für Python/Java (Objekte, Klassen)
+13. [x] Klonk Cloud: Projekte synchronisieren (offline-fähig), Gruppen mit gemeinsamem Ordner, Aufgaben + Abgaben
+14. [x] Lernmodule: Grundkurs Klonk-Script (6 Module, 20 Aufgaben, automatische Prüfung, Hinweise für Lehrkräfte in der App)
+14b. [ ] Lernmodule für Python/Java (Objekte, Klassen)

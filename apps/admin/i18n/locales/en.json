@@ -11,7 +11,8 @@
       "login": "Sign-in",
       "organizations": "All organizations",
       "license": "License",
-      "ai": "AI assistant"
+      "ai": "AI assistant",
+      "groups": "Groups"
     },
     "organizationType": {
       "school": "School",
@@ -117,7 +118,8 @@
         "characters": "All characters",
         "models": "Additional 3D models",
         "libraries": "Libraries in Klonk-Script and TypeScript",
-        "ai": "AI assistant"
+        "ai": "AI assistant",
+        "cloud": "Klonk Cloud (project sync, group folders)"
       },
       "plans": {
         "free": "Free",
@@ -214,6 +216,30 @@
           "platform": "Klonk AI"
         }
       }
+    },
+    "groups": {
+      "description": "Groups are classes, courses or training groups. Each group has a shared folder in Klonk Cloud, e.g. to hand out assignments.",
+      "name": "Group name",
+      "namePlaceholder": "e.g. 7a or Computer Science Q11",
+      "create": "Create",
+      "empty": "No groups yet.",
+      "delete": "Delete group",
+      "confirmDelete": "Delete group “{name}” including its shared folder? The members' own work is kept.",
+      "readOnly": "This group is managed by its group leaders and the admins.",
+      "membersCanWrite": "Members may write to the shared folder",
+      "membersCanWriteHelp": "Off: only group leaders change the folder; members read it and work on assignments as their own copy.",
+      "addMembers": "Add members",
+      "searchAccounts": "Search accounts …",
+      "add": "Add",
+      "member": "Member",
+      "role": "Role",
+      "roleOf": "Role of {name}",
+      "remove": "Remove {name}",
+      "roles": {
+        "leader": "Group leader",
+        "member": "Member"
+      },
+      "leaderHint": "As a group leader you can add other teachers and make them group leaders too."
     }
   },
   "errors": {

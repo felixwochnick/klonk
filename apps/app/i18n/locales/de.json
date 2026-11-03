@@ -412,6 +412,35 @@
       "daily": "Dein Tageslimit ist erreicht – bis morgen läuft der Assistent in deinem Browser."
     }
   },
+  "cloud": {
+    "title": "Klonk Cloud",
+    "newProject": "Neues Cloud-Projekt",
+    "upload": "In die Cloud hochladen",
+    "uploaded": "„{name}“ liegt jetzt in der Cloud.",
+    "locked": "Synchronisieren ist Teil des Abos. Vorhandene Cloud-Projekte bleiben lesbar.",
+    "groups": "Gruppen",
+    "quota": "{used} von {limit} belegt",
+    "delete": "{name} löschen",
+    "confirmDelete": "Cloud-Projekt „{name}“ auf allen Geräten löschen?",
+    "readOnly": "Nur lesen",
+    "assignment": "Aufgabe",
+    "assign": "Als Aufgabe verteilen",
+    "assigned": "„{path}“ ist jetzt eine Aufgabe.",
+    "unassign": "Aufgabe zurückziehen",
+    "work": "Aufgabe bearbeiten",
+    "submissions": "Abgaben ansehen",
+    "submissionsOf": "Abgaben: {path}",
+    "noSubmissions": "Noch hat niemand diese Aufgabe begonnen.",
+    "openSubmission": "Öffnen",
+    "conflictSuffix": "Konflikt",
+    "conflict": "„{path}“ wurde gleichzeitig woanders geändert. Deine Fassung liegt in „{copy}“.",
+    "sync": {
+      "synced": "synchronisiert",
+      "syncing": "synchronisiere …",
+      "offline": "offline – wird später hochgeladen",
+      "error": "nicht synchronisiert"
+    }
+  },
   "learn": {
     "title": "Lernmodule",
     "intro": "Grundkurs Klonk-Script: Schritt für Schritt vom ersten Befehl bis zu Variablen. Jedes Modul erklärt ein neues Thema und hat Aufgaben, die Klonk automatisch prüft – mit Blöcken oder Klonk-Script.",
