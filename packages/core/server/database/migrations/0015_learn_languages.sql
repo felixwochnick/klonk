@@ -1,0 +1,2 @@
+ALTER TABLE "group_learn_modules" ADD COLUMN "languages" text DEFAULT 'both' NOT NULL;--> statement-breakpoint
+ALTER TABLE "group_learn_modules" ADD CONSTRAINT "group_learn_modules_languages_check" CHECK ("group_learn_modules"."languages" IN ('both', 'blocks', 'klonk'));

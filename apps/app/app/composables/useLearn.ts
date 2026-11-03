@@ -1,5 +1,5 @@
 import { LEARN_MODULES, type LearnModule, type LearnStatus } from '@klonk/learn'
-import { openCloudProject } from '~/utils/cloud-project'
+import { CloudProject, openCloudProject, type CloudProjectMeta } from '~/utils/cloud-project'
 
 /**
  * Lernmodule: jedes gestartete Modul ist ein Cloud-Projekt des Kontos (Programme je Aufgabe, Lernstand in `klonk.json`).
@@ -45,6 +45,17 @@ export function useLearn() {
     return next ? { module: next.id, task: next.tasks[0]!.id } : null
   }
 
+  /**
+   * Cloud-Projekt öffnen – ist es in der IDE schon offen, dieselbe Instanz nutzen (zwei Instanzen auf derselben lokalen
+   * Kopie würden sich die Upload-Warteschlange überschreiben). `shared` ⇒ beim Verlassen nicht schließen.
+   */
+  const proj = useProject()
+  async function open(meta: CloudProjectMeta) {
+    const current = proj.project.value
+    if (current instanceof CloudProject && current.meta.id === meta.id) return { project: current, shared: true }
+    return { project: await openCloudProject(meta), shared: false }
+  }
+
   /** Eigenes Modulprojekt (beim ersten Mal anlegen) öffnen */
   async function openOwn(moduleId: string, lang: 'de' | 'en') {
     let entry = progress(moduleId)
@@ -54,12 +65,12 @@ export function useLearn() {
       entry = progress(moduleId)
       if (!entry) throw new Error('learn_not_found')
     }
-    return openCloudProject({ id: entry.projectId, name: moduleId, kind: 'personal', writable: true })
+    return open({ id: entry.projectId, name: moduleId, kind: 'personal', writable: true })
   }
 
   /** Modulprojekt einer anderen Person (Gruppenleitung, nur lesen) öffnen */
   function openForeign(projectId: string, name: string) {
-    return openCloudProject({ id: projectId, name, kind: 'personal', writable: false })
+    return open({ id: projectId, name, kind: 'personal', writable: false })
   }
 
   return { status, refresh, loading, modules, canStart, progress, isSolved, solvedCount, markSolved, nextTaskId, following, openOwn, openForeign }

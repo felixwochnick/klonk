@@ -352,7 +352,8 @@
     },
     "open": "Open",
     "useWorld": "Use as project world",
-    "packageHelp": "Separate parts with dots, e.g. game.characters"
+    "packageHelp": "Separate parts with dots, e.g. game.characters",
+    "klonkAndBlocks": "Klonk-Script & blocks"
   },
   "pwa": {
     "install": "Install app",
@@ -580,7 +581,7 @@
     "groupHint": "Solved tasks of the learners in the enabled modules. Click a task to see the program.",
     "refresh": "Refresh",
     "enableModules": "Enable modules",
-    "enableModulesHint": "Learners in this group can only start enabled modules. You see their progress for all enabled modules.",
+    "enableModulesHint": "Learners in this group can only start enabled modules. For each module you decide whether they work with blocks, Klonk-Script or both. You see their progress for all enabled modules.",
     "noMembers": "This group has no learners yet. Manage members in the administration under Groups.",
     "noEnabledModules": "Enable modules above to see the learning progress.",
     "overview": "Learning progress of the group",
@@ -598,6 +599,14 @@
     "viewCode": "View program",
     "backToProgress": "Back to progress",
     "viewing": "Program of {name}",
-    "viewingHint": "Read only – you can run and check it, but not change it. Changes appear as soon as they are uploaded."
+    "viewingHint": "Read only – you can run and check it, but not change it. Changes appear as soon as they are uploaded.",
+    "languageChoice": {
+      "both": "Blocks and Klonk-Script",
+      "blocks": "Blocks only",
+      "klonk": "Klonk-Script only"
+    },
+    "languageFor": "Language for {module}",
+    "openInLearn": "Check in the learning view",
+    "learnTaskHint": "Task “{task}” from {module}"
   }
 }

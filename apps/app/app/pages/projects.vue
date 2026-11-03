@@ -231,7 +231,7 @@ const syncLabel = computed(() => (proj.sync.value ? t(`cloud.sync.${proj.sync.va
                 class="text-xs"
                 :class="status === 'error' ? 'text-(--ui-error)' : 'text-(--ui-text-muted)'"
               >
-                {{ proj.language.value ? t(`editor.languages.${proj.language.value}`) : t('project.mixed') }} · {{ t('project.fileCount', files.length) }} · {{ t(`project.status.${status}`) }}<template v-if="syncLabel">
+                {{ proj.language.value ? projectLanguageLabel(t, proj.language.value) : t('project.mixed') }} · {{ t('project.fileCount', files.length) }} · {{ t(`project.status.${status}`) }}<template v-if="syncLabel">
                   · <span data-testid="cloud-sync">{{ syncLabel }}</span>
                 </template>
               </p>

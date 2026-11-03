@@ -1,6 +1,6 @@
 import type { H3Event } from 'h3'
 import { and, asc, eq, inArray, isNotNull, sql } from 'drizzle-orm'
-import { emptyManifest, findModule, LEARN_MANIFEST, LEARN_MODULES, learnProjectName, progressFromFiles, serializeManifest, type LearnGroupProgress, type LearnModuleProgress, type LearnStatus } from '@klonk/learn'
+import { choiceLanguages, emptyManifest, findModule, LEARN_LANGUAGES, LEARN_MANIFEST, LEARN_MODULES, learnProjectName, progressFromFiles, serializeManifest, taskFolderFiles, type LearnGroupProgress, type LearnLanguage, type LearnLanguageChoice, type LearnModuleProgress, type LearnStatus } from '@klonk/learn'
 
 type Tx = Parameters<Parameters<typeof withUserDb>[1]>[0]
 const { cloudFiles, cloudProjects, groupLearnModules, groupMembers, groups, users } = schema
@@ -31,18 +31,30 @@ async function ledGroups(tx: Tx) {
     .where(sql`klonk.leads_group(${groups.id})`).orderBy(asc(groups.name))
 }
 
+/**
+ * Startbare Module mit erlaubten Sprachen: Privatkonten und Lehrkräfte/Admins alle mit beiden Sprachen,
+ * Lernende einer Organisation nur in einer ihrer Gruppen freigegebene (Sprachen aller Freigaben zusammen)
+ */
+async function allowedModules(tx: Tx, user: SessionUser) {
+  const all = new Map(LEARN_MODULES.map(m => [m.id, [...LEARN_LANGUAGES]]))
+  if (!user.organizationId || user.role !== 'member') return all
+  const rows = await tx.select({ moduleId: groupLearnModules.moduleId, languages: groupLearnModules.languages }).from(groupLearnModules)
+    .innerJoin(groupMembers, eq(groupMembers.groupId, groupLearnModules.groupId))
+    .where(eq(groupMembers.userId, user.id))
+  const allowed = new Map<string, LearnLanguage[]>()
+  for (const module of LEARN_MODULES) {
+    const choices = rows.filter(r => r.moduleId === module.id).flatMap(r => choiceLanguages(r.languages))
+    if (choices.length) allowed.set(module.id, LEARN_LANGUAGES.filter(l => choices.includes(l)))
+  }
+  return allowed
+}
+
 export async function learnStatus(user: SessionUser, event: H3Event): Promise<LearnStatus> {
   const cloud = await cloudEnabled(user, event)
   const restricted = !!user.organizationId && user.role === 'member'
   return withUserDb(user.id, async (tx) => {
-    let modules = LEARN_MODULES.map(m => m.id)
-    if (restricted) {
-      const enabled = await tx.selectDistinct({ moduleId: groupLearnModules.moduleId }).from(groupLearnModules)
-        .innerJoin(groupMembers, eq(groupMembers.groupId, groupLearnModules.groupId))
-        .where(eq(groupMembers.userId, user.id))
-      const ids = new Set(enabled.map(e => e.moduleId))
-      modules = modules.filter(id => ids.has(id))
-    }
+    const allowed = await allowedModules(tx, user)
+    const modules = [...allowed.keys()]
 
     const own = await tx.select({ id: cloudProjects.id, learnModule: cloudProjects.learnModule, updatedAt: cloudProjects.updatedAt })
       .from(cloudProjects).where(and(eq(cloudProjects.ownerId, user.id), isNotNull(cloudProjects.learnModule)))
@@ -59,6 +71,7 @@ export async function learnStatus(user: SessionUser, event: H3Event): Promise<Le
     return {
       cloud,
       modules,
+      languages: Object.fromEntries(allowed),
       restricted,
       projects: Object.fromEntries(own.filter(p => progress.has(p.id)).map(p => [p.learnModule!, progress.get(p.id)!])),
       groups: led.map(g => ({
@@ -79,26 +92,39 @@ export async function startLearnModule(user: SessionUser, moduleId: string, lang
     const [started] = await tx.select().from(cloudProjects)
       .where(and(eq(cloudProjects.ownerId, user.id), eq(cloudProjects.learnModule, moduleId)))
     if (started) return started
-    const [allowed] = await tx.execute<{ ok: boolean }>(sql`select klonk.can_start_learn_module(${moduleId}) as ok`)
-    if (!allowed?.ok) throw createError({ statusCode: 403, message: 'learn_not_enabled' })
+    const [ok] = await tx.execute<{ ok: boolean }>(sql`select klonk.can_start_learn_module(${moduleId}) as ok`)
+    if (!ok?.ok) throw createError({ statusCode: 403, message: 'learn_not_enabled' })
+
+    // Je Aufgabe ein Ordner mit Aufgabentext, Welt(en) und Programm in der ersten erlaubten Sprache
+    const module = LEARN_MODULES[index]!
+    const language = (await allowedModules(tx, user)).get(moduleId)?.[0] ?? 'blocks'
+    const manifest = emptyManifest(moduleId)
+    const folders: string[] = []
+    const files: { path: string, content: string }[] = []
+    module.tasks.forEach((task, i) => {
+      const entry = taskFolderFiles(task, i, lang, language)
+      manifest.tasks[task.id] = entry.program
+      folders.push(entry.folder)
+      files.push(...entry.files)
+    })
     return createCloudProject(tx, user, {
-      name: learnProjectName(LEARN_MODULES[index]!, index, lang),
+      name: learnProjectName(module, index, lang),
       learnModule: moduleId,
       unique: true,
-      folders: [],
-      files: [{ path: LEARN_MANIFEST, content: serializeManifest(emptyManifest(moduleId)) }],
+      folders,
+      files: [{ path: LEARN_MANIFEST, content: serializeManifest(manifest) }, ...files],
     })
   })
 }
 
-/** Freigegebene Module einer Gruppe setzen (Gruppenleitung; RLS prüft) */
-export async function setGroupLearnModules(user: SessionUser, groupId: string, modules: string[]) {
-  const valid = modules.filter(id => findModule(id))
+/** Freigegebene Module einer Gruppe mit Sprachvorgabe setzen (Gruppenleitung; RLS prüft) */
+export async function setGroupLearnModules(user: SessionUser, groupId: string, modules: { id: string, languages: LearnLanguageChoice }[]) {
+  const valid = modules.filter(m => findModule(m.id))
   return withUserDb(user.id, async (tx) => {
     const [lead] = await tx.execute<{ ok: boolean }>(sql`select klonk.leads_group(${groupId}) as ok`)
     if (!lead?.ok) throw createError({ statusCode: 403, message: 'forbidden' })
     await tx.delete(groupLearnModules).where(eq(groupLearnModules.groupId, groupId))
-    if (valid.length) await tx.insert(groupLearnModules).values(valid.map(moduleId => ({ groupId, moduleId, enabledBy: user.id })))
+    if (valid.length) await tx.insert(groupLearnModules).values(valid.map(m => ({ groupId, moduleId: m.id, languages: m.languages, enabledBy: user.id })))
     return { modules: valid }
   })
 }
@@ -110,8 +136,8 @@ export async function groupLearnProgress(user: SessionUser, groupId: string): Pr
       .from(groups).where(eq(groups.id, groupId))
     if (!group?.lead) throw createError({ statusCode: 404, message: 'learn_not_found' })
 
-    const enabled = new Set((await tx.select().from(groupLearnModules).where(eq(groupLearnModules.groupId, groupId))).map(e => e.moduleId))
-    const modules = LEARN_MODULES.map(m => m.id).filter(id => enabled.has(id))
+    const rows = await tx.select().from(groupLearnModules).where(eq(groupLearnModules.groupId, groupId))
+    const modules = LEARN_MODULES.map(m => m.id).filter(id => rows.some(r => r.moduleId === id))
     const members = await tx.select({ userId: users.id, displayName: users.displayName, username: users.username })
       .from(groupMembers).innerJoin(users, eq(users.id, groupMembers.userId))
       .where(and(eq(groupMembers.groupId, groupId), eq(groupMembers.role, 'member'))).orderBy(asc(users.displayName))
@@ -126,6 +152,7 @@ export async function groupLearnProgress(user: SessionUser, groupId: string): Pr
       id: group.id,
       name: group.name,
       modules,
+      languages: Object.fromEntries(rows.map(r => [r.moduleId, r.languages])),
       members: members.map(m => ({
         ...m,
         modules: Object.fromEntries(projects.filter(p => p.ownerId === m.userId && progress.has(p.id)).map(p => [p.learnModule!, progress.get(p.id)!])),

@@ -250,6 +250,8 @@ export const cloudAssignments = pgTable('cloud_assignments', {
 export const groupLearnModules = pgTable('group_learn_modules', {
   groupId: uuid().notNull().references(() => groups.id, { onDelete: 'cascade' }),
   moduleId: text().notNull(),
+  /** Sprachvorgabe: beide, nur Blöcke oder nur Klonk-Script */
+  languages: text({ enum: ['both', 'blocks', 'klonk'] }).notNull().default('both'),
   enabledBy: uuid().references(() => users.id, { onDelete: 'set null' }),
   createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
-}, t => [primaryKey({ columns: [t.groupId, t.moduleId] })])
+}, t => [primaryKey({ columns: [t.groupId, t.moduleId] }), check('group_learn_modules_languages_check', sql`${t.languages} IN ('both', 'blocks', 'klonk')`)])

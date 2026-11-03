@@ -352,7 +352,8 @@
     },
     "open": "Öffnen",
     "useWorld": "Als Projektwelt verwenden",
-    "packageHelp": "Teile mit Punkt trennen, z. B. spiel.figuren"
+    "packageHelp": "Teile mit Punkt trennen, z. B. spiel.figuren",
+    "klonkAndBlocks": "Klonk-Script & Blöcke"
   },
   "pwa": {
     "install": "App installieren",
@@ -580,7 +581,7 @@
     "groupHint": "Gelöste Aufgaben der Lernenden in den freigegebenen Modulen. Ein Klick auf eine Aufgabe zeigt das Programm.",
     "refresh": "Aktualisieren",
     "enableModules": "Module freigeben",
-    "enableModulesHint": "Nur freigegebene Module können die Lernenden dieser Gruppe starten. Ihren Lernstand sehen Sie für alle freigegebenen Module.",
+    "enableModulesHint": "Nur freigegebene Module können die Lernenden dieser Gruppe starten. Je Modul legen Sie fest, ob mit Blöcken, Klonk-Script oder beidem gearbeitet wird. Den Lernstand sehen Sie für alle freigegebenen Module.",
     "noMembers": "Diese Gruppe hat noch keine Lernenden. Mitglieder verwalten Sie in der Verwaltung unter Gruppen.",
     "noEnabledModules": "Geben Sie oben Module frei, um den Lernstand zu sehen.",
     "overview": "Lernstand der Gruppe",
@@ -598,6 +599,14 @@
     "viewCode": "Programm ansehen",
     "backToProgress": "Zurück zum Lernstand",
     "viewing": "Programm von {name}",
-    "viewingHint": "Nur lesen – Sie können es ausführen und prüfen, aber nicht ändern. Änderungen erscheinen, sobald sie hochgeladen sind."
+    "viewingHint": "Nur lesen – Sie können es ausführen und prüfen, aber nicht ändern. Änderungen erscheinen, sobald sie hochgeladen sind.",
+    "languageChoice": {
+      "both": "Blöcke und Klonk-Script",
+      "blocks": "nur Blöcke",
+      "klonk": "nur Klonk-Script"
+    },
+    "languageFor": "Sprache für {module}",
+    "openInLearn": "In der Lernansicht prüfen",
+    "learnTaskHint": "Aufgabe „{task}“ aus {module}"
   }
 }

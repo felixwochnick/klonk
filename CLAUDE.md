@@ -268,9 +268,13 @@ node scripts/build-csharp.ts        # C#-Host bauen (.NET-SDK 10 nötig; Ausgabe
   Klonk Cloud, Freigabe je Gruppe, Lernstand für die Gruppenleitung**): Daten in `@klonk/learn` (Texte de/en als Markdown im Paket, nicht in i18n),
   Seiten `/learn`, `/learn/<modul>`, `/learn/<modul>/<aufgabe>` (`key: fullPath`; `?project=<id>&name=…&back=…` = Programm einer anderen
   Person nur lesen), `/learn/groups/<id>` (Freigabe + Lernstand). Jedes gestartete Modul = **eigenes Cloud-Projekt** (`cloud_projects.learn_module`,
-  eindeutig je Konto): `<aufgabe>.blocks|klonk` + Manifest `klonk.json` `{ learn: { module, languages, solved } }` (`packages/learn/src/project.ts`).
-  Freigabe in `group_learn_modules` (Gruppenleitung/Admins, `setGroupLearnModules`). Startbar (`klonk.can_start_learn_module`): Privatkonten und
-  Lehrkräfte/Admins alle, Lernende nur in einer ihrer Gruppen freigegebene; **ohne Cloud keine Lernmodule** (`requireCloud`). Gruppenleitung liest
+  eindeutig je Konto), Projektart Klonk-Script & Blöcke. **Je Aufgabe ein Ordner** (vom User so festgelegt) `1 Zur Marke/` mit `Aufgabe.md`,
+  `Welt[ n].klonkworld.json` und `Programm.blocks|klonk` (`taskFolderFiles`, legt der Server beim Start an); Manifest `klonk.json`
+  `{ language: 'klonk', learn: { module, tasks: { id: '<ordner>/Programm' }, languages, solved } }` (`packages/learn/src/project.ts`);
+  Projekte ohne `tasks`-Eintrag (erste Fassung, Programme im Wurzelordner) zieht die Lernansicht beim Öffnen um (`ensureTaskFolder`).
+  Freigabe in `group_learn_modules` mit **Sprachvorgabe je Gruppe und Modul** (`languages`: both|blocks|klonk; Lernende bekommen die Vereinigung
+  ihrer Gruppen, `LearnStatus.languages`). Startbar (`klonk.can_start_learn_module`): Privatkonten und Lehrkräfte/Admins alle (beide Sprachen),
+  Lernende nur in einer ihrer Gruppen freigegebene; **ohne Cloud keine Lernmodule** (`requireCloud`). Gruppenleitung liest
   Modulprojekte ihrer Mitglieder nur für freigegebene Module (`klonk.leads_learner` in `can_read_cloud_project` + Policy), `learn_module` lässt sich
   per UPDATE nicht ändern. Server: `apps/app/server/utils/learn.ts` (`/api/learn`, `/api/learn/modules/:id/start`, `/api/learn/groups/:id[/modules]`),
   Lernstand = aus `klonk.json` + Aufgabendateien (`progressFromFiles`). Prüfung im Browser (Status „gelöst“ ist nicht fälschungssicher).
@@ -279,7 +283,12 @@ node scripts/build-csharp.ts        # C#-Host bauen (.NET-SDK 10 nötig; Ausgabe
   `delay: 0` und 5-s-Zeitlimit (`utils/learn-check.ts`). Musterlösung sichtbar nach dem Lösen, für Rolle ≠ member, Betreiber und Privatkonten.
   Unit-Tests lösen jede Aufgabe mit der Musterlösung (de/en) in allen Welten. **Aufgaben, Lösungen und Lehrkraft-Hinweise nie in die öffentliche
   Doku** (vom User so festgelegt) – Hinweise für Lehrkräfte zeigt die Modulseite der App nur für Rolle ≠ member bzw. Betreiber.
-  E2E `e2e/learn.spec.ts` (Konto tom, Gruppe 9c; Programme per Cloud-API vorbelegt).
+  Ist das Modulprojekt in der IDE offen, nutzt die Lernansicht dieselbe `CloudProject`-Instanz (`useLearn().open`, sonst zwei Sync-Warteschlangen
+  auf einer OPFS-Kopie). IDE: Datei in einem Aufgabenordner ⇒ Leiste „In der Lernansicht prüfen“ (`learnTask` in `pages/index.vue`).
+  E2E `e2e/learn.spec.ts` (Konto tom, Gruppe 9c; Programme per Cloud-API in den Aufgabenordner geschrieben).
+- **Projektarten** (vom User so festgelegt): Klonk-Script und Blöcke sind **eine** Projektart (`klonk.json` `language: 'klonk'`, alte `'blocks'` ⇒
+  `projectLanguage()`), beide Dateiarten erlaubt (`projectAllows`), Name „Klonk-Script & Blöcke“ (`projectLanguageLabel`, `PROJECT_LANGUAGES`).
+  Startdatei folgt der zuletzt in der IDE genutzten Sprache. **Programm in einem Ordner mit eigener Welt ⇒ diese Welt laden** (`useProject().select`).
   vue-i18n: `|` in Texten als `{'|'}` schreiben (sonst Pluralform).
 - **Laufzeiten versioniert:** `/pyodide|teavm|pylibs|dotnet/<hash>/` (`assetVersion()` in `apps/app/nuxt.config.ts`, Vite-`define`
   `__KLONK_ASSETS__`, `runtime/src/assets.ts`) – sonst lieferten Browser-/PWA-Cache nach einem Neubau alte Dateien (z. B. alter C#-Host).

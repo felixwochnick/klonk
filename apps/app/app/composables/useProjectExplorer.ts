@@ -80,9 +80,11 @@ export function useProjectExplorer(options: { onOpenFile?: (file: ProjectFile) =
   }
 
   /** Sprache festlegen und Startdateien anlegen (Programm + Welt) */
-  async function createStarterFiles(language: ProgramLanguage) {
+  async function createStarterFiles(projectType: ProgramLanguage) {
     const lang = locale.value === 'en' ? 'en' : 'de'
-    await proj.setLanguage(language)
+    await proj.setLanguage(projectType)
+    // Klonk-Script & Blöcke: Startprogramm in der zuletzt in der IDE genutzten der beiden Sprachen
+    const language = projectType === 'klonk' && program.language.value === 'blocks' ? 'blocks' : projectType
     await proj.create(t('project.defaultName.world'), 'world', `${JSON.stringify(start.value.toJSON(), null, 2)}\n`)
     await proj.create(language === 'java' ? 'src/Main' : t(`project.defaultName.${language}`), language, programSample(language, lang))
   }
@@ -126,7 +128,7 @@ export function useProjectExplorer(options: { onOpenFile?: (file: ProjectFile) =
   function openDialog(value: ProjectDialog) {
     dialog.value = value
     // Neues Projekt: zuletzt in der IDE genutzte Sprache vorschlagen
-    if (value.mode === 'project' || value.mode === 'init' || value.mode === 'cloud') dialogLanguage.value = program.language.value
+    if (value.mode === 'project' || value.mode === 'init' || value.mode === 'cloud') dialogLanguage.value = projectLanguage(program.language.value)
     dialogName.value = value.mode === 'upload'
       ? proj.project.value?.name ?? ''
       : value.mode === 'cloud'
@@ -265,7 +267,7 @@ export function useProjectExplorer(options: { onOpenFile?: (file: ProjectFile) =
   function fileItemsIn(folder?: string): DropdownMenuItem[][] {
     return [
       // Im Projekt mit fester Sprache nur diese (plus Welten und Ordner)
-      PROGRAM_KINDS.filter(kind => !proj.language.value || kind === proj.language.value).map(kind => ({
+      PROGRAM_KINDS.filter(kind => projectAllows(proj.language.value, kind)).map(kind => ({
         label: t(`editor.languages.${kind}`), icon: KIND_ICON[kind], onSelect: () => openDialog({ mode: 'file', kind, folder }),
       })),
       [

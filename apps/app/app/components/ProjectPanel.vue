@@ -137,7 +137,7 @@ const selectedWorld = computed({
         data-testid="save-status"
         :data-status="status"
       >
-        <span data-testid="project-language">{{ proj.language.value ? t(`editor.languages.${proj.language.value}`) : t('project.mixed') }}</span>
+        <span data-testid="project-language">{{ proj.language.value ? projectLanguageLabel(t, proj.language.value) : t('project.mixed') }}</span>
         · {{ t(`project.status.${status}`) }}
       </p>
 

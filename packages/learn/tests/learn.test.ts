@@ -1,7 +1,7 @@
 import { translate } from '@klonk/klonk-script'
 import { World } from '@klonk/world'
 import { describe, expect, it } from 'vitest'
-import { compareOutcome, expectedOutcomes, LEARN_MODULES, map, missingConstructs, runTrusted } from '../src'
+import { compareOutcome, emptyManifest, expectedOutcomes, LEARN_MODULES, map, missingConstructs, parseManifest, progressFromFiles, runTrusted, serializeManifest, taskFolderFiles } from '../src'
 
 describe('Karten', () => {
   it('übersetzt Zeichen in Felder und Figur', () => {
@@ -72,4 +72,43 @@ describe('Lernmodule', () => {
       })
     }
   }
+})
+
+describe('Modulprojekt', () => {
+  // Wie isValidCloudPath (core): keine Pfadtricks und Sonderzeichen, nichts beginnt mit einem Punkt
+  const validPath = (path: string) => path.split('/').every(part => !!part && part.length <= 120 && !/[\\:*?"<>|]/.test(part) && !part.startsWith('.'))
+
+  it('legt je Aufgabe einen Ordner mit Text, Welten und Programm an', () => {
+    for (const lang of ['de', 'en'] as const) {
+      for (const module of LEARN_MODULES) {
+        module.tasks.forEach((task, i) => {
+          const entry = taskFolderFiles(task, i, lang, 'blocks')
+          for (const file of entry.files) expect(validPath(file.path), file.path).toBe(true)
+          const worlds = entry.files.filter(f => f.path.endsWith('.klonkworld.json'))
+          expect(worlds).toHaveLength(task.worlds.length)
+          for (const world of worlds) new World(JSON.parse(world.content))
+          expect(entry.files.map(f => f.path)).toContain(`${entry.program}.blocks`)
+        })
+      }
+    }
+    const first = taskFolderFiles(LEARN_MODULES[0]!.tasks[0]!, 0, 'de', 'klonk')
+    expect(first.files.map(f => f.path)).toEqual(['1 Zur Marke/Aufgabe.md', '1 Zur Marke/Welt.klonkworld.json', '1 Zur Marke/Programm.klonk'])
+  })
+
+  it('liest den Lernstand aus Manifest und Programmen (auch aus Projekten ohne Ordner)', () => {
+    const module = LEARN_MODULES[0]!
+    const manifest = emptyManifest(module.id)
+    manifest.tasks['to-the-mark'] = '1 Zur Marke/Programm'
+    manifest.solved['to-the-mark'] = '2026-11-03T10:00:00.000Z'
+    const text = serializeManifest(manifest)
+    expect(JSON.parse(text).language).toBe('klonk')
+    expect(parseManifest(text, module.id)).toEqual(manifest)
+    expect(parseManifest(text, 'repeat').solved).toEqual({})
+    expect(progressFromFiles(module, [
+      { path: 'klonk.json', content: text },
+      { path: '1 Zur Marke/Programm.klonk', content: 'schritt(4)' },
+      { path: 'around-the-corner.blocks', content: '{"blocks":{}}' },
+      { path: 'wall.klonk', content: '  ' },
+    ])).toEqual({ solved: ['to-the-mark'], started: ['to-the-mark', 'around-the-corner'] })
+  })
 })
