@@ -6,7 +6,7 @@
 #   off      – nur HTTP, wenn bereits ein anderer Proxy TLS übernimmt
 # Zugangssperre über KLONK_GATE (z. B. für eine geschlossene Testphase):
 #   off       – alles öffentlich (Standard)
-#   authentik – Forward-Auth über Authentik (KLONK_GATE_URL = Authentik bzw. Outpost, z. B. https://id.example)
+#   authentik – Forward-Auth über einen Authentik-Outpost (KLONK_GATE_URL, z. B. http://authentik-outpost:9000)
 {
 	email {$KLONK_ACME_EMAIL}
 	# Kein automatisches Eintragen der lokalen CA in den Container-Truststore
@@ -34,19 +34,17 @@
 (gate-off) {
 }
 
-# Provider „Forward auth (domain level)“ in Authentik: Cookie-Domain = KLONK_DOMAIN, Zugriff über Gruppen-Bindung
+# Provider „Forward auth (domain level)“ in Authentik: Cookie-Domain = KLONK_DOMAIN, Zugriff über Gruppen-Bindung.
+# Der Outpost erkennt die Anwendung am ursprünglichen Host ⇒ Host-Header nicht umschreiben (eigener Outpost im Docker-Netz)
 (gate-authentik) {
 	# Rücksprung nach der Anmeldung geht an den Outpost
 	handle /outpost.goauthentik.io/* {
-		reverse_proxy {$KLONK_GATE_URL} {
-			header_up Host {upstream_hostport}
-		}
+		reverse_proxy {$KLONK_GATE_URL}
 	}
 	# Webhooks (Mollie, Invoice Ninja) und Lizenz-API der Website bleiben erreichbar
 	@gated not path /outpost.goauthentik.io/* /api/webhooks/* /api/v1/*
 	forward_auth @gated {$KLONK_GATE_URL} {
 		uri /outpost.goauthentik.io/auth/caddy
-		header_up Host {upstream_hostport}
 	}
 }
 

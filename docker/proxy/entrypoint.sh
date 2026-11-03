@@ -26,7 +26,7 @@ esac
 export KLONK_GATE="${KLONK_GATE:-off}"
 case "$KLONK_GATE" in
   off) ;;
-  authentik) : "${KLONK_GATE_URL:?KLONK_GATE_URL fehlt (Authentik bzw. Outpost, z. B. https://id.example)}" ;;
+  authentik) : "${KLONK_GATE_URL:?KLONK_GATE_URL fehlt (Authentik-Outpost, z. B. http://authentik-outpost:9000)}" ;;
   *)
     echo "Unbekannter KLONK_GATE-Modus: $KLONK_GATE (off | authentik)" >&2
     exit 1
