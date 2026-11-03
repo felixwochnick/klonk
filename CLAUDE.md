@@ -314,6 +314,23 @@ node scripts/build-csharp.ts        # C#-Host bauen (.NET-SDK 10 nötig; Ausgabe
   RLS über SECURITY-DEFINER-Helfer (`klonk.group_role`, `can_manage_group`, `leads_group`, `can_read/can_write_cloud_project`);
   Betreiber:innen sehen keine persönlichen Projekte/Abgaben. IDE: `useProject().readOnly` ⇒ Editoren schreibgeschützt.
   E2E: `e2e/cloud.spec.ts` (eigene Browser-Kontexte = eigene Geräte).
+- **Datenbanken** (vom User so festgelegt: SQLite + PGlite, Welt ↔ SQL, auch komplexe Datenbanken ohne Welt, API in allen Objekt-Sprachen):
+  Engines in `packages/runtime/src/db/` (`sqlite.ts` = `@sqlite.org/sqlite-wasm` oo1 im Speicher, `postgres.ts` = PGlite + `pg_dump`), gemeinsame
+  Schnittstelle `SqlEngine` (`script` = mehrere Anweisungen, `query` = eine mit Parametern, `dump`, `tables`, SQLite `exportFile`). Alle laufen im
+  **Datenbank-Worker** (`@klonk/runtime/db-worker?worker`, Client `DatabaseClient`/`DatabaseSession` in `db/client.ts`). Projektdatenbanken sind
+  **SQL-Text**: `name.sqlite.sql` / `name.postgres.sql` (Dateiart `database`), `.sql` = Abfrage (Dateiart `sql`); `useDatabases()` lädt sie bei Bedarf,
+  sichert nach Änderungen per Dump (600 ms, `proj.writeFile`, an das Projekt der Sitzung gebunden) und vergisst umbenannte/gelöschte Dateien.
+  IDE: `DatabaseEditor` (Tabellen + Konsole), `SqlConsole` (Ziel: Projektdatenbank oder `world:sqlite|postgres`, Strg+Enter, Vorschläge über `sqlSchemas` in `utils/monaco.ts`).
+  **Welt als Datenbank** (`db/world.ts`): Tabellen in UI-Sprache (`welt`, `figuren`, `ziegel(x, y, ebene, farbe)`, `marken`, `quader` bzw. englisch), 1-basiert,
+  Werte lokalisiert, CHECK-Bedingungen; Änderungen ⇒ `sqlToWorld` (`WorldTableError`-Codes ⇒ `database.worldErrors.*`), „Als Startwelt speichern“.
+  **Programme** (JS/TS/Python/Java/C#, nicht Klonk-Script/Blöcke): `Database.open(name)` / `Database.memory(engine)`, `query`, `queryOne`, `execute`, `tables`;
+  synchron über `db/channel.ts` (Worker postet `{ type: 'db' }`, wartet per Atomics.wait auf JSON im eigenen SAB, `ProgramRunner.onDatabase` ⇒ `useDatabases().answer`).
+  Python/Java/C# nutzen `api.db.json` (SQL-Fehler als `{ sqlError }` ⇒ eigene `DatabaseError`/`DatabaseException`), Java `klonk.Database/Row/DatabaseException`
+  (`src/java/lib`), C# in `RobotApi.txt` (Newtonsoft). Fallen: sqlite-wasm `getColumnNames()` wirft ohne Spalten (⇒ `columnCount`); pg_dump setzt `search_path`
+  leer (⇒ `RESET search_path`) und braucht `--inserts` (COPY ist nicht wieder einlesbar); Browser-javac kennt `Throwable.getMessage()` nicht (eigene Methode);
+  C#-`switch`-Ausdruck mit JToken-Armen packt Werte implizit wieder ein (Arme nach `object` casten). Runtime-Tests beantworten Anfragen synchron
+  (`tests/db-host.ts`, sonst blockiert Atomics.wait den einzigen Thread). PGlite/pg_dump (~15 MB) nicht im PWA-Precache, `CacheFirst` bei Bedarf.
+  E2E: `e2e/databases.spec.ts`.
 - **KI-Assistent** (vom User so festgelegt): Tab **KI** neben Welt | Doku (`AiChat.vue`, `useAi()`), „Fehler erklären“
   im Fehlerkasten, Codeblöcke „Einfügen“/„Alles ersetzen“ (`KlonkEditor.insertText/replaceAll`, rückgängig machbar) nur bei voller Hilfe.
   **Tutor-Modus:** Lernende (`role member`) bekommen je nach Einstellung nur Hinweise, Lehrkräfte/Admins/Betreiber immer volle Hilfe.
@@ -401,5 +418,7 @@ node scripts/build-csharp.ts        # C#-Host bauen (.NET-SDK 10 nötig; Ausgabe
 11. [x] KI-Assistent (schuleigenes LLM / WebLLM, Tutor-Modus, Fehler erklären, Code übernehmen)
 12. [x] Weitere Sprachen: Python (Pyodide), Java (TeaVM), C# (Roslyn/.NET-WASM)
 13. [x] Klonk Cloud: Projekte synchronisieren (offline-fähig), Gruppen mit gemeinsamem Ordner, Aufgaben + Abgaben
-14. [x] Lernmodule: Grundkurs Klonk-Script (6 Module, 20 Aufgaben, automatische Prüfung, Hinweise für Lehrkräfte in der App)
-14b. [ ] Lernmodule für Python/Java (Objekte, Klassen)
+14. [x] Datenbanken: SQLite + PostgreSQL (PGlite) im Browser, SQL-Konsole, Welt als Datenbank, Datenbank-API in JS/TS/Python/Java/C#
+14b. [ ] ER-Modellierung (Diagramm ⇒ Tabellen), MySQL-Dialekt
+15. [x] Lernmodule: Grundkurs Klonk-Script (6 Module, 20 Aufgaben, automatische Prüfung, Hinweise für Lehrkräfte in der App)
+15b. [ ] Lernmodule für Python/Java (Objekte, Klassen)

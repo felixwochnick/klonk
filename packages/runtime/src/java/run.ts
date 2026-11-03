@@ -4,6 +4,7 @@ import { World } from '@klonk/world'
 import type { FromWorker, RunError, ToWorker } from '../protocol'
 import { ApiError, createApi } from '../js/api'
 import { CONTROL, views } from '../js/shared'
+import { createDbCall } from '../db/channel'
 import { instrumentJava } from './instrument'
 import { JAVA_LIBRARY } from './lib'
 import { DEBUG_IMPORT, DEBUG_JAVA, ROBOT_JAVA } from './robot'
@@ -135,6 +136,7 @@ export async function runJava(
     designs: message.designs,
     maxCharacters: message.maxCharacters,
     saveDesign: message.saveDesigns ? (name, design) => post({ type: 'saveDesign', name, design }) : undefined,
+    database: createDbCall(message.database, post),
     onError: (error) => {
       apiError = error
     },
@@ -150,6 +152,8 @@ export async function runJava(
     count: () => api.names().length,
     nameAt: (index: number) => api.names()[index],
     sleepSeconds: api.globals.wait,
+    // Database.java: Anfrage/Antwort als JSON-Text
+    db: api.db.json,
   }
   // Prüfpunkt: true ⇒ anhalten (Variablen folgen über variable(), dann pause())
   robot.checkpoint = (current: number) => {

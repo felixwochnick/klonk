@@ -1,19 +1,21 @@
 <script setup lang="ts">
 import { spell } from '@klonk/klonk-script'
 import type { editor as MonacoEditor } from 'monaco-editor'
-import type { CheckLanguage } from '@klonk/runtime'
+import type { CheckLanguage, SqlTable } from '@klonk/runtime'
 import { CHECKED_LANGUAGES, checkProgram, modelContexts } from '~/utils/checker'
-import { KLONK_LANGUAGE, loadMonaco, updateRobotApi, validate, type Monaco } from '~/utils/monaco'
+import { KLONK_LANGUAGE, loadMonaco, sqlSchemas, updateRobotApi, validate, type Monaco } from '~/utils/monaco'
 
 const monacoLanguage = (language: string) => (language === 'klonk' ? KLONK_LANGUAGE : language)
-const EXTENSION: Record<string, string> = { klonk: 'klonk', javascript: 'js', typescript: 'ts', python: 'py', java: 'java', csharp: 'cs' }
+const EXTENSION: Record<string, string> = { klonk: 'klonk', javascript: 'js', typescript: 'ts', python: 'py', java: 'java', csharp: 'cs', sql: 'sql', pgsql: 'sql' }
+/** SQL (SQLite bzw. PostgreSQL): keine Haltepunkte, Strg+Enter führt aus */
+const isSql = (language: string) => language === 'sql' || language === 'pgsql'
 let modelCounter = 0
 
 // Code-Editor (Monaco) für Klonk-Script mit Breakpoints und Hervorhebung der aktuellen Zeile.
 // Nur im Browser verwenden (<ClientOnly>).
 const props = withDefaults(defineProps<{
   /** Programmiersprache des Editors */
-  language?: 'klonk' | 'javascript' | 'typescript' | 'python' | 'java' | 'csharp'
+  language?: 'klonk' | 'javascript' | 'typescript' | 'python' | 'java' | 'csharp' | 'sql' | 'pgsql'
   readOnly?: boolean
   /** Zeile, die gerade läuft */
   activeLine?: number | null
@@ -25,7 +27,12 @@ const props = withDefaults(defineProps<{
   files?: Record<string, string>
   /** Pfad der Datei im Projekt (Importe relativ dazu, Vorschläge aus anderen Dateien) */
   path?: string | null
-}>(), { path: null, language: 'klonk', readOnly: false, activeLine: null, errorLine: null, errorMessage: null, files: () => ({}) })
+  /** SQL: Tabellen und Spalten für Vorschläge */
+  sqlTables?: SqlTable[]
+}>(), { path: null, language: 'klonk', readOnly: false, activeLine: null, errorLine: null, errorMessage: null, files: () => ({}), sqlTables: () => [] })
+
+/** Strg+Enter (SQL ausführen) */
+const emit = defineEmits<{ run: [] }>()
 
 const source = defineModel<string>({ required: true })
 const breakpoints = defineModel<number[]>('breakpoints', { default: () => [] })
@@ -63,6 +70,8 @@ const translator = {
 
 onMounted(async () => {
   monaco = await loadMonaco(translator)
+  // Schon wieder entfernt (z. B. schneller Dateiwechsel), während Monaco lud
+  if (!container.value) return
   // Eigenes Modell je Sprache mit passender Endung: der TypeScript-Dienst erkennt TS/JS an der Dateiendung
   // (ein gemeinsames Modell ohne Endung prüfte TypeScript als JavaScript ⇒ falsche Fehler bis zum Neuladen)
   // Im Projekt liegt das Modell unter seinem Pfad ab der Wurzel (file:///src/x.ts) – TypeScript löst `./andere` und
@@ -73,7 +82,11 @@ onMounted(async () => {
     monaco!.editor.getModel(uri)?.dispose()
     const created = monaco!.editor.createModel(value, monacoLanguage(language), uri)
     modelContexts.set(created.uri.toString(), { path: props.path ?? undefined, files: props.files })
-    created.onWillDispose(() => modelContexts.delete(created.uri.toString()))
+    sqlSchemas.set(created.uri.toString(), props.sqlTables)
+    created.onWillDispose(() => {
+      modelContexts.delete(created.uri.toString())
+      sqlSchemas.delete(created.uri.toString())
+    })
     return created
   }
   editor = monaco.editor.create(container.value!, {
@@ -87,7 +100,7 @@ onMounted(async () => {
     autoIndent: 'full',
     // Enter übernimmt Vorschläge nur, wenn sie etwas ändern – „ende“ + Enter macht eine neue Zeile
     acceptSuggestionOnEnter: 'smart',
-    glyphMargin: true,
+    glyphMargin: !isSql(props.language),
     lineNumbersMinChars: 3,
     scrollBeyondLastLine: false,
     readOnly: props.readOnly,
@@ -95,6 +108,7 @@ onMounted(async () => {
     ariaLabel: t('editor.ariaLabel'),
   })
   decorations = editor.createDecorationsCollection()
+  editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter, () => emit('run'))
 
   let model = editor.getModel()!
   const check = async () => {
@@ -129,6 +143,7 @@ onMounted(async () => {
     if (previous.uri.toString() === `file:///${props.path}`) previous.dispose()
     model = createModel(source.value, language)
     editor!.setModel(model)
+    editor!.updateOptions({ glyphMargin: !isSql(language) })
     if (!previous.isDisposed()) previous.dispose()
     updateDecorations()
     updateRuntimeMarker()
@@ -145,6 +160,7 @@ onMounted(async () => {
 
   // Klick auf den Rand setzt/entfernt Breakpoints
   editor.onMouseDown((event) => {
+    if (isSql(props.language)) return
     const { GUTTER_GLYPH_MARGIN, GUTTER_LINE_NUMBERS } = monaco!.editor.MouseTargetType
     if (event.target.type !== GUTTER_GLYPH_MARGIN && event.target.type !== GUTTER_LINE_NUMBERS) return
     const line = event.target.position?.lineNumber
@@ -171,6 +187,10 @@ watch(source, (value) => {
   if (editor && value !== editor.getValue()) editor.setValue(value)
 })
 watch(() => props.readOnly, readOnly => editor?.updateOptions({ readOnly }))
+watch(() => props.sqlTables, (tables) => {
+  const model = editor?.getModel()
+  if (model) sqlSchemas.set(model.uri.toString(), tables)
+})
 watch(() => colorMode.value, mode => monaco?.editor.setTheme(mode === 'dark' ? 'klonk-dark' : 'klonk-light'))
 watch(locale, () => {
   const model = editor?.getModel()
@@ -232,6 +252,11 @@ function updateDecorations() {
 
 defineExpose({
   focus: () => editor?.focus(),
+  /** Markierter Text (SQL: nur die Auswahl ausführen) */
+  selectedText: () => {
+    const selection = editor?.getSelection()
+    return selection && !selection.isEmpty() ? editor!.getModel()!.getValueInRange(selection) : ''
+  },
   /** Zeile zeigen und Cursor dorthin setzen (z. B. Klick auf „Fehler in Zeile …“) */
   revealLine: (line: number) => {
     if (!editor) return

@@ -1,7 +1,9 @@
 import type { DropdownMenuItem } from '@nuxt/ui'
 import { DEFAULT_DESIGNS, World } from '@klonk/world'
+import type { SqlEngineName } from '@klonk/runtime'
+import { databaseSample, sqlSample } from '~/utils/sql-samples'
 import {
-  deleteBrowserProject, ensurePermission, forgetProject, listBrowserProjects, pickFolder, recentProjects,
+  DATABASE_EXTENSIONS, deleteBrowserProject, ensurePermission, forgetProject, listBrowserProjects, pickFolder, recentProjects,
   supportsBrowserProjects, supportsFolders, Project, type FileKind, type ProjectFile, type RecentProject,
 } from '~/utils/project-fs'
 
@@ -9,7 +11,7 @@ export type ProjectDialog
   = | { mode: 'project' }
     /** Leerer Ordner geöffnet: Sprache wählen, Startdateien anlegen */
     | { mode: 'init' }
-    | { mode: 'file', kind: Exclude<FileKind, 'other'>, folder?: string }
+    | { mode: 'file', kind: Exclude<FileKind, 'other'>, folder?: string, engine?: SqlEngineName }
     | { mode: 'folder', parent?: string }
     | { mode: 'rename', file: ProjectFile }
     | { mode: 'renameFolder', path: string }
@@ -37,6 +39,7 @@ export function useProjectExplorer(options: { onOpenFile?: (file: ProjectFile) =
   const apiError = useApiError()
   const proj = useProject()
   const cloud = useCloud()
+  const databases = useDatabases()
   const { start } = useWorldEditor()
   const { files, folders } = proj
 
@@ -150,6 +153,13 @@ export function useProjectExplorer(options: { onOpenFile?: (file: ProjectFile) =
       else if (d.mode === 'upload') {
         await cloud.upload(name)
       }
+      else if (d.mode === 'file' && (d.kind === 'database' || d.kind === 'sql')) {
+        // Datenbank: Endung nach Engine (name.sqlite.sql / name.postgres.sql)
+        const extension = d.kind === 'database' ? DATABASE_EXTENSIONS[d.engine ?? 'sqlite'] : '.sql'
+        const file = name.toLowerCase().endsWith(extension) ? name : `${name}${extension}`
+        await proj.create(join(d.folder, file), d.kind, d.kind === 'database' ? databaseSample(lang) : sqlSample(lang))
+        if (d.folder) expand(d.folder)
+      }
       else if (d.mode === 'file') {
         const initial = d.kind === 'world'
           ? `${JSON.stringify(World.empty().toJSON(), null, 2)}\n`
@@ -160,7 +170,7 @@ export function useProjectExplorer(options: { onOpenFile?: (file: ProjectFile) =
             // C#: weitere Dateien als Klasse im Namespace des Ordners (Anweisungen gibt es nur in einer Datei)
               : d.kind === 'csharp' && files.value.some(f => f.kind === 'csharp')
                 ? csharpClassSource(name.replace(/\.cs$/i, ''), csharpNamespace(d.folder ?? ''))
-                : programSample(d.kind, lang)
+                : programSample(d.kind as ProgramLanguage, lang)
         await proj.create(join(d.folder, name), d.kind, initial)
         if (d.folder) expand(d.folder)
       }
@@ -250,7 +260,32 @@ export function useProjectExplorer(options: { onOpenFile?: (file: ProjectFile) =
         { label: t('project.design'), icon: KIND_ICON.design, onSelect: () => openDialog({ mode: 'file', kind: 'design', folder }) },
         { label: t('project.folder'), icon: 'i-lucide-folder-plus', onSelect: () => openDialog({ mode: 'folder', parent: folder }) },
       ],
+      // Datenbanken (SQLite/PostgreSQL), Abfragen, vorhandene SQLite-Datei übernehmen
+      [
+        { label: t('database.newSqlite'), icon: KIND_ICON.database, onSelect: () => openDialog({ mode: 'file', kind: 'database', engine: 'sqlite', folder }) },
+        { label: t('database.newPostgres'), icon: KIND_ICON.database, onSelect: () => openDialog({ mode: 'file', kind: 'database', engine: 'postgres', folder }) },
+        { label: t('database.newQuery'), icon: KIND_ICON.sql, onSelect: () => openDialog({ mode: 'file', kind: 'sql', folder }) },
+        { label: t('database.import'), icon: 'i-lucide-file-up', onSelect: () => importDatabase(folder) },
+      ],
     ]
+  }
+
+  /** SQLite-Datei (z. B. aus DB Browser for SQLite) als Datenbank ins Projekt übernehmen */
+  function importDatabase(folder?: string) {
+    const input = Object.assign(document.createElement('input'), { type: 'file', accept: '.db,.sqlite,.sqlite3,.db3' })
+    input.onchange = async () => {
+      const file = input.files?.[0]
+      if (!file) return
+      try {
+        const path = await databases.importSqlite(file, folder)
+        if (folder) expand(folder)
+        toast.add({ title: t('database.imported', { name: path ?? file.name }), color: 'success' })
+      }
+      catch {
+        toast.add({ title: t('database.importFailed'), color: 'error' })
+      }
+    }
+    input.click()
   }
   const newItems = computed(() => newItemsIn())
 
@@ -313,7 +348,9 @@ export function useProjectExplorer(options: { onOpenFile?: (file: ProjectFile) =
   }
 
   /** Bezeichnung der Dateiart */
-  const kindLabel = (kind: FileKind) => (kind === 'world' ? t('project.world') : kind === 'design' ? t('project.design') : kind === 'other' ? t('project.otherFile') : t(`editor.languages.${kind}`))
+  const kindLabel = (kind: FileKind) => (kind === 'world' || kind === 'design' || kind === 'database' || kind === 'sql'
+    ? t(`project.${kind}`)
+    : kind === 'other' ? t('project.otherFile') : t(`editor.languages.${kind}`))
 
   return {
     proj, cloud, canFolders, canBrowser, browserProjects, recent, loadLists, fail,
@@ -336,5 +373,7 @@ const KIND_ICON: Record<FileKind, string> = {
   csharp: 'i-simple-icons-dotnet',
   world: 'i-lucide-boxes',
   design: 'i-lucide-palette',
+  database: 'i-lucide-database',
+  sql: 'i-lucide-file-search',
   other: 'i-lucide-file',
 }

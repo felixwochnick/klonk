@@ -6,7 +6,8 @@
   "exports": {
     ".": "./src/index.ts",
     "./worker": "./src/worker.ts",
-    "./check-worker": "./src/check-worker.ts"
+    "./check-worker": "./src/check-worker.ts",
+    "./db-worker": "./src/db/worker.ts"
   },
   "scripts": {
     "test": "vitest run",
@@ -14,8 +15,11 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@electric-sql/pglite": "0.5.10",
+    "@electric-sql/pglite-tools": "0.4.10",
     "@klonk/klonk-script": "workspace:*",
     "@klonk/world": "workspace:*",
+    "@sqlite.org/sqlite-wasm": "3.54.1-build1",
     "acorn": "^8.19.0",
     "java-parser": "3.0.1",
     "magic-string": "^1.4.5",

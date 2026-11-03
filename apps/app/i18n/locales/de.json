@@ -211,7 +211,17 @@
       "expected_robot_name": "Eine Figur wird über ihren Namen (Text) oder ihre Nummer angesprochen, nicht über „{value}“.",
       "expected_robot": "Diese Methode gehört zu einer Figur, z. B. new Klonk().step().",
       "design_no_project": "Designs lassen sich nur in einem geöffneten Projekt speichern.",
-      "design_name": "„{name}“ ist kein gültiger Name für ein Design."
+      "design_name": "„{name}“ ist kein gültiger Name für ein Design.",
+      "sql_error": "SQL-Fehler: {message}",
+      "db_not_found": "Die Datenbank „{name}“ gibt es im Projekt nicht (Datei {name}.sqlite.sql oder {name}.postgres.sql).",
+      "db_no_project": "Datenbanken des Projekts gibt es nur in einem geöffneten Projekt – ohne Projekt geht Database.memory().",
+      "db_unavailable": "Datenbanken sind hier nicht verfügbar.",
+      "db_closed": "Diese Datenbank ist nicht mehr geöffnet.",
+      "db_name": "Ungültiger Datenbankname: {value}",
+      "db_engine": "Unbekannte Datenbank „{value}“ – möglich sind \"sqlite\" und \"postgres\".",
+      "db_sql": "SQL muss ein Text sein (bekommen: {value}).",
+      "db_result_too_large": "Das Ergebnis ist zu groß – schränke die Abfrage ein (z. B. mit LIMIT).",
+      "expected_database": "Das ist keine Datenbank."
     }
   },
   "blocks": {
@@ -283,7 +293,9 @@
       "java": "Main",
       "csharp": "Program",
       "folder": "Neuer Ordner",
-      "design": "Roboter"
+      "design": "Roboter",
+      "database": "schule",
+      "sql": "abfrage"
     },
     "confirmDelete": "„{name}“ wirklich löschen?",
     "confirmDeleteProject": "Browser-Projekt „{name}“ mit allen Dateien löschen?",
@@ -325,7 +337,9 @@
     "languageHelp": "Programme des Projekts sind in dieser Sprache. Imports, Packages und Module zwischen den Dateien funktionieren.",
     "mixed": "Gemischt",
     "setup": "Projekt einrichten",
-    "design": "Roboter-Design"
+    "design": "Roboter-Design",
+    "database": "Datenbank",
+    "sql": "SQL-Abfrage"
   },
   "pwa": {
     "install": "App installieren",
@@ -372,7 +386,9 @@
     "more": "Außerdem",
     "wait": "warten (Sekunden)",
     "output": "Ausgabe",
-    "scriptIntro": "Schlüsselwörter:"
+    "scriptIntro": "Schlüsselwörter:",
+    "databases": "Datenbanken",
+    "databasesHelp": "Projektdatenbank öffnen (Datei schule.sqlite.sql / schule.postgres.sql) oder Database.memory() – Platzhalter: SQLite ?, PostgreSQL $1."
   },
   "wardrobe": {
     "title": "Kleiderschrank",
@@ -439,6 +455,48 @@
       "syncing": "synchronisiere …",
       "offline": "offline – wird später hochgeladen",
       "error": "nicht synchronisiert"
+    }
+  },
+  "database": {
+    "engines": {
+      "sqlite": "SQLite",
+      "postgres": "PostgreSQL"
+    },
+    "newSqlite": "Datenbank (SQLite)",
+    "newPostgres": "Datenbank (PostgreSQL)",
+    "newQuery": "SQL-Abfrage",
+    "import": "SQLite-Datei importieren …",
+    "imported": "„{name}“ importiert",
+    "importFailed": "Das ist keine SQLite-Datenbank.",
+    "export": "Als SQLite-Datei herunterladen",
+    "run": "Ausführen",
+    "runHint": "Strg+Enter · nur die Auswahl, wenn markiert",
+    "target": "Datenbank",
+    "worldTarget": "Welt ({engine})",
+    "tables": "Tabellen",
+    "noTables": "Noch keine Tabellen – lege mit CREATE TABLE eine an.",
+    "loading": "Datenbank wird geladen …",
+    "loadFailed": "Die Datenbank ließ sich nicht laden.",
+    "primaryKey": "Primärschlüssel",
+    "rows": "keine Zeilen | eine Zeile | {count} Zeilen",
+    "changed": "keine Zeile geändert | eine Zeile geändert | {count} Zeilen geändert",
+    "ok": "Ausgeführt.",
+    "truncated": "nur die ersten {count} angezeigt",
+    "noResults": "Schreibe SQL und führe es aus – die Ergebnisse erscheinen hier.",
+    "noDatabase": "Lege im Projekt eine Datenbank an oder frage die Welt ab.",
+    "error": "SQL-Fehler",
+    "errorAt": "SQL-Fehler in Zeile {line}",
+    "worldChanged": "Welt per SQL geändert",
+    "keepWorld": "Als Startwelt speichern",
+    "worldKept": "Startwelt gespeichert",
+    "worldErrors": {
+      "world_table_missing": "Die Tabelle „{table}“ fehlt – die Welt braucht sie.",
+      "world_size_missing": "Die Tabelle „{table}“ braucht eine Zeile mit der Weltgröße.",
+      "world_outside": "{table}: Feld {x}|{y} liegt außerhalb der Welt ({width} × {depth}).",
+      "world_value": "{table}.{column}: „{value}“ ist kein gültiger Wert.",
+      "world_too_high": "Auf Feld {x}|{y} liegen mehr Ziegel, als die Welt hoch ist ({height}).",
+      "world_design": "„{name}“ hat kein eigenes Design – wähle männlich, weiblich oder divers.",
+      "world_invalid": "So ist die Welt nicht gültig ({reason})."
     }
   },
   "learn": {

@@ -13,6 +13,16 @@ const commands = computed(() => reference.value.commands)
 const colors = computed(() => reference.value.colors)
 const keywords = computed(() => reference.value.keywords)
 
+/** Datenbanken in den Objekt-Sprachen (kurzes Beispiel, Platzhalter für SQLite) */
+const DATABASE_EXAMPLES: Partial<Record<ProgramLanguage, string>> = {
+  javascript: `import { Database } from 'klonk'\nconst db = Database.open('schule')\nfor (const s of db.query('SELECT * FROM schueler WHERE klasse_id = ?', [1]))\n  console.log(s.vorname)\ndb.execute('DELETE FROM schueler WHERE id = ?', [3])`,
+  python: `from klonk import Database\ndb = Database.open("schule")\nfor s in db.query("SELECT * FROM schueler WHERE klasse_id = ?", (1,)):\n    print(s["vorname"])\ndb.execute("DELETE FROM schueler WHERE id = ?", (3,))`,
+  java: `import klonk.Database; import klonk.Row;\nDatabase db = Database.open("schule");\nfor (Row s : db.query("SELECT * FROM schueler WHERE klasse_id = ?", 1))\n    System.out.println(s.getString("vorname"));\ndb.execute("DELETE FROM schueler WHERE id = ?", 3);`,
+  csharp: `using klonk;\nvar db = Database.Open("schule");\nforeach (var s in db.Query("SELECT * FROM schueler WHERE klasse_id = ?", 1))\n    Console.WriteLine(s.GetString("vorname"));\ndb.Execute("DELETE FROM schueler WHERE id = ?", 3);`,
+}
+DATABASE_EXAMPLES.typescript = DATABASE_EXAMPLES.javascript
+const databaseExample = computed(() => DATABASE_EXAMPLES[props.language])
+
 const PAGES: Record<ProgramLanguage, string> = { klonk: 'introduction', blocks: 'blocks', javascript: 'javascript', typescript: 'javascript', python: 'python', java: 'java', csharp: 'csharp' }
 const docsLink = computed(() => `${docsUrl}${lang.value === 'en' ? '/en' : ''}/klonk-script/${PAGES[props.language]}`)
 </script>
@@ -96,6 +106,19 @@ const docsLink = computed(() => `${docsUrl}${lang.value === 'en' ? '/en' : ''}/k
         <li><code>{{ style.wait }}</code> – {{ t('langDocs.wait') }}</li>
         <li><code>{{ style.output }}</code> – {{ t('langDocs.output') }}</li>
       </ul>
+    </template>
+
+    <template v-if="databaseExample">
+      <p class="mb-1 mt-4 font-medium">
+        {{ t('langDocs.databases') }}
+      </p>
+      <p class="mb-1 text-(--ui-text-muted)">
+        {{ t('langDocs.databasesHelp') }}
+      </p>
+      <pre
+        class="overflow-x-auto rounded-md bg-(--ui-bg-muted) p-2 font-mono text-xs"
+        data-testid="docs-database"
+      >{{ databaseExample }}</pre>
     </template>
   </div>
 </template>

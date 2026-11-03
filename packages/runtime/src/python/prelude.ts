@@ -70,6 +70,66 @@ def save_design(name, design):
 
 _klonk_module.load_design = load_design
 _klonk_module.save_design = save_design
+
+class DatabaseError(Exception):
+    """Fehler der Datenbank, z. B. ein Syntaxfehler im SQL"""
+
+class Database:
+    """Datenbank des Projekts (Database.open("schule")) oder nur für diesen Lauf (Database.memory("postgres"))."""
+    __slots__ = ('_handle', 'name', 'engine')
+
+    def __init__(self, info):
+        self._handle = info['handle']
+        self.name = info['name']
+        self.engine = info['engine']
+
+    def __repr__(self):
+        return 'Database(' + repr(self.name) + ', ' + self.engine + ')'
+
+    @staticmethod
+    def _call(request):
+        answer = _klonk_json.loads(_klonk_api.db(_klonk_json.dumps(request, default=str)))
+        if isinstance(answer, dict) and 'sqlError' in answer:
+            raise DatabaseError(answer['sqlError'])
+        return answer
+
+    @staticmethod
+    def open(name):
+        """Datenbank des Projekts: Datei name.sqlite.sql bzw. name.postgres.sql"""
+        return Database(Database._call({'op': 'open', 'name': name}))
+
+    @staticmethod
+    def memory(engine='sqlite'):
+        """Neue, leere Datenbank nur für diesen Lauf: "sqlite" oder "postgres" """
+        return Database(Database._call({'op': 'memory', 'engine': engine}))
+
+    def _query(self, sql, params):
+        if isinstance(params, (str, int, float, bool)) or params is None:
+            params = [] if params is None else [params]
+        return Database._call({'op': 'query', 'handle': self._handle, 'sql': sql, 'params': list(params)})
+
+    def query(self, sql, params=()):
+        """Abfrage ⇒ Liste von dicts (Spalte ⇒ Wert); Platzhalter: SQLite ?, PostgreSQL $1"""
+        result = self._query(sql, params)
+        return [dict(zip(result['columns'], row)) for row in result['rows']]
+
+    def query_one(self, sql, params=()):
+        """Erste Zeile als dict oder None"""
+        rows = self.query(sql, params)
+        return rows[0] if rows else None
+
+    def execute(self, sql, params=()):
+        """Ändernde Anweisung (INSERT, UPDATE, DELETE, CREATE …) ⇒ Zahl geänderter Zeilen"""
+        return self._query(sql, params)['changes'] or 0
+
+    def tables(self):
+        """Namen der Tabellen und Sichten"""
+        return Database._call({'op': 'tables', 'handle': self._handle})
+
+Database.__module__ = 'klonk'
+DatabaseError.__module__ = 'klonk'
+_klonk_module.Database = Database
+_klonk_module.DatabaseError = DatabaseError
 _klonk_module.__all__ = [n for n in vars(_klonk_module) if not n.startswith('_')]
 sys.modules['klonk'] = _klonk_module
 

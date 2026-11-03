@@ -6,6 +6,7 @@ import type { FromWorker, ToWorker } from '../protocol'
 import type { ApiError } from '../js/api'
 import { ROBOT_METHODS, createApi } from '../js/api'
 import { CONTROL, views } from '../js/shared'
+import { createDbCall } from '../db/channel'
 import { PRELUDE, USER_FILE } from './prelude'
 
 /** Zugriffe, die Nutzercode nicht braucht (Python erreicht über das Modul `js` sonst alle Worker-Globals) */
@@ -78,12 +79,13 @@ export async function runPython(
       designs: message.designs,
       maxCharacters: message.maxCharacters,
       saveDesign: message.saveDesigns ? (name, design) => post({ type: 'saveDesign', name, design }) : undefined,
+      database: createDbCall(message.database, post),
       // API-Fehler merken, damit sie wie in den anderen Sprachen übersetzt werden
       onError: (error) => {
         apiError = error
       },
     })
-    pyodide.registerJsModule('_klonk_js', { ...api.globals, globals: Object.keys(api.globals), robot: api.robot, create: api.create, names: api.names, methods: ROBOT_METHODS })
+    pyodide.registerJsModule('_klonk_js', { ...api.globals, globals: Object.keys(api.globals), robot: api.robot, create: api.create, names: api.names, methods: ROBOT_METHODS, db: api.db.json })
     pyodide.registerJsModule('_klonk_debug', {
       // Variablen erst beim Anhalten auslesen (Python-Funktion ⇒ Dict mit Darstellungen)
       checkpoint: (current: number, variables: { (): { toJs: (o: object) => Record<string, string>, destroy: () => void } }) =>

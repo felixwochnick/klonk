@@ -2,6 +2,7 @@
 import type { GeneratedProgram } from '~/utils/blocks/generator'
 import { translate } from '@klonk/klonk-script'
 import { World, type WorldData } from '@klonk/world'
+import { databaseEngine } from '~/utils/project-fs'
 import { ProgramRunner, type RunLanguage, type RunnerSnapshot } from '@klonk/runtime'
 import RunnerWorker from '@klonk/runtime/worker?worker'
 
@@ -20,6 +21,9 @@ watch(inProject, (open) => {
 const KIND_LANGUAGE = { blocks: 'blocks', klonk: 'klonk', javascript: 'javascript', typescript: 'typescript', python: 'python', java: 'java', csharp: 'csharp' } as const
 /** Im Projekt: Datei der passenden Art geöffnet? (Welten/Sonstiges sind keine Programme) */
 const isDesign = computed(() => inProject.value && proj.kind.value === 'design')
+/** SQL-Abfrage (`.sql`) bzw. Datenbankdatei: eigene Ansichten, „Ausführen“ führt SQL aus */
+const isSql = computed(() => inProject.value && proj.kind.value === 'sql')
+const isDatabase = computed(() => inProject.value && proj.kind.value === 'database')
 const hasDocument = computed(() => !inProject.value || (!!proj.kind.value && proj.kind.value in KIND_LANGUAGE))
 
 // Dokument: Projektdatei oder (ohne Projekt) das im Browser gemerkte Programm
@@ -73,7 +77,8 @@ const lineToBlock = (line: number | null | undefined) => (line ? blocksProgram.v
 const runSource = computed(() => (isBlocks.value ? blocksProgram.value.code : source.value))
 const runBreakpoints = computed(() => (isBlocks.value ? blockBreakpointLines.value : breakpoints.value))
 const languageItems = computed(() => PROGRAM_LANGUAGES.map(l => ({ label: t(`editor.languages.${l}`), value: l })))
-const { start } = useWorldEditor()
+const { start, loadData } = useWorldEditor()
+const databases = useDatabases()
 const { can, maxCharacters } = useLicense()
 
 // Startwelt: aus dem Projekt (falls gewählt) oder die im Welt-Editor gemerkte
@@ -107,6 +112,8 @@ onMounted(() => {
   runner.onSaveDesign = (name, design) => {
     proj.writeDesign(name, design).catch(() => toast.add({ title: t('project.errors.generic'), color: 'error' }))
   }
+  // Datenbanken des Projekts und temporäre (Database.open/memory)
+  runner.onDatabase = databases.answer
 })
 onBeforeUnmount(() => runner?.dispose())
 
@@ -130,10 +137,13 @@ const errorLine = computed(() => (snapshot.value.state === 'error' ? snapshot.va
 
 function resetWorld() {
   world.value = new World(startData())
+  worldFromSql.value = false
 }
 
 async function run(pauseOnStart = false) {
+  if (isSql.value || isDatabase.value) return runSql()
   if (!runner) return
+  databases.beginRun()
   // Beim Ausführen die Welt zeigen
   rightTab.value = 'world'
   resetWorld()
@@ -163,6 +173,57 @@ function stepOrStart() {
   else if (!running.value) run(true)
 }
 
+// SQL: Abfrage auf eine Projektdatenbank oder die Welt (Ziel je Datei gemerkt)
+const sqlView = useTemplateRef<{ run: () => Promise<void> }>('sqlView')
+function runSql() {
+  rightTab.value = 'world'
+  return sqlView.value?.run()
+}
+const sqlTargets = computed(() => [
+  ...proj.databaseFiles.value.map(f => ({ value: f.path, label: f.path, engine: databaseEngine(f.path) ?? 'sqlite' as const })),
+  { value: 'world:sqlite', label: t('database.worldTarget', { engine: t('database.engines.sqlite') }), engine: 'sqlite' as const },
+  { value: 'world:postgres', label: t('database.worldTarget', { engine: t('database.engines.postgres') }), engine: 'postgres' as const },
+])
+const sqlTargetKey = computed(() => `klonk:sql-target:${proj.currentPath.value}`)
+const sqlTarget = ref<string | null>(null)
+watch(sqlTargetKey, (key) => {
+  try {
+    sqlTarget.value = localStorage.getItem(key)
+  }
+  catch {
+    sqlTarget.value = null
+  }
+}, { immediate: true })
+watch(sqlTarget, (value) => {
+  try {
+    if (value) localStorage.setItem(sqlTargetKey.value, value)
+  }
+  catch {
+    // z. B. privater Modus
+  }
+})
+/** Welt per SQL geändert ⇒ anzeigen; auf Wunsch als Startwelt übernehmen */
+const worldFromSql = ref(false)
+function onSqlWorld(data: WorldData) {
+  world.value = new World(data)
+  worldFromSql.value = true
+}
+async function keepSqlWorld() {
+  const data = world.value.toJSON()
+  try {
+    if (inProject.value && proj.worldPath.value) {
+      await proj.writeWorld(proj.worldPath.value, data)
+      projectWorld.value = data
+    }
+    else if (!loadData(data)) return
+    worldFromSql.value = false
+    toast.add({ title: t('database.worldKept'), color: 'success' })
+  }
+  catch {
+    toast.add({ title: t('project.errors.generic'), color: 'error' })
+  }
+}
+
 function stop() {
   runner?.stop()
 }
@@ -189,7 +250,8 @@ const translateItems = computed(() => [[
 function onKey(event: KeyboardEvent) {
   if (event.key === 'F5') {
     event.preventDefault()
-    if (event.shiftKey) stop()
+    if (isSql.value || isDatabase.value) void runSql()
+    else if (event.shiftKey) stop()
     else if (paused.value) runner?.resume()
     else if (!running.value) run()
   }
@@ -304,7 +366,7 @@ const paneStyle = computed(() => ({
         v-if="!running"
         icon="i-lucide-play"
         :label="t('editor.run')"
-        :disabled="!hasDocument"
+        :disabled="!hasDocument && !isSql && !isDatabase"
         data-testid="run"
         @click="run()"
       />
@@ -441,6 +503,24 @@ const paneStyle = computed(() => ({
       >
         <ClientOnly v-if="isDesign">
           <DesignEditor v-model="source" />
+        </ClientOnly>
+        <ClientOnly v-else-if="isDatabase">
+          <DatabaseEditor
+            ref="sqlView"
+            :path="proj.currentPath.value!"
+          />
+        </ClientOnly>
+        <ClientOnly v-else-if="isSql">
+          <SqlConsole
+            ref="sqlView"
+            v-model="source"
+            v-model:target="sqlTarget"
+            :targets="sqlTargets"
+            :world="() => world.toJSON()"
+            :path="proj.currentPath.value"
+            :read-only="proj.readOnly.value"
+            @world="onSqlWorld"
+          />
         </ClientOnly>
         <div
           v-else-if="!hasDocument"
@@ -588,6 +668,20 @@ const paneStyle = computed(() => ({
               :color="snapshot.state === 'error' ? 'error' : snapshot.state === 'done' ? 'success' : 'neutral'"
               variant="subtle"
               :label="t(`editor.state.${snapshot.state}`)"
+            />
+          </div>
+          <div
+            v-if="worldFromSql && !running"
+            class="absolute right-3 top-3 flex items-center gap-2 rounded-md bg-(--ui-bg)/90 px-2 py-1 text-xs shadow"
+            data-testid="sql-world-changed"
+          >
+            <span>{{ t('database.worldChanged') }}</span>
+            <UButton
+              size="xs"
+              icon="i-lucide-save"
+              :label="t('database.keepWorld')"
+              data-testid="sql-keep-world"
+              @click="keepSqlWorld"
             />
           </div>
         </div>

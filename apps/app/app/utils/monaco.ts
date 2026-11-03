@@ -1,6 +1,7 @@
 import { completeProgram, hoverProgram, modelContexts } from './checker'
 import { KLONK_CLASS_DOC, robotApiDeclarations } from './js-api-types'
 import { BUILTINS, KEYWORDS, check, spell, tokenize, type Builtin, type BuiltinName, type ScriptLanguage } from '@klonk/klonk-script'
+import type { SqlTable } from '@klonk/runtime'
 
 export type Monaco = typeof import('monaco-editor')
 
@@ -28,6 +29,7 @@ export function loadMonaco(t: Translator): Promise<Monaco> {
     registerApiLanguage(monaco, 'java', JAVA_STYLE)
     registerApiLanguage(monaco, 'csharp', CSHARP_STYLE)
     configureTypeScript(monaco)
+    registerSql(monaco)
     return monaco
   })()
   return monacoPromise
@@ -387,4 +389,49 @@ export function updateRobotApi(monaco: Monaco) {
     monaco.typescript.typescriptDefaults.addExtraLib(source, 'file:///klonk-api.d.ts'),
     monaco.typescript.javascriptDefaults.addExtraLib(source, 'file:///klonk-api.d.ts'),
   ]
+}
+
+/** SQL-Editoren: Tabellen und Spalten der gewählten Datenbank je Modell (für Vorschläge) */
+export const sqlSchemas = new Map<string, SqlTable[]>()
+
+const SQL_KEYWORDS = [
+  'SELECT', 'FROM', 'WHERE', 'AND', 'OR', 'NOT', 'IN', 'IS NULL', 'IS NOT NULL', 'LIKE', 'BETWEEN', 'ORDER BY', 'GROUP BY', 'HAVING',
+  'LIMIT', 'OFFSET', 'DISTINCT', 'AS', 'JOIN', 'LEFT JOIN', 'INNER JOIN', 'ON', 'UNION', 'COUNT', 'SUM', 'AVG', 'MIN', 'MAX',
+  'INSERT INTO', 'VALUES', 'UPDATE', 'SET', 'DELETE FROM', 'CREATE TABLE', 'CREATE VIEW', 'CREATE INDEX', 'DROP TABLE', 'ALTER TABLE',
+  'PRIMARY KEY', 'FOREIGN KEY', 'REFERENCES', 'UNIQUE', 'DEFAULT', 'CHECK', 'INTEGER', 'TEXT', 'REAL', 'BOOLEAN', 'DATE', 'NULL',
+  'BEGIN', 'COMMIT', 'ROLLBACK', 'CASE', 'WHEN', 'THEN', 'ELSE', 'END', 'ASC', 'DESC', 'EXISTS',
+]
+
+/** Vorschläge für SQL (SQLite: `sql`, PostgreSQL: `pgsql`): Schlüsselwörter, Tabellen, Spalten (nach `tabelle.` nur deren) */
+function registerSql(monaco: Monaco) {
+  const { CompletionItemKind } = monaco.languages
+  for (const id of ['sql', 'pgsql']) {
+    monaco.languages.registerCompletionItemProvider(id, {
+      triggerCharacters: ['.'],
+      provideCompletionItems(model, position) {
+        const tables = sqlSchemas.get(model.uri.toString()) ?? []
+        const word = model.getWordUntilPosition(position)
+        const range = { startLineNumber: position.lineNumber, endLineNumber: position.lineNumber, startColumn: word.startColumn, endColumn: word.endColumn }
+        const before = model.getLineContent(position.lineNumber).slice(0, word.startColumn - 1)
+        const qualifier = /(\w+)\.$/.exec(before)?.[1]?.toLowerCase()
+        const column = (table: SqlTable, c: SqlTable['columns'][number]) => ({
+          label: c.name, kind: CompletionItemKind.Field, insertText: c.name, range,
+          detail: `${table.name}.${c.name} ${c.type}${c.primaryKey ? ' PK' : ''}`,
+        })
+        if (qualifier) {
+          const table = tables.find(t => t.name.toLowerCase() === qualifier)
+          return { suggestions: table ? table.columns.map(c => column(table, c)) : [] }
+        }
+        const seen = new Set<string>()
+        const columns = tables.flatMap(t => t.columns.filter(c => !seen.has(c.name) && seen.add(c.name)).map(c => column(t, c)))
+        return {
+          suggestions: [
+            ...tables.map(t => ({ label: t.name, kind: CompletionItemKind.Struct, insertText: t.name, range, detail: t.columns.map(c => c.name).join(', ') })),
+            ...columns,
+            ...SQL_KEYWORDS.map(k => ({ label: k, kind: CompletionItemKind.Keyword, insertText: k, range })),
+          ],
+        }
+      },
+    })
+  }
 }

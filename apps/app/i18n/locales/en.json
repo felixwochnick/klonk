@@ -211,7 +211,17 @@
       "expected_robot_name": "A character is addressed by its name (text) or number, not by “{value}”.",
       "expected_robot": "This method belongs to a character, e.g. new Klonk().step().",
       "design_no_project": "Designs can only be saved in an open project.",
-      "design_name": "“{name}” is not a valid design name."
+      "design_name": "“{name}” is not a valid design name.",
+      "sql_error": "SQL error: {message}",
+      "db_not_found": "There is no database “{name}” in the project (file {name}.sqlite.sql or {name}.postgres.sql).",
+      "db_no_project": "Project databases need an open project – without one, use Database.memory().",
+      "db_unavailable": "Databases are not available here.",
+      "db_closed": "This database is no longer open.",
+      "db_name": "Invalid database name: {value}",
+      "db_engine": "Unknown database “{value}” – use \"sqlite\" or \"postgres\".",
+      "db_sql": "SQL must be text (got: {value}).",
+      "db_result_too_large": "The result is too large – narrow the query (e.g. with LIMIT).",
+      "expected_database": "That is not a database."
     }
   },
   "blocks": {
@@ -283,7 +293,9 @@
       "java": "Main",
       "csharp": "Program",
       "folder": "New folder",
-      "design": "robot"
+      "design": "robot",
+      "database": "school",
+      "sql": "query"
     },
     "confirmDelete": "Really delete “{name}”?",
     "confirmDeleteProject": "Delete browser project “{name}” with all files?",
@@ -325,7 +337,9 @@
     "languageHelp": "The project's programs use this language. Imports, packages and modules between files work.",
     "mixed": "Mixed",
     "setup": "Set up project",
-    "design": "Robot design"
+    "design": "Robot design",
+    "database": "Database",
+    "sql": "SQL query"
   },
   "pwa": {
     "install": "Install app",
@@ -372,7 +386,9 @@
     "more": "Also",
     "wait": "wait (seconds)",
     "output": "output",
-    "scriptIntro": "Keywords:"
+    "scriptIntro": "Keywords:",
+    "databases": "Databases",
+    "databasesHelp": "Open a project database (file school.sqlite.sql / school.postgres.sql) or Database.memory() – placeholders: SQLite ?, PostgreSQL $1."
   },
   "wardrobe": {
     "title": "Wardrobe",
@@ -439,6 +455,48 @@
       "syncing": "syncing …",
       "offline": "offline – will upload later",
       "error": "not synced"
+    }
+  },
+  "database": {
+    "engines": {
+      "sqlite": "SQLite",
+      "postgres": "PostgreSQL"
+    },
+    "newSqlite": "Database (SQLite)",
+    "newPostgres": "Database (PostgreSQL)",
+    "newQuery": "SQL query",
+    "import": "Import SQLite file …",
+    "imported": "Imported “{name}”",
+    "importFailed": "This is not an SQLite database.",
+    "export": "Download as SQLite file",
+    "run": "Run",
+    "runHint": "Ctrl+Enter · only the selection if text is selected",
+    "target": "Database",
+    "worldTarget": "World ({engine})",
+    "tables": "Tables",
+    "noTables": "No tables yet – create one with CREATE TABLE.",
+    "loading": "Loading database …",
+    "loadFailed": "The database could not be loaded.",
+    "primaryKey": "Primary key",
+    "rows": "no rows | one row | {count} rows",
+    "changed": "no rows changed | one row changed | {count} rows changed",
+    "ok": "Done.",
+    "truncated": "showing the first {count}",
+    "noResults": "Write SQL and run it – the results appear here.",
+    "noDatabase": "Create a database in the project or query the world.",
+    "error": "SQL error",
+    "errorAt": "SQL error in line {line}",
+    "worldChanged": "World changed by SQL",
+    "keepWorld": "Save as start world",
+    "worldKept": "Start world saved",
+    "worldErrors": {
+      "world_table_missing": "The table “{table}” is missing – the world needs it.",
+      "world_size_missing": "The table “{table}” needs one row with the world size.",
+      "world_outside": "{table}: cell {x}|{y} is outside the world ({width} × {depth}).",
+      "world_value": "{table}.{column}: “{value}” is not a valid value.",
+      "world_too_high": "Cell {x}|{y} has more bricks than the world is high ({height}).",
+      "world_design": "“{name}” has no custom design – choose male, female or diverse.",
+      "world_invalid": "The world is not valid like this ({reason})."
     }
   },
   "learn": {
