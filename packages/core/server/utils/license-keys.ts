@@ -1,8 +1,8 @@
 // Öffentliche Schlüssel zur Prüfung von Lizenz-Tokens (Ed25519, `kid` im JWT-Header).
 // Die privaten Schlüssel liegen ausschließlich bei klonk.* – niemals in diesem Repo.
 export const LICENSE_PUBLIC_KEYS: Record<string, string> = {
-  'klonk-2026-1': `-----BEGIN PUBLIC KEY-----
-MCowBQYDK2VwAyEA6a6KEccfmVpJQQ2kmqlUxEq6GP7R+TUobLxk+GBiorA=
+  'klonk-2026-2': `-----BEGIN PUBLIC KEY-----
+MCowBQYDK2VwAyEAgTlnuIwNvTKtjxuqVYmWiqENc99Myk00RpKjWJRi/aI=
 -----END PUBLIC KEY-----`,
 }
 

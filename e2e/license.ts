@@ -9,7 +9,7 @@ import { STACK } from './targets'
 const keyFile = STACK
   ? process.env.KLONK_LICENSE_SIGNING_KEY ?? join(homedir(), '.config/klonk/license-signing-key.pem')
   : new URL('../packages/core/tests/fixtures/dev-license-key.pem', import.meta.url).pathname
-const kid = STACK ? 'klonk-2026-1' : 'klonk-dev'
+const kid = STACK ? process.env.KLONK_LICENSE_SIGNING_KID ?? 'klonk-2026-2' : 'klonk-dev'
 
 export const canSignLicense = existsSync(keyFile)
 
