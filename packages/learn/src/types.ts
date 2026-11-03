@@ -42,7 +42,7 @@ export type LearnModule = {
   objectives: Text[]
   /** Einführung in das neue Thema für die Lernenden (mit Beispiel) */
   intro: Text
-  /** Hinweise für Lehrkräfte (Zeitbedarf, typische Fehler, Differenzierung) – erscheinen in der Doku */
+  /** Hinweise für Lehrkräfte (Zeitbedarf, typische Fehler, Differenzierung) – nur in der App für Lehrkräfte, nie in der öffentlichen Doku */
   teacher: Text
   tasks: LearnTask[]
 }

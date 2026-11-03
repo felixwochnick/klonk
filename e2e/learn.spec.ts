@@ -38,6 +38,8 @@ test('Übersicht zeigt die Module mit Fortschritt', async ({ page }) => {
   await page.getByTestId('learn-module-sequence').getByRole('link', { name: 'Weitermachen' }).click()
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('Erste Schritte: Anweisungen')
   await expect(page.getByTestId('learn-tasks').getByRole('link')).toHaveCount(4)
+  // Hinweise für Lehrkräfte (Admin sieht sie)
+  await expect(page.getByTestId('learn-teacher')).toContainText('Zeitbedarf')
   // Weitermachen führt zur ersten ungelösten Aufgabe
   await page.getByTestId('learn-start').click()
   await expect(page).toHaveURL(/\/learn\/sequence\/around-the-corner$/)

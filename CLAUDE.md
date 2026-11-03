@@ -32,7 +32,7 @@ pnpm-Workspace (`pnpm-workspace.yaml`), Node ≥ 22.
 | `packages/ui` | `@klonk/ui` | **Nuxt-Layer für einheitliches Design**: Nuxt UI, Theme (`theme.css`, `app.config.ts`), i18n-Grundkonfiguration, `KlonkLogo`, `LocaleSwitch`, Hydration-Marker | – |
 | `packages/world` | `@klonk/world` | **Weltmodell** (ohne Darstellung, läuft auch im Worker): Raster, Ziegelstapel, Marken, Quader, Figuren, Befehle, Ereignisse, JSON-Format (`WorldData`, zod) | – |
 | `packages/klonk-script` | `@klonk/klonk-script` | **Klonk-Script**: Sprachtabellen de/en (`languages.ts` – neue Sprache = neue Spalte), Lexer, Parser (AST), async Interpreter mit Prüfpunkten, Übersetzen | – |
-| `packages/learn` | `@klonk/learn` | **Lernmodule**: Aufgaben als Daten (`src/modules/*.ts`, Welten als Textkarten `map()`), Prüfung (`compareOutcome`, `missingConstructs`), Doku-Generator | – |
+| `packages/learn` | `@klonk/learn` | **Lernmodule**: Aufgaben als Daten (`src/modules/*.ts`, Welten als Textkarten `map()`), Prüfung (`compareOutcome`, `missingConstructs`) | – |
 | `packages/runtime` | `@klonk/runtime` | **Ausführung**: Worker (`@klonk/runtime/worker?worker`), sprachunabhängiges Protokoll (`protocol.ts`), `ProgramRunner` (Hauptthread, spielt Roboterbefehle auf der angezeigten Welt nach); JS/TS in `src/js/` | – |
 | `packages/core` | `@klonk/core` | **Nuxt-Layer für Server & Auth**: Drizzle-Schema, Migrationen, RLS, Sessions (nuxt-auth-utils), Login-API, `/login`, `/change-password`, `UserMenu` | – |
 
@@ -266,7 +266,8 @@ node scripts/build-csharp.ts        # C#-Host bauen (.NET-SDK 10 nötig; Ausgabe
   `check` verlangt (Position/Richtung/Felder/Zahlen der Ausgabe) + `requires` am Syntaxbaum. Nutzerprogramme laufen beim Prüfen headless im
   Runner-Worker mit `delay: 0` und 5-s-Zeitlimit (`utils/learn-check.ts`). Fortschritt + Programme nur in localStorage `klonk:learn` (`useLearn`).
   Musterlösung sichtbar nach dem Lösen, für Rolle ≠ member, Betreiber und Privatkonten. Unit-Tests lösen jede Aufgabe mit der Musterlösung (de/en)
-  in allen Welten; neue Aufgabe ⇒ Docs neu erzeugen: `UPDATE_LEARN_DOCS=1 pnpm --filter @klonk/learn test` (Test schlägt sonst fehl).
+  in allen Welten. **Aufgaben, Lösungen und Lehrkraft-Hinweise nie in die öffentliche Doku** (vom User so festgelegt) – Hinweise für
+  Lehrkräfte zeigt die Modulseite der App nur für Rolle ≠ member bzw. Betreiber.
   vue-i18n: `|` in Texten als `{'|'}` schreiben (sonst Pluralform).
 - **Laufzeiten versioniert:** `/pyodide|teavm|pylibs|dotnet/<hash>/` (`assetVersion()` in `apps/app/nuxt.config.ts`, Vite-`define`
   `__KLONK_ASSETS__`, `runtime/src/assets.ts`) – sonst lieferten Browser-/PWA-Cache nach einem Neubau alte Dateien (z. B. alter C#-Host).
@@ -297,7 +298,7 @@ node scripts/build-csharp.ts        # C#-Host bauen (.NET-SDK 10 nötig; Ausgabe
   `7.saxony`), Stufenbündel als `grade-5-6.md`, Oberstufe `upper-secondary.md`. Bayern: Gymnasium, Realschule (IT modular ⇒
   Anfangs-/Aufbauunterricht), Mittelschule, FOS/BOS (KIT/KIWI ab 2026/27); übrige Länder bisher nur Gymnasium.
   Zielgruppe: Lehrkräfte, Schulleitungen, Kultusverwaltung (Sie-Form, sachlich, Lehrplanbegriffe, keine Werbesprache; vom User so festgelegt); Betrieb/Datenschutz/Lizenz für Schulen in `4.teaching/3.schools.md`.
-  Lernmodule in `4.teaching/2.modules/` (`1.overview.md` von Hand, Modulseiten generiert); Klassenseiten verlinken passende Module (Abschnitt „Passende Lernmodule“).
+  Lernmodule in der Doku nur als Übersicht `4.teaching/2.modules/1.overview.md` (Konzept, Modulliste, Lehrplan-Zuordnung – keine Aufgaben/Lösungen); Klassenseiten nennen passende Module (Abschnitt „Passende Lernmodule“).
   Neue Länder/Schulformen ⇒ Tabellen in `4.teaching/1.overview.md`, `4.germany/1.overview.md` (inkl. „Wie das Fach heißt“) und der Landesübersicht ergänzen.
   Marken gibt es nur in vier Farben (gelb/rot/blau/grün) – Beispiele dürfen keine anderen Markenfarben nutzen.
 - **KI-Assistent** (vom User so festgelegt): Tab **KI** neben Welt | Doku (`AiChat.vue`, `useAi()`), „Fehler erklären“
@@ -386,5 +387,5 @@ node scripts/build-csharp.ts        # C#-Host bauen (.NET-SDK 10 nötig; Ausgabe
 10. [x] PWA (Logo, Favicon, Offline)
 11. [x] KI-Assistent (schuleigenes LLM / WebLLM, Tutor-Modus, Fehler erklären, Code übernehmen)
 12. [x] Weitere Sprachen: Python (Pyodide), Java (TeaVM), C# (Roslyn/.NET-WASM)
-13. [x] Lernmodule: Grundkurs Klonk-Script (6 Module, 20 Aufgaben, automatische Prüfung, Docs für Lehrkräfte)
+13. [x] Lernmodule: Grundkurs Klonk-Script (6 Module, 20 Aufgaben, automatische Prüfung, Hinweise für Lehrkräfte in der App)
 13b. [ ] Lernmodule für Python/Java (Objekte, Klassen)

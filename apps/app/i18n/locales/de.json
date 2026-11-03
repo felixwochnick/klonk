@@ -464,6 +464,7 @@
       "character_missing": "In Welt {world} gibt es Klonk am Ende nicht mehr.",
       "error": "In Welt {world} bricht das Programm ab: {message}",
       "timeout": "In Welt {world} endet das Programm nicht – vielleicht eine Endlosschleife?"
-    }
+    },
+    "teacherNotes": "Hinweise für Lehrkräfte"
   }
 }

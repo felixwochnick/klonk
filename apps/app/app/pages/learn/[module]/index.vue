@@ -9,6 +9,10 @@ const lang = computed(() => (locale.value === 'en' ? 'en' : 'de'))
 const module = computed(() => findModule(String(route.params.module)))
 const index = computed(() => learn.modules.findIndex(m => m.id === module.value?.id))
 useSeoMeta({ title: () => module.value?.title[lang.value] ?? t('learn.title') })
+
+// Hinweise für Lehrkräfte nur in der App (nicht in der öffentlichen Doku) und nur für Lehrkräfte, Admins, Betreiber
+const { user } = useAuth()
+const isTeacher = computed(() => !!user.value && (user.value.role !== 'member' || user.value.platformRole !== 'user'))
 </script>
 
 <template>
@@ -58,6 +62,20 @@ useSeoMeta({ title: () => module.value?.title[lang.value] ?? t('learn.title') })
           {{ t('learn.introduction') }}
         </h2>
         <LearnText :text="module.intro[lang]" />
+
+        <UCard
+          v-if="isTeacher"
+          class="mt-8"
+          data-testid="learn-teacher"
+        >
+          <template #header>
+            <h2 class="flex items-center gap-2 font-semibold">
+              <UIcon name="i-lucide-presentation" />
+              {{ t('learn.teacherNotes') }}
+            </h2>
+          </template>
+          <LearnText :text="module.teacher[lang]" />
+        </UCard>
       </article>
 
       <aside>

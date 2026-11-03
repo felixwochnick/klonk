@@ -464,6 +464,7 @@
       "character_missing": "In world {world} Klonk no longer exists at the end.",
       "error": "In world {world} the program stops: {message}",
       "timeout": "In world {world} the program does not end – maybe an endless loop?"
-    }
+    },
+    "teacherNotes": "Notes for teachers"
   }
 }
