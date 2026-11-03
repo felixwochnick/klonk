@@ -608,5 +608,25 @@
     "languageFor": "Sprache für {module}",
     "openInLearn": "In der Lernansicht prüfen",
     "learnTaskHint": "Aufgabe „{task}“ aus {module}"
+  },
+  "karol": {
+    "import": "Robot Karol importieren",
+    "asScript": "als Klonk-Script",
+    "asBlocks": "als Blöcke",
+    "imported": "Umgewandelt: {files}",
+    "nothingImported": "Keine Datei umgewandelt",
+    "failed": "Diese Datei ist keine lesbare Robot-Karol-Datei.",
+    "moreHints": "… und {count} weitere Hinweise",
+    "worldHints": "Robot-Karol-Welt umgewandelt – mit Hinweisen",
+    "hints": {
+      "cube": "Zeile {line}: {name} (Quader setzen/entfernen) gibt es in Klonk-Programmen nicht – als Kommentar übernommen.",
+      "backpack": "Zeile {line}: {name} – in Klonk gibt es keinen Rucksack, Ziegel gehen nie aus.",
+      "sound": "Zeile {line}: Ton gibt es in Klonk nicht – als Kommentar übernommen.",
+      "unknown_call": "Zeile {line}: „{name}“ ist nicht definiert.",
+      "syntax": "Zeile {line}: {name} fehlt oder steht an falscher Stelle.",
+      "blocks": "Als Blöcke nicht darstellbar (ab Zeile {line}) – als Klonk-Script angelegt.",
+      "brick_on_cube": "{count} Ziegel auf Quadern weggelassen (in Klonk füllt ein Quader das ganze Feld).",
+      "unknown_entry": "{count}× unbekannter Eintrag „{entry}“ – als Ziegel übernommen."
+    }
   }
 }

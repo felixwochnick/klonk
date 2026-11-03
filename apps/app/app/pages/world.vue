@@ -93,7 +93,18 @@ function download() {
 }
 async function upload(event: Event) {
   const file = (event.target as HTMLInputElement).files?.[0]
-  if (file) editor.importJson(await file.text())
+  // Robot-Karol-Welt (.kdw) ⇒ in eine Klonk-Welt umwandeln
+  if (file && isKarolFile(file.name)) {
+    try {
+      const converted = convertKarolFile(file.name, new Uint8Array(await file.arrayBuffer()), 'klonk')
+      editor.importJson(converted.content)
+      if (converted.hints.length) toast.add({ title: t('karol.worldHints'), description: converted.hints.map(h => t(`karol.hints.${h.code}`, h.params)).join('\n'), color: 'warning' })
+    }
+    catch {
+      toast.add({ title: t('karol.failed'), color: 'error' })
+    }
+  }
+  else if (file) editor.importJson(await file.text())
   ;(event.target as HTMLInputElement).value = ''
 }
 
@@ -268,7 +279,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey))
           <input
             ref="fileInput"
             type="file"
-            accept=".json,application/json"
+            accept=".json,application/json,.kdw"
             class="hidden"
             data-testid="world-file"
             @change="upload"

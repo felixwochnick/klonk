@@ -2,6 +2,7 @@ import type { DropdownMenuItem } from '@nuxt/ui'
 import { DEFAULT_DESIGNS, World } from '@klonk/world'
 import type { SqlEngineName } from '@klonk/runtime'
 import { databaseSample, sqlSample } from '~/utils/sql-samples'
+import { convertKarolFile, KAROL_ACCEPT, type KarolHint, type KarolTarget } from '~/utils/karol-import'
 import {
   DATABASE_EXTENSIONS, deleteBrowserProject, ensurePermission, forgetProject, listBrowserProjects, pickFolder, recentProjects,
   supportsBrowserProjects, supportsFolders, Project, type FileKind, type ProjectFile, type RecentProject,
@@ -281,6 +282,15 @@ export function useProjectExplorer(options: { onOpenFile?: (file: ProjectFile) =
         { label: t('database.newQuery'), icon: KIND_ICON.sql, onSelect: () => openDialog({ mode: 'file', kind: 'sql', folder }) },
         { label: t('database.import'), icon: 'i-lucide-file-up', onSelect: () => importDatabase(folder) },
       ],
+      // Robot-Karol-Dateien (Programme und Welten) umwandeln
+      [{
+        label: t('karol.import'),
+        icon: 'i-lucide-bot',
+        children: [
+          { label: t('karol.asScript'), icon: KIND_ICON.klonk, onSelect: () => importKarol('klonk', folder) },
+          { label: t('karol.asBlocks'), icon: KIND_ICON.blocks, onSelect: () => importKarol('blocks', folder) },
+        ],
+      }],
     ]
   }
 
@@ -298,11 +308,12 @@ export function useProjectExplorer(options: { onOpenFile?: (file: ProjectFile) =
 
   /** Menü „Neu“ (Knopf): Dateiarten, Ordner und Packages */
   function newItemsIn(folder?: string): DropdownMenuItem[][] {
-    const [programs, other, databases] = fileItemsIn(folder)
+    const [programs, other, databases, karol] = fileItemsIn(folder)
     return [
       programs!,
       [...other!, { label: t('project.folder'), icon: 'i-lucide-folder-plus', onSelect: () => openDialog({ mode: 'folder', parent: folder }) }, ...packageItemsIn(folder)],
       databases!,
+      karol!,
     ]
   }
   const newItems = computed(() => newItemsIn())
@@ -342,6 +353,40 @@ export function useProjectExplorer(options: { onOpenFile?: (file: ProjectFile) =
   }
 
   /** SQLite-Datei (z. B. aus DB Browser for SQLite) als Datenbank ins Projekt übernehmen */
+  /** Robot-Karol-Programme (.kdp) und -Welten (.kdw) als Klonk-Dateien anlegen; Hinweise zu Nicht-Übertragbarem */
+  function importKarol(target: KarolTarget, folder?: string) {
+    const input = Object.assign(document.createElement('input'), { type: 'file', accept: KAROL_ACCEPT, multiple: true })
+    input.onchange = async () => {
+      const created: string[] = []
+      const hints: string[] = []
+      const hintText = (file: string, hint: KarolHint) => `${file}: ${t(`karol.hints.${hint.code}`, hint.params)}`
+      for (const file of [...input.files ?? []]) {
+        try {
+          const converted = convertKarolFile(file.name, new Uint8Array(await file.arrayBuffer()), target)
+          // Freien Namen suchen (`aufgabe`, `aufgabe 2`, …)
+          let path: string | null = null
+          for (let i = 1; !path; i++) {
+            path = await proj.create(join(folder, i > 1 ? `${converted.name} ${i}` : converted.name), converted.kind, converted.content)
+              .catch((error: Error) => (error.message === 'exists' ? null : Promise.reject(error)))
+          }
+          created.push(path)
+          hints.push(...converted.hints.map(h => hintText(file.name, h)))
+        }
+        catch {
+          hints.push(`${file.name}: ${t('karol.failed')}`)
+        }
+      }
+      if (folder) expand(folder)
+      toast.add({
+        title: created.length ? t('karol.imported', { files: created.join(', ') }) : t('karol.nothingImported'),
+        description: hints.slice(0, 6).join('\n') + (hints.length > 6 ? `\n${t('karol.moreHints', { count: hints.length - 6 })}` : ''),
+        color: hints.length ? 'warning' : 'success',
+        duration: hints.length ? 15_000 : 5000,
+      })
+    }
+    input.click()
+  }
+
   function importDatabase(folder?: string) {
     const input = Object.assign(document.createElement('input'), { type: 'file', accept: '.db,.sqlite,.sqlite3,.db3' })
     input.onchange = async () => {

@@ -608,5 +608,25 @@
     "languageFor": "Language for {module}",
     "openInLearn": "Check in the learning view",
     "learnTaskHint": "Task “{task}” from {module}"
+  },
+  "karol": {
+    "import": "Import Robot Karol",
+    "asScript": "as Klonk-Script",
+    "asBlocks": "as blocks",
+    "imported": "Converted: {files}",
+    "nothingImported": "No file converted",
+    "failed": "This is not a readable Robot Karol file.",
+    "moreHints": "… and {count} more notes",
+    "worldHints": "Robot Karol world converted – with notes",
+    "hints": {
+      "cube": "Line {line}: {name} (placing/removing blocks) does not exist in Klonk programs – kept as a comment.",
+      "backpack": "Line {line}: {name} – Klonk has no backpack, bricks never run out.",
+      "sound": "Line {line}: Klonk has no sound – kept as a comment.",
+      "unknown_call": "Line {line}: “{name}” is not defined.",
+      "syntax": "Line {line}: {name} is missing or misplaced.",
+      "blocks": "Cannot be shown as blocks (from line {line}) – created as Klonk-Script.",
+      "brick_on_cube": "{count} bricks on blocks left out (in Klonk a block fills the whole cell).",
+      "unknown_entry": "{count}× unknown entry “{entry}” – taken over as a brick."
+    }
   }
 }
