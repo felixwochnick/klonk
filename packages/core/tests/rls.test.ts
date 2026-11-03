@@ -4,7 +4,7 @@ import { drizzle } from 'drizzle-orm/postgres-js'
 import { migrate } from 'drizzle-orm/postgres-js/migrator'
 import postgres from 'postgres'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { aiCreditGrants, aiUsage, instanceSettings, organizationAiSettings, organizationAuthSettings, organizations, sessions, userLicenses, users } from '../server/database/schema'
+import { aiCreditGrants, aiUsage, cloudAssignments, cloudFiles, cloudProjects, groupMembers, groups, instanceSettings, organizationAiSettings, organizationAuthSettings, organizations, sessions, userLicenses, users } from '../server/database/schema'
 import { createDb, runAsUser, type Db } from '../server/utils/db'
 
 // Integrationstest gegen eine echte Postgres-Instanz (pnpm db:up) in einer eigenen Test-Datenbank
@@ -248,5 +248,66 @@ describe('RLS: organizations & Einstellungen', () => {
     expect(await runAsUser(db, ids.owner!, tx => tx.select().from(userLicenses))).toHaveLength(1)
     await expectDbError(runAsUser(db, ids.private!, tx =>
       tx.update(userLicenses).set({ token: 'x' }).where(eq(userLicenses.userId, ids.private!))), /permission denied/)
+  })
+})
+
+describe('RLS: Gruppen und Klonk Cloud', () => {
+  const as = <T>(who: string, fn: Parameters<typeof runAsUser<T>>[2]) => runAsUser(db, ids[who]!, fn)
+
+  it('Lehrkräfte legen Gruppen an und leiten sie, Lernende sehen nur eigene Gruppen', async () => {
+    // Lernende:r derselben Organisation, aber nicht in der Gruppe
+    const [outsider] = await db.insert(users).values({ organizationId: ids.orgA!, username: 'outsider', displayName: 'Außen', role: 'member' }).returning()
+    ids.outsider = outsider!.id
+    const [group] = await as('teacherA', tx => tx.insert(groups).values({ organizationId: ids.orgA!, name: '7a' }).returning())
+    ids.group = group!.id
+    // Leere Gruppe: anlegende Lehrkraft trägt sich als Leitung ein, danach verwaltet sie die Mitglieder
+    await as('teacherA', tx => tx.insert(groupMembers).values({ groupId: ids.group!, userId: ids.teacherA!, role: 'leader' }))
+    await as('teacherA', tx => tx.insert(groupMembers).values({ groupId: ids.group!, userId: ids.studentA!, role: 'member' }))
+    // Fremde Organisation und Lernende können keine Mitglieder eintragen
+    await expectDbError(as('teacherA', tx => tx.insert(groupMembers).values({ groupId: ids.group!, userId: ids.adminB! })), /row-level security/)
+    await expectDbError(as('studentA', tx => tx.insert(groupMembers).values({ groupId: ids.group!, userId: ids.outsider! })), /row-level security/)
+    // Andere Lehrkraft kann sich nicht in eine bestehende Gruppe als Leitung eintragen – Admin schon
+    await expectDbError(as('adminB', tx => tx.insert(groups).values({ organizationId: ids.orgA!, name: 'fremd' })), /row-level security/)
+    await as('adminA', tx => tx.insert(groupMembers).values({ groupId: ids.group!, userId: ids.adminA!, role: 'leader' }))
+
+    expect(await as('studentA', tx => tx.select({ id: groups.id }).from(groups))).toEqual([{ id: ids.group }])
+    expect(await as('outsider', tx => tx.select().from(groups))).toEqual([])
+    expect(await as('adminB', tx => tx.select().from(groups))).toEqual([])
+    await expectDbError(as('studentA', tx => tx.insert(groups).values({ organizationId: ids.orgA!, name: 'eigene' })), /row-level security/)
+    const renamed = await as('studentA', tx => tx.update(groups).set({ membersCanWrite: true }).where(eq(groups.id, ids.group!)).returning())
+    expect(renamed).toHaveLength(0)
+  })
+
+  it('Gemeinsamer Ordner: Mitglieder lesen, schreiben erst nach Freigabe', async () => {
+    const [shared] = await as('teacherA', tx => tx.insert(cloudProjects).values({ groupId: ids.group!, name: '7a' }).returning())
+    ids.shared = shared!.id
+    await as('teacherA', tx => tx.insert(cloudFiles).values({ projectId: ids.shared!, path: 'Aufgabe 1/main.klonk', content: 'schritt', revision: 1 }))
+    expect(await as('studentA', tx => tx.select({ path: cloudFiles.path }).from(cloudFiles))).toEqual([{ path: 'Aufgabe 1/main.klonk' }])
+    expect(await as('outsider', tx => tx.select().from(cloudFiles))).toEqual([])
+    await expectDbError(as('studentA', tx => tx.insert(cloudFiles).values({ projectId: ids.shared!, path: 'x.klonk', content: '', revision: 2 })), /row-level security/)
+
+    await as('teacherA', tx => tx.update(groups).set({ membersCanWrite: true }).where(eq(groups.id, ids.group!)))
+    await as('studentA', tx => tx.insert(cloudFiles).values({ projectId: ids.shared!, path: 'x.klonk', content: '', revision: 2 }))
+    await as('teacherA', tx => tx.update(groups).set({ membersCanWrite: false }).where(eq(groups.id, ids.group!)))
+  })
+
+  it('Eigene Projekte sind privat, Abgaben sieht die Gruppenleitung', async () => {
+    const [assignment] = await as('teacherA', tx => tx.insert(cloudAssignments).values({ groupId: ids.group!, path: 'Aufgabe 1' }).returning())
+    const [own] = await as('studentA', tx => tx.insert(cloudProjects).values({ ownerId: ids.studentA!, name: 'Privat' }).returning())
+    const [submission] = await as('studentA', tx => tx.insert(cloudProjects).values({ ownerId: ids.studentA!, name: 'Aufgabe 1', assignmentId: assignment!.id }).returning())
+    await as('studentA', tx => tx.insert(cloudFiles).values({ projectId: submission!.id, path: 'main.klonk', content: 'lösung', revision: 1 }))
+
+    const visible = (who: string) => as(who, tx => tx.select({ id: cloudProjects.id }).from(cloudProjects)).then(r => r.map(p => p.id).sort())
+    expect(await visible('teacherA')).toEqual([ids.shared, submission!.id].sort())
+    expect(await visible('outsider')).toEqual([])
+    // Betreiber:in verwaltet Gruppen, sieht aber keine persönlichen Projekte/Abgaben
+    expect(await visible('owner')).toEqual([ids.shared])
+    expect(await visible('studentA')).toContain(own!.id)
+    // Lehrkraft liest die Abgabe, ändert sie aber nicht
+    expect(await as('teacherA', tx => tx.select({ content: cloudFiles.content }).from(cloudFiles).where(eq(cloudFiles.projectId, submission!.id)))).toEqual([{ content: 'lösung' }])
+    await expectDbError(as('teacherA', tx => tx.insert(cloudFiles).values({ projectId: submission!.id, path: 'x.klonk', revision: 2 })), /row-level security/)
+    // Abgabe nur zu Aufgaben der eigenen Gruppe; fremde Projekte nicht anlegen
+    await expectDbError(as('outsider', tx => tx.insert(cloudProjects).values({ ownerId: ids.outsider!, name: 'A', assignmentId: assignment!.id })), /row-level security/)
+    await expectDbError(as('outsider', tx => tx.insert(cloudProjects).values({ ownerId: ids.studentA!, name: 'B' })), /row-level security/)
   })
 })

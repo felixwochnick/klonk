@@ -13,7 +13,8 @@ export type ProjectFile = {
   kind: FileKind
 }
 
-export type ProjectSource = 'folder' | 'browser'
+/** `cloud` = Klonk Cloud (lokale Kopie im Browser, siehe cloud-project.ts) */
+export type ProjectSource = 'folder' | 'browser' | 'cloud'
 
 /** Dateiendung ⇒ Art (Welten zuerst, weil sie auf `.json` enden) */
 export function fileKind(name: string): FileKind {

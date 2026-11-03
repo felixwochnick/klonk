@@ -29,15 +29,15 @@ export default defineEventHandler(async (event) => {
   const system = aiSystemPrompt({ tutor: config.tutor, locale: body.locale ?? 'de', context: body.context })
   const tracker = new AiUsageTracker(system.length + body.messages.reduce((sum, m) => sum + m.content.length, 0))
   let recorded = false
-  const record = () => {
+  const record = async () => {
     if (recorded) return
     recorded = true
-    recordAiUsage(config, tracker.usage).catch(error => console.warn('[ai] Verbrauch nicht gespeichert:', error))
+    await recordAiUsage(config, tracker.usage).catch(error => console.warn('[ai] Verbrauch nicht gespeichert:', error))
   }
   // (am Response: `close` des Requests feuert schon, wenn der Body gelesen ist)
   event.node.res.on('close', () => {
     if (!event.node.res.writableFinished) abort.abort()
-    record()
+    void record()
   })
 
   const response = await fetchAiChat(config.endpoint, system, body.messages, { stream: true, signal: abort.signal }).catch(() => null)
@@ -49,5 +49,7 @@ export default defineEventHandler(async (event) => {
   }
 
   setResponseHeaders(event, { 'content-type': 'text/plain; charset=utf-8', 'cache-control': 'no-store', 'x-accel-buffering': 'no' })
-  return sendStream(event, aiTextStream(response.body, config.endpoint.provider, tracker))
+  // Verbrauch vor dem Ende der Antwort speichern – fragt die App gleich danach den Stand ab, zählt die Anfrage schon
+  const done = new TransformStream<Uint8Array, Uint8Array>({ flush: () => record() })
+  return sendStream(event, aiTextStream(response.body, config.endpoint.provider, tracker).pipeThrough(done))
 })

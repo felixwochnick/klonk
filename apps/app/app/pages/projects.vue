@@ -6,7 +6,7 @@ const { t } = useI18n()
 useSeoMeta({ title: () => t('project.explorer') })
 
 const {
-  proj, canFolders, canBrowser, browserProjects, recent, openFolder, openRecent, openBrowserProject, removeBrowserProject,
+  proj, cloud, canFolders, canBrowser, browserProjects, recent, openFolder, openRecent, openBrowserProject, removeBrowserProject,
   dialog, dialogName, dialogLanguage, dialogTitle, openDialog, submitDialog, openFile, newItemsIn, fileActions, kindLabel,
   folders, folderActions, parentOf, baseName, dropTarget, onDragStart, onDragOver, onDrop,
 } = useProjectExplorer({
@@ -38,6 +38,14 @@ const newItems = computed(() => newItemsIn(folder.value || undefined))
 
 const folderOf = (file: ProjectFile) => file.path.slice(0, -file.name.length - 1)
 const isActive = (source: 'folder' | 'browser', name: string) => project.value?.source === source && project.value.name === name
+
+// Klonk Cloud
+const cloudStatus = cloud.status
+const ownProjects = computed(() => cloudStatus.value?.projects ?? [])
+const sourceIcon = computed(() => (project.value?.source === 'cloud'
+  ? cloud.current.value?.meta.kind === 'group' ? 'i-lucide-users-round' : 'i-lucide-cloud'
+  : project.value?.source === 'folder' ? 'i-lucide-folder-open' : 'i-lucide-hard-drive'))
+const syncLabel = computed(() => (proj.sync.value ? t(`cloud.sync.${proj.sync.value}`) : null))
 </script>
 
 <template>
@@ -113,6 +121,79 @@ const isActive = (source: 'folder' | 'browser', name: string) => project.value?.
             />
           </div>
         </div>
+
+        <div
+          v-if="cloudStatus"
+          data-testid="explorer-cloud"
+        >
+          <div class="mb-1 flex items-center justify-between">
+            <p class="text-xs font-semibold text-(--ui-text-muted)">
+              {{ t('cloud.title') }}
+            </p>
+            <UButton
+              v-if="cloudStatus.enabled"
+              variant="ghost"
+              size="xs"
+              icon="i-lucide-plus"
+              :aria-label="t('cloud.newProject')"
+              data-testid="cloud-new-project"
+              @click="openDialog({ mode: 'cloud' })"
+            />
+          </div>
+          <p
+            v-if="!cloudStatus.enabled"
+            class="mb-2 text-xs text-(--ui-text-muted)"
+          >
+            {{ t('cloud.locked') }}
+          </p>
+          <div
+            v-for="item in ownProjects"
+            :key="item.id"
+            class="group flex items-center"
+          >
+            <UButton
+              :variant="cloud.isOpen(item.id) ? 'soft' : 'ghost'"
+              :color="cloud.isOpen(item.id) ? 'primary' : 'neutral'"
+              :icon="item.kind === 'submission' ? 'i-lucide-pencil-line' : 'i-lucide-cloud'"
+              :label="item.name"
+              class="flex-1 justify-start"
+              :data-testid="`cloud-project-${item.name}`"
+              @click="cloud.openProject(item)"
+            />
+            <UButton
+              variant="ghost"
+              color="neutral"
+              size="xs"
+              icon="i-lucide-trash-2"
+              class="opacity-60 group-hover:opacity-100"
+              :aria-label="t('cloud.delete', { name: item.name })"
+              @click="cloud.remove(item)"
+            />
+          </div>
+          <template v-if="cloudStatus.groups.length">
+            <p class="mt-3 mb-1 text-xs font-semibold text-(--ui-text-muted)">
+              {{ t('cloud.groups') }}
+            </p>
+            <UButton
+              v-for="group in cloudStatus.groups"
+              :key="group.id"
+              :variant="cloud.isOpen(group.projectId) ? 'soft' : 'ghost'"
+              :color="cloud.isOpen(group.projectId) ? 'primary' : 'neutral'"
+              icon="i-lucide-users-round"
+              :label="group.name"
+              block
+              class="justify-start"
+              :data-testid="`cloud-group-${group.name}`"
+              @click="cloud.openGroup(group)"
+            />
+          </template>
+          <p
+            class="mt-2 text-xs text-(--ui-text-dimmed)"
+            data-testid="cloud-quota"
+          >
+            {{ t('cloud.quota', { used: cloud.formatSize(cloudStatus.quota.used), limit: cloud.formatSize(cloudStatus.quota.limit) }) }}
+          </p>
+        </div>
       </aside>
 
       <!-- Dateien -->
@@ -136,7 +217,7 @@ const isActive = (source: 'folder' | 'browser', name: string) => project.value?.
         <template v-else>
           <div class="flex flex-wrap items-center gap-3 border-b border-(--ui-border) px-4 py-3">
             <UIcon
-              :name="project.source === 'folder' ? 'i-lucide-folder-open' : 'i-lucide-hard-drive'"
+              :name="sourceIcon"
               class="size-5 shrink-0"
             />
             <div class="min-w-0">
@@ -150,9 +231,27 @@ const isActive = (source: 'folder' | 'browser', name: string) => project.value?.
                 class="text-xs"
                 :class="status === 'error' ? 'text-(--ui-error)' : 'text-(--ui-text-muted)'"
               >
-                {{ proj.language.value ? t(`editor.languages.${proj.language.value}`) : t('project.mixed') }} · {{ t('project.fileCount', files.length) }} · {{ t(`project.status.${status}`) }}
+                {{ proj.language.value ? t(`editor.languages.${proj.language.value}`) : t('project.mixed') }} · {{ t('project.fileCount', files.length) }} · {{ t(`project.status.${status}`) }}<template v-if="syncLabel">
+                  · <span data-testid="cloud-sync">{{ syncLabel }}</span>
+                </template>
               </p>
             </div>
+            <UBadge
+              v-if="proj.readOnly.value"
+              color="neutral"
+              variant="subtle"
+              icon="i-lucide-lock"
+              :label="t('cloud.readOnly')"
+              data-testid="cloud-read-only"
+            />
+            <UButton
+              v-if="project.source !== 'cloud' && cloudStatus?.enabled"
+              variant="outline"
+              icon="i-lucide-cloud-upload"
+              :label="t('cloud.upload')"
+              data-testid="cloud-upload"
+              @click="openDialog({ mode: 'upload' })"
+            />
             <UInput
               v-model="search"
               icon="i-lucide-search"
@@ -160,7 +259,10 @@ const isActive = (source: 'folder' | 'browser', name: string) => project.value?.
               class="ms-auto w-56"
               data-testid="explorer-search"
             />
-            <UDropdownMenu :items="newItems">
+            <UDropdownMenu
+              v-if="!proj.readOnly.value"
+              :items="newItems"
+            >
               <UButton
                 icon="i-lucide-plus"
                 :label="t('project.newFile')"
@@ -243,8 +345,19 @@ const isActive = (source: 'folder' | 'browser', name: string) => project.value?.
                   />
                   <span class="w-full truncate font-medium">{{ baseName(path) }}</span>
                   <span class="w-full truncate text-xs text-(--ui-text-muted)">{{ t('project.folder') }}</span>
+                  <UBadge
+                    v-if="cloud.assignmentAt(path)"
+                    :label="t('cloud.assignment')"
+                    color="warning"
+                    variant="subtle"
+                    size="sm"
+                    :data-testid="`cloud-assignment-${path}`"
+                  />
                 </button>
-                <UDropdownMenu :items="folderActions(path)">
+                <UDropdownMenu
+                  v-if="folderActions(path).length"
+                  :items="folderActions(path)"
+                >
                   <UButton
                     variant="ghost"
                     color="neutral"
@@ -292,7 +405,10 @@ const isActive = (source: 'folder' | 'browser', name: string) => project.value?.
                     size="sm"
                   />
                 </button>
-                <UDropdownMenu :items="fileActions(file)">
+                <UDropdownMenu
+                  v-if="fileActions(file).length"
+                  :items="fileActions(file)"
+                >
                   <UButton
                     variant="ghost"
                     color="neutral"
@@ -312,12 +428,49 @@ const isActive = (source: 'folder' | 'browser', name: string) => project.value?.
     <ProjectNameDialog
       v-model:name="dialogName"
       v-model:language="dialogLanguage"
-      :with-language="dialog?.mode === 'project' || dialog?.mode === 'init'"
+      :with-language="dialog?.mode === 'project' || dialog?.mode === 'init' || dialog?.mode === 'cloud'"
       :with-name="dialog?.mode !== 'init'"
       :open="!!dialog"
       :title="dialogTitle"
       @close="dialog = null"
       @submit="submitDialog"
     />
+
+    <!-- Abgaben einer Aufgabe (Gruppenleitung) -->
+    <UModal
+      :open="!!cloud.submissions.value"
+      :title="t('cloud.submissionsOf', { path: cloud.submissions.value?.path ?? '' })"
+      @update:open="v => !v && (cloud.submissions.value = null)"
+    >
+      <template #body>
+        <p
+          v-if="!cloud.submissions.value?.items.length"
+          class="text-sm text-(--ui-text-muted)"
+        >
+          {{ t('cloud.noSubmissions') }}
+        </p>
+        <ul
+          v-else
+          class="divide-y divide-(--ui-border)"
+          data-testid="cloud-submissions"
+        >
+          <li
+            v-for="item in cloud.submissions.value.items"
+            :key="item.projectId"
+            class="flex items-center gap-2 py-2"
+          >
+            <span class="flex-1">{{ item.displayName }}</span>
+            <span class="text-xs text-(--ui-text-muted)">{{ new Date(item.updatedAt).toLocaleString() }}</span>
+            <UButton
+              size="sm"
+              variant="outline"
+              icon="i-lucide-eye"
+              :label="t('cloud.openSubmission')"
+              @click="cloud.openSubmission(item)"
+            />
+          </li>
+        </ul>
+      </template>
+    </UModal>
   </div>
 </template>

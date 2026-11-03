@@ -453,7 +453,7 @@ const paneStyle = computed(() => ({
           <div class="relative min-h-0 flex-1">
             <KlonkBlocks
               v-model="source"
-              :read-only="running"
+              :read-only="running || proj.readOnly.value"
               :active-block="running ? lineToBlock(snapshot.line) : null"
               :error-block="snapshot.state === 'error' ? lineToBlock(snapshot.error?.range?.line) : null"
               @program="onBlocksProgram"
@@ -488,7 +488,7 @@ const paneStyle = computed(() => ({
             v-model="source"
             v-model:breakpoints="breakpoints"
             :language="runLanguage"
-            :read-only="running"
+            :read-only="running || proj.readOnly.value"
             :active-line="running ? snapshot.line : null"
             :error-line="errorLine"
             :error-message="errorMessage"
@@ -563,7 +563,7 @@ const paneStyle = computed(() => ({
         >
           <AiChat
             :context="aiContext"
-            :can-apply="hasDocument && !isBlocks && !isDesign && !running"
+            :can-apply="hasDocument && !isBlocks && !isDesign && !running && !proj.readOnly.value"
             @insert="code => codeEditor?.insertText(code)"
             @replace="code => codeEditor?.replaceAll(code)"
           />

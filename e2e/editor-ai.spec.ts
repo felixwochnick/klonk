@@ -206,7 +206,8 @@ test('Gehostete Plattform: Klonk-KI mit Credits, danach WebLLM', async ({ page }
     // Die App merkt sich die Instanz-Lizenz bis zu 60 s
     await gotoHydrated(page, APP_URL)
     const config = () => page.evaluate(() => fetch('/api/ai/config').then(r => r.json()))
-    await expect.poll(async () => (await config()).platform, { timeout: 75_000, intervals: [2000] }).toBe(true)
+    // Ganze Antwort vergleichen, damit ein Fehlschlag zeigt, was die App liefert
+    await expect.poll(async () => JSON.stringify(await config()), { timeout: 75_000, intervals: [2000] }).toContain('"platform":true')
     expect((await config()).models.map((m: { label: string }) => m.label)).toEqual(['Klonk Mini', 'Klonk Pro'])
 
     await gotoHydrated(page, APP_URL)
@@ -227,6 +228,8 @@ test('Gehostete Plattform: Klonk-KI mit Credits, danach WebLLM', async ({ page }
     await expect(page.getByTestId('ai-usage').getByTestId('ai-usage-credits')).toHaveText('105')
   }
   finally {
+    // Zurück auf die Verwaltung (Anfrage an die Lizenz-API geht nur von dort)
+    await gotoHydrated(page, `${ADMIN_URL}/organization/ai`)
     await setInstance(false)
   }
 })

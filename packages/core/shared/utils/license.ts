@@ -13,6 +13,8 @@ export const LICENSE_FEATURES = [
   'libraries',
   /** KI-Assistent */
   'ai',
+  /** Klonk Cloud auf der gehosteten Plattform (Projekte synchronisieren, Gruppenordner) – selbst gehostet immer frei */
+  'cloud',
   /** Gehostete Plattform: Grenzen gelten pro Organisation (über deren eigenes Token) */
   'hosted',
 ] as const

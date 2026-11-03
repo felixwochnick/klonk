@@ -30,3 +30,5 @@ export async function assertValidToken(token: string) {
   if (license.problem === 'invalid' || license.problem === 'wrong_domain')
     throw createError({ statusCode: 400, message: `license_${license.problem}` })
 }
+
+export const groupNameSchema = z.string().trim().min(1).max(100).refine(name => !/[/\\]/.test(name) && !name.startsWith('.'), 'invalid_name')

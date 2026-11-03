@@ -1,6 +1,7 @@
 import { parseDesign, parseWorld, type RobotDesign, type WorldData } from '@klonk/world'
 import { KIND_EXTENSION, MANIFEST, fileKind, isValidName, openBrowserProject, rememberProject } from '~/utils/project-fs'
 import type { FileKind, Project, ProjectFile } from '~/utils/project-fs'
+import { CloudProject, openCloudProject, type CloudProjectMeta } from '~/utils/cloud-project'
 
 // Zustand außerhalb von Komponenten: Datei-Handles sind nicht serialisierbar (kein useState)
 const project = shallowRef<Project | null>(null)
@@ -16,13 +17,15 @@ const breakpointsByFile = ref<Record<string, number[]>>({})
 let saveTimer: ReturnType<typeof setTimeout> | undefined
 let loadedContent = ''
 
-const LAST_FILE_KEY = (p: Project) => `klonk:project:${p.source}:${p.name}`
+const LAST_FILE_KEY = (p: Project) => `klonk:project:${p.source}:${p instanceof CloudProject ? p.meta.id : p.name}`
 
 /**
  * Geöffnetes Projekt (Ordner oder Browser-Projekt) für IDE und Welt-Editor:
  * Dateiliste, aktuelle Datei mit automatischem Speichern, ausgewählte Welt.
  */
 export function useProject() {
+  const { t } = useI18n()
+  const toast = useToast()
   const kind = computed<FileKind | null>(() => (currentPath.value ? fileKind(currentPath.value) : null))
   const programFiles = computed(() => files.value.filter(f => f.kind !== 'world' && f.kind !== 'design' && f.kind !== 'other'))
   const designFiles = computed(() => files.value.filter(f => f.kind === 'design'))
@@ -37,13 +40,14 @@ export function useProject() {
 
   async function open(next: Project) {
     await flush()
+    if (project.value instanceof CloudProject && project.value !== next) project.value.stop()
     project.value = next
     currentPath.value = null
     content.value = ''
     breakpointsByFile.value = {}
     language.value = await readManifest(next)
     await refresh()
-    void rememberProject(next).catch(() => {})
+    if (!(next instanceof CloudProject)) void rememberProject(next).catch(() => {})
 
     const last = safeStorage(() => JSON.parse(localStorage.getItem(LAST_FILE_KEY(next)) ?? 'null'))
     const first = programFiles.value[0]?.path ?? null
@@ -52,8 +56,39 @@ export function useProject() {
     if (target) await select(target)
   }
 
+  /** Cloud-Projekt öffnen (lokale Kopie + Abgleich); Änderungen anderer laden die Dateiliste/offene Datei neu */
+  async function openCloud(meta: CloudProjectMeta) {
+    const next = await openCloudProject(meta, (cloud) => {
+      cloud.conflictLabel = t('cloud.conflictSuffix')
+      cloud.onConflict = (path, copy) => toast.add({ title: t('cloud.conflict', { path, copy }), color: 'warning' })
+      cloud.onRemoteChange = paths => void remoteChanged(cloud, paths)
+    })
+    await open(next)
+  }
+
+  async function remoteChanged(cloud: CloudProject, paths: string[]) {
+    if (project.value !== cloud) return
+    await refresh()
+    if (paths.includes(MANIFEST)) language.value = await readManifest(cloud)
+    // Offene Datei nur neu laden, wenn hier nichts Ungespeichertes ist
+    if (currentPath.value && paths.includes(currentPath.value) && content.value === loadedContent) {
+      if (!files.value.some(f => f.path === currentPath.value)) {
+        currentPath.value = null
+        content.value = ''
+        return
+      }
+      loadedContent = await cloud.read(currentPath.value)
+      content.value = loadedContent
+    }
+  }
+
+  /** Nur lesen: gemeinsamer Ordner ohne Schreibrecht, Abgaben anderer */
+  const readOnly = computed(() => project.value instanceof CloudProject && !project.value.writable.value)
+  const sync = computed(() => (project.value instanceof CloudProject ? project.value.status.value : null))
+
   async function close() {
     await flush()
+    if (project.value instanceof CloudProject) project.value.stop()
     project.value = null
     files.value = []
     folders.value = []
@@ -161,7 +196,7 @@ export function useProject() {
   /** Aktuellen Inhalt ändern – wird kurz danach automatisch gespeichert */
   function update(text: string) {
     content.value = text
-    if (!project.value || !currentPath.value || text === loadedContent) return
+    if (!project.value || !currentPath.value || text === loadedContent || readOnly.value) return
     status.value = 'saving'
     clearTimeout(saveTimer)
     saveTimer = setTimeout(() => void flush(), 400)
@@ -169,7 +204,7 @@ export function useProject() {
 
   async function flush() {
     clearTimeout(saveTimer)
-    if (!project.value || !currentPath.value || content.value === loadedContent) {
+    if (!project.value || !currentPath.value || content.value === loadedContent || readOnly.value) {
       status.value = 'saved'
       return
     }
@@ -253,8 +288,8 @@ export function useProject() {
   })
 
   return {
-    project, files, folders, language, programFiles, designFiles, worldFiles, currentPath, content, kind, worldPath, status, breakpoints,
-    open, close, select, create, rename, remove, setLanguage, createFolder, renameFolder, removeFolder, update, flush, refresh, readWorld, writeWorld, importableFiles, readDesigns, writeDesign, selectWorld,
+    project, files, folders, language, programFiles, designFiles, worldFiles, currentPath, content, kind, worldPath, status, breakpoints, readOnly, sync,
+    open, openCloud, close, select, create, rename, remove, setLanguage, createFolder, renameFolder, removeFolder, update, flush, refresh, readWorld, writeWorld, importableFiles, readDesigns, writeDesign, selectWorld,
     openBrowserProject: async (name: string, createIt = false) => open(await openBrowserProject(name, createIt)),
   }
 }

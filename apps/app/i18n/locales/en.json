@@ -410,5 +410,34 @@
       "quota": "Your organization's AI credits are used up – the assistant now runs for free in your browser.",
       "daily": "You have reached your daily limit – until tomorrow the assistant runs in your browser."
     }
+  },
+  "cloud": {
+    "title": "Klonk Cloud",
+    "newProject": "New cloud project",
+    "upload": "Upload to the cloud",
+    "uploaded": "“{name}” is now in the cloud.",
+    "locked": "Syncing is part of the subscription. Existing cloud projects stay readable.",
+    "groups": "Groups",
+    "quota": "{used} of {limit} used",
+    "delete": "Delete {name}",
+    "confirmDelete": "Delete cloud project “{name}” on all devices?",
+    "readOnly": "Read only",
+    "assignment": "Assignment",
+    "assign": "Hand out as assignment",
+    "assigned": "“{path}” is now an assignment.",
+    "unassign": "Withdraw assignment",
+    "work": "Work on assignment",
+    "submissions": "View submissions",
+    "submissionsOf": "Submissions: {path}",
+    "noSubmissions": "Nobody has started this assignment yet.",
+    "openSubmission": "Open",
+    "conflictSuffix": "conflict",
+    "conflict": "“{path}” was changed elsewhere at the same time. Your version is in “{copy}”.",
+    "sync": {
+      "synced": "synced",
+      "syncing": "syncing …",
+      "offline": "offline – will upload later",
+      "error": "not synced"
+    }
   }
 }
