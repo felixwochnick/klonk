@@ -290,18 +290,29 @@ node scripts/build-csharp.ts        # C#-Host bauen (.NET-SDK 10 nötig; Ausgabe
   Zielgruppe: Lehrkräfte, Schulleitungen, Kultusverwaltung (Sie-Form, sachlich, Lehrplanbegriffe, keine Werbesprache; vom User so festgelegt); Betrieb/Datenschutz/Lizenz für Schulen in `4.teaching/2.schools.md`.
   Neue Länder/Schulformen ⇒ Tabellen in `4.teaching/1.overview.md`, `3.germany/1.overview.md` (inkl. „Wie das Fach heißt“) und der Landesübersicht ergänzen.
   Marken gibt es nur in vier Farben (gelb/rot/blau/grün) – Beispiele dürfen keine anderen Markenfarben nutzen.
-- **KI-Assistent** (Lizenz-Feature `ai`, vom User so festgelegt): Tab **KI** neben Welt | Doku (`AiChat.vue`, `useAi()`), „Fehler erklären“
+- **KI-Assistent** (vom User so festgelegt): Tab **KI** neben Welt | Doku (`AiChat.vue`, `useAi()`), „Fehler erklären“
   im Fehlerkasten, Codeblöcke „Einfügen“/„Alles ersetzen“ (`KlonkEditor.insertText/replaceAll`, rückgängig machbar) nur bei voller Hilfe.
   **Tutor-Modus:** Lernende (`role member`) bekommen je nach Einstellung nur Hinweise, Lehrkräfte/Admins/Betreiber immer volle Hilfe.
-  Konfiguration pro Organisation (admin → KI-Assistent, Tabelle `organization_ai_settings`, Schlüssel AES-verschlüsselt, Mitglieder dürfen
-  lesen, nur Admins ändern) oder `inherit` ⇒ Instanz-Standard `NUXT_AI_*` (`runtimeConfig.ai`, gilt auch für Privatkonten); `getAiConfig()`
-  in `core/server/utils/ai.ts`. Modus `server`: `/api/ai/chat` (app) setzt den Systemprompt (`aiSystemPrompt()` in `core/shared/utils/ai.ts`)
-  und streamt die OpenAI-kompatible Antwort (`/chat/completions`, SSE ⇒ reiner Text, `completionTextStream`); Schlüssel nie im Browser.
-  Modus `webllm`: `@mlc-ai/web-llm` nur im Worker `app/workers/webllm.ts` (eigenes Protokoll load/chat/stop, ~6 MB, nicht im PWA-Precache),
-  Modellgewichte von Hugging Face (CORS ⇒ mit COEP vereinbar), WebGPU nötig, Modelle `AI_WEBLLM_MODELS`. Kontext (Sprache, Referenz aus
-  `languageReferenceText()`, Code mit Zeilennummern, Fehler, Ausgabe) baut `aiContext()` in `pages/index.vue`. Antworten ohne `v-html`
-  (`utils/ai-markdown.ts`). E2E: `e2e/editor-ai.spec.ts` mit `e2e/mock-llm.ts` (Schlüssel `test-key`; im Stack nur die Einstellungen).
-  Die App merkt sich die Lizenz 60 s ⇒ Tests pollen `/api/ai/config`.
+  Einstellung pro Organisation (admin → KI-Assistent, Tabelle `organization_ai_settings`, Schlüssel AES-verschlüsselt, Mitglieder lesen,
+  nur Admins ändern) oder `inherit` ⇒ Instanz-Standard `NUXT_AI_*` (`runtimeConfig.ai`, gilt auch für Privatkonten). Modi:
+  - `webllm`: **immer kostenlos** (ohne Lizenz), `@mlc-ai/web-llm` nur im Worker `app/workers/webllm.ts` (~6 MB, nicht im PWA-Precache),
+    Gewichte von Hugging Face, WebGPU nötig. Springt auch als Ersatz ein (`notice`: `license` | `quota` | `daily`).
+  - `server` = **eigener Anbieter (BYOK)**, braucht Feature `ai`: `provider` `openai` (OpenAI-kompatibel: OpenAI, Gemini, Mistral, Ollama …,
+    Vorlagen `AI_PROVIDER_PRESETS`) oder `anthropic` (nativ `/messages`). Mehrere Modelle (`models: {id, access: all|teachers}[]`).
+  - `platform` = **Klonk-KI** (nur gehostete Plattform = Instanz-Feature `hosted`): Credits (1 Credit ≈ 1 Cent, intern Tausendstel,
+    `aiCostMillicredits`). Monatskontingent = Lizenz-Claim `aiCredits` (Organisation bzw. Privat-Abo; `scripts/sign-license.ts --ai-credits`),
+    dann nachgekaufte Credits (`ai_credit_grants`). **Hartes Limit** ⇒ danach WebLLM. Endpunkte/Schlüssel des Betreibers
+    `NUXT_AI_PLATFORM_PROVIDERS` (JSON `{ key: { provider, baseUrl, apiKey } }`), Modelle + Preise per Abgleich von klonk.*
+    (`instance_settings.ai_models`, Fallback `NUXT_AI_PLATFORM_MODELS`), `premium` ⇒ standardmäßig nur Lehrkräfte.
+  - Tageslimits für Lernende (`studentDailyRequests`, `studentDailyCredits`), Verbrauch ohne Inhalte in `ai_usage` (schreibt nur der Server per
+    `useSystemDb`, RLS: Admin sieht Organisation, Nutzer sich selbst), Übersicht `AiUsage.vue` + `/api/admin/organization/ai-usage`.
+  `getAiConfig()` in `core/server/utils/ai.ts` entscheidet alles (Quelle, Lizenz, Limits, Modell); `/api/ai/chat` (app) setzt den Systemprompt
+  (`aiSystemPrompt()`), streamt (`fetchAiChat` + `aiTextStream`, Verbrauch über `stream_options.include_usage` bzw. Anthropic-Events, sonst
+  geschätzt) und speichert danach `recordAiUsage()`. **Abgleich mit klonk.*** (`core/server/utils/ai-sync.ts`, im Lizenzabgleich der Verwaltung):
+  `GET /api/v1/platform/ai` ⇒ `{ models, grants }`, `POST /api/v1/platform/ai/usage` ⇒ Monats-Summen – die Endpunkte gehören ins private Repo.
+  Kontext baut `aiContext()` in `pages/index.vue`; Antworten ohne `v-html` (`utils/ai-markdown.ts`).
+  E2E: `e2e/editor-ai.spec.ts` mit `e2e/mock-llm.ts` (OpenAI + Anthropic, Schlüssel `test-key`, fester Verbrauch 1000/50 Tokens; Klonk-KI über
+  `NUXT_AI_PLATFORM_*` in `playwright.config.ts`, schaltet die Instanz kurz auf `hosted`). Die App merkt sich die Lizenz 60 s ⇒ Tests pollen `/api/ai/config`.
 
 ## Lizenzmodell (Open Core, wie evcc)
 
@@ -343,6 +354,7 @@ node scripts/build-csharp.ts        # C#-Host bauen (.NET-SDK 10 nötig; Ausgabe
   `00.client-host.client.ts` für `$fetch`, `clientHostHeaders()` für `useFetch`) lokal sind (`isLocalTest(event)`). `getEffectiveLicense`,
   `requireFeature`, `assertUserCapacity` bekommen dafür `event`. Abschalten: `NUXT_LICENSE_LOCAL_MODE=off` bzw. Header `x-klonk-local: off`
   (Playwright setzt ihn global – Lizenztests prüfen echte Grenzen; `e2e/local-mode.spec.ts` testet den Modus).
+- KI auf der gehosteten Plattform: KI-Paket mit monatlichen Credits + Nachkauf (siehe KI-Assistent); Preise/Pakete nur auf klonk.*.
 - Offen: weitere Bezahlfunktionen.
 
 ## Roadmap (Status pflegen!)

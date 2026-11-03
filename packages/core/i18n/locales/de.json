@@ -67,9 +67,13 @@
     "license_wrong_domain": "Das Lizenz-Token gilt nicht für diese Domain.",
     "license_from_env": "Die Lizenz ist per Umgebungsvariable gesetzt und kann hier nicht geändert werden.",
     "license_instance_only": "Lizenzen werden für die gesamte Installation hinterlegt.",
-    "ai_incomplete": "Bitte API-Adresse und Modell angeben.",
+    "ai_incomplete": "Bitte API-Adresse und mindestens ein Modell angeben.",
     "ai_unavailable": "Der KI-Assistent ist nicht verfügbar.",
-    "ai_upstream": "Das Sprachmodell hat nicht geantwortet. Bitte später erneut versuchen."
+    "ai_upstream": "Das Sprachmodell hat nicht geantwortet. Bitte später erneut versuchen.",
+    "ai_no_models": "Bitte mindestens ein Modell freigeben.",
+    "ai_platform_unavailable": "Die Klonk-KI gibt es nur auf der gehosteten Plattform.",
+    "ai_quota": "Die KI-Credits sind aufgebraucht.",
+    "ai_daily_limit": "Das Tageslimit für den KI-Assistenten ist erreicht."
   },
   "settings": {
     "title": "Einstellungen",

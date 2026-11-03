@@ -16,6 +16,12 @@ const env = {
   NUXT_PLATFORM_OIDC_CLIENT_SECRET: 'klonk-dev-secret',
   NUXT_PLATFORM_OIDC_SCOPES: 'openid profile email groups',
   NUXT_PLATFORM_OIDC_OWNER_GROUPS: 'admins',
+  // Klonk-KI der gehosteten Plattform gegen den Test-Anbieter (e2e/mock-llm.ts); 1 Anfrage ≈ 105 Credits
+  NUXT_AI_PLATFORM_PROVIDERS: JSON.stringify({ mock: { provider: 'openai', baseUrl: 'http://localhost:3014/v1', apiKey: 'test-key' } }),
+  NUXT_AI_PLATFORM_MODELS: JSON.stringify([
+    { id: 'klonk-mini', label: 'Klonk Mini', provider: 'mock', model: 'mock-platform', inputCredits: 100_000, outputCredits: 100_000 },
+    { id: 'klonk-pro', label: 'Klonk Pro', provider: 'mock', model: 'mock-platform-pro', inputCredits: 300_000, outputCredits: 300_000, premium: true },
+  ]),
 }
 
 export default defineConfig({

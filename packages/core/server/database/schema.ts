@@ -1,4 +1,5 @@
-import { boolean, index, jsonb, pgEnum, pgTable, text, timestamp, uniqueIndex, uuid } from 'drizzle-orm/pg-core'
+import { bigint, boolean, index, integer, jsonb, pgEnum, pgTable, text, timestamp, uniqueIndex, uuid } from 'drizzle-orm/pg-core'
+import type { AiModelChoice } from '../../shared/utils/ai'
 
 // Row Level Security ist in der Migration `0001_rls.sql` definiert (Rollen, Hilfsfunktionen, Policies)
 
@@ -113,21 +114,60 @@ export const instanceSettings = pgTable('instance_settings', {
 })
 
 /** KI-Assistent: `inherit` = Standard der Instanz (NUXT_AI_*), `server` = OpenAI-kompatible API, `webllm` = Modell im Browser */
-export const aiMode = pgEnum('ai_mode', ['inherit', 'off', 'server', 'webllm'])
+export const aiMode = pgEnum('ai_mode', ['inherit', 'off', 'server', 'webllm', 'platform'])
+export const aiProvider = pgEnum('ai_provider', ['openai', 'anthropic'])
 
 /** KI-Einstellungen einer Organisation (Zeile entsteht beim ersten Speichern) */
 export const organizationAiSettings = pgTable('organization_ai_settings', {
   organizationId: uuid().primaryKey().references(() => organizations.id, { onDelete: 'cascade' }),
   mode: aiMode().notNull().default('inherit'),
-  // OpenAI-kompatibler Endpunkt, z. B. `https://llm.schule.de/v1`
+  /** Eigener Anbieter (`server`): Schnittstelle und Adresse, z. B. `https://api.openai.com/v1` */
+  provider: aiProvider().notNull().default('openai'),
   baseUrl: text(),
-  model: text(),
   /** AES-GCM-verschlüsselt */
   apiKey: text(),
+  /** Freigegebene Modelle: bei `server` die Modellnamen des Anbieters, bei `platform` IDs der Klonk-KI (leer = Standard) */
+  models: jsonb().$type<AiModelChoice[]>().notNull().default([]),
   webllmModel: text(),
   /** Lernende bekommen nur Hinweise statt fertiger Lösungen (Lehrkräfte/Admins immer volle Hilfe) */
   tutor: boolean().notNull().default(true),
+  /** Tageslimits pro Lernendem (`null` = ohne): Anfragen bzw. Credits der Klonk-KI */
+  studentDailyRequests: integer(),
+  studentDailyCredits: integer(),
   updatedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+})
+
+/**
+ * Verbrauch des KI-Assistenten über den Server (ohne Chatinhalte). Schreibt nur der Server (Systemverbindung);
+ * Admins sehen den Verbrauch ihrer Organisation, Nutzer ihren eigenen.
+ */
+export const aiUsage = pgTable('ai_usage', {
+  id: uuid().primaryKey().defaultRandom(),
+  organizationId: uuid().references(() => organizations.id, { onDelete: 'cascade' }),
+  userId: uuid().notNull().references(() => users.id, { onDelete: 'cascade' }),
+  /** `server` = eigener Schlüssel (kostet keine Credits), `platform` = Klonk-KI */
+  source: aiMode().notNull(),
+  model: text().notNull(),
+  inputTokens: integer().notNull().default(0),
+  outputTokens: integer().notNull().default(0),
+  /** Kosten in Tausendstel-Credits; davon aus nachgekauften Credits (über das Monatskontingent hinaus) */
+  millicredits: bigint({ mode: 'number' }).notNull().default(0),
+  extraMillicredits: bigint({ mode: 'number' }).notNull().default(0),
+  createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+}, t => [
+  index('ai_usage_organization_idx').on(t.organizationId, t.createdAt),
+  index('ai_usage_user_idx').on(t.userId, t.createdAt),
+])
+
+/** Nachgekaufte KI-Credits (Organisation oder Privatkonto) – schreibt nur der Abgleich mit klonk.* */
+export const aiCreditGrants = pgTable('ai_credit_grants', {
+  /** ID der Bestellung auf klonk.* (Abgleich ist dadurch wiederholbar) */
+  id: text().primaryKey(),
+  organizationId: uuid().references(() => organizations.id, { onDelete: 'cascade' }),
+  userId: uuid().references(() => users.id, { onDelete: 'cascade' }),
+  credits: integer().notNull(),
+  validUntil: timestamp({ withTimezone: true }),
+  createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
 })
 
 /** Lizenz-Token von Privatkonten (gehostete Plattform, Privat-Abo aus dem Shop) – schreibt nur der Abgleich mit klonk.* */

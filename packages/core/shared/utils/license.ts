@@ -26,6 +26,8 @@ export type LicenseInfo = {
   /** `null` = unbegrenzt */
   maxUsers: number | null
   features: LicenseFeature[]
+  /** Gehostete Plattform: KI-Credits pro Monat für die abgerechnete Klonk-KI (1 Credit ≈ 1 Cent API-Kosten) */
+  aiCredits: number
   expiresAt: string | null
   /** Token vorhanden, aber abgelaufen/ungültig ⇒ es gelten die kostenlosen Grenzen */
   /**
@@ -47,6 +49,7 @@ export const FREE_LICENSE: LicenseInfo = {
   licensee: null,
   maxUsers: FREE_MAX_USERS,
   features: [],
+  aiCredits: 0,
   expiresAt: null,
   problem: null,
 }

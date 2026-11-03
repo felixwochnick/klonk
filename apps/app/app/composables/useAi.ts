@@ -11,15 +11,17 @@ let abort: AbortController | undefined
 let worker: Worker | undefined
 let workerReady: Promise<void> | undefined
 let requestId = 0
+/** Gewähltes Modell (nur Server), leer = Standard der Organisation */
+const model = ref('')
 
-/** KI-Assistent: Server (OpenAI-kompatible API über /api/ai/chat) oder WebLLM im Browser */
+/** KI-Assistent: Server (eigener Anbieter oder Klonk-KI über /api/ai/chat) oder WebLLM im Browser */
 export function useAi() {
   const { t, locale } = useI18n()
   const { data: config, refresh } = useFetch<AiClientConfig>('/api/ai/config', {
     key: 'ai-config',
     headers: clientHostHeaders(),
     server: false,
-    default: (): AiClientConfig => ({ enabled: false, reason: 'off', mode: 'off', tutor: true, webllmModel: null }),
+    default: (): AiClientConfig => ({ enabled: false, reason: 'off', mode: 'off', platform: false, tutor: true, webllmModel: null, models: [], notice: null }),
   })
   const enabled = computed(() => !!config.value?.enabled)
 
@@ -52,6 +54,8 @@ export function useAi() {
     finally {
       busy.value = false
       abort = undefined
+      // Tageslimit/Kontingent können sich geändert haben (⇒ ggf. weiter mit WebLLM)
+      if (config.value?.mode === 'server') void refresh()
     }
   }
 
@@ -60,7 +64,7 @@ export function useAi() {
     const response = await fetch('/api/ai/chat', {
       method: 'POST',
       headers: { 'content-type': 'application/json', ...clientHostHeaders() },
-      body: JSON.stringify({ messages: history, context, locale: locale.value }),
+      body: JSON.stringify({ messages: history, context, locale: locale.value, model: model.value || undefined }),
       signal: abort.signal,
     })
     if (!response.ok || !response.body) {
@@ -134,5 +138,5 @@ export function useAi() {
     messages.value = []
   }
 
-  return { config, refresh, enabled, messages, busy, loading, ask, stop, clear }
+  return { config, refresh, enabled, model, messages, busy, loading, ask, stop, clear }
 }

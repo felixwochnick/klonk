@@ -13,7 +13,7 @@ const kid = STACK ? 'klonk-2026-1' : 'klonk-dev'
 
 export const canSignLicense = existsSync(keyFile)
 
-export async function signLicense(claims: { name: string, plan?: string, maxUsers?: number | null, features: string[] }) {
+export async function signLicense(claims: { name: string, plan?: string, maxUsers?: number | null, features: string[], aiCredits?: number }) {
   const key = await importPKCS8(readFileSync(keyFile, 'utf8'), 'EdDSA')
   return new SignJWT({ plan: 'school', maxUsers: null, ...claims, ...(STACK ? { domains: ['klonk.localhost'] } : {}) })
     .setProtectedHeader({ alg: 'EdDSA', kid })

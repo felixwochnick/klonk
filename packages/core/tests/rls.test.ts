@@ -4,7 +4,7 @@ import { drizzle } from 'drizzle-orm/postgres-js'
 import { migrate } from 'drizzle-orm/postgres-js/migrator'
 import postgres from 'postgres'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { instanceSettings, organizationAiSettings, organizationAuthSettings, organizations, sessions, userLicenses, users } from '../server/database/schema'
+import { aiCreditGrants, aiUsage, instanceSettings, organizationAiSettings, organizationAuthSettings, organizations, sessions, userLicenses, users } from '../server/database/schema'
 import { createDb, runAsUser, type Db } from '../server/utils/db'
 
 // Integrationstest gegen eine echte Postgres-Instanz (pnpm db:up) in einer eigenen Test-Datenbank
@@ -200,7 +200,7 @@ describe('RLS: organizations & Einstellungen', () => {
   })
 
   it('KI-Einstellungen: Mitglieder lesen die eigene Organisation, ändern nur Admins', async () => {
-    await runAsUser(db, ids.adminA!, tx => tx.insert(organizationAiSettings).values({ organizationId: ids.orgA!, mode: 'server', model: 'm' }))
+    await runAsUser(db, ids.adminA!, tx => tx.insert(organizationAiSettings).values({ organizationId: ids.orgA!, mode: 'server', models: [{ id: 'm', access: 'all' }] }))
     await expectDbError(runAsUser(db, ids.adminA!, tx =>
       tx.insert(organizationAiSettings).values({ organizationId: ids.orgB!, mode: 'off' })), /row-level security/)
     await expectDbError(runAsUser(db, ids.teacherA!, tx =>
@@ -211,6 +211,34 @@ describe('RLS: organizations & Einstellungen', () => {
     expect(asStudent.map(r => [r.organizationId, r.mode])).toEqual([[ids.orgA, 'server']])
     expect(await runAsUser(db, ids.adminB!, tx => tx.select().from(organizationAiSettings))).toEqual([])
     expect(await runAsUser(db, ids.private!, tx => tx.select().from(organizationAiSettings))).toEqual([])
+  })
+
+  it('KI-Verbrauch und Credits: Admins sehen die Organisation, Nutzer sich selbst, schreiben nur der Server', async () => {
+    await db.insert(aiUsage).values([
+      { organizationId: ids.orgA!, userId: ids.studentA!, source: 'platform', model: 'm', millicredits: 10 },
+      { organizationId: ids.orgA!, userId: ids.student2A!, source: 'platform', model: 'm', millicredits: 20 },
+      { organizationId: ids.orgB!, userId: ids.adminB!, source: 'server', model: 'm' },
+    ])
+    await db.insert(aiCreditGrants).values([
+      { id: 'grant-a', organizationId: ids.orgA!, credits: 500 },
+      { id: 'grant-privat', userId: ids.private!, credits: 100 },
+    ])
+    const usage = (as: string) => runAsUser(db, ids[as]!, tx => tx.select({ userId: aiUsage.userId }).from(aiUsage)).then(r => r.map(u => u.userId).sort())
+    expect(await usage('adminA')).toEqual([ids.studentA, ids.student2A].sort())
+    expect(await usage('studentA')).toEqual([ids.studentA])
+    expect(await usage('teacherA')).toEqual([])
+    expect(await usage('adminB')).toEqual([ids.adminB])
+    expect(await usage('owner')).toHaveLength(3)
+
+    const grants = (as: string) => runAsUser(db, ids[as]!, tx => tx.select({ id: aiCreditGrants.id }).from(aiCreditGrants)).then(r => r.map(g => g.id).sort())
+    expect(await grants('adminA')).toEqual(['grant-a'])
+    expect(await grants('studentA')).toEqual([])
+    expect(await grants('private')).toEqual(['grant-privat'])
+
+    await expectDbError(runAsUser(db, ids.studentA!, tx =>
+      tx.insert(aiUsage).values({ organizationId: ids.orgA!, userId: ids.studentA!, source: 'platform', model: 'm' })), /permission denied/)
+    await expectDbError(runAsUser(db, ids.adminA!, tx =>
+      tx.insert(aiCreditGrants).values({ id: 'selbst', organizationId: ids.orgA!, credits: 99999 })), /permission denied/)
   })
 
   it('Privat-Lizenzen liest nur das eigene Konto, schreiben kann niemand über RLS', async () => {

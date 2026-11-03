@@ -28,12 +28,13 @@ const dev = { allowDevKeys: true, now }
 
 describe('verifyLicenseToken', () => {
   it('liest Plan, Grenzen und Funktionen aus einem gültigen Token', async () => {
-    const token = await sign({ name: 'Gymnasium', plan: 'school', maxUsers: 500, features: ['oidc', 'ai', 'unbekannt'] })
+    const token = await sign({ name: 'Gymnasium', plan: 'school', maxUsers: 500, features: ['oidc', 'ai', 'unbekannt'], aiCredits: 2500 })
     expect(await verifyLicenseToken(token, dev)).toEqual({
       plan: 'school',
       licensee: 'Gymnasium',
       maxUsers: 500,
       features: ['oidc', 'ai'],
+      aiCredits: 2500,
       expiresAt: '2027-01-01T00:00:00.000Z',
       problem: null,
     })

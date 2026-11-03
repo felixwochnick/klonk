@@ -403,6 +403,12 @@
     "disclaimer": "KI kann Fehler machen – prüfe die Antworten.",
     "explainError": "Fehler erklären",
     "explainPrompt": "Erkläre mir den Fehler in meinem Programm. Was bedeutet er und woran liegt es?",
-    "noWebGpu": "Dieser Browser unterstützt kein WebGPU – das Sprachmodell kann hier nicht laufen. Nutze z. B. Chrome oder Edge."
+    "noWebGpu": "Dieser Browser unterstützt kein WebGPU – das Sprachmodell kann hier nicht laufen. Nutze z. B. Chrome oder Edge.",
+    "model": "Modell",
+    "notice": {
+      "license": "Für das eingestellte Sprachmodell fehlt die Lizenz – der Assistent läuft kostenlos in deinem Browser.",
+      "quota": "Die KI-Credits deiner Organisation sind aufgebraucht – der Assistent läuft jetzt kostenlos in deinem Browser.",
+      "daily": "Dein Tageslimit ist erreicht – bis morgen läuft der Assistent in deinem Browser."
+    }
   }
 }

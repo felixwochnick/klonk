@@ -19,11 +19,14 @@ x-env: &env
   NUXT_PUBLIC_SHOP_URL: ${KLONK_SHOP_URL:-}
   # KI-Assistent: Standard für alle Organisationen ohne eigene Einstellung und für Privatkonten (optional)
   NUXT_AI_MODE: ${KLONK_AI_MODE:-}
+  NUXT_AI_PROVIDER: ${KLONK_AI_PROVIDER:-openai}
   NUXT_AI_BASE_URL: ${KLONK_AI_BASE_URL:-}
   NUXT_AI_MODEL: ${KLONK_AI_MODEL:-}
   NUXT_AI_API_KEY: ${KLONK_AI_API_KEY:-}
   NUXT_AI_WEBLLM_MODEL: ${KLONK_AI_WEBLLM_MODEL:-}
   NUXT_AI_STUDENTS: ${KLONK_AI_STUDENTS:-tutor}
+  # Nur gehostete Plattform: Endpunkte der Klonk-KI (JSON, siehe CLAUDE.md)
+  NUXT_AI_PLATFORM_PROVIDERS: ${KLONK_AI_PLATFORM_PROVIDERS:-}
   # Lizenz automatisch beim Lizenzserver (Origin von KLONK_SHOP_URL) verlängern; false = nie nach außen verbinden
   NUXT_LICENSE_AUTO_REFRESH: ${KLONK_LICENSE_AUTO_REFRESH:-true}
   NUXT_LICENSE_SERVER_URL: ${KLONK_LICENSE_SERVER_URL:-}

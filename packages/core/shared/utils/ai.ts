@@ -1,20 +1,83 @@
 /**
- * KI-Assistent: gemeinsamer Teil für Server (OpenAI-kompatible API) und Browser (WebLLM).
+ * KI-Assistent: gemeinsamer Teil für Server (Sprachmodell-API) und Browser (WebLLM).
  * Die Regeln (Tutor oder volle Hilfe) legt immer dieser Systemprompt fest, nicht der Client.
  */
+/** Wie die App den Assistenten nutzt: über den Klonk-Server (eigener Schlüssel oder Klonk-KI) oder im Browser */
 export type AiMode = 'off' | 'server' | 'webllm'
 
 export type AiChatMessage = { role: 'user' | 'assistant', content: string }
 
+/**
+ * Einstellung einer Organisation: `server` = eigener Anbieter/Schlüssel (BYOK), `platform` = über die gehostete
+ * Plattform abgerechnete Klonk-KI (Credits), `webllm` = kostenlos im Browser
+ */
+export const AI_SETTING_MODES = ['inherit', 'off', 'webllm', 'server', 'platform'] as const
+export type AiSettingMode = typeof AI_SETTING_MODES[number]
+
+/** Schnittstelle des Anbieters: OpenAI-kompatibel (OpenAI, Gemini, Mistral, Ollama, vLLM …) oder Anthropic */
+export const AI_PROVIDERS = ['openai', 'anthropic'] as const
+export type AiProvider = typeof AI_PROVIDERS[number]
+
+/** Vorlagen für die Verwaltung (Adresse + Beispielmodell) – alles andere über „OpenAI-kompatibel“ */
+export const AI_PROVIDER_PRESETS = [
+  { id: 'openai', provider: 'openai', baseUrl: 'https://api.openai.com/v1', model: 'gpt-5-mini' },
+  { id: 'anthropic', provider: 'anthropic', baseUrl: 'https://api.anthropic.com/v1', model: 'claude-haiku-5-5' },
+  { id: 'gemini', provider: 'openai', baseUrl: 'https://generativelanguage.googleapis.com/v1beta/openai', model: 'gemini-2.5-flash' },
+  { id: 'mistral', provider: 'openai', baseUrl: 'https://api.mistral.ai/v1', model: 'codestral-latest' },
+  { id: 'ollama', provider: 'openai', baseUrl: 'http://localhost:11434/v1', model: 'qwen2.5-coder:7b' },
+  { id: 'custom', provider: 'openai', baseUrl: '', model: '' },
+] as const satisfies readonly { id: string, provider: AiProvider, baseUrl: string, model: string }[]
+
+/** Wer ein Modell nutzen darf (teure Modelle z. B. nur Lehrkräfte) */
+export type AiModelAccess = 'all' | 'teachers'
+export type AiModelChoice = { id: string, access: AiModelAccess }
+
+/**
+ * Modell der Klonk-KI (gehostete Plattform). Liste und Preise kommen per Abgleich von klonk.*.
+ * Preise in Credits je 1 Mio. Tokens (1 Credit ≈ 1 Cent API-Kosten inkl. Aufschlag).
+ */
+export type AiPlatformModel = {
+  id: string
+  label: string
+  /** Schlüssel in NUXT_AI_PLATFORM_PROVIDERS (Endpunkt + Schlüssel des Betreibers) */
+  provider: string
+  /** Modellname beim Anbieter */
+  model: string
+  inputCredits: number
+  outputCredits: number
+  /** Teuer ⇒ standardmäßig nur für Lehrkräfte */
+  premium?: boolean
+}
+
+/** Warum statt des eingestellten Modells WebLLM läuft */
+export type AiNotice = 'license' | 'quota' | 'daily' | null
+
 /** Was die App über den Assistenten wissen muss (ohne Endpunkt und Schlüssel) */
 export type AiClientConfig = {
   enabled: boolean
-  /** Warum aus: keine Lizenz oder nicht eingerichtet */
-  reason: 'license' | 'off' | null
+  /** Ausgeschaltet (Organisation/Instanz) */
+  reason: 'off' | null
   mode: AiMode
+  /** Über die Klonk-KI abgerechnet */
+  platform: boolean
   /** Nur Hinweise, keine fertigen Lösungen (Lernende, wenn die Organisation es so eingestellt hat) */
   tutor: boolean
   webllmModel: string | null
+  /** Wählbare Modelle (nur `server`), erstes = Standard */
+  models: { id: string, label: string }[]
+  /** WebLLM als Ersatz: keine Lizenz für den eigenen Schlüssel, Credits oder Tageslimit aufgebraucht */
+  notice: AiNotice
+}
+
+/** Höchstlänge einer Antwort – begrenzt auch, wie weit eine Anfrage das Kontingent überziehen kann */
+export const AI_MAX_OUTPUT_TOKENS = 2048
+
+/** Verbrauch intern in Tausendstel-Credits (eine Anfrage kostet oft nur Bruchteile eines Credits) */
+export const MILLI = 1000
+
+/** Kosten einer Anfrage in Tausendstel-Credits (Preise je 1 Mio. Tokens) */
+export function aiCostMillicredits(price: Pick<AiPlatformModel, 'inputCredits' | 'outputCredits'>, usage: { input: number, output: number }) {
+  return Math.ceil((usage.input * price.inputCredits + usage.output * price.outputCredits) / 1000)
 }
 
 /** Modelle für WebLLM (im Browser, WebGPU) – klein genug für Schulrechner, Code-Modelle zuerst */

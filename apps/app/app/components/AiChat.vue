@@ -34,6 +34,18 @@ watch(() => ai.messages.value.at(-1)?.content, () => nextTick(() => {
   list.value?.scrollTo({ top: list.value.scrollHeight })
 }))
 
+const modelItems = computed(() => ai.config.value?.models.map(m => ({ value: m.id, label: m.label })) ?? [])
+// Gewähltes Modell nicht mehr freigegeben ⇒ Standard
+watch(modelItems, (items) => {
+  if (ai.model.value && !items.some(i => i.value === ai.model.value)) ai.model.value = ''
+})
+const selectedModel = computed({
+  get: () => ai.model.value || modelItems.value[0]?.value || '',
+  set: (value: string) => {
+    ai.model.value = value
+  },
+})
+
 const suggestions = computed(() => [t('ai.suggestions.explain'), t('ai.suggestions.next'), t('ai.suggestions.loop')])
 
 async function copy(code: string) {
@@ -60,6 +72,16 @@ async function copy(code: string) {
         v-if="ai.config.value?.mode === 'webllm'"
         class="text-xs text-(--ui-text-muted)"
       >{{ t('ai.onDevice') }}</span>
+      <USelect
+        v-else-if="modelItems.length > 1"
+        v-model="selectedModel"
+        :items="modelItems"
+        size="xs"
+        variant="ghost"
+        :aria-label="t('ai.model')"
+        class="min-w-0 max-w-48"
+        data-testid="ai-model"
+      />
       <UButton
         class="ms-auto"
         size="xs"
@@ -77,6 +99,14 @@ async function copy(code: string) {
       class="min-h-0 flex-1 space-y-3 overflow-y-auto p-3 text-sm"
       aria-live="polite"
     >
+      <UAlert
+        v-if="ai.config.value?.notice"
+        color="info"
+        variant="subtle"
+        icon="i-lucide-cpu"
+        :description="t(`ai.notice.${ai.config.value.notice}`)"
+        data-testid="ai-notice"
+      />
       <div
         v-if="!ai.messages.value.length"
         class="space-y-3 text-(--ui-text-muted)"

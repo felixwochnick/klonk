@@ -12,6 +12,8 @@ type LicenseClaims = JWTPayload & {
   /** `null`/fehlend = unbegrenzt */
   maxUsers?: number | null
   features?: string[]
+  /** KI-Credits pro Monat (gehostete Plattform) */
+  aiCredits?: number
   /** Optional: Token gilt nur für diese Domains (inkl. Subdomains) */
   domains?: string[]
 }
@@ -69,6 +71,7 @@ export async function verifyLicenseToken(token: string, options: VerifyOptions =
     licensee: claims.name ?? claims.sub ?? null,
     maxUsers: typeof claims.maxUsers === 'number' ? claims.maxUsers : null,
     features: (claims.features ?? []).filter((f): f is LicenseFeature => (LICENSE_FEATURES as readonly string[]).includes(f)),
+    aiCredits: typeof claims.aiCredits === 'number' && claims.aiCredits > 0 ? Math.floor(claims.aiCredits) : 0,
     expiresAt: expiresAt?.toISOString() ?? null,
     problem,
   }
@@ -160,6 +163,7 @@ export const LOCAL_LICENSE: LicenseInfo = {
   licensee: null,
   maxUsers: null,
   features: LICENSE_FEATURES.filter(f => f !== 'hosted'),
+  aiCredits: 0,
   expiresAt: null,
   problem: null,
 }

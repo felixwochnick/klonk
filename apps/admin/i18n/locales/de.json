@@ -137,29 +137,83 @@
     },
     "ai": {
       "description": "Der KI-Assistent hilft beim Programmieren: Er erklärt Fehler, beantwortet Fragen zum Code und gibt Hinweise. Wähle, welches Sprachmodell deine Organisation nutzt.",
-      "locked": "Der KI-Assistent ist Teil der Lizenz.",
+      "locked": "Ein eigener Anbieter ist Teil der Lizenz. Ohne Lizenz läuft der Assistent kostenlos im Browser (WebLLM).",
       "mode": "Sprachmodell",
       "modes": {
         "inherit": "Standard der Instanz",
         "off": "Aus",
-        "server": "Eigener Server (OpenAI-kompatibel)",
-        "webllm": "Im Browser (WebLLM)"
+        "webllm": "Im Browser (WebLLM, kostenlos)",
+        "server": "Eigener Anbieter (API-Schlüssel)",
+        "platform": "Klonk-KI (über Klonk abgerechnet)"
       },
       "inheritDescription": "Einstellung des Betreibers übernehmen (zurzeit: {mode}, Modell {model}).",
       "modeDescriptions": {
         "off": "Kein KI-Assistent für diese Organisation.",
-        "server": "Anfragen laufen über den Klonk-Server an euren Anbieter (OpenAI, Azure, Ollama, vLLM, LM Studio …). Der Schlüssel bleibt auf dem Server.",
-        "webllm": "Das Modell läuft auf dem Gerät (WebGPU nötig, einmaliger Download von ca. 1–2 GB). Es verlassen keine Daten das Gerät."
+        "webllm": "Das Modell läuft auf dem Gerät (WebGPU nötig, einmaliger Download von ca. 1–2 GB). Es verlassen keine Daten das Gerät.",
+        "server": "Euer Konto bei OpenAI, Anthropic (Claude), Google (Gemini), Mistral oder ein eigener Server wie Ollama. Anfragen laufen über den Klonk-Server, der Schlüssel bleibt dort.",
+        "platform": "Gängige Modelle ohne eigenes Konto: Verbrauch in Credits aus eurem KI-Paket, mit hartem Limit – keine Überraschungen auf der Rechnung."
       },
-      "serverHelp": "Jeder Dienst mit einer OpenAI-kompatiblen Schnittstelle (/chat/completions) funktioniert.",
+      "presets": {
+        "openai": "OpenAI (ChatGPT)",
+        "anthropic": "Anthropic (Claude)",
+        "gemini": "Google (Gemini)",
+        "mistral": "Mistral",
+        "ollama": "Ollama (eigener Server)",
+        "custom": "Andere (OpenAI-kompatibel)"
+      },
+      "serverHelp": "Jeder Dienst mit OpenAI-kompatibler Schnittstelle (/chat/completions) funktioniert, Anthropic wird direkt angebunden.",
+      "provider": "Anbieter",
       "baseUrl": "API-Adresse",
       "baseUrlHelp": "Basis-URL inklusive /v1, z. B. https://api.openai.com/v1 oder http://ollama:11434/v1",
+      "baseUrlHelpAnthropic": "Basis-URL der Anthropic-API, normalerweise https://api.anthropic.com/v1",
       "model": "Modell",
+      "models": "Modelle",
+      "modelsHelp": "Modellnamen wie beim Anbieter. Das erste ist der Standard, weitere können im Chat gewählt werden.",
+      "modelPlaceholder": "z. B. gpt-5-mini, claude-haiku-5-5, qwen2.5-coder:7b",
+      "addModel": "Modell hinzufügen",
+      "removeModel": "Modell entfernen",
+      "accessLabel": "Freigegeben für",
+      "accessFor": "Freigabe für {model}",
+      "access": {
+        "all": "Alle",
+        "teachers": "Nur Lehrkräfte",
+        "off": "Aus"
+      },
       "apiKey": "API-Schlüssel",
       "apiKeyHelp": "Optional (z. B. bei Ollama nicht nötig). Wird verschlüsselt gespeichert.",
+      "platformHelp": "Anfragen laufen über Klonk zum Anbieter. Jede Anfrage verbraucht Credits nach Modell (1 Credit ≈ 1 Cent). Ist das Kontingent leer, geht es kostenlos im Browser weiter.",
+      "quotaMonthly": "Diesen Monat: {used} von {total} Credits",
+      "quotaExtra": "Nachgekauft übrig: {left} Credits",
+      "quotaEmpty": "Die Credits sind aufgebraucht – der Assistent läuft bis zum nächsten Monat im Browser (WebLLM).",
+      "buyCredits": "KI-Paket buchen oder Credits nachkaufen",
+      "noPlatformModels": "Zurzeit sind keine Modelle der Klonk-KI verfügbar.",
+      "price": "Preis",
+      "priceValue": "{input} / {output} Credits je 1 Mio. Tokens (Eingabe / Ausgabe)",
+      "premium": "Premium",
       "webllmHelp": "Die Modellgewichte werden beim ersten Öffnen des Assistenten von Hugging Face geladen und im Browser gespeichert. Braucht einen Browser mit WebGPU (Chrome, Edge).",
+      "webllmFallback": "Ersatz, wenn Credits oder Tageslimit aufgebraucht sind: Das Modell läuft dann kostenlos im Browser.",
       "tutor": "Lernende bekommen nur Hinweise",
-      "tutorDescription": "Der Assistent erklärt und gibt Tipps, schreibt aber keine fertigen Lösungen. Lehrkräfte und Admins bekommen immer volle Hilfe."
+      "tutorDescription": "Der Assistent erklärt und gibt Tipps, schreibt aber keine fertigen Lösungen. Lehrkräfte und Admins bekommen immer volle Hilfe.",
+      "dailyRequests": "Anfragen pro Tag (Lernende)",
+      "dailyCredits": "Credits pro Tag (Lernende)",
+      "dailyHelp": "Leer = ohne Limit. Danach geht es für diesen Tag im Browser weiter.",
+      "unlimited": "ohne Limit",
+      "usage": {
+        "title": "Verbrauch",
+        "description": "Anfragen über den Server je Monat – ohne Chatinhalte.",
+        "month": "Monat",
+        "requests": "Anfragen",
+        "inputTokens": "Eingabe-Tokens",
+        "outputTokens": "Ausgabe-Tokens",
+        "tokens": "Tokens",
+        "credits": "Credits",
+        "account": "Konto",
+        "empty": "In diesem Monat gab es keine Anfragen über den Server.",
+        "source": {
+          "server": "eigener Schlüssel",
+          "platform": "Klonk-KI"
+        }
+      }
     }
   },
   "errors": {

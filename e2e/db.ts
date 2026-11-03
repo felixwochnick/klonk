@@ -15,7 +15,7 @@ export async function ensureDatabase() {
   }
 }
 
-export const RESET_SQL = 'truncate organizations, users, sessions, accounts, organization_auth_settings, organization_ai_settings, instance_settings cascade'
+export const RESET_SQL = 'truncate organizations, users, sessions, accounts, organization_auth_settings, organization_ai_settings, ai_usage, ai_credit_grants, instance_settings cascade'
 
 export async function resetData() {
   const sql = postgres(e2eDatabaseUrl, { max: 1, onnotice: () => {} })

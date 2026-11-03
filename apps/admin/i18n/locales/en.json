@@ -137,29 +137,83 @@
     },
     "ai": {
       "description": "The AI assistant helps with programming: it explains errors, answers questions about the code and gives hints. Choose which language model your organization uses.",
-      "locked": "The AI assistant is part of the license.",
+      "locked": "An own provider is part of the license. Without a license the assistant runs for free in the browser (WebLLM).",
       "mode": "Language model",
       "modes": {
         "inherit": "Instance default",
         "off": "Off",
-        "server": "Own server (OpenAI-compatible)",
-        "webllm": "In the browser (WebLLM)"
+        "webllm": "In the browser (WebLLM, free)",
+        "server": "Own provider (API key)",
+        "platform": "Klonk AI (billed by Klonk)"
       },
       "inheritDescription": "Use the operator's setting (currently: {mode}, model {model}).",
       "modeDescriptions": {
         "off": "No AI assistant for this organization.",
-        "server": "Requests go through the Klonk server to your provider (OpenAI, Azure, Ollama, vLLM, LM Studio …). The key stays on the server.",
-        "webllm": "The model runs on the device (requires WebGPU, one-time download of about 1–2 GB). No data leaves the device."
+        "webllm": "The model runs on the device (requires WebGPU, one-time download of about 1–2 GB). No data leaves the device.",
+        "server": "Your account with OpenAI, Anthropic (Claude), Google (Gemini), Mistral or your own server such as Ollama. Requests go through the Klonk server, the key stays there.",
+        "platform": "Popular models without your own account: usage in credits from your AI package with a hard limit – no surprises on the invoice."
       },
-      "serverHelp": "Any service with an OpenAI-compatible interface (/chat/completions) works.",
+      "presets": {
+        "openai": "OpenAI (ChatGPT)",
+        "anthropic": "Anthropic (Claude)",
+        "gemini": "Google (Gemini)",
+        "mistral": "Mistral",
+        "ollama": "Ollama (own server)",
+        "custom": "Other (OpenAI-compatible)"
+      },
+      "serverHelp": "Any service with an OpenAI-compatible interface (/chat/completions) works, Anthropic is connected directly.",
+      "provider": "Provider",
       "baseUrl": "API address",
       "baseUrlHelp": "Base URL including /v1, e.g. https://api.openai.com/v1 or http://ollama:11434/v1",
+      "baseUrlHelpAnthropic": "Base URL of the Anthropic API, usually https://api.anthropic.com/v1",
       "model": "Model",
+      "models": "Models",
+      "modelsHelp": "Model names as used by the provider. The first one is the default, others can be chosen in the chat.",
+      "modelPlaceholder": "e.g. gpt-5-mini, claude-haiku-5-5, qwen2.5-coder:7b",
+      "addModel": "Add model",
+      "removeModel": "Remove model",
+      "accessLabel": "Available to",
+      "accessFor": "Availability of {model}",
+      "access": {
+        "all": "Everyone",
+        "teachers": "Teachers only",
+        "off": "Off"
+      },
       "apiKey": "API key",
       "apiKeyHelp": "Optional (e.g. not needed for Ollama). Stored encrypted.",
+      "platformHelp": "Requests go through Klonk to the provider. Each request uses credits depending on the model (1 credit ≈ 1 cent). When the quota is used up, the assistant continues for free in the browser.",
+      "quotaMonthly": "This month: {used} of {total} credits",
+      "quotaExtra": "Purchased credits left: {left}",
+      "quotaEmpty": "The credits are used up – the assistant runs in the browser (WebLLM) until next month.",
+      "buyCredits": "Book an AI package or buy credits",
+      "noPlatformModels": "No Klonk AI models are available at the moment.",
+      "price": "Price",
+      "priceValue": "{input} / {output} credits per 1M tokens (input / output)",
+      "premium": "Premium",
       "webllmHelp": "The model weights are downloaded from Hugging Face the first time the assistant is opened and stored in the browser. Requires a browser with WebGPU (Chrome, Edge).",
+      "webllmFallback": "Fallback when credits or the daily limit are used up: the model then runs for free in the browser.",
       "tutor": "Learners only get hints",
-      "tutorDescription": "The assistant explains and gives tips but does not write finished solutions. Teachers and admins always get full help."
+      "tutorDescription": "The assistant explains and gives tips but does not write finished solutions. Teachers and admins always get full help.",
+      "dailyRequests": "Requests per day (learners)",
+      "dailyCredits": "Credits per day (learners)",
+      "dailyHelp": "Empty = no limit. After that, the assistant continues in the browser for the day.",
+      "unlimited": "no limit",
+      "usage": {
+        "title": "Usage",
+        "description": "Requests through the server per month – without chat contents.",
+        "month": "Month",
+        "requests": "Requests",
+        "inputTokens": "Input tokens",
+        "outputTokens": "Output tokens",
+        "tokens": "Tokens",
+        "credits": "Credits",
+        "account": "Account",
+        "empty": "There were no requests through the server this month.",
+        "source": {
+          "server": "own key",
+          "platform": "Klonk AI"
+        }
+      }
     }
   },
   "errors": {

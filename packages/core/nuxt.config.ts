@@ -46,13 +46,21 @@ export default defineNuxtConfig({
     // (NUXT_AI_MODE = server | webllm | off; leer + NUXT_AI_BASE_URL gesetzt ⇒ server)
     ai: {
       mode: '',
-      // OpenAI-kompatibler Endpunkt, z. B. `https://api.openai.com/v1` oder `http://ollama:11434/v1`
+      // `openai` (OpenAI-kompatibel: OpenAI, Gemini, Mistral, Ollama …) oder `anthropic`
+      provider: 'openai',
+      // z. B. `https://api.openai.com/v1` oder `http://ollama:11434/v1`
       baseUrl: '',
+      // Ein oder mehrere Modelle, durch Komma getrennt (erstes = Standard)
       model: '',
       apiKey: '',
       webllmModel: '',
       // `full` = auch Lernende bekommen volle Hilfe, sonst nur Hinweise
       students: 'tutor',
+      // Nur gehostete Plattform (Klonk-KI): Endpunkte des Betreibers als JSON
+      // `{ "openai": { "provider": "openai", "baseUrl": "…", "apiKey": "…" }, "anthropic": { … } }`
+      platformProviders: '',
+      // Modell-Liste mit Preisen als JSON (AiPlatformModel[]), solange keine von klonk.* abgeglichen ist
+      platformModels: '',
     },
     // Lokaler Testmodus (alles frei auf localhost/*.localhost); `off` schaltet ihn ab
     licenseLocalMode: 'on',

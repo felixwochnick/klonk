@@ -18,6 +18,9 @@ export default defineNitroPlugin((nitro) => {
       if (config.licenseServerApiKey && hasFeature(await getInstanceLicense(), 'hosted')) {
         const changed = await syncHostedLicenses({ ...deps, apiKey: config.licenseServerApiKey })
         if (changed) console.info(`[klonk] ${changed} Lizenz(en) vom Shop übernommen`)
+        // Klonk-KI: Modelle/Preise und nachgekaufte Credits holen, Verbrauch melden
+        await syncPlatformAi({ db: deps.db, serverUrl, apiKey: config.licenseServerApiKey })
+          .catch(error => console.warn('[klonk] Abgleich der Klonk-KI fehlgeschlagen', error))
       }
     }
     catch (error) {

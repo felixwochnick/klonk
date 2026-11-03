@@ -5,6 +5,7 @@
 //
 // Selbsthost-Pläne: `self-hosted` (Standard: bis 1000 Konten) und `self-hosted-enterprise` (Standard: unbegrenzt).
 // --max-users überschreibt die Grenze des Plans, `--max-users unlimited` = unbegrenzt.
+// Gehostete Plattform: --ai-credits 2000 = monatliche Credits der Klonk-KI (1 Credit ≈ 1 Cent API-Kosten).
 //
 // Standardschlüssel: ~/.config/klonk/license-signing-key.pem (privat, niemals ins Repo!)
 import { readFileSync } from 'node:fs'
@@ -22,6 +23,7 @@ const { values } = parseArgs({
     'features': { type: 'string', default: '' },
     'days': { type: 'string', default: '365' },
     'domains': { type: 'string' },
+    'ai-credits': { type: 'string' },
     'key': { type: 'string', default: join(homedir(), '.config/klonk/license-signing-key.pem') },
     'kid': { type: 'string', default: 'klonk-2026-1' },
   },
@@ -48,6 +50,7 @@ const token = await new SignJWT({
   plan: values.plan,
   maxUsers: maxUsers(),
   features: values.features.split(',').map(s => s.trim()).filter(Boolean),
+  ...(values['ai-credits'] ? { aiCredits: Number(values['ai-credits']) } : {}),
   ...(values.domains ? { domains: values.domains.split(',').map(s => s.trim()) } : {}),
 })
   .setProtectedHeader({ alg: 'EdDSA', kid: values.kid })

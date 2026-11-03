@@ -8,35 +8,46 @@ const bodySchema = z.object({
   // Editor-Kontext (Sprache, API-Referenz, Code, Fehler) – landet im Systemprompt
   context: z.string().max(AI_LIMITS.context).optional(),
   locale: z.string().max(10).optional(),
+  /** Gewähltes Modell (muss für den Nutzer freigegeben sein, sonst das Standardmodell) */
+  model: z.string().max(200).optional(),
 })
 
-// Chat über die OpenAI-kompatible API der Organisation/Instanz; Antwort als Text-Stream.
+// Chat über den Anbieter der Organisation/Instanz bzw. die Klonk-KI; Antwort als Text-Stream.
 // Systemprompt (Tutor oder volle Hilfe) setzt der Server – der Client kann die Regeln nicht ändern.
+// Limits und Kontingent prüft getAiConfig(), der Verbrauch wird nach der Antwort gespeichert (ohne Inhalte).
 export default defineEventHandler(async (event) => {
   const { user } = await requireAuth(event)
   const body = await readValidated(event, bodySchema)
-  const config = await getAiConfig(user, event)
-  if (config.reason === 'license') await requireFeature(user.organizationId, 'ai', event)
-  if (!config.enabled || config.mode !== 'server') throw createError({ statusCode: 409, message: 'ai_unavailable' })
+  const config = await getAiConfig(user, event, { model: body.model })
+  if (config.mode !== 'server' || !config.endpoint) {
+    const code = config.notice === 'quota' ? 'ai_quota' : config.notice === 'daily' ? 'ai_daily_limit' : 'ai_unavailable'
+    throw createError({ statusCode: 409, message: code })
+  }
 
   // Bricht der Browser ab (Stopp-Knopf), auch die Anfrage an das LLM beenden
   const abort = new AbortController()
+  const system = aiSystemPrompt({ tutor: config.tutor, locale: body.locale ?? 'de', context: body.context })
+  const tracker = new AiUsageTracker(system.length + body.messages.reduce((sum, m) => sum + m.content.length, 0))
+  let recorded = false
+  const record = () => {
+    if (recorded) return
+    recorded = true
+    recordAiUsage(config, tracker.usage).catch(error => console.warn('[ai] Verbrauch nicht gespeichert:', error))
+  }
   // (am Response: `close` des Requests feuert schon, wenn der Body gelesen ist)
   event.node.res.on('close', () => {
     if (!event.node.res.writableFinished) abort.abort()
+    record()
   })
 
-  const messages = [
-    { role: 'system', content: aiSystemPrompt({ tutor: config.tutor, locale: body.locale ?? 'de', context: body.context }) },
-    ...body.messages,
-  ]
-  const response = await fetchChatCompletion(config, messages, { stream: true, signal: abort.signal }).catch(() => null)
+  const response = await fetchAiChat(config.endpoint, system, body.messages, { stream: true, signal: abort.signal }).catch(() => null)
   if (!response?.ok || !response.body) {
+    recorded = true
     const detail = response ? `${response.status} ${(await response.text().catch(() => '')).slice(0, 200)}` : 'network'
     console.warn('[ai] Anfrage fehlgeschlagen:', detail)
     throw createError({ statusCode: 502, message: 'ai_upstream' })
   }
 
   setResponseHeaders(event, { 'content-type': 'text/plain; charset=utf-8', 'cache-control': 'no-store', 'x-accel-buffering': 'no' })
-  return sendStream(event, completionTextStream(response.body))
+  return sendStream(event, aiTextStream(response.body, config.endpoint.provider, tracker))
 })

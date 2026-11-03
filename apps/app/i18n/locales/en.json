@@ -403,6 +403,12 @@
     "disclaimer": "AI can make mistakes – check the answers.",
     "explainError": "Explain error",
     "explainPrompt": "Explain the error in my program. What does it mean and what causes it?",
-    "noWebGpu": "This browser does not support WebGPU – the language model cannot run here. Use e.g. Chrome or Edge."
+    "noWebGpu": "This browser does not support WebGPU – the language model cannot run here. Use e.g. Chrome or Edge.",
+    "model": "Model",
+    "notice": {
+      "license": "The configured language model requires a license – the assistant runs for free in your browser.",
+      "quota": "Your organization's AI credits are used up – the assistant now runs for free in your browser.",
+      "daily": "You have reached your daily limit – until tomorrow the assistant runs in your browser."
+    }
   }
 }

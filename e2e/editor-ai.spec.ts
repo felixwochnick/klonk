@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test'
 import { ADMIN_URL, APP_URL } from '../playwright.config'
-import { canSignLicense } from './license'
+import { canSignLicense, signLicense } from './license'
 import { MOCK_ANSWER, startMockLlm, type MockLlm } from './mock-llm'
 import { STACK } from './targets'
 import { browserFetch, changePassword, gotoHydrated, loginWithPassword } from './utils'
@@ -18,16 +18,19 @@ test.afterAll(async () => {
   await llm?.close()
 })
 
-test('Verwaltung: eigenes Sprachmodell einrichten', async ({ page }) => {
+test('Verwaltung: eigenen Anbieter einrichten', async ({ page }) => {
   test.skip(!canSignLicense, 'Kein Signierschlüssel für diese Testumgebung')
   await loginWithPassword(page, `${ADMIN_URL}/login`, 'admin@gym-muster.de', 'admin-passwort')
   await gotoHydrated(page, `${ADMIN_URL}/organization/ai`)
-  await expect(page.getByTestId('ai-locked')).toHaveCount(0)
+  // Selbsthosting: keine Klonk-KI zur Auswahl
+  await expect(page.getByLabel('Klonk-KI (über Klonk abgerechnet)')).toHaveCount(0)
 
-  await page.getByLabel('Eigener Server (OpenAI-kompatibel)').check()
+  await page.getByLabel('Eigener Anbieter (API-Schlüssel)').check()
+  await expect(page.getByTestId('ai-locked')).toHaveCount(0)
+  await expect(page.getByTestId('ai-preset')).toContainText('Andere (OpenAI-kompatibel)')
   await page.getByLabel('API-Adresse').fill(llm?.url ?? 'http://llm.invalid/v1')
-  await page.getByLabel('Modell').fill('mock-model')
-  await page.getByLabel('API-Schlüssel').fill('test-key')
+  await page.getByRole('textbox', { name: 'Modell' }).fill('mock-model')
+  await page.getByLabel('API-Schlüssel', { exact: true }).fill('test-key')
   await expect(page.getByRole('switch', { name: 'Lernende bekommen nur Hinweise' })).toBeChecked()
   if (llm) {
     await page.getByTestId('ai-test').click()
@@ -39,7 +42,7 @@ test('Verwaltung: eigenes Sprachmodell einrichten', async ({ page }) => {
   // Schlüssel wird nie ausgeliefert, bleibt aber gespeichert
   await page.reload()
   await expect(page.getByLabel('API-Adresse')).toHaveValue(llm?.url ?? 'http://llm.invalid/v1')
-  await expect(page.getByLabel('API-Schlüssel')).toHaveValue('')
+  await expect(page.getByLabel('API-Schlüssel', { exact: true })).toHaveValue('')
   await expect(page.getByText('Leer lassen, um den gespeicherten Wert zu behalten.')).toBeVisible()
 
   // Schüler-Konto für den Tipp-Modus
@@ -72,9 +75,10 @@ test('IDE: Fehler erklären, Chat mit Kontext, Code übernehmen', async ({ page 
   // Markdown ohne HTML: Fettdruck als eigenes Element
   await expect(chat.locator('strong', { hasText: 'Schleife' })).toBeVisible()
 
-  // Server setzt den Systemprompt (volle Hilfe für Admins)
+  // Server setzt den Systemprompt (volle Hilfe für Admins) und fragt den Verbrauch mit ab
   const system = llm!.requests.at(-1)!.messages[0]!
   expect(llm!.requests.at(-1)!.model).toBe('mock-model')
+  expect(llm!.requests.at(-1)!.stream_options).toEqual({ include_usage: true })
   expect(system.role).toBe('system')
   expect(system.content).toContain('Du darfst vollständigen Code schreiben')
   expect(system.content).toContain('  3 | klonk.step(50)')
@@ -115,4 +119,114 @@ test('IDE: Lernende bekommen nur Hinweise', async ({ browser }) => {
   // Kein Übernehmen im Tipp-Modus
   await expect(chat.getByTestId('ai-replace')).toHaveCount(0)
   await context.close()
+})
+
+test('Verwaltung: Tageslimit für Lernende und Verbrauch', async ({ browser, page }) => {
+  test.skip(!canSignLicense || STACK, 'Braucht Lizenz und den Test-Endpunkt')
+  await loginWithPassword(page, `${ADMIN_URL}/login`, 'admin@gym-muster.de', 'admin-passwort')
+  await gotoHydrated(page, `${ADMIN_URL}/organization/ai`)
+  await page.getByRole('spinbutton', { name: 'Anfragen pro Tag (Lernende)' }).fill('1')
+  await page.getByTestId('ai-save').click()
+  await expect(page.getByText('Gespeichert', { exact: true })).toBeVisible()
+
+  // Verbrauch ohne Inhalte: drei Anfragen (zwei vom Admin, eine von Kai) mit den Tokens des Anbieters
+  const usage = page.getByTestId('ai-usage')
+  await expect(usage.getByTestId('ai-usage-requests')).toHaveText('3')
+  await expect(usage.getByTestId('ai-usage-inputTokens')).toHaveText('3.000')
+  await expect(usage.getByTestId('ai-usage-users')).toContainText('Kai Klonk')
+
+  // Kai hat heute schon gefragt ⇒ weiter im Browser
+  const context = await browser.newContext({ locale: 'de-DE' })
+  const student = await context.newPage()
+  await loginWithPassword(student, `${APP_URL}/login`, 'kai@gym-muster.de', 'kai-geheim')
+  await gotoHydrated(student, APP_URL)
+  await student.getByTestId('tab-ai').click()
+  await expect(student.getByTestId('ai-notice')).toContainText('Tageslimit')
+  await expect(student.getByTestId('ai-chat')).toContainText('läuft auf diesem Gerät')
+  const chat = await browserFetch(student, '/api/ai/chat', { method: 'POST', body: { messages: [{ role: 'user', content: 'Hallo' }] } })
+  expect(chat.status).toBe(409)
+  await context.close()
+})
+
+test('Eigener Anbieter: Anthropic (Claude) direkt angebunden', async ({ page }) => {
+  test.skip(!canSignLicense || STACK, 'Braucht Lizenz und den Test-Endpunkt')
+  await loginWithPassword(page, `${ADMIN_URL}/login`, 'admin@gym-muster.de', 'admin-passwort')
+  await gotoHydrated(page, `${ADMIN_URL}/organization/ai`)
+  await page.getByTestId('ai-preset').click()
+  await page.getByRole('option', { name: 'Anthropic (Claude)' }).click()
+  await expect(page.getByLabel('API-Adresse')).toHaveValue('https://api.anthropic.com/v1')
+  await page.getByLabel('API-Adresse').fill(llm!.url)
+  await page.getByRole('textbox', { name: 'Modell' }).fill('claude-mock')
+  await page.getByTestId('ai-test').click()
+  await expect(page.getByText('Verbindung erfolgreich', { exact: true })).toBeVisible()
+  await page.getByTestId('ai-save').click()
+  await expect(page.getByText('Gespeichert', { exact: true })).toBeVisible()
+
+  await gotoHydrated(page, APP_URL)
+  const answer = await page.evaluate(() => fetch('/api/ai/chat', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ messages: [{ role: 'user', content: 'Hallo Claude' }], locale: 'de' }),
+  }).then(r => r.text()))
+  expect(answer).toBe(MOCK_ANSWER)
+  const request = llm!.requests.at(-1)!
+  expect(request.path).toBe('/v1/messages')
+  expect(request.model).toBe('claude-mock')
+  expect(request.system).toContain('Du darfst vollständigen Code schreiben')
+  expect(request.messages).toEqual([{ role: 'user', content: 'Hallo Claude' }])
+})
+
+test('Gehostete Plattform: Klonk-KI mit Credits, danach WebLLM', async ({ page }) => {
+  test.setTimeout(240_000)
+  test.skip(!canSignLicense || STACK, 'Braucht Lizenz und den Test-Endpunkt')
+  const features = ['oidc', 'characters', 'models', 'libraries', 'ai']
+  await loginWithPassword(page, `${ADMIN_URL}/login`, 'admin@gym-muster.de', 'admin-passwort')
+  const setInstance = async (hosted: boolean) => {
+    const token = await signLicense({ name: 'Gymnasium Musterstadt', maxUsers: 100, features: hosted ? [...features, 'hosted'] : features })
+    expect((await browserFetch(page, `${ADMIN_URL}/api/admin/license/instance`, { method: 'PUT', body: { token } })).ok).toBe(true)
+  }
+
+  try {
+    await gotoHydrated(page, `${ADMIN_URL}/organization/ai`)
+    await setInstance(true)
+    // Abo der Schule mit KI-Paket: 100 Credits im Monat (eine Anfrage kostet hier 105)
+    const orgToken = await signLicense({ name: 'Gymnasium Musterstadt', features, aiCredits: 100 })
+    expect((await browserFetch(page, `${ADMIN_URL}/api/admin/license/organization`, { method: 'PUT', body: { token: orgToken } })).ok).toBe(true)
+
+    await gotoHydrated(page, `${ADMIN_URL}/organization/ai`)
+    await page.getByLabel('Klonk-KI (über Klonk abgerechnet)').check()
+    const platform = page.getByTestId('ai-platform')
+    await expect(platform.getByTestId('ai-quota')).toContainText('Diesen Monat: 0 von 100 Credits')
+    await expect(platform.getByTestId('ai-platform-models')).toContainText('Klonk Mini')
+    // Teures Modell standardmäßig nur für Lehrkräfte
+    await expect(platform.getByRole('combobox', { name: 'Freigabe für Klonk Pro' })).toContainText('Nur Lehrkräfte')
+    await page.getByTestId('ai-save').click()
+    await expect(page.getByText('Gespeichert', { exact: true })).toBeVisible()
+
+    // Die App merkt sich die Instanz-Lizenz bis zu 60 s
+    await gotoHydrated(page, APP_URL)
+    const config = () => page.evaluate(() => fetch('/api/ai/config').then(r => r.json()))
+    await expect.poll(async () => (await config()).platform, { timeout: 75_000, intervals: [2000] }).toBe(true)
+    expect((await config()).models.map((m: { label: string }) => m.label)).toEqual(['Klonk Mini', 'Klonk Pro'])
+
+    await gotoHydrated(page, APP_URL)
+    await page.getByTestId('tab-ai').click()
+    const chat = page.getByTestId('ai-chat')
+    await expect(chat.getByTestId('ai-model')).toContainText('Klonk Mini')
+    await chat.getByRole('textbox', { name: 'Frage an den KI-Assistenten' }).fill('Was macht mein Programm?')
+    await chat.getByTestId('ai-send').click()
+    await expect(chat.getByTestId('ai-message-assistant')).toContainText('Viel Erfolg!')
+    expect(llm!.requests.at(-1)!.model).toBe('mock-platform')
+
+    // Kontingent aufgebraucht ⇒ hartes Limit, weiter kostenlos im Browser
+    await expect(chat.getByTestId('ai-notice')).toContainText('Credits deiner Organisation sind aufgebraucht')
+    expect((await config()).mode).toBe('webllm')
+
+    await gotoHydrated(page, `${ADMIN_URL}/organization/ai`)
+    await expect(page.getByTestId('ai-quota-empty')).toBeVisible()
+    await expect(page.getByTestId('ai-usage').getByTestId('ai-usage-credits')).toHaveText('105')
+  }
+  finally {
+    await setInstance(false)
+  }
 })

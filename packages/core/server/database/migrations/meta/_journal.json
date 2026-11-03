@@ -57,6 +57,27 @@
       "when": 1793637295632,
       "tag": "0007_user_licenses_rls",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1793660616753,
+      "tag": "0008_ai_platform",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1793660617235,
+      "tag": "0009_ai_models",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1793660623375,
+      "tag": "0010_ai_platform_rls",
+      "breakpoints": true
     }
   ]
 }
