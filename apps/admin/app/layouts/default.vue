@@ -67,9 +67,15 @@ const items = computed<NavigationMenuItem[][]>(() => [
         />
       </template>
 
-      <template #footer>
-        <div class="flex w-full items-center justify-between gap-1">
-          <UserMenu />
+      <template #footer="{ collapsed }">
+        <div
+          class="flex w-full min-w-0 items-center gap-1"
+          :class="collapsed ? 'justify-center' : 'justify-between'"
+        >
+          <UserMenu
+            :collapsed="collapsed"
+            block
+          />
           <div
             v-if="!user"
             class="flex"

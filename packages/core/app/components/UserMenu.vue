@@ -1,6 +1,9 @@
 <script setup lang="ts">
 import type { DropdownMenuItem } from '@nuxt/ui'
 
+// collapsed: eingeklappte Seitenleiste der Verwaltung ⇒ nur das Symbol; block: volle Breite mit gekürztem Namen
+const props = defineProps<{ collapsed?: boolean, block?: boolean }>()
+
 const { t } = useI18n()
 const { user, logout } = useAuth()
 const { changePasswordUrl } = useAuthUrls()
@@ -21,12 +24,19 @@ const items = computed<DropdownMenuItem[][]>(() => [
   <UDropdownMenu
     v-if="user"
     :items="items"
+    :content="{ align: props.collapsed ? 'start' : 'center', side: props.block ? 'top' : 'bottom' }"
+    :class="props.block && !props.collapsed ? 'w-full min-w-0' : ''"
   >
     <UButton
       variant="ghost"
       color="neutral"
       icon="i-lucide-circle-user"
-      :label="user.displayName"
+      :label="props.collapsed ? undefined : user.displayName"
+      :aria-label="user.displayName"
+      :square="props.collapsed"
+      :block="props.block && !props.collapsed"
+      :class="props.block && !props.collapsed ? 'justify-start' : ''"
+      :ui="{ label: 'truncate' }"
       data-testid="user-menu"
     />
   </UDropdownMenu>
