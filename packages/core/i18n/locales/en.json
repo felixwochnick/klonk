@@ -10,9 +10,7 @@
       "submit": "Sign in",
       "or": "or",
       "sso": "Sign in with {name}",
-      "private": "Private account",
-      "with": "Sign in with {name}",
-      "operator": "Operators"
+      "with": "Sign in with {name}"
     },
     "logout": "Sign out",
     "changePassword": {

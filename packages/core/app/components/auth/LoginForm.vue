@@ -187,8 +187,8 @@ function reset() {
       />
     </div>
 
-    <template v-if="!lookup && socialProviders.length">
-      <USeparator :label="t('auth.login.private')" />
+    <template v-if="!lookup && (socialProviders.length || operatorLogin)">
+      <USeparator :label="t('auth.login.or')" />
       <div class="space-y-2">
         <UButton
           v-for="provider in socialProviders"
@@ -200,19 +200,16 @@ function reset() {
           :label="t('auth.login.with', { name: providerNames[provider] })"
           @click="loginWithProvider(provider)"
         />
+        <UButton
+          v-if="operatorLogin"
+          block
+          variant="outline"
+          color="neutral"
+          :icon="operatorLogin.icon || 'i-lucide-shield-user'"
+          :label="t('auth.login.with', { name: operatorLogin.name })"
+          @click="loginWithProvider('platform')"
+        />
       </div>
-    </template>
-
-    <template v-if="!lookup && operatorLogin">
-      <USeparator :label="t('auth.login.operator')" />
-      <UButton
-        block
-        variant="ghost"
-        color="neutral"
-        :icon="operatorLogin.icon || 'i-lucide-shield-user'"
-        :label="t('auth.login.with', { name: operatorLogin.name })"
-        @click="loginWithProvider('platform')"
-      />
     </template>
 
     <slot name="footer" />

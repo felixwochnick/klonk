@@ -10,9 +10,7 @@
       "submit": "Anmelden",
       "or": "oder",
       "sso": "Mit {name} anmelden",
-      "private": "Privatkonto",
-      "with": "Mit {name} anmelden",
-      "operator": "Betreiber:innen"
+      "with": "Mit {name} anmelden"
     },
     "logout": "Abmelden",
     "changePassword": {
