@@ -6,15 +6,13 @@ const { isLocal } = useLicense()
 // Angemeldet: Sprache und Darstellung unter Einstellungen (Kontomenü)
 const { user } = useAuth()
 
-// Optionaler Vollbildmodus: Kopfzeile weg, Seiten rechnen mit Kopfzeilenhöhe 0
+// Optionales Browser-Vollbild, die Kopfzeile bleibt
 const fullscreen = useAppFullscreen()
-fullscreen.listen()
-useHead({ htmlAttrs: { class: computed(() => (fullscreen.active.value ? 'klonk-fullscreen' : '')) } })
 </script>
 
 <template>
   <div class="min-h-dvh flex flex-col">
-    <UHeader v-if="!fullscreen.active.value">
+    <UHeader>
       <template #title>
         <KlonkLogo />
       </template>
@@ -62,45 +60,26 @@ useHead({ htmlAttrs: { class: computed(() => (fullscreen.active.value ? 'klonk-f
           <LocaleSwitch />
           <UColorModeButton />
         </template>
-        <UTooltip :text="t('fullscreen.enter')">
+        <UTooltip
+          v-if="fullscreen.supported.value"
+          :text="fullscreen.active.value ? t('fullscreen.exit') : t('fullscreen.enter')"
+        >
           <UButton
-            icon="i-lucide-maximize"
+            :icon="fullscreen.active.value ? 'i-lucide-minimize' : 'i-lucide-maximize'"
             variant="ghost"
             color="neutral"
-            :aria-label="t('fullscreen.enter')"
+            :aria-label="fullscreen.active.value ? t('fullscreen.exit') : t('fullscreen.enter')"
+            :aria-pressed="fullscreen.active.value"
             data-testid="fullscreen"
-            @click="fullscreen.enter()"
+            @click="fullscreen.toggle()"
           />
         </UTooltip>
         <UserMenu />
       </template>
     </UHeader>
 
-    <!-- Im Vollbild: dezenter Knopf zum Verlassen -->
-    <UTooltip
-      v-if="fullscreen.active.value"
-      :text="t('fullscreen.exit')"
-    >
-      <UButton
-        icon="i-lucide-minimize"
-        color="neutral"
-        variant="subtle"
-        class="fixed right-3 bottom-3 z-50 shadow-md"
-        :aria-label="t('fullscreen.exit')"
-        data-testid="fullscreen-exit"
-        @click="fullscreen.exit()"
-      />
-    </UTooltip>
-
     <UMain>
       <slot />
     </UMain>
   </div>
 </template>
-
-<style>
-/* Vollbild: Seitenhöhen rechnen mit calc(100dvh - Kopfzeile) */
-html.klonk-fullscreen {
-  --ui-header-height: 0px;
-}
-</style>
