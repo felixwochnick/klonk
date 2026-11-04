@@ -362,6 +362,7 @@
     "packageHelp": "Separate parts with dots, e.g. game.characters",
     "klonkAndBlocks": "Klonk-Script & blocks"
   },
+  "fullscreen": { "enter": "Full screen", "exit": "Exit full screen" },
   "pwa": {
     "install": "Install app",
     "offline": "Offline"
@@ -539,6 +540,8 @@
     "objectives": "Learning objectives",
     "introduction": "Introduction",
     "tasks": "Tasks",
+    "showTask": "Show task",
+    "hideTask": "Hide task",
     "taskNumber": "Task {n} of {total}",
     "severalWorlds": "Your program is checked in {n} worlds – you can find them via the tabs above the world.",
     "hint": "Hint {n}",

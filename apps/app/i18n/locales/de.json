@@ -362,6 +362,7 @@
     "packageHelp": "Teile mit Punkt trennen, z. B. spiel.figuren",
     "klonkAndBlocks": "Klonk-Script & Blöcke"
   },
+  "fullscreen": { "enter": "Vollbild", "exit": "Vollbild beenden" },
   "pwa": {
     "install": "App installieren",
     "offline": "Offline"
@@ -539,6 +540,8 @@
     "objectives": "Lernziele",
     "introduction": "Einführung",
     "tasks": "Aufgaben",
+    "showTask": "Aufgabenstellung einblenden",
+    "hideTask": "Aufgabenstellung ausblenden",
     "taskNumber": "Aufgabe {n} von {total}",
     "severalWorlds": "Dein Programm wird in {n} Welten geprüft – du findest sie über die Reiter über der Welt.",
     "hint": "Tipp {n}",

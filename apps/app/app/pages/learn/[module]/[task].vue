@@ -207,6 +207,29 @@ watch(speed, delay => runner?.setDelay(delay))
 // Prüfen: alle Startwelten ohne Animation
 const checking = ref(false)
 const result = ref<LearnCheckResult | null>(null)
+
+// Aufgabenstellung einklappbar (merkt sich der Browser); ein Prüfergebnis klappt sie wieder auf
+const TASK_COLLAPSED_KEY = 'klonk-learn-task-collapsed'
+const taskCollapsed = ref(false)
+onMounted(() => {
+  try {
+    taskCollapsed.value = localStorage.getItem(TASK_COLLAPSED_KEY) === '1'
+  }
+  catch {
+    // kein Speicher (privater Modus)
+  }
+})
+watch(taskCollapsed, (collapsed) => {
+  try {
+    localStorage.setItem(TASK_COLLAPSED_KEY, collapsed ? '1' : '0')
+  }
+  catch {
+    // kein Speicher (privater Modus)
+  }
+})
+watch(result, (value) => {
+  if (value) taskCollapsed.value = false
+})
 async function check() {
   if (!task || !module || !expected.value || running.value) return
   if (!source.value.trim()) {
@@ -378,9 +401,40 @@ const showSolution = ref(false)
       </div>
     </div>
 
-    <div class="grid min-h-0 flex-1 grid-cols-1 lg:grid-cols-[22rem_minmax(0,1fr)_minmax(0,1fr)]">
+    <div
+      class="grid min-h-0 flex-1 grid-cols-1"
+      :class="taskCollapsed ? 'lg:grid-cols-[2.75rem_minmax(0,1fr)_minmax(0,1fr)]' : 'lg:grid-cols-[22rem_minmax(0,1fr)_minmax(0,1fr)]'"
+    >
+      <!-- Aufgabe eingeklappt: schmale Leiste (breit) bzw. eine Zeile (schmal) -->
+      <aside
+        v-if="taskCollapsed"
+        class="flex items-center gap-2 border-b border-(--ui-border) px-2 py-1 lg:flex-col lg:border-b-0 lg:border-e lg:py-2"
+        data-testid="learn-task-collapsed"
+      >
+        <UTooltip :text="t('learn.showTask')">
+          <UButton
+            icon="i-lucide-panel-left-open"
+            variant="ghost"
+            color="neutral"
+            size="sm"
+            :aria-label="t('learn.showTask')"
+            data-testid="learn-task-toggle"
+            @click="taskCollapsed = false"
+          />
+        </UTooltip>
+        <button
+          type="button"
+          class="min-w-0 truncate text-start text-sm font-semibold text-(--ui-text-muted) hover:text-(--ui-text) lg:rotate-180 lg:[writing-mode:vertical-rl]"
+          @click="taskCollapsed = false"
+        >
+          {{ t('learn.taskNumber', { n: taskIndex + 1, total: module.tasks.length }) }} · {{ task.title[lang] }}
+        </button>
+      </aside>
       <!-- Aufgabe -->
-      <aside class="overflow-y-auto border-b border-(--ui-border) p-4 lg:border-b-0 lg:border-e">
+      <aside
+        v-else
+        class="overflow-y-auto border-b border-(--ui-border) p-4 lg:border-b-0 lg:border-e"
+      >
         <UAlert
           v-if="foreign"
           class="mb-4"
@@ -400,9 +454,23 @@ const showSolution = ref(false)
           :description="loadError"
           data-testid="learn-load-error"
         />
-        <p class="text-xs font-semibold uppercase tracking-wide text-(--ui-text-muted)">
-          {{ t('learn.taskNumber', { n: taskIndex + 1, total: module.tasks.length }) }}
-        </p>
+        <div class="flex items-center justify-between gap-2">
+          <p class="text-xs font-semibold uppercase tracking-wide text-(--ui-text-muted)">
+            {{ t('learn.taskNumber', { n: taskIndex + 1, total: module.tasks.length }) }}
+          </p>
+          <UTooltip :text="t('learn.hideTask')">
+            <UButton
+              icon="i-lucide-panel-left-close"
+              variant="ghost"
+              color="neutral"
+              size="xs"
+              class="-my-1"
+              :aria-label="t('learn.hideTask')"
+              data-testid="learn-task-toggle"
+              @click="taskCollapsed = true"
+            />
+          </UTooltip>
+        </div>
         <h1 class="mb-3 mt-1 flex items-center gap-2 text-lg font-bold">
           {{ task.title[lang] }}
           <UIcon
