@@ -6,7 +6,7 @@ const { t } = useI18n()
 useSeoMeta({ title: () => t('project.explorer') })
 
 const {
-  proj, cloud, canFolders, canBrowser, browserProjects, recent, openFolder, openRecent, openBrowserProject, removeBrowserProject,
+  proj, cloud, canFolders, canCreateProject, locations, dialogLocation, browserProjects, recent, openFolder, openRecent, openBrowserProject, removeBrowserProject,
   dialog, dialogName, dialogLanguage, dialogTitle, openDialog, submitDialog, openFile, newItemsIn, fileActions, fileContextItems, areaContextItems, kindLabel,
   folders, folderActions, parentOf, baseName, dropTarget, onDragStart, onDragOver, onDrop,
 } = useProjectExplorer({
@@ -58,20 +58,20 @@ const syncLabel = computed(() => (proj.sync.value ? t(`cloud.sync.${proj.sync.va
       <aside class="flex shrink-0 flex-col gap-4 overflow-y-auto border-(--ui-border) p-4 text-sm lg:w-72 lg:border-r">
         <div class="flex flex-col gap-2">
           <UButton
-            v-if="canFolders"
-            icon="i-lucide-folder-open"
-            :label="t('project.openFolder')"
-            block
-            @click="openFolder"
-          />
-          <UButton
-            v-if="canBrowser"
+            v-if="canCreateProject"
             icon="i-lucide-folder-plus"
-            variant="outline"
-            :label="t('project.newBrowserProject')"
+            :label="t('project.newProject')"
             block
             data-testid="explorer-new-project"
             @click="openDialog({ mode: 'project' })"
+          />
+          <UButton
+            v-if="canFolders"
+            icon="i-lucide-folder-open"
+            variant="outline"
+            :label="t('project.openFolder')"
+            block
+            @click="openFolder"
           />
         </div>
 
@@ -137,7 +137,7 @@ const syncLabel = computed(() => (proj.sync.value ? t(`cloud.sync.${proj.sync.va
               icon="i-lucide-plus"
               :aria-label="t('cloud.newProject')"
               data-testid="cloud-new-project"
-              @click="openDialog({ mode: 'cloud' })"
+              @click="openDialog({ mode: 'project', location: 'cloud' })"
             />
           </div>
           <p
@@ -447,7 +447,9 @@ const syncLabel = computed(() => (proj.sync.value ? t(`cloud.sync.${proj.sync.va
     <ProjectNameDialog
       v-model:name="dialogName"
       v-model:language="dialogLanguage"
-      :with-language="dialog?.mode === 'project' || dialog?.mode === 'init' || dialog?.mode === 'cloud'"
+      v-model:location="dialogLocation"
+      :locations="dialog?.mode === 'project' ? locations : []"
+      :with-language="dialog?.mode === 'project' || dialog?.mode === 'init'"
       :with-name="dialog?.mode !== 'init'"
       :hint="dialog?.mode === 'package' ? t('project.packageHelp') : undefined"
       :open="!!dialog"

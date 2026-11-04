@@ -129,6 +129,7 @@ test('Eigenes Cloud-Projekt auf zwei Geräten, lokales Projekt hochladen', async
 
   // Browser-Projekt in die Cloud hochladen
   await laptop.getByTestId('explorer-new-project').click()
+  await laptop.getByTestId('project-dialog-location-browser').click()
   await laptop.getByTestId('project-dialog-name').fill('Lokal')
   await laptop.getByTestId('project-dialog-submit').click()
   await expect(laptop.getByTestId('explorer-project-name')).toHaveText('Lokal')

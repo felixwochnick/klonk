@@ -269,9 +269,15 @@
   },
   "project": {
     "title": "Project",
-    "intro": "Save programs and worlds as files – in a folder on your computer or as a project in the browser.",
+    "intro": "Save programs and worlds as files – in the Klonk Cloud, in the browser or in a folder on your computer.",
     "openFolder": "Open folder",
-    "newBrowserProject": "New browser project",
+    "newProject": "New project",
+    "location": "Location",
+    "locations": {
+      "cloud": { "label": "Klonk Cloud", "description": "Available on all your devices and synced automatically." },
+      "browser": { "label": "In the browser", "description": "Stored only in this browser on this device." },
+      "folder": { "label": "Folder on your computer", "description": "New folder – you choose where it is created. Can also be edited with other programs." }
+    },
     "recentFolders": "Recent folders",
     "browserProjects": "Browser projects",
     "close": "Close project",

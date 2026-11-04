@@ -2,7 +2,7 @@
 // Projekt-Explorer (Seitenleiste der IDE): Ordner/Browser-Projekte öffnen, Dateien anlegen, umbenennen, löschen, Welt wählen
 const { t } = useI18n()
 const {
-  proj, canFolders, canBrowser, browserProjects, recent, openFolder, openRecent, openBrowserProject, removeBrowserProject,
+  proj, canFolders, canCreateProject, locations, dialogLocation, browserProjects, recent, openFolder, openRecent, openBrowserProject, removeBrowserProject,
   dialog, dialogName, dialogLanguage, dialogTitle, openDialog, submitDialog, openFile, newItems, fileActions, fileContextItems, areaContextItems,
   tree, toggleFolder, folderActions, parentOf, dropTarget, onDragStart, onDragOver, onDrop,
 } = useProjectExplorer()
@@ -34,20 +34,20 @@ const selectedWorld = computed({
         {{ t('project.intro') }}
       </p>
       <UButton
+        v-if="canCreateProject"
+        icon="i-lucide-folder-plus"
+        :label="t('project.newProject')"
+        block
+        data-testid="new-project"
+        @click="openDialog({ mode: 'project' })"
+      />
+      <UButton
         v-if="canFolders"
         icon="i-lucide-folder-open"
+        variant="outline"
         :label="t('project.openFolder')"
         block
         @click="openFolder"
-      />
-      <UButton
-        v-if="canBrowser"
-        icon="i-lucide-folder-plus"
-        variant="outline"
-        :label="t('project.newBrowserProject')"
-        block
-        data-testid="new-browser-project"
-        @click="openDialog({ mode: 'project' })"
       />
 
       <div v-if="recent.length">
@@ -272,6 +272,8 @@ const selectedWorld = computed({
     <ProjectNameDialog
       v-model:name="dialogName"
       v-model:language="dialogLanguage"
+      v-model:location="dialogLocation"
+      :locations="dialog?.mode === 'project' ? locations : []"
       :with-language="dialog?.mode === 'project' || dialog?.mode === 'init'"
       :with-name="dialog?.mode !== 'init'"
       :hint="dialog?.mode === 'package' ? t('project.packageHelp') : undefined"

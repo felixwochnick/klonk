@@ -219,6 +219,27 @@ export async function pickFolder(): Promise<Project | null> {
   }
 }
 
+/**
+ * Neues Projekt als Ordner auf dem Rechner: übergeordneten Ordner wählen, darin `name` anlegen.
+ * Ein vorhandener, leerer Ordner wird übernommen; `null` = Auswahl abgebrochen.
+ */
+export async function createFolderProject(name: string): Promise<Project | null> {
+  if (!isValidName(name)) throw new Error('invalid_name')
+  let parent: FileSystemDirectoryHandle
+  try {
+    parent = await (window as unknown as { showDirectoryPicker: (o: object) => Promise<FileSystemDirectoryHandle> })
+      .showDirectoryPicker({ id: 'klonk-project-parent', mode: 'readwrite', startIn: 'documents' })
+  }
+  catch {
+    return null
+  }
+  const existing = await parent.getDirectoryHandle(name).catch(() => null)
+  if (existing) {
+    for await (const _entry of existing as unknown as AsyncIterable<unknown>) throw new Error('exists')
+  }
+  return new Project(existing ?? await parent.getDirectoryHandle(name, { create: true }), 'folder')
+}
+
 async function browserRoot() {
   const root = await navigator.storage.getDirectory()
   return root.getDirectoryHandle('klonk-projects', { create: true })

@@ -4,12 +4,15 @@ import type { SqlEngineName } from '@klonk/runtime'
 import { databaseSample, sqlSample } from '~/utils/sql-samples'
 import { convertKarolFile, KAROL_ACCEPT, type KarolHint, type KarolTarget } from '~/utils/karol-import'
 import {
-  DATABASE_EXTENSIONS, deleteBrowserProject, ensurePermission, forgetProject, listBrowserProjects, pickFolder, recentProjects,
+  createFolderProject, DATABASE_EXTENSIONS, deleteBrowserProject, ensurePermission, forgetProject, listBrowserProjects, pickFolder, recentProjects,
   supportsBrowserProjects, supportsFolders, Project, type FileKind, type ProjectFile, type RecentProject,
 } from '~/utils/project-fs'
 
+/** Speicherort eines neuen Projekts */
+export type ProjectLocation = 'cloud' | 'browser' | 'folder'
+
 export type ProjectDialog
-  = | { mode: 'project' }
+  = | { mode: 'project', location?: ProjectLocation }
     /** Leerer Ordner geöffnet: Sprache wählen, Startdateien anlegen */
     | { mode: 'init' }
     | { mode: 'file', kind: Exclude<FileKind, 'other'>, folder?: string, engine?: SqlEngineName }
@@ -18,8 +21,7 @@ export type ProjectDialog
     | { mode: 'package', language: PackageLanguage, parent?: string }
     | { mode: 'rename', file: ProjectFile }
     | { mode: 'renameFolder', path: string }
-    /** Klonk Cloud: neues Projekt bzw. geöffnetes lokales Projekt hochladen */
-    | { mode: 'cloud' }
+    /** Klonk Cloud: geöffnetes lokales Projekt hochladen */
     | { mode: 'upload' }
 
 /** Zeile der Baumansicht: Ordner (auf-/zuklappbar) oder Datei, mit Einrückung */
@@ -116,8 +118,7 @@ export function useProjectExplorer(options: { onOpenFile?: (file: ProjectFile) =
   const dialogLanguage = ref<ProgramLanguage>('blocks')
   const dialogTitle = computed(() => {
     const mode = dialog.value?.mode
-    if (mode === 'project') return t('project.newBrowserProject')
-    if (mode === 'cloud') return t('cloud.newProject')
+    if (mode === 'project') return t('project.newProject')
     if (mode === 'upload') return t('cloud.upload')
     if (mode === 'init') return t('project.setup')
     if (mode === 'folder') return t('project.newFolder')
@@ -125,24 +126,43 @@ export function useProjectExplorer(options: { onOpenFile?: (file: ProjectFile) =
     return mode === 'rename' || mode === 'renameFolder' ? t('project.rename') : t('project.newFile')
   })
 
+  // Speicherorte eines neuen Projekts: nur, was Browser und Abo hergeben (Cloud ohne Abo ausgegraut)
+  const dialogLocation = ref<ProjectLocation>('browser')
+  const locations = computed(() => {
+    const cloudStatus = cloud.status.value
+    const items: { value: ProjectLocation, label: string, description: string, disabled?: boolean }[] = []
+    if (cloudStatus) {
+      items.push({
+        value: 'cloud',
+        label: t('project.locations.cloud.label'),
+        description: cloudStatus.enabled ? t('project.locations.cloud.description') : t('cloud.locked'),
+        disabled: !cloudStatus.enabled,
+      })
+    }
+    if (canBrowser.value) items.push({ value: 'browser', label: t('project.locations.browser.label'), description: t('project.locations.browser.description') })
+    if (canFolders.value) items.push({ value: 'folder', label: t('project.locations.folder.label'), description: t('project.locations.folder.description') })
+    return items
+  })
+  const canCreateProject = computed(() => locations.value.some(l => !l.disabled))
+
   const program = useProgram()
   function openDialog(value: ProjectDialog) {
     dialog.value = value
     // Neues Projekt: zuletzt in der IDE genutzte Sprache vorschlagen
-    if (value.mode === 'project' || value.mode === 'init' || value.mode === 'cloud') dialogLanguage.value = projectLanguage(program.language.value)
+    if (value.mode === 'project' || value.mode === 'init') dialogLanguage.value = projectLanguage(program.language.value)
+    // Speicherort: gewünschter, sonst Cloud vor Browser vor Ordner
+    if (value.mode === 'project') dialogLocation.value = value.location ?? locations.value.find(l => !l.disabled)?.value ?? 'browser'
     dialogName.value = value.mode === 'upload'
       ? proj.project.value?.name ?? ''
-      : value.mode === 'cloud'
-        ? t('project.defaultProjectName')
-        : value.mode === 'rename'
-          ? value.file.path
-          : value.mode === 'renameFolder'
-            ? value.path
-            : value.mode === 'project' || value.mode === 'init'
-              ? (value.mode === 'init' ? proj.project.value?.name ?? '' : t('project.defaultProjectName'))
-              : value.mode === 'folder'
-                ? t('project.defaultName.folder')
-                : value.mode === 'package' ? t(`project.defaultName.package.${value.language}`) : t(`project.defaultName.${value.kind}`)
+      : value.mode === 'rename'
+        ? value.file.path
+        : value.mode === 'renameFolder'
+          ? value.path
+          : value.mode === 'project' || value.mode === 'init'
+            ? (value.mode === 'init' ? proj.project.value?.name ?? '' : t('project.defaultProjectName'))
+            : value.mode === 'folder'
+              ? t('project.defaultName.folder')
+              : value.mode === 'package' ? t(`project.defaultName.package.${value.language}`) : t(`project.defaultName.${value.kind}`)
   }
 
   async function submitDialog() {
@@ -151,16 +171,23 @@ export function useProjectExplorer(options: { onOpenFile?: (file: ProjectFile) =
     if (!d || !name) return
     const lang = locale.value === 'en' ? 'en' : 'de'
     try {
-      if (d.mode === 'project') {
+      if (d.mode === 'project' && dialogLocation.value === 'folder') {
+        // Ordnerauswahl braucht die Nutzeraktion ⇒ vor jedem anderen await
+        const created = await createFolderProject(name)
+        if (!created) return
+        await proj.open(created)
+        if (!files.value.length) await createStarterFiles(dialogLanguage.value)
+      }
+      else if (d.mode === 'project' && dialogLocation.value === 'cloud') {
+        await cloud.create(name)
+        await createStarterFiles(dialogLanguage.value)
+      }
+      else if (d.mode === 'project') {
         await proj.openBrowserProject(name, true)
         // Ein neues Projekt bekommt seine Sprache, gleich ein Programm und eine Welt
         if (!files.value.length) await createStarterFiles(dialogLanguage.value)
       }
       else if (d.mode === 'init') {
-        await createStarterFiles(dialogLanguage.value)
-      }
-      else if (d.mode === 'cloud') {
-        await cloud.create(name)
         await createStarterFiles(dialogLanguage.value)
       }
       else if (d.mode === 'upload') {
@@ -480,7 +507,7 @@ export function useProjectExplorer(options: { onOpenFile?: (file: ProjectFile) =
     : kind === 'other' ? t('project.otherFile') : t(`editor.languages.${kind}`))
 
   return {
-    proj, cloud, canFolders, canBrowser, browserProjects, recent, loadLists, fail,
+    proj, cloud, canFolders, canBrowser, browserProjects, recent, loadLists, fail, locations, canCreateProject, dialogLocation,
     openFolder, openRecent, openBrowserProject, removeBrowserProject,
     dialog, dialogName, dialogLanguage, dialogTitle, openDialog, submitDialog,
     remove, openFile, newItems, newItemsIn, fileActions, fileContextItems, areaContextItems, kindLabel,

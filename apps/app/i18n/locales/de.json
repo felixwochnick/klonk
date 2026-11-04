@@ -269,9 +269,15 @@
   },
   "project": {
     "title": "Projekt",
-    "intro": "Speichere Programme und Welten als Dateien – in einem Ordner auf deinem Rechner oder als Projekt im Browser.",
+    "intro": "Speichere Programme und Welten als Dateien – in der Klonk Cloud, im Browser oder in einem Ordner auf deinem Rechner.",
     "openFolder": "Ordner öffnen",
-    "newBrowserProject": "Neues Browser-Projekt",
+    "newProject": "Neues Projekt",
+    "location": "Speicherort",
+    "locations": {
+      "cloud": { "label": "Klonk Cloud", "description": "Auf allen Geräten verfügbar und automatisch synchronisiert." },
+      "browser": { "label": "Im Browser", "description": "Nur in diesem Browser auf diesem Gerät gespeichert." },
+      "folder": { "label": "Ordner auf dem Rechner", "description": "Neuer Ordner – du wählst, wo er angelegt wird. Auch mit anderen Programmen bearbeitbar." }
+    },
     "recentFolders": "Zuletzt geöffnete Ordner",
     "browserProjects": "Browser-Projekte",
     "close": "Projekt schließen",
