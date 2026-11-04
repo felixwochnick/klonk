@@ -1,6 +1,6 @@
 {
   "name": "klonk-monorepo",
-  "version": "0.2.4-closed-alpha",
+  "version": "0.2.5-closed-alpha",
   "private": true,
   "license": "SEE LICENSE IN LICENSE",
   "type": "module",
