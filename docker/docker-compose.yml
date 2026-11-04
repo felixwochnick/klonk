@@ -39,6 +39,10 @@ x-env: &env
   NUXT_PLATFORM_OIDC_CLIENT_ID: ${KLONK_ID_CLIENT_ID:-}
   NUXT_PLATFORM_OIDC_CLIENT_SECRET: ${KLONK_ID_CLIENT_SECRET:-}
   NUXT_PLATFORM_OIDC_SCOPES: ${KLONK_ID_SCOPES:-openid profile email}
+  # Name/Icon des Buttons und Gruppen-Claim, z. B. für Entra ID direkt: Microsoft, i-logos-microsoft-icon, groups
+  NUXT_PLATFORM_OIDC_NAME: ${KLONK_ID_NAME:-Klonk ID}
+  NUXT_PLATFORM_OIDC_ICON: ${KLONK_ID_ICON:-i-lucide-shield-user}
+  NUXT_PLATFORM_OIDC_GROUPS_CLAIM: ${KLONK_ID_GROUPS_CLAIM:-groups}
   NUXT_PLATFORM_OIDC_OWNER_GROUPS: ${KLONK_ID_OWNER_GROUPS:-klonk-owners}
   NUXT_PLATFORM_OIDC_DEVELOPER_GROUPS: ${KLONK_ID_DEVELOPER_GROUPS:-klonk-developers}
   # true = auch normale Nutzer:innen melden sich mit der Klonk ID an (als Privatkonto)

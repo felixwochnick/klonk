@@ -12,7 +12,8 @@
       "organizations": "All organizations",
       "license": "License",
       "ai": "AI assistant",
-      "groups": "Groups"
+      "groups": "Groups",
+      "accounts": "Private accounts"
     },
     "organizationType": {
       "school": "School",
@@ -240,6 +241,37 @@
         "member": "Member"
       },
       "leaderHint": "As a group leader you can add other teachers and make them group leaders too."
+    },
+    "accounts": {
+      "intro": "Accounts without an organization (Google, Microsoft, Apple, GitHub, Klonk ID). Owners grant operator rights here – Klonk ID accounts get their role from their groups.",
+      "search": "Search name or email",
+      "empty": "No private accounts yet",
+      "providers": "Sign-in",
+      "platformRole": "Operator role",
+      "plan": "License",
+      "free": "Free",
+      "fromGroups": "Role comes from the Klonk ID groups",
+      "role": {
+        "user": "None",
+        "developer": "Developer",
+        "owner": "Owner"
+      },
+      "makeRole": {
+        "user": "Remove operator rights",
+        "developer": "Make developer",
+        "owner": "Make owner"
+      },
+      "provider": {
+        "google": "Google",
+        "microsoft": "Microsoft",
+        "apple": "Apple",
+        "github": "GitHub",
+        "platform": "Klonk ID"
+      },
+      "plans": {
+        "pro": "Pro",
+        "pro-ai": "Pro + AI"
+      }
     }
   },
   "errors": {

@@ -1,7 +1,7 @@
-// In der Verwaltung nur Organisations- und Betreiber-Login, keine Privat-Anbieter
+// In der Verwaltung: Organisations-, Privat- (Betreiberrechte vergeben Besitzer:innen) und Betreiber-Login
 export default defineAppConfig({
   klonk: {
-    socialLogin: false,
+    socialLogin: true,
     operatorLogin: true,
     setupRoute: '/setup',
   },

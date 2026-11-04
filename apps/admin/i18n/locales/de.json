@@ -12,7 +12,8 @@
       "organizations": "Alle Organisationen",
       "license": "Lizenz",
       "ai": "KI-Assistent",
-      "groups": "Gruppen"
+      "groups": "Gruppen",
+      "accounts": "Privatkonten"
     },
     "organizationType": {
       "school": "Schule",
@@ -240,6 +241,37 @@
         "member": "Mitglied"
       },
       "leaderHint": "Als Gruppenleitung kannst du weitere Lehrkräfte hinzufügen und ihnen ebenfalls die Leitung geben."
+    },
+    "accounts": {
+      "intro": "Konten ohne Organisation (Google, Microsoft, Apple, GitHub, Klonk ID). Besitzer:innen vergeben hier Betreiberrechte – Klonk-ID-Konten erhalten ihre Rolle aus den Gruppen.",
+      "search": "Name oder E-Mail suchen",
+      "empty": "Noch keine Privatkonten",
+      "providers": "Anmeldung",
+      "platformRole": "Betreiberrolle",
+      "plan": "Lizenz",
+      "free": "Kostenlos",
+      "fromGroups": "Rolle kommt aus den Klonk-ID-Gruppen",
+      "role": {
+        "user": "Keine",
+        "developer": "Entwickler:in",
+        "owner": "Besitzer:in"
+      },
+      "makeRole": {
+        "user": "Betreiberrechte entziehen",
+        "developer": "Zur Entwickler:in machen",
+        "owner": "Zur Besitzer:in machen"
+      },
+      "provider": {
+        "google": "Google",
+        "microsoft": "Microsoft",
+        "apple": "Apple",
+        "github": "GitHub",
+        "platform": "Klonk ID"
+      },
+      "plans": {
+        "pro": "Pro",
+        "pro-ai": "Pro + KI"
+      }
     }
   },
   "errors": {

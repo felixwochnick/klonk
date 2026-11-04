@@ -12,6 +12,7 @@
     "typecheck": "nuxt typecheck"
   },
   "dependencies": {
+    "@iconify-json/logos": "^1.2.18",
     "@iconify-json/simple-icons": "^1.2.101",
     "@klonk/core": "workspace:*",
     "@klonk/diagrams": "workspace:*",

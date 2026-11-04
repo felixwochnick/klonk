@@ -16,18 +16,20 @@ const loading = ref(false)
 
 const appConfig = useAppConfig()
 const { data: providers } = await useFetch('/api/auth/providers')
-// Auf auth.klonk.* entscheidet das Ziel: Verwaltung ⇒ Betreiber-Login, sonst Privatkonten
+// Auf auth.klonk.* zeigt ein Ziel in der Verwaltung immer den Betreiber-Login. Privatkonten (Google, Microsoft …)
+// gibt es überall – Betreiberrechte vergeben Besitzer:innen in der Verwaltung (Privatkonten)
 const { public: { adminUrl } } = useRuntimeConfig()
 const targetsAdmin = computed(() => !!appConfig.klonk?.authServer && props.redirect.startsWith(adminUrl))
 const socialProviders = computed(() =>
-  appConfig.klonk?.socialLogin === false || targetsAdmin.value ? [] : providers.value?.social ?? [])
+  appConfig.klonk?.socialLogin === false ? [] : providers.value?.social ?? [])
 // Klonk ID ist der Betreiberzugang: in der Verwaltung und auf der zentralen Anmeldung (operatorLogin) immer sichtbar
 const operatorLogin = computed(() =>
   appConfig.klonk?.operatorLogin || targetsAdmin.value ? providers.value?.platform : null)
 
+// Farbige Logos, wo die Marke Farbe hat; Apple und GitHub sind einfarbig (passen sich Hell/Dunkel an)
 const providerIcons: Record<string, string> = {
-  google: 'i-simple-icons-google',
-  microsoft: 'i-simple-icons-microsoft',
+  google: 'i-logos-google-icon',
+  microsoft: 'i-logos-microsoft-icon',
   apple: 'i-simple-icons-apple',
   github: 'i-simple-icons-github',
 }
@@ -207,7 +209,7 @@ function reset() {
         block
         variant="ghost"
         color="neutral"
-        icon="i-lucide-shield-user"
+        :icon="operatorLogin.icon || 'i-lucide-shield-user'"
         :label="t('auth.login.with', { name: operatorLogin.name })"
         @click="loginWithProvider('platform')"
       />

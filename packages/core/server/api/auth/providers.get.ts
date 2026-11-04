@@ -8,7 +8,7 @@ export default defineEventHandler(() => {
     .filter(p => !!(oauth[p]?.clientId))
 
   return {
-    platform: platformOidc.issuer && platformOidc.clientId ? { name: platformOidc.name } : null,
+    platform: platformOidc.issuer && platformOidc.clientId ? { name: platformOidc.name, icon: platformOidc.icon } : null,
     social,
   }
 })

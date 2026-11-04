@@ -19,7 +19,9 @@ export default defineNuxtConfig({
     licenseServerApiKey: '',
     // Klonk ID: plattformweiter OIDC-Anbieter (Authentik), nur für Betreiber (Entwickler:innen, Besitzer:innen)
     platformOidc: {
+      // Anzeige auf dem Button – Selbsthoster können z. B. Entra ID direkt anbinden (Name „Microsoft“, Icon i-logos-microsoft-icon)
       name: 'Klonk ID',
+      icon: 'i-lucide-shield-user',
       issuer: '',
       clientId: '',
       clientSecret: '',

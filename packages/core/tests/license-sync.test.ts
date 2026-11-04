@@ -17,7 +17,7 @@ vi.stubGlobal('useSystemDb', () => {
 })
 const license = await import('../server/utils/license')
 for (const name of ['newerLicenseToken', 'REFRESHED_LICENSE_KEY'] as const) vi.stubGlobal(name, license[name])
-const { refreshInstanceLicense, syncHostedLicenses } = await import('../server/utils/license-sync')
+const { refreshInstanceLicense, syncHostedLicenses, syncPlatformInstanceLicense } = await import('../server/utils/license-sync')
 const { newerLicenseToken, verifyLicenseToken } = license
 
 const baseUrl = process.env.KLONK_TEST_DATABASE_URL ?? 'postgres://klonk:klonk@localhost:5432/klonk'
@@ -139,5 +139,30 @@ describe('syncHostedLicenses', () => {
 
     // Zweiter Lauf: nichts mehr zu tun
     expect(await syncHostedLicenses(deps)).toBe(0)
+  })
+})
+
+describe('syncPlatformInstanceLicense', () => {
+  it('übernimmt nur Tokens mit hosted und nur, wenn sie länger gelten', async () => {
+    await db.delete(instanceSettings).where(eq(instanceSettings.key, 'license'))
+    const selfHosted = await sign({ sid: 'cloud' }, '2027-06-01')
+    const hosted = await sign({ sid: 'cloud', plan: 'hosted', features: ['hosted', 'cloud'] }, '2027-06-01')
+    const shorter = await sign({ sid: 'cloud', plan: 'hosted', features: ['hosted'] }, '2026-12-01')
+    const base = { db, serverUrl: 'https://klonk.test', verify, apiKey: 'k' }
+    const stored = async () => (await db.select().from(instanceSettings).where(eq(instanceSettings.key, 'license')))[0]?.value
+
+    expect(await syncPlatformInstanceLicense({ ...base, ...server({ '/api/v1/platform/instance-license': { token: selfHosted } }) })).toBe(false)
+    expect(await stored()).toBeUndefined()
+
+    const { fetch, calls } = server({ '/api/v1/platform/instance-license': { token: hosted } })
+    expect(await syncPlatformInstanceLicense({ ...base, fetch })).toBe(true)
+    expect(new Headers(calls[0]!.init!.headers).get('authorization')).toBe('Bearer k')
+    expect(await stored()).toBe(hosted)
+
+    expect(await syncPlatformInstanceLicense({ ...base, ...server({ '/api/v1/platform/instance-license': { token: shorter } }) })).toBe(false)
+    expect(await stored()).toBe(hosted)
+
+    // Shop ohne Endpunkt
+    expect(await syncPlatformInstanceLicense({ ...base, ...server({}) })).toBe(false)
   })
 })

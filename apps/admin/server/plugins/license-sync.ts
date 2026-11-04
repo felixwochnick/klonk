@@ -15,6 +15,11 @@ export default defineNitroPlugin((nitro) => {
         clearLicenseCache()
         console.info('[klonk] Lizenz-Token automatisch verlängert')
       }
+      // Gehostete Plattform: Instanz-Lizenz selbst vom Shop beziehen (ohne fest eingetragenes Token)
+      if (config.licenseServerApiKey && !config.licenseToken && await syncPlatformInstanceLicense({ ...deps, apiKey: config.licenseServerApiKey })) {
+        clearLicenseCache()
+        console.info('[klonk] Instanz-Lizenz vom Shop übernommen')
+      }
       if (config.licenseServerApiKey && hasFeature(await getInstanceLicense(), 'hosted')) {
         const changed = await syncHostedLicenses({ ...deps, apiKey: config.licenseServerApiKey })
         if (changed) console.info(`[klonk] ${changed} Lizenz(en) vom Shop übernommen`)

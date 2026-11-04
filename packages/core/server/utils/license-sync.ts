@@ -6,7 +6,8 @@ import type { Db } from './db'
 /**
  * Abgleich mit dem Lizenzserver klonk.* (privates Repo klonk-web):
  * - Instanz-Token verlängern (`POST /api/v1/license/refresh`) – Selbsthosting, abschaltbar per NUXT_LICENSE_AUTO_REFRESH=false
- * - Gehostete Plattform: Organisations- und Privat-Lizenzen übernehmen (`GET /api/v1/platform/licenses`, Bearer-Schlüssel)
+ * - Gehostete Plattform: eigene Instanz-Lizenz beziehen (`GET /api/v1/platform/instance-license`) und
+ *   Organisations- und Privat-Lizenzen übernehmen (`GET /api/v1/platform/licenses`), beides mit Bearer-Schlüssel
  * Es wird nur das Token gesendet, keine Nutzerdaten.
  */
 export type LicenseSyncDeps = {
@@ -58,6 +59,28 @@ async function shouldReplace(deps: LicenseSyncDeps, existing: string | null | un
   if (existing === candidate) return false
   if (!isUsable(await deps.verify(existing))) return true
   return Number(claim(candidate, 'exp') ?? 0) > Number(claim(existing, 'exp') ?? 0)
+}
+
+/**
+ * Gehostete Plattform: Instanz-Lizenz (Feature `hosted`) vom Shop beziehen – der Shop stellt sie selbst aus und verlängert sie.
+ * Nur ohne NUXT_LICENSE_TOKEN; ein Token ohne `hosted` wird nie übernommen. Ältere Shops ohne Endpunkt ⇒ `false`.
+ */
+export async function syncPlatformInstanceLicense(deps: LicenseSyncDeps & { apiKey: string }) {
+  const res = await (deps.fetch ?? fetch)(new URL('/api/v1/platform/instance-license', deps.serverUrl), {
+    headers: { authorization: `Bearer ${deps.apiKey}` },
+  })
+  if (res.status === 404) return false
+  if (!res.ok) throw new Error(`Lizenzserver antwortet mit ${res.status}`)
+  const { token } = await res.json() as { token?: string }
+  if (!token) return false
+  const license = await deps.verify(token)
+  if (!isUsable(license) || !license.features.includes('hosted')) return false
+
+  const [current] = await deps.db.select({ value: instanceSettings.value }).from(instanceSettings).where(eq(instanceSettings.key, 'license'))
+  if (!await shouldReplace(deps, current?.value as string | undefined, token)) return false
+  await deps.db.insert(instanceSettings).values({ key: 'license', value: token })
+    .onConflictDoUpdate({ target: instanceSettings.key, set: { value: token, updatedAt: sql`now()` } })
+  return true
 }
 
 type PlatformLicenses = {

@@ -85,7 +85,10 @@
     "cloud_exists": "A cloud project with this name already exists.",
     "cloud_invalid_path": "Invalid file name.",
     "learn_not_found": "This learning module or group does not exist.",
-    "learn_not_enabled": "This learning module has not been enabled for you."
+    "learn_not_enabled": "This learning module has not been enabled for you.",
+    "cannot_change_self": "You cannot change your own account here.",
+    "owner_only": "Only owners can do this.",
+    "role_from_groups": "This account’s role comes from the Klonk ID groups."
   },
   "settings": {
     "title": "Settings",

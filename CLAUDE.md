@@ -108,7 +108,8 @@ node scripts/build-csharp.ts        # C#-Host bauen (.NET-SDK 10 nötig; Ausgabe
   OIDC: `server/routes/auth/oidc/*` (PKCE, Zustand verschlüsselt im Cookie), LDAP: `server/utils/ldap.ts` (Filter maskiert).
   JIT-Provisionierung in `server/utils/provision.ts` – verknüpft nie mit Konten, die ein lokales Passwort haben.
 - Privatkonten (ohne Organisation): Google/Microsoft/Apple/GitHub (`server/routes/auth/<anbieter>.get.ts`, nuxt-auth-utils)
-  Wiedererkennung nur über Anbieter-ID. Social-Buttons nur in der App (`appConfig.klonk.socialLogin`).
+  Wiedererkennung nur über Anbieter-ID. Social-Buttons überall (`appConfig.klonk.socialLogin`), farbige Logos (`i-logos-*`). Betreiberrechte für Privatkonten vergeben
+  Besitzer:innen in admin → **Privatkonten** (`/accounts`, `api/admin/accounts`; Klonk-ID-Konten folgen ihren Gruppen, `role_from_groups`).
 - **Klonk ID** (Authentik, `runtimeConfig.platformOidc`, Route `/auth/oidc/platform`) ist **nur für Entwickler:innen und
   Besitzer:innen** (vom User so festgelegt; Ausnahme `NUXT_PLATFORM_OIDC_ALLOW_USERS=true` ⇒ ohne Betreiber-Gruppe normales Privatkonto,
   für die gehostete Plattform mit geschlossener Authentik-Registrierung): Button in admin und auf auth.* **immer** (`appConfig.klonk.operatorLogin`, vom User so festgelegt; in der eingebauten App-Anmeldung nicht), ohne Betreiber-Gruppe
@@ -121,7 +122,8 @@ node scripts/build-csharp.ts        # C#-Host bauen (.NET-SDK 10 nötig; Ausgabe
 - **Zentrale Anmeldung:** Ist `NUXT_PUBLIC_AUTH_URL` gesetzt, leiten app/admin (`useAuthUrls().isCentral`) für Login und
   Passwortänderung nach auth.* weiter (`?redirect=<absolute URL>`); ohne die Variable nutzt jede App ihre eingebaute Login-Seite.
   Weiterleitungsziele immer über `safeRedirectTarget()` gegen die erlaubten Origins (app, admin, auth, `NUXT_PUBLIC_WEBSITE_URLS`)
-  prüfen. Auf auth.* ist die Klonk ID immer sichtbar; Social-Login nur, wenn das Ziel nicht die Verwaltung ist.
+  prüfen. Auf auth.* ist die Klonk ID immer sichtbar, Social-Login ebenfalls (auch fürs Ziel Verwaltung). Name/Icon/Gruppen-Claim der
+  Klonk ID einstellbar (`NUXT_PLATFORM_OIDC_NAME|ICON|GROUPS_CLAIM`, z. B. Entra ID direkt als Betreiber-Login).
   Gemeinsame Session über `NUXT_SESSION_COOKIE_DOMAIN` (z. B. `.klonk.example`); die Website (privates Repo) fragt
   `auth.*/api/session` mit `credentials: 'include'` ab. Setup-Prüfung der Verwaltung steckt in der Core-Middleware
   (`appConfig.klonk.setupRoute`), da Layer-Middlewares vor App-Middlewares laufen.
@@ -428,7 +430,8 @@ node scripts/build-csharp.ts        # C#-Host bauen (.NET-SDK 10 nötig; Ausgabe
   Instanz-Token über `POST <Lizenzserver>/api/v1/license/refresh` verlängern (Lizenzserver = `NUXT_LICENSE_SERVER_URL` oder
   Origin von `NUXT_PUBLIC_SHOP_URL`; aus mit `NUXT_LICENSE_AUTO_REFRESH=false`). Token aus der Env ⇒ verlängertes Token in
   `instance_settings.license_refreshed`, `newerLicenseToken()` wählt (gleiche `sid`, später `exp`). Gehostete Plattform mit
-  `NUXT_LICENSE_SERVER_API_KEY`: `GET /api/v1/platform/licenses` ⇒ `organizations.license_token` und `user_licenses`
+  `NUXT_LICENSE_SERVER_API_KEY`: ohne `NUXT_LICENSE_TOKEN` zuerst eigene Instanz-Lizenz (`hosted`) per
+  `GET /api/v1/platform/instance-license` (der Shop stellt sie selbst aus) ⇒ `instance_settings.license`; dann `GET /api/v1/platform/licenses` ⇒ `organizations.license_token` und `user_licenses`
   (Privat-Abos, nur Privatkonten); Token muss `organizationId` bzw. `userId` des Ziels enthalten.
   `getEffectiveLicense(orgId, userId)` wertet Privat-Lizenzen aus. `/api/session` liefert `organizationId` für den Shop.
 - Proxy: Hauptdomain ⇒ Website, wenn `KLONK_WEBSITE_UPSTREAM` gesetzt (sonst Weiterleitung zur App); eigene Seiten

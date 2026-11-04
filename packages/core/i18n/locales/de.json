@@ -85,7 +85,10 @@
     "cloud_exists": "Ein Cloud-Projekt mit diesem Namen gibt es schon.",
     "cloud_invalid_path": "Ungültiger Dateiname.",
     "learn_not_found": "Dieses Lernmodul oder diese Gruppe gibt es nicht.",
-    "learn_not_enabled": "Dieses Lernmodul ist für dich nicht freigegeben."
+    "learn_not_enabled": "Dieses Lernmodul ist für dich nicht freigegeben.",
+    "cannot_change_self": "Das eigene Konto lässt sich hier nicht ändern.",
+    "owner_only": "Nur Besitzer:innen dürfen das.",
+    "role_from_groups": "Die Rolle dieses Kontos kommt aus den Klonk-ID-Gruppen."
   },
   "settings": {
     "title": "Einstellungen",
