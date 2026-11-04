@@ -4,7 +4,7 @@ import { and, eq } from 'drizzle-orm'
 import { accounts, users } from '../database/schema'
 
 export type PrivateIdentity = {
-  /** `google`, `microsoft`, `github`, `apple` oder `platform` (Klonk ID, nur Betreiber) */
+  /** `google`, `microsoft`, `github`, `apple` oder `platform` (Klonk ID: Betreiber, mit `allowUsers` auch Privatkonten) */
   provider: string
   providerAccountId: string
   displayName: string
@@ -23,9 +23,11 @@ export async function provisionPrivateUser(identity: PrivateIdentity) {
       .where(and(eq(accounts.provider, identity.provider), eq(accounts.providerAccountId, identity.providerAccountId)))
 
     if (linked) {
-      // Betreiberkonten steuern die Klonk-ID-Gruppen (Sperre beim Gruppenentzug, Freigabe bei Rückkehr)
+      // Betreiberkonten steuern die Klonk-ID-Gruppen (Sperre beim Gruppenentzug, Freigabe bei Rückkehr).
+      // Normale Klonk-ID-Konten (allowUsers) bleiben gesperrt wie alle anderen Privatkonten.
       const isPlatform = identity.provider === 'platform'
-      if (linked.user.disabled && !isPlatform) return null
+      const isOperator = isPlatform && isOperatorRole(identity.platformRole)
+      if (linked.user.disabled && !isOperator) return null
       const [user] = await tx.update(users).set({
         displayName: identity.displayName || linked.user.displayName,
         email: identity.email ?? linked.user.email,
@@ -36,7 +38,7 @@ export async function provisionPrivateUser(identity: PrivateIdentity) {
     }
 
     // Betreiberkonten zählen nicht gegen die Nutzergrenze
-    if (identity.provider !== 'platform') await assertUserCapacity(null)
+    if (!isOperatorRole(identity.platformRole)) await assertUserCapacity(null)
     const [user] = await tx.insert(users).values({
       organizationId: null,
       displayName: identity.displayName || identity.email || 'Klonk',
@@ -84,7 +86,12 @@ export function privateLoginFailed(event: RequestEvent | H3Event, error: unknown
   return sendRedirect(toH3Event(event), '/login?error=sso_failed')
 }
 
-/** Klonk ID: plattformweiter OIDC-Anbieter (z. B. Authentik), nur für Betreiber (Besitzer:innen, Entwickler:innen) */
+function isOperatorRole(role?: PlatformRole) {
+  return role === 'owner' || role === 'developer'
+}
+
+/** Klonk ID: plattformweiter OIDC-Anbieter (z. B. Authentik) für Betreiber (Besitzer:innen, Entwickler:innen),
+ * mit `allowUsers` auch für normale Privatkonten */
 export function platformOidcSettings(): OidcClientSettings | null {
   const { platformOidc } = useRuntimeConfig()
   if (!platformOidc.issuer || !platformOidc.clientId) return null
@@ -122,9 +129,10 @@ export async function finishPlatformLogin(event: H3Event, state: OidcState) {
     const has = (list: string) => groupList(list).some(g => groups.includes(g))
     const platformRole: PlatformRole = has(platformOidc.ownerGroups) ? 'owner' : has(platformOidc.developerGroups) ? 'developer' : 'user'
 
-    // Klonk ID ist ausschließlich der Betreiberzugang – ohne Betreiber-Gruppe kein Login.
+    // Ohne allowUsers ist die Klonk ID ausschließlich der Betreiberzugang – ohne Betreiber-Gruppe kein Login.
     // Wurde jemand aus der Gruppe entfernt, verliert das bestehende Konto sofort seine Rechte.
-    if (platformRole === 'user') {
+    // Mit allowUsers wird es zum normalen Privatkonto (Rolle `user`, Rechte entzogen beim nächsten Login).
+    if (platformRole === 'user' && !platformOidc.allowUsers) {
       await revokePlatformAccount(String(claims.sub))
       return sendRedirect(event, '/login?error=not_operator')
     }

@@ -41,6 +41,8 @@ x-env: &env
   NUXT_PLATFORM_OIDC_SCOPES: ${KLONK_ID_SCOPES:-openid profile email}
   NUXT_PLATFORM_OIDC_OWNER_GROUPS: ${KLONK_ID_OWNER_GROUPS:-klonk-owners}
   NUXT_PLATFORM_OIDC_DEVELOPER_GROUPS: ${KLONK_ID_DEVELOPER_GROUPS:-klonk-developers}
+  # true = auch normale Nutzer:innen melden sich mit der Klonk ID an (als Privatkonto)
+  NUXT_PLATFORM_OIDC_ALLOW_USERS: ${KLONK_ID_ALLOW_USERS:-false}
   # Privatkonten per OAuth (optional); Rücksprung immer über auth.*
   NUXT_OAUTH_GOOGLE_CLIENT_ID: ${KLONK_GOOGLE_CLIENT_ID:-}
   NUXT_OAUTH_GOOGLE_CLIENT_SECRET: ${KLONK_GOOGLE_CLIENT_SECRET:-}

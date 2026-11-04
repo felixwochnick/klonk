@@ -110,7 +110,8 @@ node scripts/build-csharp.ts        # C#-Host bauen (.NET-SDK 10 nötig; Ausgabe
 - Privatkonten (ohne Organisation): Google/Microsoft/Apple/GitHub (`server/routes/auth/<anbieter>.get.ts`, nuxt-auth-utils)
   Wiedererkennung nur über Anbieter-ID. Social-Buttons nur in der App (`appConfig.klonk.socialLogin`).
 - **Klonk ID** (Authentik, `runtimeConfig.platformOidc`, Route `/auth/oidc/platform`) ist **nur für Entwickler:innen und
-  Besitzer:innen** (vom User so festgelegt): Button in admin und auf auth.* **immer** (`appConfig.klonk.operatorLogin`, vom User so festgelegt; in der eingebauten App-Anmeldung nicht), ohne Betreiber-Gruppe
+  Besitzer:innen** (vom User so festgelegt; Ausnahme `NUXT_PLATFORM_OIDC_ALLOW_USERS=true` ⇒ ohne Betreiber-Gruppe normales Privatkonto,
+  für die gehostete Plattform mit geschlossener Authentik-Registrierung): Button in admin und auf auth.* **immer** (`appConfig.klonk.operatorLogin`, vom User so festgelegt; in der eingebauten App-Anmeldung nicht), ohne Betreiber-Gruppe
   kein Login; Gruppenentzug ⇒ Konto gesperrt + Sessions widerrufen, Rückkehr in die Gruppe ⇒ wieder freigegeben.
 - E2E: Dex dient auch als Klonk ID (Gruppe `admins` ⇒ owner, siehe `playwright.config.ts`).
 - Erste Einrichtung über `admin /setup`: erste Organisation + Admin (= Instanz-Besitzer).

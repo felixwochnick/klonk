@@ -28,6 +28,8 @@ export default defineNuxtConfig({
       // Kommagetrennte Gruppen für die Plattformrollen
       ownerGroups: 'klonk-owners',
       developerGroups: 'klonk-developers',
+      // true = auch Nutzer:innen ohne Betreiber-Gruppe melden sich an (als Privatkonto); sonst nur Betreiber
+      allowUsers: false,
     },
     public: {
       // Öffentliche URLs von app.* und admin.* (für Links zwischen den Apps und OIDC-Redirect-URIs)
