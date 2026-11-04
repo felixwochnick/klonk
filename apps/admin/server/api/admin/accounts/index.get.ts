@@ -25,7 +25,10 @@ export default defineEventHandler(async (event) => {
     .orderBy(desc(users.createdAt))
     .limit(500))
 
+  const hosted = hasFeature(await getInstanceLicense(), 'hosted')
   return Promise.all(rows.map(async ({ licenseToken, ...row }) => {
+    // Gehostete Plattform: Betreiber:innen haben Pro + KI (siehe getEffectiveLicense)
+    if (hosted && row.platformRole !== 'user') return { ...row, plan: OPERATOR_LICENSE.plan }
     const license = licenseToken ? await verifyForInstance(licenseToken) : null
     return { ...row, plan: license && license.problem !== 'invalid' && license.problem !== 'expired' ? license.plan : null }
   }))

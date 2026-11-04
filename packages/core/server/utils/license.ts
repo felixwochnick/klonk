@@ -168,6 +168,20 @@ export const LOCAL_LICENSE: LicenseInfo = {
   problem: null,
 }
 
+/**
+ * Betreiber:innen (Besitzer:innen, Entwickler:innen) der gehosteten Plattform haben für ihr Privatkonto Pro + KI
+ * (vom User so festgelegt) – wie das Shop-Produkt `pro-ai`, ohne Abo.
+ */
+export const OPERATOR_LICENSE: LicenseInfo = {
+  plan: 'pro-ai',
+  licensee: null,
+  maxUsers: null,
+  features: ['characters', 'models', 'libraries', 'cloud', 'ai'],
+  aiCredits: 300,
+  expiresAt: null,
+  problem: null,
+}
+
 export async function getUserLicense(userId: string) {
   const [row] = await useSystemDb().select({ token: userLicenses.token }).from(userLicenses)
     .where(eq(userLicenses.userId, userId))
@@ -178,13 +192,17 @@ export async function getUserLicense(userId: string) {
  * Wirksame Lizenz für eine Organisation (oder Privatkonten mit `null`):
  * - Selbsthosting: die Instanz-Lizenz gilt für alle
  * - Gehostete Plattform (Feature `hosted`): jede Organisation hat ihr eigenes Token, Privatkonten ihr Privat-Abo
- *   (`userId`), sonst kostenlos
+ *   (`userId`), Betreiber:innen Pro + KI ({@link OPERATOR_LICENSE}), sonst kostenlos
  */
 export async function getEffectiveLicense(organizationId: string | null, event?: H3Event, userId?: string | null): Promise<LicenseInfo> {
   if (isLocalTest(event)) return LOCAL_LICENSE
   const instance = await getInstanceLicense()
   if (!hasFeature(instance, 'hosted')) return instance
   if (organizationId) return getOrganizationLicense(organizationId)
+  if (userId) {
+    const [row] = await useSystemDb().select({ platformRole: users.platformRole }).from(users).where(eq(users.id, userId))
+    if (row && row.platformRole !== 'user') return OPERATOR_LICENSE
+  }
   // Kontengrenzen gelten für Privatkonten nicht
   const license = userId ? await getUserLicense(userId) : FREE_LICENSE
   return { ...license, maxUsers: null }
