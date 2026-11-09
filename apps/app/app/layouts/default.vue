@@ -61,7 +61,7 @@ const fullscreen = useAppFullscreen()
           <UColorModeButton />
         </template>
         <UTooltip
-          v-if="fullscreen.supported.value"
+          v-if="fullscreen.available.value"
           :text="fullscreen.active.value ? t('fullscreen.exit') : t('fullscreen.enter')"
         >
           <UButton

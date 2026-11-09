@@ -362,7 +362,7 @@
     "packageHelp": "Separate parts with dots, e.g. game.characters",
     "klonkAndBlocks": "Klonk-Script & blocks"
   },
-  "fullscreen": { "enter": "Full screen", "exit": "Exit full screen" },
+  "fullscreen": { "enter": "Full screen", "exit": "Exit full screen", "unavailable": "Full screen is not available in this browser", "unavailableHint": "Add Klonk to your home screen (Share → “Add to Home Screen”) to use it without browser bars." },
   "pwa": {
     "install": "Install app",
     "offline": "Offline"

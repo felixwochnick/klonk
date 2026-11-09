@@ -362,7 +362,7 @@
     "packageHelp": "Teile mit Punkt trennen, z. B. spiel.figuren",
     "klonkAndBlocks": "Klonk-Script & Blöcke"
   },
-  "fullscreen": { "enter": "Vollbild", "exit": "Vollbild beenden" },
+  "fullscreen": { "enter": "Vollbild", "exit": "Vollbild beenden", "unavailable": "Vollbild ist in diesem Browser nicht möglich", "unavailableHint": "Füge Klonk zum Home-Bildschirm hinzu (Teilen → „Zum Home-Bildschirm“), dann läuft es ohne Browserleisten." },
   "pwa": {
     "install": "App installieren",
     "offline": "Offline"
