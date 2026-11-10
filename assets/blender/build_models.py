@@ -61,7 +61,7 @@ SHOULDER = Vector((0.19, 0, 0.815))
 ARM_TILT = math.radians(12)         # nach außen abgespreizt (folgt der Trapezform)
 ARM_OUT = 0.06                      # Armachse neben dem Gelenk
 UPPER_LEN = 0.19
-FOREARM_ANGLE = math.radians(-35)   # Unterarm nach vorn geneigt
+FOREARM_ANGLE = math.radians(-55)   # Unterarm nach vorn geknickt, Hände vor der Hüfte
 FOREARM_LEN = 0.13
 # Füße: je Fuß ein Noppenloch über der hinteren inneren Noppenreihe des Feldes, Spitze ragt nach vorn
 FOOT_Y0, FOOT_Y1 = -0.14, 0.215
@@ -419,6 +419,16 @@ def arm_point(side, local):
     return origin + tilt @ Vector(local)
 
 
+def frame_euler(axis, gap_dir):
+    """Drehung, die lokal Z auf `axis` und lokal -X auf `gap_dir` legt (für c_ring mit gap_center = π)"""
+    z = Vector(axis).normalized()
+    g = Vector(gap_dir)
+    g = (g - z * g.dot(z)).normalized()
+    x = -g
+    y = z.cross(x)
+    return tuple(Matrix((x, y, z)).transposed().to_euler())
+
+
 def arm_rot(side, euler=(0, 0, 0)):
     _, tilt = arm_frame(side)
     return tuple((tilt @ Euler(euler).to_matrix()).to_euler())
@@ -494,11 +504,16 @@ def build_body(b, j, m_skin, m_shirt, m_pants):
         # Unterarm nach vorn geneigt
         center = elbow + d * (FOREARM_LEN / 2)
         b.add(arm, j[f'Arm{side}'], box(f'Forearm{side}', (0.095, 0.11, FOREARM_LEN + 0.06), tuple(center), m_shirt, col, bevel=0.045, rotation=arm_rot(side, (FOREARM_ANGLE, 0, 0)), center=True))
-        # Hand: Handgelenk-Zapfen + C-Greifring (Loch quer zum Unterarm, Öffnung nach innen)
+        # Hand wie bei Klemmbaustein-Figuren: C-Clip, Zapfen hinten am geschlossenen Teil, Öffnung gegenüber
         h = f'Hand{side}Mesh'
-        b.add(h, j[f'Hand{side}'], cylinder(f'Wrist{side}', 0.024, 0.04, tuple(hand - d * 0.01), m_skin, col, rotation=arm_rot(side, (FOREARM_ANGLE + math.pi, 0, 0))))
-        grip = hand + d * 0.07
-        b.add(h, j[f'Hand{side}'], c_ring(f'Grip{side}', 0.042, 0.024, math.radians(70), math.pi if sx > 0 else 0, tuple(grip), m_skin, col, rotation=arm_rot(side, (FOREARM_ANGLE + math.pi / 2, 0, 0))))
+        # Loch quer zum Unterarm (nach oben/vorn), Öffnung zeigt vom Handgelenk weg (vom User so gewählt)
+        _, tilt = arm_frame(side)
+        axis = tilt @ Vector((0, -math.cos(FOREARM_ANGLE), -math.sin(FOREARM_ANGLE)))
+        gap_dir = d
+        major, minor = 0.04, 0.026
+        b.add(h, j[f'Hand{side}'], cylinder(f'Wrist{side}', 0.026, 0.05, tuple(hand - d * 0.015), m_skin, col, rotation=arm_rot(side, (FOREARM_ANGLE + math.pi, 0, 0))))
+        grip = hand + d * (0.03 + major + minor * 0.6)
+        b.add(h, j[f'Hand{side}'], c_ring(f'Grip{side}', major, minor, math.radians(75), math.pi, tuple(grip), m_skin, col, rotation=frame_euler(axis, gap_dir)))
 
 
 def build_face(b, j, model, m_eye, m_shine):
