@@ -7,7 +7,7 @@
 # Zugangssperre über KLONK_GATE (z. B. für eine geschlossene Testphase):
 #   off       – alles öffentlich (Standard)
 #   authentik – Forward-Auth über einen Authentik-Outpost (KLONK_GATE_URL, z. B. http://authentik-outpost:9000)
-# KLONK_GATE_WEBSITE=off nimmt die Hauptdomain (Website) von der Sperre aus, die Subdomains bleiben gesperrt.
+# Einzelne Seiten ausnehmen: KLONK_GATE_WEBSITE / KLONK_GATE_DOCS / KLONK_GATE_ADMIN = off (Standard on); App und Anmeldung bleiben gesperrt.
 {
 	email {$KLONK_ACME_EMAIL}
 	# Kein automatisches Eintragen der lokalen CA in den Container-Truststore
@@ -82,7 +82,8 @@
 }
 
 {$KLONK_SCHEME}://admin.{$KLONK_DOMAIN} {
-	import common
+	import base
+	import gate-{$KLONK_GATE_ADMIN_SITE}
 	reverse_proxy admin:3000
 }
 
@@ -92,7 +93,8 @@
 }
 
 {$KLONK_SCHEME}://docs.{$KLONK_DOMAIN} {
-	import common
+	import base
+	import gate-{$KLONK_GATE_DOCS_SITE}
 	root * /srv/docs
 	redir / /de
 	try_files {path} {path}.html {path}/index.html
