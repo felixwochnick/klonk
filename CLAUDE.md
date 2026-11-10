@@ -191,7 +191,8 @@ node scripts/build-csharp.ts        # C#-Host bauen (.NET-SDK 10 nötig; Ausgabe
   Modelle entstehen per Skript: `blender -b --factory-startup --python assets/blender/build_models.py` ⇒
   `apps/app/public/models/*.glb` + `assets/blender/klonk-models.blend` + `preview.png`. Maße: 1 Feld = 1 Einheit = **4×4 Noppen** (Raster 0,25),
   Ziegel 0,3 hoch, Platte/Fliese 0,1, Noppe 0,05. Figuren (vom User gewünscht: mehr Klemmbaustein-Figur) in Weltmaßen ohne Skalierung, ~1,22 hoch:
-  Noppenkopf, Trapez-Oberkörper, Greifhände, **jeder Fuß 1×2 Noppen mit zwei Noppenlöchern** ⇒ steckt mittig auf den inneren vier Noppen (kein Versatz im Renderer).
+  Noppenkopf, Trapez-Oberkörper, Arme außen am Oberkörper (12° abgespreizt, `arm_point`/`arm_rot` im Armraum), C-Greifhände (`c_ring`, Loch quer zum Unterarm),
+  **je Fuß ein Noppenloch** (vom User so festgelegt: ein Fuß steht auf einer Noppe) über den inneren Noppen der hinteren Reihe (`FOOT_HOLE_Y`), Fußspitze ragt nach vorn – kein Versatz im Renderer.
   Gelenke `Hips/Body/Head/ArmL/ArmR/HandL/HandR/LegL/LegR` + `EyeL/EyeR` (Blinzeln). **Animationen als glTF-Clips** (`CLIPS` im Skript, Export `NLA_TRACKS`):
   Walk, Climb, Turn, Place, Pick, Mark, Wave, Cheer, Bump, Idle – der Renderer spielt sie per `AnimationMixer.setTime` gestreckt auf die Ereignisdauer
   (`pose()`/`relax()`); Ziegel-/Marken-Ereignisse tragen dafür `by` (Figur). Idle nur gelegentlich (render on demand, nicht bei `prefers-reduced-motion`).

@@ -397,7 +397,7 @@ export class WorldRenderer {
 
   private addCharacterView(character: CharacterData) {
     this.invalidate()
-    // Die Füße (je 1×2 Noppen mit Noppenlöchern) stecken mittig auf den inneren vier Noppen des Feldes
+    // Jeder Fuß steckt mit seinem Noppenloch auf einer Noppe (innere Noppen der hinteren Reihe), die Figur steht mittig im Feld
     const base = character.design?.base ?? character.model
     const model = this.models!.characters[base].clone(true)
     const design = character.design

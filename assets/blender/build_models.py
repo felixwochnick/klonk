@@ -29,7 +29,7 @@ import os
 
 import bmesh
 import bpy
-from mathutils import Euler, Vector
+from mathutils import Euler, Matrix, Vector
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
 OUT = os.path.join(ROOT, 'apps', 'app', 'public', 'models')
@@ -56,10 +56,16 @@ TORSO_D = 0.24
 NECK_Z = 0.88
 HEAD_Z0, HEAD_Z1 = 0.90, 1.16
 HEAD_R = 0.15
-SHOULDER = Vector((0.215, 0, 0.80))
-ELBOW_DZ = 0.16
-FOREARM_ANGLE = math.radians(-30)   # Unterarm leicht nach vorn
-FOREARM_LEN = 0.15
+# Arme: Schultergelenk oben an der Seite des Oberkörpers, Arm hängt leicht abgespreizt außen am Trapez
+SHOULDER = Vector((0.19, 0, 0.815))
+ARM_TILT = math.radians(12)         # nach außen abgespreizt (folgt der Trapezform)
+ARM_OUT = 0.06                      # Armachse neben dem Gelenk
+UPPER_LEN = 0.19
+FOREARM_ANGLE = math.radians(-35)   # Unterarm nach vorn geneigt
+FOREARM_LEN = 0.13
+# Füße: je Fuß ein Noppenloch über der hinteren inneren Noppenreihe des Feldes, Spitze ragt nach vorn
+FOOT_Y0, FOOT_Y1 = -0.14, 0.215
+FOOT_HOLE_Y = PITCH / 2
 EYE_Z = 1.05
 
 
@@ -218,6 +224,51 @@ def torus(name, major, minor, location, mat, col, rotation=(0, 0, 0), keep=None,
     return obj
 
 
+def c_ring(name, major, minor, gap, gap_center, location, mat, col, rotation=(0, 0, 0), segments=28, sides=14):
+    """C-förmiger Greifring (Bogen mit runden Enden); Lücke `gap` (Bogenmaß) zentriert bei Winkel `gap_center` in der XY-Ebene"""
+    bm = bmesh.new()
+    a0 = gap_center + gap / 2
+    span = 2 * math.pi - gap
+    rings = []
+    for i in range(segments + 1):
+        a = a0 + span * i / segments
+        ring = []
+        for j in range(sides):
+            b = 2 * math.pi * j / sides
+            r = major + minor * math.cos(b)
+            ring.append(bm.verts.new((r * math.cos(a), r * math.sin(a), minor * math.sin(b))))
+        rings.append(ring)
+    for i in range(segments):
+        for j in range(sides):
+            bm.faces.new((rings[i][j], rings[i + 1][j], rings[i + 1][(j + 1) % sides], rings[i][(j + 1) % sides]))
+    # Enden mit Halbkugeln abrunden
+    for end, sign in ((0, -1), (segments, 1)):
+        a = a0 + span * end / segments
+        center = Vector((major * math.cos(a), major * math.sin(a), 0))
+        tangent = Vector((-math.sin(a), math.cos(a), 0)) * sign
+        prev = rings[end]
+        for k in range(1, 4):
+            t = k / 4 * math.pi / 2
+            ring = []
+            for j in range(sides):
+                base = rings[end][j].co - center
+                ring.append(bm.verts.new(center + base * math.cos(t) + tangent * minor * math.sin(t)))
+            for j in range(sides):
+                f = (prev[j], ring[j], ring[(j + 1) % sides], prev[(j + 1) % sides])
+                bm.faces.new(f if sign > 0 else f[::-1])
+            prev = ring
+        tip = bm.verts.new(center + tangent * minor)
+        for j in range(sides):
+            f = (prev[j], tip, prev[(j + 1) % sides])
+            bm.faces.new(f if sign > 0 else f[::-1])
+    bmesh.ops.recalc_face_normals(bm, faces=list(bm.faces))
+    obj = new_object(name, bm, mat, col)
+    obj.location = location
+    obj.rotation_euler = rotation
+    smooth(obj, sharp=False)
+    return obj
+
+
 def star(name, r_outer, r_inner, depth, location, mat, col, rotation=(0, 0, 0), points=5):
     bm = bmesh.new()
     top, bottom = [], []
@@ -356,14 +407,36 @@ JOINTS = {
 }
 
 
-def forearm_dir():
-    return Vector((0, math.sin(FOREARM_ANGLE), -math.cos(FOREARM_ANGLE)))
+def arm_frame(side):
+    """Schultergelenk (Welt) und Abspreiz-Drehung eines Arms"""
+    sx = 1 if side == 'L' else -1
+    return Vector((sx * SHOULDER.x, SHOULDER.y, SHOULDER.z)), Matrix.Rotation(-sx * ARM_TILT, 3, 'Y')
+
+
+def arm_point(side, local):
+    """Punkt im Armraum (Schulter = Ursprung, Arm hängt entlang -Z) in Weltkoordinaten"""
+    origin, tilt = arm_frame(side)
+    return origin + tilt @ Vector(local)
+
+
+def arm_rot(side, euler=(0, 0, 0)):
+    _, tilt = arm_frame(side)
+    return tuple((tilt @ Euler(euler).to_matrix()).to_euler())
+
+
+def forearm_dir(side):
+    _, tilt = arm_frame(side)
+    return tilt @ Vector((0, math.sin(FOREARM_ANGLE), -math.cos(FOREARM_ANGLE)))
+
+
+def elbow_local(side):
+    return Vector(((1 if side == 'L' else -1) * ARM_OUT, 0, -UPPER_LEN))
 
 
 def wrist(side):
-    sx = 1 if side == 'L' else -1
-    elbow = Vector((sx * (SHOULDER.x + 0.04), 0, SHOULDER.z - ELBOW_DZ))
-    return elbow, elbow + forearm_dir() * FOREARM_LEN
+    """Ellbogen und Handgelenk in Weltkoordinaten"""
+    elbow = arm_point(side, elbow_local(side))
+    return elbow, elbow + forearm_dir(side) * FOREARM_LEN
 
 
 JOINTS['HandL'] = ('ArmL', tuple(wrist('L')[1]))
@@ -387,13 +460,11 @@ EYE = '#1b1b1b'
 
 def build_body(b, j, m_skin, m_shirt, m_pants):
     col = b.col
-    # Beine: Fuß 1×2 Noppen mit zwei Noppenlöchern, Bein darüber, runde Hüftachse
+    # Beine: Fuß mit einem Noppenloch (steckt auf einer Noppe), Bein darüber, runde Hüftachse
     for side, sx in (('L', 1), ('R', -1)):
         x = sx * LEG_X
-        foot = box(f'Foot{side}', (PITCH - 0.012, 2 * PITCH - 0.012, FOOT_H), (x, 0, 0), m_pants, col, bevel=0.018)
-        for k, y in enumerate((-PITCH / 2, PITCH / 2)):
-            hole = cylinder(f'Hole{side}{k}', STUD_R + 0.003, STUD_H + 0.004, (x, y, -0.002), m_pants, col)
-            cut(foot, hole)
+        foot = box(f'Foot{side}', (PITCH - 0.012, FOOT_Y1 - FOOT_Y0, FOOT_H), (x, (FOOT_Y0 + FOOT_Y1) / 2, 0), m_pants, col, bevel=0.018)
+        cut(foot, cylinder(f'Hole{side}', STUD_R + 0.003, STUD_H + 0.004, (x, FOOT_HOLE_Y, -0.002), m_pants, col))
         b.add(f'Leg{side}Mesh', j[f'Leg{side}'], foot)
         b.add(f'Leg{side}Mesh', j[f'Leg{side}'], box(f'Shin{side}', (PITCH - 0.02, 0.26, HIP_Z - FOOT_H), (x, HIP_Y + 0.02, FOOT_H - 0.01), m_pants, col, bevel=0.02))
         b.add(f'Leg{side}Mesh', j[f'Leg{side}'], cylinder(f'HipAxle{side}', 0.075, PITCH - 0.02, (x - (PITCH - 0.02) / 2, HIP_Y + 0.02, HIP_Z), m_pants, col, rotation=(0, math.pi / 2, 0), bevel=0.01))
@@ -415,17 +486,19 @@ def build_body(b, j, m_skin, m_shirt, m_pants):
     # Arme: Oberarm, nach vorn geneigter Unterarm, C-Greifhand
     for side, sx in (('L', 1), ('R', -1)):
         elbow, hand = wrist(side)
+        d = forearm_dir(side)
         arm = f'Arm{side}Mesh'
-        b.add(arm, j[f'Arm{side}'], cylinder(f'Shoulder{side}', 0.062, 0.12, (sx * (SHOULDER.x - 0.03), 0, SHOULDER.z - 0.02), m_shirt, col, rotation=(0, sx * math.pi / 2, 0), bevel=0.02))
-        b.add(arm, j[f'Arm{side}'], box(f'UpperArm{side}', (0.11, 0.12, ELBOW_DZ + 0.02), (elbow.x, 0, elbow.z), m_shirt, col, bevel=0.04))
-        center = elbow + forearm_dir() * (FOREARM_LEN / 2)
-        b.add(arm, j[f'Arm{side}'], box(f'Forearm{side}', (0.1, 0.11, FOREARM_LEN + 0.04), tuple(center), m_shirt, col, bevel=0.04, rotation=(FOREARM_ANGLE, 0, 0), center=True))
-        # Hand: kurzes Handgelenk + offener Ring (Öffnung nach vorn)
+        # Oberarm: oben rund, liegt außen am Oberkörper an
+        b.add(arm, j[f'Arm{side}'], box(f'UpperArm{side}', (0.1, 0.12, UPPER_LEN + 0.05), tuple(arm_point(side, (sx * ARM_OUT, 0, -UPPER_LEN / 2 + 0.01))), m_shirt, col, bevel=0.048, rotation=arm_rot(side), center=True))
+        b.add(arm, j[f'Arm{side}'], cylinder(f'ShoulderPin{side}', 0.04, 0.05, tuple(arm_point(side, (sx * 0.02, 0, -0.02))), m_shirt, col, rotation=arm_rot(side, (0, -sx * math.pi / 2, 0))))
+        # Unterarm nach vorn geneigt
+        center = elbow + d * (FOREARM_LEN / 2)
+        b.add(arm, j[f'Arm{side}'], box(f'Forearm{side}', (0.095, 0.11, FOREARM_LEN + 0.06), tuple(center), m_shirt, col, bevel=0.045, rotation=arm_rot(side, (FOREARM_ANGLE, 0, 0)), center=True))
+        # Hand: Handgelenk-Zapfen + C-Greifring (Loch quer zum Unterarm, Öffnung nach innen)
         h = f'Hand{side}Mesh'
-        b.add(h, j[f'Hand{side}'], cylinder(f'Wrist{side}', 0.03, 0.035, tuple(hand + forearm_dir() * -0.01), m_skin, col, rotation=(FOREARM_ANGLE + math.pi, 0, 0)))
-        grip = hand + forearm_dir() * 0.055
-        # Ring steht quer zum Unterarm, Öffnung zeigt zum Körper
-        b.add(h, j[f'Hand{side}'], torus(f'Grip{side}', 0.04, 0.022, tuple(grip), m_skin, col, rotation=(FOREARM_ANGLE + math.pi / 2, 0, 0), keep=lambda x, y, sx=sx: sx * x > -0.024))
+        b.add(h, j[f'Hand{side}'], cylinder(f'Wrist{side}', 0.024, 0.04, tuple(hand - d * 0.01), m_skin, col, rotation=arm_rot(side, (FOREARM_ANGLE + math.pi, 0, 0))))
+        grip = hand + d * 0.07
+        b.add(h, j[f'Hand{side}'], c_ring(f'Grip{side}', 0.042, 0.024, math.radians(70), math.pi if sx > 0 else 0, tuple(grip), m_skin, col, rotation=arm_rot(side, (FOREARM_ANGLE + math.pi / 2, 0, 0))))
 
 
 def build_face(b, j, model, m_eye, m_shine):
@@ -673,12 +746,11 @@ def front(z, grow=0.0):
 def sleeves(o, mat, col, cuff=None):
     for side, sx in (('L', 1), ('R', -1)):
         elbow, _ = wrist(side)
-        o.add(f'Arm{side}', box(f'Sleeve{side}', (0.13, 0.14, ELBOW_DZ + 0.03), (elbow.x, 0, elbow.z - 0.005), mat, col, bevel=0.045))
-        center = elbow + forearm_dir() * (FOREARM_LEN / 2 - 0.01)
-        o.add(f'Arm{side}', box(f'SleeveLow{side}', (0.12, 0.13, FOREARM_LEN), tuple(center), mat, col, bevel=0.045, rotation=(FOREARM_ANGLE, 0, 0), center=True))
+        d = forearm_dir(side)
+        o.add(f'Arm{side}', box(f'Sleeve{side}', (0.116, 0.136, UPPER_LEN + 0.06), tuple(arm_point(side, (sx * ARM_OUT, 0, -UPPER_LEN / 2 + 0.005))), mat, col, bevel=0.052, rotation=arm_rot(side), center=True))
+        o.add(f'Arm{side}', box(f'SleeveLow{side}', (0.11, 0.125, FOREARM_LEN + 0.075), tuple(elbow + d * (FOREARM_LEN / 2 + 0.0075)), mat, col, bevel=0.048, rotation=arm_rot(side, (FOREARM_ANGLE, 0, 0)), center=True))
         if cuff:
-            band = elbow + forearm_dir() * (FOREARM_LEN / 2 + 0.02)
-            o.add(f'Arm{side}', box(f'Cuff{side}', (0.128, 0.138, 0.03), tuple(band), cuff, col, bevel=0.01, rotation=(FOREARM_ANGLE, 0, 0), center=True))
+            o.add(f'Arm{side}', box(f'Cuff{side}', (0.116, 0.132, 0.03), tuple(elbow + d * (FOREARM_LEN + 0.025)), cuff, col, bevel=0.01, rotation=arm_rot(side, (FOREARM_ANGLE, 0, 0)), center=True))
 
 
 def belt(o, mat, buckle, col, pouch=None):
@@ -801,7 +873,7 @@ def skin_astronaut(o, col):
         o.add('Body', cylinder(f'Tank{sx}', 0.04, 0.26, (sx * 0.09, TORSO_D / 2 + 0.135, 0.55), grey, col, bevel=0.01))
     sleeves(o, suit, col, cuff=grey)
     for side, sx in (('L', 1), ('R', -1)):
-        o.add(f'Leg{side}', box(f'Boot{side}', (PITCH - 0.004, 2 * PITCH - 0.004, 0.06), (sx * LEG_X, 0, FOOT_H - 0.005), grey, col, bevel=0.012))
+        o.add(f'Leg{side}', box(f'Boot{side}', (PITCH - 0.004, FOOT_Y1 - FOOT_Y0 + 0.008, 0.06), (sx * LEG_X, (FOOT_Y0 + FOOT_Y1) / 2, FOOT_H - 0.005), grey, col, bevel=0.012))
     belt(o, grey, suit, col)
 
 
@@ -815,7 +887,7 @@ def skin_knight(o, col):
     o.add('Body', box('CrossV', (0.04, 0.012, 0.2), (0, front(0) - 0.018, 0.56), red, col, bevel=0.004))
     o.add('Body', box('CrossH', (0.14, 0.012, 0.04), (0, front(0) - 0.018, 0.69), red, col, bevel=0.004))
     for side, sx in (('L', 1), ('R', -1)):
-        o.add(f'Arm{side}', sphere(f'Pauldron{side}', 0.085, (sx * (SHOULDER.x + 0.035), 0, SHOULDER.z - 0.01), armor, col, scale=(1, 1.1, 0.75), half=True))
+        o.add(f'Arm{side}', sphere(f'Pauldron{side}', 0.085, tuple(arm_point(side, (sx * ARM_OUT, 0, -0.01))), armor, col, scale=(1, 1.1, 0.75), half=True))
         o.add(f'Leg{side}', box(f'Greave{side}', (PITCH - 0.004, 0.08, 0.2), (sx * LEG_X, HIP_Y - 0.11, FOOT_H + 0.02), armor, col, bevel=0.012))
     belt(o, leather, gold, col)
     # Schwert am Gürtel
