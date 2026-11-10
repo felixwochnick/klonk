@@ -51,15 +51,17 @@ LEG_X = PITCH / 2            # Beine über den inneren Noppen
 HIP_Z = 0.42
 HIP_Y = -0.02                # Beine mittig über dem Fuß (Schienbein bei y = 0)
 TORSO_Z0, TORSO_Z1 = 0.50, 0.86
-TORSO_W0, TORSO_W1 = 2 * PITCH - 0.01, 0.38   # unten zwei Noppen breit, oben schmaler
+TORSO_W0 = TORSO_W1 = 2 * PITCH - 0.01       # gerader Oberkörper, zwei Noppen breit (eigene Form, kein Trapez)
 TORSO_D = 0.24
 NECK_Z = 0.88
 HEAD_Z0, HEAD_Z1 = 0.90, 1.16
-HEAD_R = 0.15
-# Arme: Schultergelenk oben an der Seite des Oberkörpers, Arm hängt leicht abgespreizt außen am Trapez
-SHOULDER = Vector((0.19, 0, 0.815))
-ARM_TILT = math.radians(12)         # nach außen abgespreizt (folgt der Trapezform)
-ARM_OUT = 0.06                      # Armachse neben dem Gelenk
+HEAD_R = 0.15        # Bezugsradius: Kopfteile werden rund gebaut und per fit_head() auf die Kopfform gebracht
+HEAD_A, HEAD_B = 0.165, 0.145   # Kopf als abgerundeter Block (Superellipse): halbe Breite, halbe Tiefe
+HEAD_N = 3.2                    # Exponent der Superellipse (2 = Ellipse, groß = Rechteck)
+# Arme: Schultergelenk oben an der Seite des Oberkörpers, Arm hängt fast senkrecht außen am Oberkörper
+SHOULDER = Vector((TORSO_W1 / 2, 0, 0.815))
+ARM_TILT = math.radians(4)          # kaum abgespreizt
+ARM_OUT = 0.058                     # Armachse neben dem Gelenk
 UPPER_LEN = 0.19
 FOREARM_ANGLE = math.radians(-55)   # Unterarm nach vorn geknickt, Hände vor der Hüfte
 FOREARM_LEN = 0.13
@@ -73,6 +75,13 @@ EYE_Z = 1.05
 
 def torso_width(z):
     return TORSO_W0 + (TORSO_W1 - TORSO_W0) * (z - TORSO_Z0) / (TORSO_Z1 - TORSO_Z0)
+
+
+def head_radius(theta, grow=0.0):
+    """Abstand der Kopfkontur von der Kopfachse in Richtung theta (Superellipse)"""
+    c, s_ = abs(math.cos(theta)), abs(math.sin(theta))
+    a, b = HEAD_A + grow, HEAD_B + grow
+    return ((c / a) ** HEAD_N + (s_ / b) ** HEAD_N) ** (-1 / HEAD_N)
 
 
 # ---------------------------------------------------------------------------
@@ -143,7 +152,7 @@ def new_object(name, bm, mat, col):
 
 def box(name, size, location, mat, col, bevel=0.02, rotation=(0, 0, 0), center=False, taper=None, segments=3):
     """Quader mit abgerundeten Kanten; `location` = Mitte der Unterseite (bzw. Mitte bei `center`).
-    `taper` = (Breite oben, Tiefe oben) relativ zur Grundfläche (Trapez, z. B. Oberkörper)."""
+    `taper` = (Breite oben, Tiefe oben) relativ zur Grundfläche (Trapez)."""
     sx, sy, sz = size
     bm = bmesh.new()
     bmesh.ops.create_cube(bm, size=1.0)
@@ -355,6 +364,31 @@ def parent_to(child, parent):
     world = child.matrix_world.copy()
     child.parent = parent
     child.matrix_world = world
+
+
+def fit_head(obj):
+    """Rund um die Kopfachse gebautes Teil (Bezugsradius HEAD_R) auf die Kopfform verformen:
+    jeder Punkt wird radial im Verhältnis Kopfkontur / HEAD_R verschoben (Abstände bleiben proportional).
+    Modifikatoren (nur Normalen) bleiben und werden erst beim Vereinen angewendet."""
+    mesh = obj.data
+    # matrix_basis statt matrix_world: die Weltmatrix ist vor dem nächsten Depsgraph-Update noch veraltet (Teile haben kein Elternobjekt)
+    mesh.transform(obj.matrix_basis)
+    obj.matrix_basis = Matrix.Identity(4)
+    for v in mesh.vertices:
+        x, y = v.co.x, v.co.y
+        if abs(x) + abs(y) < 1e-9:
+            continue
+        k = head_radius(math.atan2(y, x)) / HEAD_R
+        v.co.x, v.co.y = x * k, y * k
+    mesh.update()
+    return obj
+
+
+def head_point(location):
+    """Einzelnen Punkt wie fit_head() verschieben"""
+    x, y, z = location
+    k = head_radius(math.atan2(y, x)) / HEAD_R if abs(x) + abs(y) > 1e-9 else 1.0
+    return (x * k, y * k, z)
 
 
 def stud_positions():
@@ -570,7 +604,7 @@ def skeleton(prefix, col, root=None):
 
 
 # ---------------------------------------------------------------------------
-# Figuren (Klemmbaustein-Figur: Noppenkopf, Trapez-Oberkörper, Greifhände, Beine mit Noppenlöchern)
+# Figuren (eigene Klemmbaustein-Figur: Blockkopf ohne Noppe, gerader Oberkörper, Greifhände, Füße mit Noppenloch)
 
 SKIN = '#e8b48a'
 EYE = '#1b1b1b'
@@ -591,15 +625,12 @@ def build_body(b, j, m_skin, m_shirt, m_pants):
     b.add('HipsMesh', j['Hips'], box('Hips', (2 * PITCH - 0.01, 0.25, 0.08), (0, HIP_Y, HIP_Z), m_pants, col, bevel=0.02))
     b.add('HipsMesh', j['Hips'], box('HipJoint', (0.08, 0.2, 0.05), (0, HIP_Y, HIP_Z - 0.04), m_pants, col, bevel=0.015))
 
-    # Oberkörper (Trapez), Hals
-    taper = (TORSO_W1 / TORSO_W0, 1.0)
-    b.add('BodyMesh', j['Body'], box('Torso', (TORSO_W0, TORSO_D, TORSO_Z1 - TORSO_Z0), (0, 0, TORSO_Z0), m_shirt, col, bevel=0.025, taper=taper))
+    # Oberkörper (gerader Block), Hals
+    b.add('BodyMesh', j['Body'], box('Torso', (TORSO_W0, TORSO_D, TORSO_Z1 - TORSO_Z0), (0, 0, TORSO_Z0), m_shirt, col, bevel=0.03))
     b.add('BodyMesh', j['Body'], cylinder('Neck', 0.065, NECK_Z - TORSO_Z1 + 0.03, (0, 0, TORSO_Z1 - 0.01), m_skin, col))
 
-    # Kopf: Zylinder mit Noppe obendrauf
-    b.add('HeadMesh', j['Head'], cylinder('Head', HEAD_R, HEAD_Z1 - HEAD_Z0, (0, 0, HEAD_Z0), m_skin, col, bevel=0.035, vertices=48))
-    # Kopfnoppe gehört zur Frisur oben (HairTop), damit Kopfbedeckungen sie mit ausblenden
-    b.add('HairTopMesh', j['Head'], cylinder('HeadStud', 0.085, 0.06, (0, 0, HEAD_Z1 - 0.005), m_skin, col, bevel=0.01))
+    # Kopf: abgerundeter Block ohne Noppe (eigene Form)
+    b.add('HeadMesh', j['Head'], fit_head(cylinder('Head', HEAD_R, HEAD_Z1 - HEAD_Z0, (0, 0, HEAD_Z0), m_skin, col, bevel=0.045, vertices=64, bevel_segments=4)))
 
     # Arme: Oberarm, nach vorn geneigter Unterarm, C-Greifhand
     for side, sx in (('L', 1), ('R', -1)):
@@ -639,9 +670,9 @@ def build_face(b, j, model, m_eye, m_shine):
             lash = Vector((0.026 * sx, 0, 0.026))
             lash.rotate(Euler((0, 0, theta)))
             parts.append(box(f'Lash{side}', (0.022, 0.012, 0.006), (location[0] + lash.x, location[1] + lash.y - 0.004, location[2] + lash.z), m_eye, col, bevel=0.002, rotation=(0, sx * 0.5, theta), center=True))
-        eye = join(parts, f'Eye{side}')
+        eye = join([fit_head(p) for p in parts], f'Eye{side}')
         # Ursprung in die Augenmitte (zum Blinzeln skalieren)
-        bpy.context.scene.cursor.location = location
+        bpy.context.scene.cursor.location = head_point(location)
         bpy.ops.object.select_all(action='DESELECT')
         eye.select_set(True)
         bpy.context.view_layer.objects.active = eye
@@ -649,17 +680,17 @@ def build_face(b, j, model, m_eye, m_shine):
         bpy.context.scene.cursor.location = (0, 0, 0)
         parent_to(eye, j['Head'])
     # Lächeln (untere Hälfte eines Rings)
-    b.add('HeadMesh', j['Head'], torus('Smile', 0.055, 0.009, (0, -HEAD_R + 0.002, EYE_Z - 0.065), m_eye, col, rotation=(math.pi / 2, 0, 0), keep=lambda x, y: y < -0.012))
+    b.add('HeadMesh', j['Head'], fit_head(torus('Smile', 0.055, 0.009, (0, -HEAD_R + 0.002, EYE_Z - 0.065), m_eye, col, rotation=(math.pi / 2, 0, 0), keep=lambda x, y: y < -0.012)))
     # Wangen
     m_cheek = material(f'{model}-cheek', '#f08a7a', 0.6)
     for sx in (1, -1):
         x = sx * 0.09
         theta = math.asin(x / HEAD_R)
         r = HEAD_R - 0.004
-        b.add('HeadMesh', j['Head'], cylinder(f'Cheek{sx}', 0.018, 0.008, (r * math.sin(theta), -r * math.cos(theta), EYE_Z - 0.045), m_cheek, col, rotation=(math.pi / 2, 0, theta), scale=(1.3, 1, 1)))
+        b.add('HeadMesh', j['Head'], fit_head(cylinder(f'Cheek{sx}', 0.018, 0.008, (r * math.sin(theta), -r * math.cos(theta), EYE_Z - 0.045), m_cheek, col, rotation=(math.pi / 2, 0, theta), scale=(1.3, 1, 1))))
 
 
-def hair_cap(b, j, m_hair, front_cut=1.1, name='HairTopMesh', stud=True):
+def hair_cap(b, j, m_hair, front_cut=1.1, name='HairTopMesh'):
     col = b.col
     cap = cylinder('HairCap', HEAD_R + 0.014, 0.16, (0, 0, 1.04), m_hair, col, bevel=0.06, vertices=48)
     cap.modifiers.clear()
@@ -667,8 +698,6 @@ def hair_cap(b, j, m_hair, front_cut=1.1, name='HairTopMesh', stud=True):
     cut(cap, box('FaceCut', (0.5, 0.3, front_cut - 0.9), (0, -0.18, 0.9), m_hair, col, bevel=0))
     smooth(cap, sharp=False)
     b.add(name, j['Head'], cap)
-    if stud:
-        b.add(name, j['Head'], cylinder('HairStud', 0.088, 0.05, (0, 0, 1.19), m_hair, col, bevel=0.01))
 
 
 def build_hair(b, j, style, m_hair):
@@ -685,7 +714,7 @@ def build_hair(b, j, style, m_hair):
         for sx in (1, -1):
             b.add('HairBackMesh', j['Head'], box(f'HairSide{sx}', (0.05, 0.2, 0.24), (sx * 0.152, 0.03, 0.85), m_hair, col, bevel=0.022))
     elif style == 'bun':
-        hair_cap(b, j, m_hair, front_cut=1.1, stud=False)
+        hair_cap(b, j, m_hair, front_cut=1.1)
         b.add('HairTopMesh', j['Head'], cylinder('BunBase', 0.092, 0.05, (0, 0.0, 1.18), m_hair, col))
         b.add('HairTopMesh', j['Head'], sphere('Bun', 0.085, (0, 0.02, 1.25), m_hair, col))
         b.add('HairTopMesh', j['Head'], torus('BunBand', 0.066, 0.012, (0, 0.02, 1.215), material('diverse-band', '#f2cd37', 0.3), col))
@@ -706,6 +735,10 @@ def build_character(name, shirt, pants, hair, hair_style):
     build_body(b, j, m_skin, m_shirt, m_pants)
     build_face(b, j, name, m_eye, m_shine)
     build_hair(b, j, hair_style, m_hair)
+    # Frisur rund gebaut ⇒ auf die Kopfform bringen
+    for mesh_name in ('HairTopMesh', 'HairBackMesh'):
+        for obj in b.parts.get(mesh_name, (None, []))[1]:
+            fit_head(obj)
     b.finish()
     build_clips(j)
     return col, root
@@ -850,7 +883,7 @@ def build_clips(joints):
 # Skins (Kleidung über der Figur) – Teile je Gelenk, Hauptfarbe `outfit-main-<skin>` umfärbbar
 
 def shell(name, z0, z1, grow, mat, col, y0=None, y1=None):
-    """Hülle um den Oberkörper zwischen z0 und z1 (folgt der Trapezform), etwas größer als der Körper"""
+    """Hülle um den Oberkörper zwischen z0 und z1 (folgt dem Oberkörper), etwas größer als der Körper"""
     w0, w1 = torso_width(z0) + 2 * grow, torso_width(z1) + 2 * grow
     y0 = -TORSO_D / 2 - grow if y0 is None else y0
     y1 = TORSO_D / 2 + grow if y1 is None else y1
@@ -889,7 +922,11 @@ class Outfit:
     def add(self, joint, obj):
         return self.builder.add(f'{self.prefix}{joint}Mesh', self.joints[joint], obj)
 
-    def finish(self):
+    def finish(self, fit=True):
+        # Kopfteile sind rund gebaut ⇒ auf die Kopfform bringen
+        if fit:
+            for obj in self.builder.parts.get(f'{self.prefix}HeadMesh', (None, []))[1]:
+                fit_head(obj)
         self.builder.finish()
         # Leere Gelenke ohne Teile entfernen (kleinere Datei)
         for joint in reversed(list(self.joints.values())):
@@ -1233,7 +1270,7 @@ def build_outfits():
         main = material(f'acc-main-{name}', color, 0.22 if name in METALLIC else 0.3, 0.6 if name in METALLIC else 0.0)
         o = Outfit(f'acc__{name}__', sub)
         build(o, sub, main)
-        o.finish()
+        o.finish(fit=name != 'spaceHelmet')
         groups[f'acc-{name}'] = sub
     return col, groups
 
