@@ -31,6 +31,8 @@ export const MARK_HEX: Record<MarkColor, number> = {
 
 const BLOCK_HEX = 0x6C6E68
 const FLOOR_HEX = 0x9BA19D
+/** Noppenraster (4×4 Noppen je Feld) */
+const STUD_PITCH = 0.25
 const ROTATION: Record<Direction, number> = { south: 0, east: Math.PI / 2, north: Math.PI, west: -Math.PI / 2 }
 
 type Models = {
@@ -397,7 +399,8 @@ export class WorldRenderer {
 
   private addCharacterView(character: CharacterData) {
     this.invalidate()
-    // Jeder Fuß steckt mit seinem Noppenloch auf einer Noppe (innere Noppen der hinteren Reihe), die Figur steht mittig im Feld
+    // Jeder Fuß (1×1 Noppe) steckt mit seinem Noppenloch auf einer Noppe: Feldmitte liegt zwischen zwei Noppenreihen,
+    // daher das Modell ½ Raster nach hinten auf die inneren Noppen der hinteren Reihe
     const base = character.design?.base ?? character.model
     const model = this.models!.characters[base].clone(true)
     const design = character.design
@@ -411,6 +414,7 @@ export class WorldRenderer {
         }).catch(() => {})
       }
     }
+    model.position.z = -STUD_PITCH / 2
     const root = new THREE.Group()
     root.add(model)
     // Name über der Figur – er identifiziert sie (Programme sprechen sie darüber an)

@@ -49,7 +49,7 @@ FPS = 24
 FOOT_H = 0.12
 LEG_X = PITCH / 2            # Beine über den inneren Noppen
 HIP_Z = 0.42
-HIP_Y = 0.03
+HIP_Y = -0.02                # Beine mittig über dem Fuß (Schienbein bei y = 0)
 TORSO_Z0, TORSO_Z1 = 0.50, 0.86
 TORSO_W0, TORSO_W1 = 2 * PITCH - 0.01, 0.38   # unten zwei Noppen breit, oben schmaler
 TORSO_D = 0.24
@@ -63,9 +63,11 @@ ARM_OUT = 0.06                      # Armachse neben dem Gelenk
 UPPER_LEN = 0.19
 FOREARM_ANGLE = math.radians(-55)   # Unterarm nach vorn geknickt, Hände vor der Hüfte
 FOREARM_LEN = 0.13
-# Füße: je Fuß ein Noppenloch über der hinteren inneren Noppenreihe des Feldes, Spitze ragt nach vorn
-FOOT_Y0, FOOT_Y1 = -0.14, 0.215
-FOOT_HOLE_Y = PITCH / 2
+# Füße: je Fuß genau 1×1 Noppe mit einem Noppenloch in der Mitte. Die Figur ist um y = 0 gebaut; der Renderer
+# setzt sie ½ Raster nach hinten, damit die Füße auf den inneren Noppen der hinteren Reihe stecken.
+FOOT_Y0, FOOT_Y1 = -(PITCH - 0.012) / 2, (PITCH - 0.012) / 2
+FOOT_HOLE_Y = 0.0
+SHIN_D = 0.22
 EYE_Z = 1.05
 
 
@@ -419,6 +421,112 @@ def arm_point(side, local):
     return origin + tilt @ Vector(local)
 
 
+def arm_centerline(side, samples=34):
+    """Mittellinie eines Arms (Welt): gerade nach unten, weicher Knick am Ellbogen, Unterarm nach vorn"""
+    sx = 1 if side == 'L' else -1
+    top = Vector((sx * ARM_OUT, 0, 0.0))
+    elbow = elbow_local(side)
+    d = Vector((0, math.sin(FOREARM_ANGLE), -math.cos(FOREARM_ANGLE)))
+    bend = 0.07
+    e_in, e_out = elbow + Vector((0, 0, bend)), elbow + d * bend
+    end = elbow + d * FOREARM_LEN
+    pts = []
+    n1, n2, n3 = 10, 12, 12
+    for i in range(n1):
+        pts.append(top.lerp(e_in, i / n1))
+    for i in range(n2):
+        t = i / n2
+        pts.append(e_in * (1 - t) ** 2 + elbow * 2 * t * (1 - t) + e_out * t * t)
+    for i in range(n3 + 1):
+        pts.append(e_out.lerp(end, i / n3))
+    return [arm_point(side, p) for p in pts]
+
+
+def tube(name, points, half_widths, mat, col, cap_start=0.0, cap_end=0.0, sides=24, power=4.0):
+    """Schlauch mit abgerundet-eckigem Querschnitt entlang `points` (Seitenachse = Welt-X, gekippt mit dem Arm).
+    `half_widths(t)` liefert (Breite/2 seitlich, Tiefe/2) für t ∈ [0, 1]; Kappen als Kuppel mit der angegebenen Höhe."""
+    bm = bmesh.new()
+    n = len(points)
+    lengths = [0.0]
+    for i in range(1, n):
+        lengths.append(lengths[-1] + (points[i] - points[i - 1]).length)
+    total = lengths[-1]
+    rings, frames = [], []
+    for i, p in enumerate(points):
+        tangent = (points[min(i + 1, n - 1)] - points[max(i - 1, 0)]).normalized()
+        side_axis = Vector((1, 0, 0))
+        side_axis = (side_axis - tangent * side_axis.dot(tangent)).normalized()
+        normal = tangent.cross(side_axis)
+        a, b = half_widths(lengths[i] / total)
+        frames.append((p, tangent, side_axis, normal, a, b))
+
+    def section(p, side_axis, normal, a, b, scale=1.0):
+        ring = []
+        for j in range(sides):
+            th = 2 * math.pi * j / sides
+            c, s_ = math.cos(th), math.sin(th)
+            x = a * scale * math.copysign(abs(c) ** (2 / power), c)
+            y = b * scale * math.copysign(abs(s_) ** (2 / power), s_)
+            ring.append(bm.verts.new(p + side_axis * x + normal * y))
+        return ring
+
+    for p, t, sa, nm, a, b in frames:
+        rings.append(section(p, sa, nm, a, b))
+
+    def cap(base_frame, direction, height, at_start):
+        p, t, sa, nm, a, b = base_frame
+        prev = rings[0] if at_start else rings[-1]
+        steps = 5
+        out = []
+        for k in range(1, steps + 1):
+            ang = k / steps * math.pi / 2
+            ring = section(p + direction * height * math.sin(ang), sa, nm, a, b, max(math.cos(ang), 0.0001))
+            out.append((prev, ring))
+            prev = ring
+        tip = bm.verts.new(p + direction * height)
+        return out, prev, tip
+
+    def connect(r0, r1, flip=False):
+        for j in range(sides):
+            f = (r0[j], r1[j], r1[(j + 1) % sides], r0[(j + 1) % sides])
+            bm.faces.new(f[::-1] if flip else f)
+
+    for i in range(n - 1):
+        connect(rings[i], rings[i + 1])
+    for at_start, height in ((True, cap_start), (False, cap_end)):
+        frame = frames[0] if at_start else frames[-1]
+        direction = -frame[1] if at_start else frame[1]
+        if height > 0:
+            pairs, last, tip = cap(frame, direction, height, at_start)
+            for r0, r1 in pairs:
+                connect(r0, r1, flip=at_start)
+            for j in range(sides):
+                f = (last[j], tip, last[(j + 1) % sides])
+                bm.faces.new(f[::-1] if not at_start else f)
+        else:
+            ring = rings[0] if at_start else rings[-1]
+            bm.faces.new(ring[::-1] if at_start else ring)
+    bmesh.ops.recalc_face_normals(bm, faces=list(bm.faces))
+    obj = new_object(name, bm, mat, col)
+    smooth(obj, sharp=False)
+    return obj
+
+
+def arm_widths(grow=0.0):
+    # Oberarm 0,1 breit und 0,115 tief, zum Handgelenk etwas schmaler
+    return lambda t: (0.05 - 0.007 * t + grow, 0.058 - 0.008 * t + grow)
+
+
+def arm_part(name, side, mat, col, t0=0.0, t1=1.0, grow=0.0, cap_start=0.0, cap_end=0.0):
+    """Teilstück des Arms (t0–t1 entlang der Mittellinie) als ein Mesh, z. B. ganzer Arm, Ärmel oder Manschette"""
+    pts = arm_centerline(side)
+    i0, i1 = round(t0 * (len(pts) - 1)), round(t1 * (len(pts) - 1))
+    sub = pts[i0:i1 + 1]
+    full = arm_widths(grow)
+    span = (i0 / (len(pts) - 1), i1 / (len(pts) - 1))
+    return tube(name, sub, lambda t: full(span[0] + (span[1] - span[0]) * t), mat, col, cap_start=cap_start, cap_end=cap_end)
+
+
 def frame_euler(axis, gap_dir):
     """Drehung, die lokal Z auf `axis` und lokal -X auf `gap_dir` legt (für c_ring mit gap_center = π)"""
     z = Vector(axis).normalized()
@@ -470,13 +578,13 @@ EYE = '#1b1b1b'
 
 def build_body(b, j, m_skin, m_shirt, m_pants):
     col = b.col
-    # Beine: Fuß mit einem Noppenloch (steckt auf einer Noppe), Bein darüber, runde Hüftachse
+    # Beine: Fuß 1×1 Noppe mit einem Noppenloch (steckt auf genau einer Noppe), Bein darüber, runde Hüftachse
     for side, sx in (('L', 1), ('R', -1)):
         x = sx * LEG_X
         foot = box(f'Foot{side}', (PITCH - 0.012, FOOT_Y1 - FOOT_Y0, FOOT_H), (x, (FOOT_Y0 + FOOT_Y1) / 2, 0), m_pants, col, bevel=0.018)
         cut(foot, cylinder(f'Hole{side}', STUD_R + 0.003, STUD_H + 0.004, (x, FOOT_HOLE_Y, -0.002), m_pants, col))
         b.add(f'Leg{side}Mesh', j[f'Leg{side}'], foot)
-        b.add(f'Leg{side}Mesh', j[f'Leg{side}'], box(f'Shin{side}', (PITCH - 0.02, 0.26, HIP_Z - FOOT_H), (x, HIP_Y + 0.02, FOOT_H - 0.01), m_pants, col, bevel=0.02))
+        b.add(f'Leg{side}Mesh', j[f'Leg{side}'], box(f'Shin{side}', (PITCH - 0.02, SHIN_D, HIP_Z - FOOT_H), (x, HIP_Y + 0.02, FOOT_H - 0.01), m_pants, col, bevel=0.02))
         b.add(f'Leg{side}Mesh', j[f'Leg{side}'], cylinder(f'HipAxle{side}', 0.075, PITCH - 0.02, (x - (PITCH - 0.02) / 2, HIP_Y + 0.02, HIP_Z), m_pants, col, rotation=(0, math.pi / 2, 0), bevel=0.01))
 
     # Hüftstück
@@ -498,12 +606,9 @@ def build_body(b, j, m_skin, m_shirt, m_pants):
         elbow, hand = wrist(side)
         d = forearm_dir(side)
         arm = f'Arm{side}Mesh'
-        # Oberarm: oben rund, liegt außen am Oberkörper an
-        b.add(arm, j[f'Arm{side}'], box(f'UpperArm{side}', (0.1, 0.12, UPPER_LEN + 0.05), tuple(arm_point(side, (sx * ARM_OUT, 0, -UPPER_LEN / 2 + 0.01))), m_shirt, col, bevel=0.048, rotation=arm_rot(side), center=True))
+        # Arm aus einem Stück: Schulterkuppe, Oberarm, weicher Knick am Ellbogen, Unterarm
+        b.add(arm, j[f'Arm{side}'], arm_part(f'ArmTube{side}', side, m_shirt, col, cap_start=0.05, cap_end=0.012))
         b.add(arm, j[f'Arm{side}'], cylinder(f'ShoulderPin{side}', 0.04, 0.05, tuple(arm_point(side, (sx * 0.02, 0, -0.02))), m_shirt, col, rotation=arm_rot(side, (0, -sx * math.pi / 2, 0))))
-        # Unterarm nach vorn geneigt
-        center = elbow + d * (FOREARM_LEN / 2)
-        b.add(arm, j[f'Arm{side}'], box(f'Forearm{side}', (0.095, 0.11, FOREARM_LEN + 0.06), tuple(center), m_shirt, col, bevel=0.045, rotation=arm_rot(side, (FOREARM_ANGLE, 0, 0)), center=True))
         # Hand wie bei Klemmbaustein-Figuren: C-Clip, Zapfen hinten am geschlossenen Teil, Öffnung gegenüber
         h = f'Hand{side}Mesh'
         # Loch quer zum Unterarm (nach oben/vorn), Öffnung zeigt vom Handgelenk weg (vom User so gewählt)
@@ -762,10 +867,9 @@ def sleeves(o, mat, col, cuff=None):
     for side, sx in (('L', 1), ('R', -1)):
         elbow, _ = wrist(side)
         d = forearm_dir(side)
-        o.add(f'Arm{side}', box(f'Sleeve{side}', (0.116, 0.136, UPPER_LEN + 0.06), tuple(arm_point(side, (sx * ARM_OUT, 0, -UPPER_LEN / 2 + 0.005))), mat, col, bevel=0.052, rotation=arm_rot(side), center=True))
-        o.add(f'Arm{side}', box(f'SleeveLow{side}', (0.11, 0.125, FOREARM_LEN + 0.075), tuple(elbow + d * (FOREARM_LEN / 2 + 0.0075)), mat, col, bevel=0.048, rotation=arm_rot(side, (FOREARM_ANGLE, 0, 0)), center=True))
+        o.add(f'Arm{side}', arm_part(f'Sleeve{side}', side, mat, col, grow=0.007, cap_start=0.055, cap_end=0.022))
         if cuff:
-            o.add(f'Arm{side}', box(f'Cuff{side}', (0.116, 0.132, 0.03), tuple(elbow + d * (FOREARM_LEN + 0.025)), cuff, col, bevel=0.01, rotation=arm_rot(side, (FOREARM_ANGLE, 0, 0)), center=True))
+            o.add(f'Arm{side}', arm_part(f'Cuff{side}', side, cuff, col, t0=0.86, t1=0.97, grow=0.011, cap_start=0.003, cap_end=0.003))
 
 
 def belt(o, mat, buckle, col, pouch=None):
@@ -871,7 +975,7 @@ def skin_firefighter(o, col):
     o.add('Body', box('Zip', (0.014, 0.01, 0.34), (0, front(0) - 0.017, 0.51), dark, col, bevel=0.003))
     sleeves(o, jacket, col, cuff=yellow)
     for side, sx in (('L', 1), ('R', -1)):
-        o.add(f'Leg{side}', box(f'LegBand{side}', (PITCH - 0.005, 0.275, 0.045), (sx * LEG_X, HIP_Y + 0.02, 0.2), yellow, col, bevel=0.01))
+        o.add(f'Leg{side}', box(f'LegBand{side}', (PITCH - 0.005, SHIN_D + 0.015, 0.045), (sx * LEG_X, HIP_Y + 0.02, 0.2), yellow, col, bevel=0.01))
     belt(o, dark, reflect, col)
 
 
@@ -903,7 +1007,7 @@ def skin_knight(o, col):
     o.add('Body', box('CrossH', (0.14, 0.012, 0.04), (0, front(0) - 0.018, 0.69), red, col, bevel=0.004))
     for side, sx in (('L', 1), ('R', -1)):
         o.add(f'Arm{side}', sphere(f'Pauldron{side}', 0.085, tuple(arm_point(side, (sx * ARM_OUT, 0, -0.01))), armor, col, scale=(1, 1.1, 0.75), half=True))
-        o.add(f'Leg{side}', box(f'Greave{side}', (PITCH - 0.004, 0.08, 0.2), (sx * LEG_X, HIP_Y - 0.11, FOOT_H + 0.02), armor, col, bevel=0.012))
+        o.add(f'Leg{side}', box(f'Greave{side}', (PITCH - 0.004, 0.08, 0.2), (sx * LEG_X, HIP_Y - 0.09, FOOT_H + 0.02), armor, col, bevel=0.012))
     belt(o, leather, gold, col)
     # Schwert am Gürtel
     o.add('Hips', box('Scabbard', (0.03, 0.05, 0.26), (-0.27, HIP_Y, HIP_Z - 0.24), leather, col, bevel=0.008))
@@ -945,7 +1049,7 @@ def skin_farmer(o, col):
     o.add('Body', box('BibPocket', (0.12, 0.012, 0.08), (0, front(0) - 0.018, 0.6), denim, col, bevel=0.006))
     o.add('Hips', box('Waistband', (2 * PITCH + 0.012, 0.27, 0.08), (0, HIP_Y, HIP_Z), denim, col, bevel=0.015))
     for side, sx in (('L', 1), ('R', -1)):
-        o.add(f'Leg{side}', box(f'Patch{side}', (0.08, 0.012, 0.08), (sx * LEG_X, HIP_Y - 0.12, 0.24), material('outfit-patch', '#8a6a3a', 0.6), col, bevel=0.006))
+        o.add(f'Leg{side}', box(f'Patch{side}', (0.08, 0.012, 0.08), (sx * LEG_X, HIP_Y - 0.096, 0.24), material('outfit-patch', '#8a6a3a', 0.6), col, bevel=0.006))
 
 
 SKINS = {
