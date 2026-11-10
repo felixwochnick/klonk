@@ -32,6 +32,15 @@ case "$KLONK_GATE" in
     exit 1
     ;;
 esac
+# Hauptdomain (Website) mitsperren? on (Standard) | off
+case "${KLONK_GATE_WEBSITE:-on}" in
+  on) export KLONK_GATE_SITE="$KLONK_GATE" ;;
+  off) export KLONK_GATE_SITE="$KLONK_GATE-open" ;;
+  *)
+    echo "Unbekannter KLONK_GATE_WEBSITE-Wert: $KLONK_GATE_WEBSITE (on | off)" >&2
+    exit 1
+    ;;
+esac
 
 # Leere Variablen aus Compose zählen als gesetzt – Caddy-Defaults greifen dann nicht
 export KLONK_ACME_EMAIL="${KLONK_ACME_EMAIL:-admin@localhost}"
@@ -46,5 +55,5 @@ grep -rlF 'docs.klonk-domain.invalid' /srv/docs 2>/dev/null | while read -r file
     "$file"
 done
 
-echo "[klonk-proxy] Version: ${KLONK_VERSION:-dev}, Domain: $KLONK_DOMAIN, TLS: $KLONK_TLS, Zugang: $KLONK_GATE"
+echo "[klonk-proxy] Version: ${KLONK_VERSION:-dev}, Domain: $KLONK_DOMAIN, TLS: $KLONK_TLS, Zugang: $KLONK_GATE (Website: ${KLONK_GATE_WEBSITE:-on})"
 exec caddy run --config /etc/caddy/Caddyfile --adapter caddyfile

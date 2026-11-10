@@ -7,6 +7,7 @@
 # Zugangssperre über KLONK_GATE (z. B. für eine geschlossene Testphase):
 #   off       – alles öffentlich (Standard)
 #   authentik – Forward-Auth über einen Authentik-Outpost (KLONK_GATE_URL, z. B. http://authentik-outpost:9000)
+# KLONK_GATE_WEBSITE=off nimmt die Hauptdomain (Website) von der Sperre aus, die Subdomains bleiben gesperrt.
 {
 	email {$KLONK_ACME_EMAIL}
 	# Kein automatisches Eintragen der lokalen CA in den Container-Truststore
@@ -34,6 +35,9 @@
 (gate-off) {
 }
 
+(gate-off-open) {
+}
+
 # Provider „Forward auth (domain level)“ in Authentik: Cookie-Domain = KLONK_DOMAIN, Zugriff über Gruppen-Bindung.
 # Der Outpost erkennt die Anwendung am ursprünglichen Host ⇒ Host-Header nicht umschreiben (eigener Outpost im Docker-Netz)
 (gate-authentik) {
@@ -48,9 +52,16 @@
 	}
 }
 
-(common) {
+# Offene Hauptdomain bei gesperrten Subdomains: Der Rücksprung des Outposts kann auf die Hauptdomain zeigen
+# (Authentifizierungs-URL des Providers) ⇒ nur diesen Pfad weiterleiten, sonst keine Sperre
+(gate-authentik-open) {
+	handle /outpost.goauthentik.io/* {
+		reverse_proxy {$KLONK_GATE_URL}
+	}
+}
+
+(base) {
 	import tls-{$KLONK_TLS}
-	import gate-{$KLONK_GATE}
 	encode zstd gzip
 	header {
 		Strict-Transport-Security "max-age=31536000"
@@ -58,6 +69,11 @@
 		Referrer-Policy strict-origin-when-cross-origin
 		-Server
 	}
+}
+
+(common) {
+	import base
+	import gate-{$KLONK_GATE}
 }
 
 {$KLONK_SCHEME}://app.{$KLONK_DOMAIN} {
@@ -89,7 +105,8 @@
 
 # Hauptdomain: Website (KLONK_WEBSITE_UPSTREAM, z. B. `web:3000` aus dem privaten Repo klonk-web), sonst zur App
 {$KLONK_SCHEME}://{$KLONK_DOMAIN} {
-	import common
+	import base
+	import gate-{$KLONK_GATE_SITE}
 	@nosite expression `{env.KLONK_WEBSITE_UPSTREAM} == ""`
 	handle @nosite {
 		redir {$KLONK_SCHEME}://app.{$KLONK_DOMAIN}{uri}

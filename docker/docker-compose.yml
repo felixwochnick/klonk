@@ -90,6 +90,8 @@ services:
       # Zugangssperre: off | authentik (Forward-Auth, KLONK_GATE_URL = Authentik-Outpost)
       KLONK_GATE: ${KLONK_GATE:-off}
       KLONK_GATE_URL: ${KLONK_GATE_URL:-}
+      # Hauptdomain mitsperren: on | off (Website öffentlich, Subdomains gesperrt)
+      KLONK_GATE_WEBSITE: ${KLONK_GATE_WEBSITE:-on}
     ports:
       - "${KLONK_HTTP_PORT:-80}:80"
       - "${KLONK_HTTPS_PORT:-443}:443"
