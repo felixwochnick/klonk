@@ -85,7 +85,7 @@ node scripts/build-csharp.ts        # C#-Host bauen (.NET-SDK 10 nötig; Ausgabe
   `IONOS_API_TOKEN`), `off`. Zusätzliche Sites über `/etc/caddy/sites/*.caddy`.
   Zugangssperre über `KLONK_GATE` (`off` | `authentik`): Forward-Auth vor allen Subdomains (Snippet `gate-authentik` in `common`,
   `KLONK_GATE_URL` = Authentik-Outpost, z. B. `http://authentik-outpost:9000`, Provider „Forward auth (domain level)“); `/api/webhooks/*` und `/api/v1/*` bleiben offen.
-  `KLONK_GATE_WEBSITE=off` nimmt die Hauptdomain (Website) aus (Snippet `gate-<modus>-open`, nur der Outpost-Rücksprung bleibt dort).
+  `KLONK_GATE_WEBSITE`/`KLONK_GATE_DOCS`/`KLONK_GATE_ADMIN=off` nehmen Website, Docs bzw. Verwaltung aus (Snippet `gate-<modus>-open`, nur der Outpost-Rücksprung bleibt dort).
 - **Lokaler Stack** `docker/docker-compose.local.yml` + `docker/local/` (klonk.localhost – `.localhost` löst immer lokal auf, kein `.local` (mDNS)!, `tls internal`, glauth + Dex unter
   sso.klonk.localhost; Apps vertrauen der lokalen CA via `NODE_EXTRA_CA_CERTS`, Proxy hat Netz-Aliase für alle Hostnamen).
   E2E-Ziel per `KLONK_E2E_TARGET=stack` (`e2e/targets.ts`).
