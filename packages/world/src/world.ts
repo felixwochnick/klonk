@@ -9,10 +9,10 @@ type Cell = { bricks: BrickColor[], mark: MarkColor | null, block: boolean }
 export type WorldEvent
   = | { type: 'move', id: string, from: Position & { y: number }, to: Position & { y: number } }
     | { type: 'turn', id: string, direction: Direction }
-    | { type: 'brick-placed', at: Position, color: BrickColor, level: number }
-    | { type: 'brick-removed', at: Position, level: number }
-    | { type: 'mark-set', at: Position, color: MarkColor }
-    | { type: 'mark-removed', at: Position }
+    | { type: 'brick-placed', at: Position, color: BrickColor, level: number, by?: string }
+    | { type: 'brick-removed', at: Position, level: number, by?: string }
+    | { type: 'mark-set', at: Position, color: MarkColor, by?: string }
+    | { type: 'mark-removed', at: Position, by?: string }
     | { type: 'block-set', at: Position, block: boolean }
     | { type: 'character-added', character: CharacterData }
     | { type: 'character-removed', id: string }
@@ -295,7 +295,7 @@ export class World {
     if (cell.block) throw new WorldError('block', { x: to.x, z: to.z })
     if (cell.bricks.length >= this.height) throw new WorldError('stack_full', { x: to.x, z: to.z, height: this.height })
     cell.bricks.push(color)
-    this.emit({ type: 'brick-placed', at: to, color, level: cell.bricks.length - 1 })
+    this.emit({ type: 'brick-placed', at: to, color, level: cell.bricks.length - 1, by: this.getCharacter(id).id })
   }
 
   /** Nimmt den obersten Ziegel vor der Figur weg */
@@ -305,14 +305,14 @@ export class World {
     const cell = this.mutableCell(from)
     if (!cell.bricks.length) throw new WorldError('no_brick', { x: from.x, z: from.z })
     cell.bricks.pop()
-    this.emit({ type: 'brick-removed', at: from, level: cell.bricks.length })
+    this.emit({ type: 'brick-removed', at: from, level: cell.bricks.length, by: this.getCharacter(id).id })
   }
 
   /** Markiert das Feld, auf dem die Figur steht */
   setMark(id: string, color: MarkColor = 'yellow') {
     const c = this.getCharacter(id)
     this.mutableCell(c).mark = color
-    this.emit({ type: 'mark-set', at: { x: c.x, z: c.z }, color })
+    this.emit({ type: 'mark-set', at: { x: c.x, z: c.z }, color, by: c.id })
   }
 
   removeMark(id: string) {
@@ -320,7 +320,7 @@ export class World {
     const cell = this.mutableCell(c)
     if (!cell.mark) throw new WorldError('no_mark', { x: c.x, z: c.z })
     cell.mark = null
-    this.emit({ type: 'mark-removed', at: { x: c.x, z: c.z } })
+    this.emit({ type: 'mark-removed', at: { x: c.x, z: c.z }, by: c.id })
   }
 
   // ---------------------------------------------------------------------------

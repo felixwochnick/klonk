@@ -1,6 +1,6 @@
 import { z } from 'zod'
 import { WorldError } from './errors'
-import { ACCESSORIES, BRICK_COLORS, CHARACTER_MODELS, DIRECTIONS, MARK_COLORS, type RobotDesign, type WorldData } from './types'
+import { ACCESSORIES, BRICK_COLORS, CHARACTER_MODELS, DIRECTIONS, MARK_COLORS, SKINS, type RobotDesign, type WorldData } from './types'
 
 const coordinate = z.number().int().min(0).max(255)
 const hex = z.string().regex(/^#[0-9a-f]{6}$/i)
@@ -9,7 +9,8 @@ export const designSchema = z.object({
   version: z.literal(1),
   name: z.string().max(64).optional(),
   base: z.enum(CHARACTER_MODELS),
-  colors: z.object({ skin: hex, shirt: hex, pants: hex, hair: hex, eyes: hex, accessory: hex.optional() }),
+  colors: z.object({ skin: hex, shirt: hex, pants: hex, hair: hex, eyes: hex, accessory: hex.optional(), outfit: hex.optional() }),
+  skin: z.enum(SKINS).optional(),
   accessory: z.enum(ACCESSORIES).optional(),
 })
 

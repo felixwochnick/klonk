@@ -370,6 +370,19 @@
   "design": {
     "name": "Design name",
     "base": "Base shape",
+    "skin": "Outfit",
+    "skins": {
+      "none": "Everyday",
+      "worker": "Construction",
+      "doctor": "Doctor",
+      "chef": "Chef",
+      "police": "Police",
+      "firefighter": "Firefighter",
+      "astronaut": "Astronaut",
+      "knight": "Knight",
+      "pirate": "Pirate",
+      "farmer": "Farmer"
+    },
     "colors": "Colors",
     "accessory": "Accessory",
     "invalid": "This file is not a valid design – changes save a new one.",
@@ -382,14 +395,25 @@
       "pants": "Pants",
       "hair": "Hair",
       "eyes": "Eyes",
-      "accessory": "Accessory color"
+      "accessory": "Accessory color",
+      "outfit": "Outfit color"
     },
     "accessories": {
       "none": "None",
       "cap": "Cap",
-      "hat": "Hat",
-      "helmet": "Helmet",
-      "crown": "Crown"
+      "hat": "Top hat",
+      "helmet": "Hard hat",
+      "crown": "Crown",
+      "beanie": "Beanie",
+      "headphones": "Headphones",
+      "glasses": "Glasses",
+      "chefHat": "Chef hat",
+      "cowboyHat": "Cowboy hat",
+      "wizardHat": "Wizard hat",
+      "pirateHat": "Pirate hat",
+      "spaceHelmet": "Space helmet",
+      "knightHelmet": "Knight helmet",
+      "bow": "Bow"
     }
   },
   "langDocs": {

@@ -33,7 +33,7 @@ test('Einrichtung, Kontenverwaltung und Passwort-Reset durch Lehrkraft', async (
   await expect(admin.getByTestId('count-admin')).toHaveText('1')
 
   // 2. Konten anlegen
-  await admin.getByRole('link', { name: 'Konten' }).click()
+  await admin.getByRole('link', { name: 'Konten', exact: true }).click()
   await createAccount(admin, { name: 'Lena Lehrkraft', username: 'lena', role: 'Lehrkraft', password: 'start-lena' })
   await createAccount(admin, { name: 'Sam Schüler', username: 'sam', role: 'Schüler:in', password: 'start-sam' })
 

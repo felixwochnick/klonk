@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { World, WorldError, nextCharacterName, type WorldData, type WorldEvent } from '../src'
+import { ACCESSORIES, SKINS, SKIN_PRESETS, World, WorldError, nextCharacterName, parseDesign, type WorldData, type WorldEvent } from '../src'
 
 const base = (extra: Partial<WorldData> = {}): WorldData => ({
   version: 1,
@@ -104,8 +104,16 @@ describe('Ereignisse, Editor und Format', () => {
     w.placeBrick('k', 'green')
     expect(events).toEqual([
       { type: 'move', id: 'k', from: { x: 0, z: 0, y: 0 }, to: { x: 1, z: 0, y: 1 } },
-      { type: 'brick-placed', at: { x: 2, z: 0 }, color: 'green', level: 0 },
+      { type: 'brick-placed', at: { x: 2, z: 0 }, color: 'green', level: 0, by: 'k' },
     ])
+  })
+
+  it('prüft Designs mit Skin, Zubehör und Skin-Farbe', () => {
+    const design = { version: 1, base: 'female', colors: { skin: '#e8b48a', shirt: '#3b5b7d', pants: '#2b3a55', hair: '#b98a3e', eyes: '#1b1b1b', outfit: '#ffcc00' }, skin: 'worker', accessory: 'helmet' }
+    expect(parseDesign(design)).toEqual(design)
+    expect(() => parseDesign({ ...design, skin: 'wizard' })).toThrow(WorldError)
+    expect(() => parseDesign({ ...design, colors: { ...design.colors, outfit: 'orange' } })).toThrow(WorldError)
+    for (const skin of SKINS.filter(s => s !== 'none')) expect(ACCESSORIES).toContain(SKIN_PRESETS[skin].accessory)
   })
 
   it('speichert und lädt verlustfrei', () => {

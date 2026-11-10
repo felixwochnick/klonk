@@ -63,7 +63,7 @@ export function robotApiDeclarations(lang: ScriptLanguage) {
   )
   lines.push(
     '/** Eigenes Design (Datei *.klonkdesign.json) */',
-    'export type KlonkDesign = { version: 1, name?: string, base: \'male\' | \'female\' | \'diverse\', colors: { skin: string, shirt: string, pants: string, hair: string, eyes: string, accessory?: string }, accessory?: \'none\' | \'cap\' | \'hat\' | \'helmet\' | \'crown\' }',
+    'export type KlonkDesign = { version: 1, name?: string, base: \'male\' | \'female\' | \'diverse\', colors: { skin: string, shirt: string, pants: string, hair: string, eyes: string, accessory?: string, outfit?: string }, skin?: \'none\' | \'worker\' | \'doctor\' | \'chef\' | \'police\' | \'firefighter\' | \'astronaut\' | \'knight\' | \'pirate\' | \'farmer\', accessory?: \'none\' | \'cap\' | \'hat\' | \'helmet\' | \'crown\' | \'beanie\' | \'headphones\' | \'glasses\' | \'chefHat\' | \'cowboyHat\' | \'wizardHat\' | \'pirateHat\' | \'spaceHelmet\' | \'knightHelmet\' | \'bow\' }',
     doc(lang === 'de' ? 'Design des Projekts als JSON-Text (Lizenz) – mit JSON.parse lesen' : 'Design of the project as JSON text (license) – read it with JSON.parse'),
     'export function loadDesign(name: string): string',
     doc(lang === 'de' ? 'Design ins Projekt speichern (Datei name.klonkdesign.json, Lizenz)' : 'Save a design to the project (file name.klonkdesign.json, license)'),

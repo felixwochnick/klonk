@@ -167,11 +167,14 @@ node scripts/build-csharp.ts        # C#-Host bauen (.NET-SDK 10 nötig; Ausgabe
   nächstes freies neben der zuletzt genutzten Figur, deren Blickrichtung), `resolveLook()` (männlich/weiblich/divers bzw. male/… oder
   Projektdesign), Lizenzgrenze `maxCharacters` im Run-Request, Befehl `createCharacter` (Runner fügt die Figur der angezeigten Welt hinzu).
   `createCharacter`/`selectCharacter` sind keine Methoden einer Figur (`CLASS_COMMANDS`).
-- **Designs** (Lizenz-Feature `models`): `RobotDesign` (Grundform + Farben + Zubehör, `designSchema`, `DEFAULT_DESIGNS`), Dateien
+- **Designs** (Lizenz-Feature `models`): `RobotDesign` (Grundform + Farben + **Skin** + Zubehör, `designSchema`, `DEFAULT_DESIGNS`; `SKINS`/`SKIN_PRESETS`/`SKIN_COLORS`,
+  `ACCESSORIES`/`ACCESSORY_COLORS` in `world/src/types.ts` – Farben passend zu `build_models.py`), Dateien
   `*.klonkdesign.json` (Dateiart `design`) öffnen sich immer im `DesignEditor` (in der IDE statt Code, Live-Vorschau mit `KlonkWorld`).
   Figuren betten ihr Design ein (`CharacterData.design`), Welten bleiben eigenständig. Renderer: `utils/character-look.ts`
-  (`applyDesign` färbt Materialien `<modell>-skin|shirt|pants|hair`/`eye` um, Zubehör als three.js-Geometrie; `nameLabel` = Sprite mit
-  Namen über jeder Figur, `showNames`). Projektdesigns gehen als `designs` (Dateiname ⇒ Design) an den Runner.
+  (`applyDesign` färbt Materialien `<modell>-skin|shirt|pants|hair`/`eye`/`outfit-main-*`/`acc-main-*` um und hängt Skin/Zubehör aus `outfits.glb`
+  (erst bei Bedarf geladen, Empties `skin__<skin>__<Gelenk>`/`acc__<zubehör>__<Gelenk>`) an die gleichnamigen Gelenke; Kopfbedeckungen blenden `HairTop*`
+  (inkl. Kopfnoppe), große Helme auch `HairBack*` aus (`ACCESSORY_HIDES`); `nameLabel` = Sprite mit Namen über jeder Figur, `showNames`).
+  Skin wählen übernimmt `SKIN_PRESETS` (Oberteil/Hose/Zubehör), Zubehörwechsel setzt dessen Standardfarbe. Projektdesigns gehen als `designs` (Dateiname ⇒ Design) an den Runner.
 - **Designs in Programmen:** `loadDesign(name)` (JSON-Text; Python `load_design` ⇒ dict) / `saveDesign(name, design)` (Worker-Nachricht
   `saveDesign` ⇒ `ProgramRunner.onSaveDesign` ⇒ `useProject().writeDesign`), `create(name, look)` nimmt auch Design-JSON. Run-Request:
   `designs` nur mit Lizenz (sonst `design_license`), `saveDesigns` = Lizenz + Projekt. **Java-Bibliotheken** `packages/runtime/src/java/lib/*.java`
@@ -187,8 +190,14 @@ node scripts/build-csharp.ts        # C#-Host bauen (.NET-SDK 10 nötig; Ausgabe
 - **Grafik:** Figuren (männlich, weiblich, divers) und Weltblöcke in Klemmbaustein-Optik, selbst in Blender modelliert, Export glTF.
   Modelle entstehen per Skript: `blender -b --factory-startup --python assets/blender/build_models.py` ⇒
   `apps/app/public/models/*.glb` + `assets/blender/klonk-models.blend` + `preview.png`. Maße: 1 Feld = 1 Einheit = **4×4 Noppen** (Raster 0,25),
-  Ziegel 0,3 hoch, Platte/Fliese 0,1, Noppe 0,05; Figuren (Skalierung 0,75) stehen mit jedem Fuß auf einer Noppe (der Renderer setzt das Modell dafür ½ Raster = 0,125 hinter die Feldmitte). Figuren sind aus Ziegeln aufgebaut (bewusst keine Minifiguren-Nachbildung),
-  Gelenke `ArmL/ArmR/LegL/LegR` für Animationen. Blender-MCP (Port 9876) ist optional – das Skript läuft headless.
+  Ziegel 0,3 hoch, Platte/Fliese 0,1, Noppe 0,05. Figuren (vom User gewünscht: mehr Klemmbaustein-Figur) in Weltmaßen ohne Skalierung, ~1,22 hoch:
+  Noppenkopf, Trapez-Oberkörper, Greifhände, **jeder Fuß 1×2 Noppen mit zwei Noppenlöchern** ⇒ steckt mittig auf den inneren vier Noppen (kein Versatz im Renderer).
+  Gelenke `Hips/Body/Head/ArmL/ArmR/HandL/HandR/LegL/LegR` + `EyeL/EyeR` (Blinzeln). **Animationen als glTF-Clips** (`CLIPS` im Skript, Export `NLA_TRACKS`):
+  Walk, Climb, Turn, Place, Pick, Mark, Wave, Cheer, Bump, Idle – der Renderer spielt sie per `AnimationMixer.setTime` gestreckt auf die Ereignisdauer
+  (`pose()`/`relax()`); Ziegel-/Marken-Ereignisse tragen dafür `by` (Figur). Idle nur gelegentlich (render on demand, nicht bei `prefers-reduced-motion`).
+  `KlonkWorld` exposed `cheer()` (Lernaufgabe gelöst) und `bumpAt()` (Fehler mit x/z, z. B. Wand). Jede Figur wird einzeln gebaut, exportiert und dann umbenannt –
+  sonst hießen die Gelenke der 2./3. Figur `ArmL.001` (alter Fehler: nur die männliche Figur war animiert). Skins/Zubehör: `outfits.glb`.
+  Blender-MCP (Port 9876) ist optional – das Skript läuft headless.
 - **JS/TS-Ausführung** (`packages/runtime/src/js/`): Nutzercode läuft **synchron** im Worker. `instrument.ts` (acorn +
   magic-string, nur Einfügungen ⇒ Zeilen bleiben) setzt vor jede Anweisung `__klonk_cp(zeile, () => vars)`, auch in leere/
   blocklose Schleifen. Steuerung über `SharedArrayBuffer` (`shared.ts`: PAUSE/SIGNAL/DELAY + Haltepunkt-Bitmap), da der

@@ -1,4 +1,4 @@
-import { applyDesign, nameLabel } from './character-look'
+import { applyDesign, nameLabel, needsOutfits } from './character-look'
 import type { BrickColor, CharacterData, CharacterModel, Direction, MarkColor, Position, World, WorldEvent } from '@klonk/world'
 import * as THREE from 'three'
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
@@ -31,15 +31,26 @@ export const MARK_HEX: Record<MarkColor, number> = {
 
 const BLOCK_HEX = 0x6C6E68
 const FLOOR_HEX = 0x9BA19D
-/** Noppenraster (4×4 Noppen je Feld) */
-const STUD_PITCH = 0.25
 const ROTATION: Record<Direction, number> = { south: 0, east: Math.PI / 2, north: Math.PI, west: -Math.PI / 2 }
 
-type Models = { brick: THREE.BufferGeometry, plate: THREE.BufferGeometry, tile: THREE.BufferGeometry, characters: Record<CharacterModel, THREE.Object3D> }
+type Models = {
+  brick: THREE.BufferGeometry
+  plate: THREE.BufferGeometry
+  tile: THREE.BufferGeometry
+  characters: Record<CharacterModel, THREE.Object3D>
+  /** Animationen der Figuren (Clips aus Blender, je Modell dieselben Namen) */
+  clips: Record<CharacterModel, THREE.AnimationClip[]>
+}
+
+/** Clips aus assets/blender/build_models.py (CLIPS) */
+type ClipName = 'Walk' | 'Climb' | 'Turn' | 'Place' | 'Pick' | 'Mark' | 'Wave' | 'Cheer' | 'Bump' | 'Idle'
 
 type CharacterView = {
   root: THREE.Object3D
-  limbs: { armL?: THREE.Object3D, armR?: THREE.Object3D, legL?: THREE.Object3D, legR?: THREE.Object3D }
+  model: THREE.Object3D
+  mixer: THREE.AnimationMixer
+  clips: Map<string, THREE.AnimationClip>
+  action?: THREE.AnimationAction
 }
 
 type Animation = { duration: number, update: (t: number) => void, done?: () => void }
@@ -50,7 +61,7 @@ let modelsPromise: Promise<Models> | undefined
 function loadModels(): Promise<Models> {
   modelsPromise ??= (async () => {
     const loader = new GLTFLoader()
-    const load = (name: string) => loader.loadAsync(`/models/${name}.glb`).then(g => g.scene)
+    const load = (name: string) => loader.loadAsync(`/models/${name}.glb`)
     const mesh = (scene: THREE.Object3D) => {
       let geometry: THREE.BufferGeometry | undefined
       scene.traverse((o) => {
@@ -62,14 +73,30 @@ function loadModels(): Promise<Models> {
       ['brick', 'plate', 'tile', 'character-male', 'character-female', 'character-diverse'].map(load),
     )
     for (const character of [male!, female!, diverse!]) {
-      character.traverse((o) => {
+      character.scene.traverse((o) => {
         o.castShadow = true
       })
     }
-    return { brick: mesh(brick!), plate: mesh(plate!), tile: mesh(tile!), characters: { male: male!, female: female!, diverse: diverse! } }
+    return {
+      brick: mesh(brick!.scene),
+      plate: mesh(plate!.scene),
+      tile: mesh(tile!.scene),
+      characters: { male: male!.scene, female: female!.scene, diverse: diverse!.scene },
+      clips: { male: male!.animations, female: female!.animations, diverse: diverse!.animations },
+    }
   })()
   return modelsPromise
 }
+
+let outfitsPromise: Promise<THREE.Object3D> | undefined
+
+/** Skins und Zubehör erst laden, wenn ein Design sie braucht */
+function loadOutfits(): Promise<THREE.Object3D> {
+  outfitsPromise ??= new GLTFLoader().loadAsync('/models/outfits.glb').then(g => g.scene)
+  return outfitsPromise
+}
+
+let outfits: THREE.Object3D | undefined
 
 /**
  * Stellt eine {@link World} mit three.js dar und animiert ihre Ereignisse (Laufen, Drehen, Ziegel …).
@@ -251,7 +278,11 @@ export class WorldRenderer {
   private tick(now: number) {
     if (!this.current) {
       const next = this.queue.shift()
-      if (!next) return
+      if (!next) {
+        this.tickIdle(now)
+        return
+      }
+      this.stopIdle()
       this.current = { animation: next, start: now }
     }
     const { animation, start } = this.current
@@ -302,6 +333,7 @@ export class WorldRenderer {
 
     for (const view of this.characters.values()) this.scene.remove(view.root)
     this.characters.clear()
+    this.idle = undefined
     for (const character of world.getCharacters()) this.addCharacterView(character)
   }
 
@@ -365,27 +397,33 @@ export class WorldRenderer {
 
   private addCharacterView(character: CharacterData) {
     this.invalidate()
-    // Füße auf Noppen: seitlich passt die Mitte schon (±½ Raster), in Blickrichtung um ½ Raster nach hinten
-    // (4×4 Noppen ⇒ die Feldmitte liegt zwischen zwei Noppenreihen; vorne bleibt so etwas mehr Platz)
-    const model = this.models!.characters[character.design?.base ?? character.model].clone(true)
-    if (character.design) applyDesign(model, character.design)
-    model.position.z = -STUD_PITCH / 2
+    // Die Füße (je 1×2 Noppen mit Noppenlöchern) stecken mittig auf den inneren vier Noppen des Feldes
+    const base = character.design?.base ?? character.model
+    const model = this.models!.characters[base].clone(true)
+    const design = character.design
+    if (design) {
+      applyDesign(model, design, outfits)
+      if (!outfits && needsOutfits(design)) {
+        void loadOutfits().then((loaded) => {
+          outfits = loaded
+          applyDesign(model, design, loaded)
+          this.invalidate()
+        }).catch(() => {})
+      }
+    }
     const root = new THREE.Group()
     root.add(model)
     // Name über der Figur – er identifiziert sie (Programme sprechen sie darüber an)
     if (this.showNames) {
       const label = nameLabel(character.id, this.dark)
-      label.position.y = 1.55
+      label.position.y = 1.62
       root.add(label)
     }
     const view: CharacterView = {
       root,
-      limbs: {
-        armL: root.getObjectByName('ArmL'),
-        armR: root.getObjectByName('ArmR'),
-        legL: root.getObjectByName('LegL'),
-        legR: root.getObjectByName('LegR'),
-      },
+      model,
+      mixer: new THREE.AnimationMixer(model),
+      clips: new Map(this.models!.clips[base].map(clip => [clip.name, clip])),
     }
     // Markierungen liegen obenauf – Figuren stehen auf der Oberkante darunter
     root.position.set(character.x, this.surface(character) + this.markOffset(character), character.z)
@@ -393,6 +431,90 @@ export class WorldRenderer {
     root.name = `character:${character.id}`
     this.scene.add(root)
     this.characters.set(character.id, view)
+  }
+
+  /** Figur in die Haltung eines Clips zur relativen Zeit `t` (0–1) bringen */
+  private pose(view: CharacterView, name: ClipName, t: number) {
+    const clip = view.clips.get(name)
+    if (!clip) return
+    if (view.action?.getClip() !== clip) {
+      view.action?.stop()
+      view.action = view.mixer.clipAction(clip)
+      view.action.setLoop(THREE.LoopOnce, 1)
+      view.action.clampWhenFinished = true
+      view.action.play()
+    }
+    view.mixer.setTime(Math.min(t, 0.999) * clip.duration)
+  }
+
+  /** Zurück in die Ruhehaltung (der Mixer stellt den Ausgangszustand wieder her) */
+  private relax(view: CharacterView) {
+    view.action?.stop()
+    view.action = undefined
+    view.mixer.update(0)
+  }
+
+  /** Clip als eigene Animation in die Warteschlange (z. B. Winken, Freuen) */
+  private enqueueClip(id: string, name: ClipName, duration: number) {
+    // Figur erst beim Abspielen suchen – sie kann gerade erst hinzukommen
+    this.enqueue({
+      duration,
+      update: (t) => {
+        const view = this.characters.get(id)
+        if (view) this.pose(view, name, t)
+      },
+      done: () => {
+        const view = this.characters.get(id)
+        if (view) this.relax(view)
+      },
+    })
+  }
+
+  /** Figur jubeln lassen (z. B. wenn eine Aufgabe gelöst ist) */
+  cheer(id?: string) {
+    const ids = id ? [id] : [...this.characters.keys()]
+    for (const name of ids) this.enqueueClip(name, 'Cheer', Math.max(this.speed, 300) * 3)
+  }
+
+  /** Figuren, die auf dieses Feld schauen (oder darauf stehen), zucken zurück – z. B. nach einem Fehler vor einer Wand */
+  bumpAt(position: Position) {
+    if (!this.world) return
+    for (const character of this.world.getCharacters()) {
+      const front = this.world.front(character.id)
+      const facing = (front.x === position.x && front.z === position.z) || (character.x === position.x && character.z === position.z)
+      if (facing) this.enqueueClip(character.id, 'Bump', Math.max(this.speed, 300) * 2)
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Gelegentliche Bewegungen im Stand (umschauen, blinzeln) – nur wenn sonst nichts animiert wird
+
+  private idle?: { view: CharacterView, start: number }
+  private nextIdle = performance.now() + 2500
+  private reducedMotion = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches
+
+  private stopIdle() {
+    if (!this.idle) return
+    this.relax(this.idle.view)
+    this.idle = undefined
+    this.dirty = true
+  }
+
+  private tickIdle(now: number) {
+    if (this.idle) {
+      const { view, start } = this.idle
+      const clip = view.clips.get('Idle')
+      const t = clip ? (now - start) / (clip.duration * 1000) : 1
+      if (t >= 1) this.stopIdle()
+      else this.pose(view, 'Idle', t)
+      this.dirty = true
+      return
+    }
+    if (now < this.nextIdle || this.busy || this.reducedMotion || !this.characters.size || document.hidden) return
+    this.nextIdle = now + 4000 + Math.random() * 6000
+    const views = [...this.characters.values()]
+    const view = views[Math.floor(Math.random() * views.length)]!
+    this.idle = { view, start: now }
   }
 
   private markOffset(position: Position) {
@@ -407,19 +529,19 @@ export class WorldRenderer {
         if (!view) return
         const from = new THREE.Vector3(event.from.x, PLATE_HEIGHT + event.from.y * BRICK_HEIGHT, event.from.z)
         const to = new THREE.Vector3(event.to.x, PLATE_HEIGHT + event.to.y * BRICK_HEIGHT, event.to.z)
+        const fromMark = this.markOffset(event.from)
         const toMark = this.markOffset(event.to)
+        const climb = from.y !== to.y
         this.enqueue({
-          duration,
+          duration: climb ? duration * 1.3 : duration,
           update: (t) => {
-            view.root.position.lerpVectors(from, to, t)
-            // Kleiner Hüpfer beim Steigen und Schritt-Animation
-            view.root.position.y += Math.sin(t * Math.PI) * (from.y !== to.y ? 0.25 : 0.04) + toMark * t
-            const swing = Math.sin(t * Math.PI * 2) * 0.6
-            if (view.limbs.armL) view.limbs.armL.rotation.x = swing
-            if (view.limbs.armR) view.limbs.armR.rotation.x = -swing
-            if (view.limbs.legL) view.limbs.legL.rotation.x = -swing
-            if (view.limbs.legR) view.limbs.legR.rotation.x = swing
+            // Beim Steigen erst abspringen, dann vorwärts; sonst gleichmäßig laufen
+            const forward = climb ? easeInOut(Math.min(1, Math.max(0, (t - 0.2) / 0.6))) : t
+            view.root.position.lerpVectors(from, to, forward)
+            view.root.position.y = from.y + (to.y - from.y) * forward + Math.sin(t * Math.PI) * (climb ? 0.3 : 0) + fromMark * (1 - forward) + toMark * forward
+            this.pose(view, climb ? 'Climb' : 'Walk', t)
           },
+          done: () => this.relax(view),
         })
         break
       }
@@ -437,29 +559,51 @@ export class WorldRenderer {
               delta = ((target - start + Math.PI * 3) % (Math.PI * 2)) - Math.PI
             }
             view.root.rotation.y = start + delta * easeInOut(t)
+            this.pose(view, 'Turn', t)
           },
+          done: () => this.relax(view),
         })
         break
       }
       case 'brick-placed':
       case 'brick-removed':
-      case 'block-set':
       case 'mark-set':
       case 'mark-removed': {
-        // Stapel/Marken neu aufbauen, sobald die Animation an der Reihe ist
+        // Mit Figur: Ablegen/Aufheben/Stampfen, die Welt ändert sich mitten in der Bewegung
+        const by = event.by ? this.characters.get(event.by) : undefined
+        if (!by) {
+          this.enqueueWorldUpdate(duration * 0.4)
+          break
+        }
+        const clip: ClipName = event.type === 'brick-placed' ? 'Place' : event.type === 'brick-removed' ? 'Pick' : 'Mark'
+        let applied = false
+        const apply = () => {
+          if (applied) return
+          applied = true
+          this.rebuildBricks()
+          this.rebuildMarks()
+          this.updateCharacterHeights()
+        }
         this.enqueue({
-          duration: duration * 0.4,
-          update: () => {},
+          duration: duration * 1.1,
+          update: (t) => {
+            this.pose(by, clip, t)
+            if (t >= (clip === 'Pick' ? 0.5 : 0.4)) apply()
+          },
           done: () => {
-            this.rebuildBricks()
-            this.rebuildMarks()
-            this.updateCharacterHeights()
+            this.relax(by)
+            apply()
           },
         })
         break
       }
+      case 'block-set':
+        this.enqueueWorldUpdate(duration * 0.4)
+        break
       case 'character-added':
         this.enqueue({ duration: 0, update: () => this.addCharacterView(event.character) })
+        // Neue Figuren winken kurz
+        if (duration > 0) this.enqueueClip(event.character.id, 'Wave', duration * 1.6)
         break
       case 'character-removed':
         this.enqueue({
@@ -467,6 +611,7 @@ export class WorldRenderer {
           update: () => {
             const view = this.characters.get(event.id)
             if (view) this.scene.remove(view.root)
+            if (view && this.idle?.view === view) this.idle = undefined
             this.characters.delete(event.id)
           },
         })
@@ -477,6 +622,19 @@ export class WorldRenderer {
         this.rebuild()
         break
     }
+  }
+
+  /** Stapel/Marken neu aufbauen, sobald die Animation an der Reihe ist */
+  private enqueueWorldUpdate(duration: number) {
+    this.enqueue({
+      duration,
+      update: () => {},
+      done: () => {
+        this.rebuildBricks()
+        this.rebuildMarks()
+        this.updateCharacterHeights()
+      },
+    })
   }
 
   private updateCharacterHeights() {

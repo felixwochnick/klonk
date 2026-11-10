@@ -54,6 +54,10 @@ function onPointerMove(event: PointerEvent) {
 defineExpose({
   resetCamera: () => renderer?.resetCamera(),
   snapshot: () => renderer?.snapshot(),
+  /** Figuren jubeln lassen (alle oder eine) */
+  cheer: (id?: string) => renderer?.cheer(id),
+  /** Figuren vor diesem Feld zucken zurück (Fehler wie Wand/Quader) */
+  bumpAt: (position: Position) => renderer?.bumpAt(position),
 })
 </script>
 

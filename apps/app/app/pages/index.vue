@@ -119,6 +119,14 @@ onMounted(() => {
 onBeforeUnmount(() => runner?.dispose())
 
 const running = computed(() => snapshot.value.state === 'running' || snapshot.value.state === 'paused')
+
+// Figuren reagieren auf Fehler vor einem Feld (Wand, Quader …): kurz zurückzucken
+const worldView = ref<{ cheer: (id?: string) => void, bumpAt: (position: { x: number, z: number }) => void } | null>(null)
+watch(() => snapshot.value.error, (error) => {
+  const x = error?.params.x
+  const z = error?.params.z
+  if (typeof x === 'number' && typeof z === 'number') worldView.value?.bumpAt({ x, z })
+})
 const paused = computed(() => snapshot.value.state === 'paused')
 const errorMessage = computed(() => {
   const error = snapshot.value.error
@@ -734,6 +742,7 @@ const paneStyle = computed(() => ({
         >
           <ClientOnly>
             <KlonkWorld
+              ref="worldView"
               :world="world"
               :speed="speed"
             />

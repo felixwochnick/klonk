@@ -63,6 +63,11 @@ test('Eigenes Design: visueller Editor, im Welt-Editor setzen, im Programm erste
     input.value = '#aa0000'
     input.dispatchEvent(new Event('input', { bubbles: true }))
   })
+  // Skin wählen ⇒ passendes Zubehör (Bauhelm) und Farben, dann Zubehör tauschen
+  await page.getByTestId('design-skin-worker').click()
+  await expect(page.getByTestId('design-skin-worker')).toHaveAttribute('aria-pressed', 'true')
+  await expect(page.getByTestId('design-accessory')).toContainText('Bauhelm')
+  await expect(page.getByTestId('design-color-outfit')).toHaveValue('#ff7a1a')
   await page.getByTestId('design-accessory').click()
   await page.getByRole('option', { name: 'Krone' }).click()
   await expect(page.getByTestId('save-status')).toHaveAttribute('data-status', 'saved', { timeout: 5_000 })
@@ -110,5 +115,5 @@ test('Programm speichert ein Design ins Projekt', async ({ page }) => {
   await expect(state(page)).toHaveAttribute('data-state', 'done', { timeout: 30_000 })
   await expect(page.getByTestId('file-jaeger.klonkdesign.json')).toBeVisible()
   await page.getByTestId('file-jaeger.klonkdesign.json').click()
-  await expect(page.getByTestId('design-accessory')).toContainText('Hut')
+  await expect(page.getByTestId('design-accessory')).toContainText('Zylinder')
 })

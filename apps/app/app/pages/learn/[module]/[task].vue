@@ -165,6 +165,14 @@ onMounted(() => {
 onBeforeUnmount(() => runner?.dispose())
 
 const running = computed(() => snapshot.value.state === 'running' || snapshot.value.state === 'paused')
+
+// Figuren reagieren auf Fehler vor einem Feld (Wand, Quader …): kurz zurückzucken
+const worldView = ref<{ cheer: (id?: string) => void, bumpAt: (position: { x: number, z: number }) => void } | null>(null)
+watch(() => snapshot.value.error, (error) => {
+  const x = error?.params.x
+  const z = error?.params.z
+  if (typeof x === 'number' && typeof z === 'number') worldView.value?.bumpAt({ x, z })
+})
 const paused = computed(() => snapshot.value.state === 'paused')
 const errorLine = computed(() => (snapshot.value.state === 'error' ? snapshot.value.error?.range?.line ?? null : null))
 const errorText = (error: RunError) => scriptErrorMessage(t, te, error.code, error.params)
@@ -244,7 +252,10 @@ async function check() {
   finally {
     checking.value = false
   }
-  if (result.value.status === 'solved') await markSolved()
+  if (result.value.status === 'solved') {
+    await markSolved()
+    worldView.value?.cheer()
+  }
   else if ('world' in result.value && result.value.world !== variant.value) selectVariant(result.value.world)
 }
 
@@ -614,6 +625,7 @@ const showSolution = ref(false)
         <div class="relative min-h-80 flex-1 bg-(--ui-bg-muted)">
           <ClientOnly>
             <KlonkWorld
+              ref="worldView"
               :world="shownWorld"
               :speed="speed"
             />

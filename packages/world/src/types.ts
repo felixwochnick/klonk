@@ -22,17 +22,66 @@ export type CellData = Position & {
   block?: boolean
 }
 
-/** Zubehör auf dem Kopf (Designs) */
-export const ACCESSORIES = ['none', 'cap', 'hat', 'helmet', 'crown'] as const
+/** Zubehör am Kopf (Designs) – Modelle in `outfits.glb` (assets/blender/build_models.py) */
+export const ACCESSORIES = ['none', 'cap', 'hat', 'helmet', 'crown', 'beanie', 'headphones', 'glasses', 'chefHat', 'cowboyHat', 'wizardHat', 'pirateHat', 'spaceHelmet', 'knightHelmet', 'bow'] as const
 export type Accessory = typeof ACCESSORIES[number]
 
-/** Eigenes Aussehen einer Figur (Datei `*.klonkdesign.json`, lizenzpflichtig): Grundform + Farben + Zubehör */
+/** Standardfarbe je Zubehör (wie in build_models.py), solange das Design keine eigene setzt */
+export const ACCESSORY_COLORS: Record<Exclude<Accessory, 'none'>, string> = {
+  cap: '#0055bf',
+  hat: '#1b1b1b',
+  helmet: '#f2cd37',
+  crown: '#f2cd37',
+  beanie: '#c91a09',
+  headphones: '#3a3a3a',
+  glasses: '#1b1b1b',
+  chefHat: '#f4f4f4',
+  cowboyHat: '#a5713f',
+  wizardHat: '#3c2a7a',
+  pirateHat: '#1b1b1b',
+  spaceHelmet: '#f4f4f4',
+  knightHelmet: '#aeb4ba',
+  bow: '#e4789c',
+}
+
+/** Kleidung (Skins) über der Figur – ebenfalls in `outfits.glb` */
+export const SKINS = ['none', 'worker', 'doctor', 'chef', 'police', 'firefighter', 'astronaut', 'knight', 'pirate', 'farmer'] as const
+export type Skin = typeof SKINS[number]
+
+/** Hauptfarbe je Skin (Warnweste, Kittel …), solange das Design keine eigene setzt */
+export const SKIN_COLORS: Record<Exclude<Skin, 'none'>, string> = {
+  worker: '#ff7a1a',
+  doctor: '#f4f4f4',
+  chef: '#f4f4f4',
+  police: '#1f2a44',
+  firefighter: '#26324a',
+  astronaut: '#f4f4f4',
+  knight: '#aeb4ba',
+  pirate: '#5a1f1f',
+  farmer: '#3d5f8f',
+}
+
+/** Passende Vorgaben beim Wählen eines Skins (Oberteil/Hose unter der Kleidung, Zubehör) */
+export const SKIN_PRESETS: Record<Exclude<Skin, 'none'>, { shirt: string, pants: string, accessory: Accessory }> = {
+  worker: { shirt: '#3b5b7d', pants: '#2b3a55', accessory: 'helmet' },
+  doctor: { shirt: '#7fa8d1', pants: '#3a4a5a', accessory: 'glasses' },
+  chef: { shirt: '#f4f4f4', pants: '#2b2b2b', accessory: 'chefHat' },
+  police: { shirt: '#2d4a7a', pants: '#1f2a44', accessory: 'cap' },
+  firefighter: { shirt: '#26324a', pants: '#26324a', accessory: 'helmet' },
+  astronaut: { shirt: '#f4f4f4', pants: '#f4f4f4', accessory: 'spaceHelmet' },
+  knight: { shirt: '#6b6f75', pants: '#3a3a3a', accessory: 'knightHelmet' },
+  pirate: { shirt: '#f1ead8', pants: '#2b2b2b', accessory: 'pirateHat' },
+  farmer: { shirt: '#b33a3a', pants: '#3d5f8f', accessory: 'cowboyHat' },
+}
+
+/** Eigenes Aussehen einer Figur (Datei `*.klonkdesign.json`, lizenzpflichtig): Grundform + Farben + Kleidung + Zubehör */
 export type RobotDesign = {
   version: 1
   /** Bezeichnung des Designs (nicht der Figur – die heißt über ihre ID) */
   name?: string
   base: CharacterModel
-  colors: { skin: string, shirt: string, pants: string, hair: string, eyes: string, accessory?: string }
+  colors: { skin: string, shirt: string, pants: string, hair: string, eyes: string, accessory?: string, outfit?: string }
+  skin?: Skin
   accessory?: Accessory
 }
 

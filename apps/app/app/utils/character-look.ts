@@ -1,17 +1,53 @@
 import * as THREE from 'three'
-import type { RobotDesign } from '@klonk/world'
+import { ACCESSORY_COLORS, SKIN_COLORS, type Accessory, type RobotDesign } from '@klonk/world'
+
+/** Gelenke der Figuren (assets/blender/build_models.py) – Skins/Zubehör hängen an denselben Namen */
+const JOINTS = ['Hips', 'Body', 'Head', 'ArmL', 'ArmR', 'HandL', 'HandR', 'LegL', 'LegR']
+
+/** Kopfbedeckungen ersetzen die Frisur oben (inkl. Kopfnoppe), große Helme auch die langen Haare */
+const ACCESSORY_HIDES: Partial<Record<Accessory, string[]>> = {
+  cap: ['HairTop'],
+  hat: ['HairTop'],
+  helmet: ['HairTop'],
+  beanie: ['HairTop'],
+  chefHat: ['HairTop'],
+  cowboyHat: ['HairTop'],
+  wizardHat: ['HairTop'],
+  pirateHat: ['HairTop'],
+  spaceHelmet: ['HairTop', 'HairBack'],
+  knightHelmet: ['HairTop', 'HairBack'],
+}
+
+/** Braucht das Design Teile aus `outfits.glb` (Skin oder Zubehör)? */
+export function needsOutfits(design: RobotDesign) {
+  return (design.skin ?? 'none') !== 'none' || (design.accessory ?? 'none') !== 'none'
+}
 
 /**
- * Aussehen der Figuren: Farben eines Designs auf ein Standardmodell übertragen (Materialien aus
- * assets/blender/build_models.py: `<modell>-skin|shirt|pants|hair`, `eye`) und Zubehör auf den Kopf setzen.
+ * Aussehen der Figuren: Farben eines Designs auf ein Standardmodell übertragen (Materialien
+ * `<modell>-skin|shirt|pants|hair`, `eye`), Skin und Zubehör aus `outfits` an die Gelenke hängen
+ * (Empties `skin__<skin>__<Gelenk>` / `acc__<zubehör>__<Gelenk>`) und deren Hauptfarbe setzen.
+ * Ohne `outfits` (noch nicht geladen) werden nur die Farben übernommen.
  */
-export function applyDesign(model: THREE.Object3D, design: RobotDesign) {
+export function applyDesign(model: THREE.Object3D, design: RobotDesign, outfits?: THREE.Object3D | null) {
+  const accessory = design.accessory ?? 'none'
+  const skin = design.skin ?? 'none'
+  if (outfits) {
+    if (skin !== 'none') attach(model, outfits, `skin__${skin}__`)
+    if (accessory !== 'none') attach(model, outfits, `acc__${accessory}__`)
+    const hides = ACCESSORY_HIDES[accessory] ?? []
+    model.traverse((o) => {
+      if (hides.some(prefix => o.name.startsWith(prefix))) o.visible = false
+    })
+  }
   const colorFor = (name: string) => {
     if (name.endsWith('-skin')) return design.colors.skin
     if (name.endsWith('-shirt')) return design.colors.shirt
     if (name.endsWith('-pants')) return design.colors.pants
     if (name.endsWith('-hair')) return design.colors.hair
     if (name === 'eye') return design.colors.eyes
+    if (name.startsWith('outfit-main') && skin !== 'none') return design.colors.outfit ?? SKIN_COLORS[skin]
+    if (name.startsWith('acc-main') && accessory !== 'none') return design.colors.accessory ?? ACCESSORY_COLORS[accessory]
     return null
   }
   // Materialien werden zwischen Klonen geteilt ⇒ vor dem Umfärben kopieren
@@ -20,72 +56,34 @@ export function applyDesign(model: THREE.Object3D, design: RobotDesign) {
     const mesh = o as THREE.Mesh
     if (!mesh.isMesh) return
     const recolor = (material: THREE.Material) => {
+      if (copies.has(material)) return copies.get(material)!
       const color = colorFor(material.name)
       if (!color) return material
-      if (!copies.has(material)) {
-        const copy = material.clone() as THREE.MeshStandardMaterial
-        copy.color = new THREE.Color(color)
-        copies.set(material, copy)
-      }
-      return copies.get(material)!
+      const copy = material.clone() as THREE.MeshStandardMaterial
+      copy.color = new THREE.Color(color)
+      copies.set(material, copy)
+      copies.set(copy, copy)
+      return copy
     }
     mesh.material = Array.isArray(mesh.material) ? mesh.material.map(recolor) : recolor(mesh.material)
   })
-  const accessory = buildAccessory(design)
-  if (!accessory) return
-  // Auf den Kopf: Oberkante des Kopfes (inkl. Haare) im Modellraum
-  model.updateMatrixWorld(true)
-  const head = model.getObjectByName('Head')
-  const box = new THREE.Box3()
-  model.traverse((o) => {
-    if ((o as THREE.Mesh).isMesh && (o.name.startsWith('Head') || o.name.startsWith('Hair'))) box.expandByObject(o)
-  })
-  if (box.isEmpty() && head) box.setFromObject(head)
-  const inverse = new THREE.Matrix4().copy(model.matrixWorld).invert()
-  const top = new THREE.Vector3((box.min.x + box.max.x) / 2, box.max.y, (box.min.z + box.max.z) / 2).applyMatrix4(inverse)
-  const width = (box.max.x - box.min.x) / (model.scale.x || 1)
-  accessory.scale.setScalar(Math.max(width, 0.2) / 0.4)
-  accessory.position.copy(top)
-  model.add(accessory)
 }
 
-function buildAccessory(design: RobotDesign): THREE.Object3D | null {
-  const kind = design.accessory ?? 'none'
-  if (kind === 'none') return null
-  const material = new THREE.MeshStandardMaterial({ color: design.colors.accessory ?? (kind === 'crown' ? '#f2cd37' : '#3a3a3a'), roughness: kind === 'crown' ? 0.25 : 0.5, metalness: kind === 'crown' || kind === 'helmet' ? 0.4 : 0 })
-  const group = new THREE.Group()
-  const add = (geometry: THREE.BufferGeometry, y: number, z = 0) => {
-    const mesh = new THREE.Mesh(geometry, material)
-    mesh.position.set(0, y, z)
-    mesh.castShadow = true
-    group.add(mesh)
-    return mesh
-  }
-  // Maße für eine Kopfbreite von 0,4 (wird passend skaliert)
-  switch (kind) {
-    case 'cap':
-      add(new THREE.CylinderGeometry(0.2, 0.21, 0.1, 24), 0.0)
-      add(new THREE.BoxGeometry(0.3, 0.02, 0.18), -0.04, -0.17)
-      break
-    case 'hat':
-      add(new THREE.CylinderGeometry(0.3, 0.3, 0.02, 32), -0.02)
-      add(new THREE.CylinderGeometry(0.18, 0.19, 0.24, 32), 0.1)
-      break
-    case 'helmet':
-      add(new THREE.SphereGeometry(0.24, 24, 12, 0, Math.PI * 2, 0, Math.PI / 2), -0.08)
-      break
-    case 'crown': {
-      add(new THREE.CylinderGeometry(0.19, 0.19, 0.08, 24, 1, true), 0.02)
-      for (let i = 0; i < 6; i++) {
-        const spike = add(new THREE.ConeGeometry(0.04, 0.1, 8), 0.1)
-        spike.position.x = Math.cos(i / 6 * Math.PI * 2) * 0.17
-        spike.position.z = Math.sin(i / 6 * Math.PI * 2) * 0.17
-      }
-      material.side = THREE.DoubleSide
-      break
+/** Teile unter `prefix<Gelenk>` an das gleichnamige Gelenk der Figur hängen (gleiche Ruhelage ⇒ Transformation bleibt) */
+function attach(model: THREE.Object3D, outfits: THREE.Object3D, prefix: string) {
+  for (const joint of JOINTS) {
+    const source = outfits.getObjectByName(prefix + joint)
+    const target = model.getObjectByName(joint)
+    if (!source || !target) continue
+    for (const part of source.children) {
+      if (!part.name.endsWith('Mesh')) continue
+      const copy = part.clone(true)
+      copy.traverse((o) => {
+        o.castShadow = true
+      })
+      target.add(copy)
     }
   }
-  return group
 }
 
 /** Namensschild über einer Figur (zeigt immer zur Kamera) */

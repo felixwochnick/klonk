@@ -370,6 +370,19 @@
   "design": {
     "name": "Name des Designs",
     "base": "Grundform",
+    "skin": "Kleidung",
+    "skins": {
+      "none": "Alltag",
+      "worker": "Baustelle",
+      "doctor": "Arztpraxis",
+      "chef": "Küche",
+      "police": "Polizei",
+      "firefighter": "Feuerwehr",
+      "astronaut": "Raumfahrt",
+      "knight": "Ritter",
+      "pirate": "Pirat",
+      "farmer": "Bauernhof"
+    },
     "colors": "Farben",
     "accessory": "Zubehör",
     "invalid": "Die Datei ist kein gültiges Design – Änderungen speichern ein neues.",
@@ -382,14 +395,25 @@
       "pants": "Hose",
       "hair": "Haare",
       "eyes": "Augen",
-      "accessory": "Farbe des Zubehörs"
+      "accessory": "Farbe des Zubehörs",
+      "outfit": "Farbe der Kleidung"
     },
     "accessories": {
       "none": "Keins",
       "cap": "Kappe",
-      "hat": "Hut",
-      "helmet": "Helm",
-      "crown": "Krone"
+      "hat": "Zylinder",
+      "helmet": "Bauhelm",
+      "crown": "Krone",
+      "beanie": "Mütze",
+      "headphones": "Kopfhörer",
+      "glasses": "Brille",
+      "chefHat": "Kochmütze",
+      "cowboyHat": "Cowboyhut",
+      "wizardHat": "Zauberhut",
+      "pirateHat": "Piratenhut",
+      "spaceHelmet": "Raumhelm",
+      "knightHelmet": "Ritterhelm",
+      "bow": "Schleife"
     }
   },
   "langDocs": {
