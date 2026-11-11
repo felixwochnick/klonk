@@ -49,19 +49,20 @@ const levelTouched = ref(false)
 watch(newName, (name) => {
   if (!levelTouched.value) newLevel.value = levelFromGroupName(name, levels.value) ?? 'none'
 })
-const nameInput = useTemplateRef<{ inputRef?: HTMLInputElement }>('nameInput')
-function createIn(level: string | null) {
+const createOpen = ref(false)
+/** Dialog „Neue Gruppe“ öffnen – über „+“ einer Stufe mit fester Einordnung */
+function openCreate(level?: string | null) {
+  newName.value = ''
+  levelTouched.value = level !== undefined
   newLevel.value = level ?? 'none'
-  levelTouched.value = true
-  nameInput.value?.inputRef?.focus()
+  createOpen.value = true
 }
 async function create() {
   if (!newName.value.trim()) return
   try {
     const level = structured.value && newLevel.value !== 'none' ? newLevel.value : null
     const { id } = await $fetch('/api/admin/groups', { method: 'POST', body: { name: newName.value, level } })
-    newName.value = ''
-    levelTouched.value = false
+    createOpen.value = false
     await refresh()
     selectedId.value = id
   }
@@ -141,6 +142,12 @@ const isTeacher = computed(() => user.value?.role === 'teacher')
             data-testid="groups-import"
             @click="importOpen = true"
           />
+          <UButton
+            icon="i-lucide-plus"
+            :label="t('admin.groups.new')"
+            data-testid="group-new"
+            @click="openCreate()"
+          />
         </template>
       </UDashboardNavbar>
     </template>
@@ -159,37 +166,52 @@ const isTeacher = computed(() => user.value?.role === 'teacher')
             :title="t('admin.groups.structureHint')"
             data-testid="groups-structure-hint"
           />
-          <form
-            class="space-y-2"
-            @submit.prevent="create"
+          <UModal
+            v-model:open="createOpen"
+            :title="t('admin.groups.new')"
           >
-            <div class="flex gap-2">
-              <UInput
-                ref="nameInput"
-                v-model="newName"
-                :placeholder="t('admin.groups.namePlaceholder')"
-                :aria-label="t('admin.groups.name')"
-                class="flex-1"
-                data-testid="group-new-name"
-              />
-              <UButton
-                type="submit"
-                icon="i-lucide-plus"
-                :label="t('admin.groups.create')"
-                :disabled="!newName.trim()"
-                data-testid="group-create"
-              />
-            </div>
-            <USelect
-              v-if="structured"
-              v-model="newLevel"
-              :items="levelItems"
-              :aria-label="t('admin.groups.placement')"
-              class="w-full"
-              data-testid="group-new-level"
-              @update:model-value="levelTouched = true"
-            />
-          </form>
+            <template #body>
+              <form
+                id="group-create-form"
+                class="space-y-4"
+                @submit.prevent="create"
+              >
+                <UFormField :label="t('admin.groups.name')">
+                  <UInput
+                    v-model="newName"
+                    :placeholder="t('admin.groups.namePlaceholder')"
+                    autofocus
+                    class="w-full"
+                    data-testid="group-new-name"
+                  />
+                </UFormField>
+                <UFormField
+                  v-if="structured"
+                  :label="t('admin.groups.placement')"
+                >
+                  <USelect
+                    v-model="newLevel"
+                    :items="levelItems"
+                    class="w-full"
+                    data-testid="group-new-level"
+                    @update:model-value="levelTouched = true"
+                  />
+                </UFormField>
+              </form>
+            </template>
+            <template #footer>
+              <div class="flex w-full justify-end">
+                <UButton
+                  type="submit"
+                  form="group-create-form"
+                  icon="i-lucide-plus"
+                  :label="t('admin.groups.create')"
+                  :disabled="!newName.trim()"
+                  data-testid="group-create"
+                />
+              </div>
+            </template>
+          </UModal>
           <p
             v-if="!groups?.length && !structured"
             class="text-sm text-(--ui-text-muted)"
@@ -216,7 +238,7 @@ const isTeacher = computed(() => user.value?.role === 'teacher')
                 size="xs"
                 icon="i-lucide-plus"
                 :aria-label="t('admin.groups.createIn', { name: section.title })"
-                @click="createIn(section.level)"
+                @click="openCreate(section.level)"
               />
             </div>
             <UButton

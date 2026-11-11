@@ -39,6 +39,7 @@ test('Gruppe mit gemeinsamem Ordner: Aufgabe verteilen, bearbeiten und abgeben',
   // Lehrkraft legt die Gruppe an (wird Gruppenleitung) und nimmt Mia auf
   const teacherAdmin = await device(browser, ADMIN_URL, 'lena@gym-muster.de', 'lena-geheim')
   await gotoHydrated(teacherAdmin, `${ADMIN_URL}/groups`)
+  await teacherAdmin.getByTestId('group-new').click()
   await teacherAdmin.getByTestId('group-new-name').fill('7a')
   await teacherAdmin.getByTestId('group-create').click()
   const detail = teacherAdmin.getByTestId('group-detail')

@@ -261,6 +261,7 @@
       "courses": "Zusatzkurse",
       "unassigned": "Nicht zugeordnet",
       "placement": "Einordnung",
+      "new": "Neue Gruppe",
       "createIn": "Neue Gruppe in {name}",
       "structureHint": "Tipp: Stelle unter Organisation Bundesland und Schulform ein – dann ordnet Klonk die Klassen nach Jahrgangsstufen."
     },

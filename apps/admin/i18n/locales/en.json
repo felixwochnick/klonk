@@ -261,6 +261,7 @@
       "courses": "Additional courses",
       "unassigned": "Not assigned",
       "placement": "Placement",
+      "new": "New group",
       "createIn": "New group in {name}",
       "structureHint": "Tip: set state and school type under Organization – Klonk then sorts classes by grade."
     },
