@@ -10,6 +10,10 @@ export default defineEventHandler(async (event) => {
     domain: domainSchema.optional(),
     /** Erlaubte Speicherorte für Lernmodule */
     learnStorage: z.array(z.enum(['cloud', 'browser', 'folder'])).min(1).max(3).optional(),
+    /** Schulen: Land, Bundesland, Schulform (bestimmen die Jahrgangsstufen der Gruppen) */
+    country: z.enum(SCHOOL_COUNTRIES).nullable().optional(),
+    state: z.string().refine(s => s in GERMAN_STATES).nullable().optional(),
+    schoolForm: z.string().refine(isSchoolForm).nullable().optional(),
   }))
 
   const rows = await withUserDb(user.id, tx => tx.update(schema.organizations).set(input)

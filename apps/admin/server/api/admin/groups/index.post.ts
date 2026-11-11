@@ -1,16 +1,10 @@
 import { z } from 'zod'
 
-// Gruppe anlegen: Lehrkräfte werden Gruppenleitung; dazu der gemeinsame Cloud-Ordner
+// Gruppe anlegen (optional gleich in eine Jahrgangsstufe bzw. die Zusatzkurse): Lehrkräfte werden Gruppenleitung; dazu der gemeinsame Cloud-Ordner
 export default defineEventHandler(async (event) => {
   const { user, isPlatformAdmin } = await requireAuth(event, { roles: ['teacher', 'admin'] })
   const organizationId = await resolveOrganizationId(event, user, isPlatformAdmin)
-  const { name } = await readValidated(event, z.object({ name: groupNameSchema }))
-  return withUserDb(user.id, async (tx) => {
-    const [group] = await tx.insert(schema.groups).values({ organizationId, name }).returning()
-      .catch(error => rethrowUnique(error, 'group_exists'))
-    if (user.role === 'teacher' && user.organizationId === organizationId)
-      await tx.insert(schema.groupMembers).values({ groupId: group!.id, userId: user.id, role: 'leader' })
-    await tx.insert(schema.cloudProjects).values({ groupId: group!.id, name })
-    return { id: group!.id }
-  })
+  const { name, level } = await readValidated(event, z.object({ name: groupNameSchema, level: groupLevelSchema.optional() }))
+  const leader = user.role === 'teacher' && user.organizationId === organizationId ? user.id : undefined
+  return withUserDb(user.id, async tx => ({ id: await insertGroup(tx, organizationId, name, level, leader) }))
 })

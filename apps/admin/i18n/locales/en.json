@@ -256,7 +256,13 @@
         "leader": "Group leader",
         "member": "Member"
       },
-      "leaderHint": "As a group leader you can add other teachers and make them group leaders too."
+      "leaderHint": "As a group leader you can add other teachers and make them group leaders too.",
+      "level": "Grade {n}",
+      "courses": "Additional courses",
+      "unassigned": "Not assigned",
+      "placement": "Placement",
+      "createIn": "New group in {name}",
+      "structureHint": "Tip: set state and school type under Organization – Klonk then sorts classes by grade."
     },
     "accounts": {
       "intro": "Accounts without an organization (Google, Microsoft, Apple, GitHub, Klonk ID). Owners grant operator rights here – Klonk ID accounts get their role from their groups.",
@@ -288,6 +294,154 @@
         "pro": "Pro",
         "pro-ai": "Pro + AI"
       }
+    },
+    "school": {
+      "country": "Country",
+      "state": "State",
+      "form": "School type",
+      "chooseState": "Choose state",
+      "chooseForm": "Choose school type",
+      "help": "The school type sets the grades under Groups – classes can be assigned to a grade there, clubs and electives to additional courses.",
+      "countries": {
+        "DE": "Germany"
+      },
+      "states": {
+        "BW": "Baden-Württemberg",
+        "BY": "Bavaria",
+        "BE": "Berlin",
+        "BB": "Brandenburg",
+        "HB": "Bremen",
+        "HH": "Hamburg",
+        "HE": "Hesse",
+        "MV": "Mecklenburg-Western Pomerania",
+        "NI": "Lower Saxony",
+        "NW": "North Rhine-Westphalia",
+        "RP": "Rhineland-Palatinate",
+        "SL": "Saarland",
+        "SN": "Saxony",
+        "ST": "Saxony-Anhalt",
+        "SH": "Schleswig-Holstein",
+        "TH": "Thuringia"
+      },
+      "forms": {
+        "grundschule": "Primary school (Grundschule)",
+        "grundschule6": "Primary school (Grundschule)",
+        "hauptschule": "Hauptschule",
+        "mittelschule": "Mittelschule",
+        "werkrealschule": "Werkrealschule",
+        "realschule": "Realschule",
+        "realschulePlus": "Realschule plus",
+        "regionaleSchule": "Regionale Schule",
+        "regelschule": "Regelschule",
+        "oberschule": "Oberschule",
+        "oberschule7": "Oberschule",
+        "sekundarschule": "Sekundarschule",
+        "integrierteSekundarschule": "Integrierte Sekundarschule",
+        "stadtteilschule": "Stadtteilschule",
+        "gemeinschaftsschule": "Gemeinschaftsschule",
+        "gesamtschule": "Gesamtschule",
+        "gymnasium8": "Gymnasium (8 years)",
+        "gymnasium9": "Gymnasium (9 years)",
+        "gymnasium7": "Gymnasium (from grade 7)",
+        "beruflichesGymnasium": "Vocational Gymnasium",
+        "fos": "Fachoberschule (FOS)",
+        "bos": "Berufsoberschule (BOS)",
+        "berufsschule": "Vocational school (Berufsschule)",
+        "berufskolleg": "Berufskolleg",
+        "foerderschule": "Special needs school (Förderschule)",
+        "other": "Other school type"
+      }
+    },
+    "import": {
+      "users": "Import list",
+      "members": "Upload list",
+      "usersTitle": "Create accounts from a list",
+      "usersDescription": "Upload CSV, Excel or OpenDocument, map the columns, check the preview.",
+      "membersTitle": "Assign accounts to groups from a list",
+      "membersDescription": "Find existing accounts by username or name and add them to groups.",
+      "dropHint": "Drop a file here or choose one",
+      "chooseFile": "Choose file",
+      "otherFile": "Other file",
+      "formats": "CSV/TXT (separator ; , or tab), Excel (.xlsx), OpenDocument spreadsheet (.ods) or the first table of a text document (.odt). The file is only read in the browser.",
+      "fileErrors": {
+        "invalid": "The file could not be read.",
+        "empty": "The file contains no table.",
+        "unsupported": "This format is not supported – please save as .xlsx, .ods or .csv."
+      },
+      "columnsTitle": "Columns",
+      "hasHeader": "First row contains headings",
+      "noColumn": "–",
+      "column": "Column {n}",
+      "columns": {
+        "firstName": "First name",
+        "lastName": "Last name",
+        "fullName": "Name",
+        "username": "Username",
+        "password": "Password",
+        "group": "Class / group",
+        "role": "Role"
+      },
+      "usernameTitle": "Username",
+      "usernameHelp": "Lower case, umlauts become ae/oe/ue/ss. Sign-in with name{'@'}{domain}.",
+      "separator": "Separator",
+      "noSeparator": "none",
+      "patterns": {
+        "firstLast": "First name + last name",
+        "initialLast": "Initial + last name",
+        "lastFirst": "Last name + first name",
+        "column": "From the username column"
+      },
+      "passwordTitle": "Initial password",
+      "passwordModes": {
+        "random": "Random per account",
+        "same": "Same for everyone",
+        "column": "From the password column"
+      },
+      "samePasswordPlaceholder": "at least 8 characters",
+      "roleTitle": "Role",
+      "roleColumnHelp": "The role column wins (e.g. “teacher”); this role applies when it is empty.",
+      "groupsTitle": "Groups",
+      "groupModes": {
+        "none": "No group",
+        "fixed": "Everyone into the same group(s)",
+        "column": "From the class / group column"
+      },
+      "chooseGroups": "Choose groups",
+      "createGroups": "Create missing groups",
+      "newGroups": "New: {names}",
+      "preview": "Preview: {valid} of {total} accounts will be created",
+      "previewLimited": "Showing the first {n} rows.",
+      "problems": {
+        "noName": "Name missing",
+        "invalidUsername": "Invalid username",
+        "exists": "Already exists",
+        "shortPassword": "Password too short"
+      },
+      "createAccounts": "Create {n} accounts",
+      "progress": "{done} of {total} …",
+      "createdCount": "{n} accounts created",
+      "skippedCount": "{n} skipped",
+      "groupsCreated": "New groups: {names}",
+      "status": {
+        "username_taken": "username taken",
+        "user_limit_reached": "account limit reached",
+        "failed": "error"
+      },
+      "credentialsHint": "All new accounts must change their password on first sign-in. Download the credentials now – the passwords are not stored anywhere.",
+      "downloadCredentials": "Download credentials (CSV)",
+      "close": "Close",
+      "matchHint": "Accounts are found by username (with or without {'@'}{domain}) or by name.",
+      "targetTitle": "Group",
+      "targetCurrent": "Group “{name}”",
+      "matched": "{found} of {total} rows matched",
+      "matchStatus": {
+        "found": "Found",
+        "notFound": "No account",
+        "ambiguous": "Ambiguous",
+        "noGroup": "No group"
+      },
+      "assign": "Assign {n}",
+      "assignedCount": "{n} assignments in {groups} groups"
     }
   },
   "errors": {

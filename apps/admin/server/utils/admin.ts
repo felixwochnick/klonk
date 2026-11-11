@@ -32,3 +32,20 @@ export async function assertValidToken(token: string) {
 }
 
 export const groupNameSchema = z.string().trim().min(1).max(100).refine(name => !/[/\\]/.test(name) && !name.startsWith('.'), 'invalid_name')
+
+/** Jahrgangsstufe (`'5'`), Zusatzkurse (`'courses'`) oder nicht zugeordnet (`null`) */
+export const groupLevelSchema = z.string().regex(/^(\d{1,2}|courses)$/).nullable()
+
+type UserTx = Parameters<Parameters<typeof withUserDb>[1]>[0]
+
+/**
+ * Gruppe samt gemeinsamem Cloud-Ordner anlegen (Name je Organisation eindeutig ⇒ `group_exists`). Die Gruppenleitung
+ * muss vor dem Ordner eingetragen sein – RLS prüft beim Ordner, wer die Gruppe verwaltet.
+ */
+export async function insertGroup(tx: UserTx, organizationId: string, name: string, level: string | null = null, leaderId?: string) {
+  const [group] = await tx.insert(schema.groups).values({ organizationId, name, level }).returning({ id: schema.groups.id })
+    .catch(error => rethrowUnique(error, 'group_exists'))
+  if (leaderId) await tx.insert(schema.groupMembers).values({ groupId: group!.id, userId: leaderId, role: 'leader' })
+  await tx.insert(schema.cloudProjects).values({ groupId: group!.id, name })
+  return group!.id
+}

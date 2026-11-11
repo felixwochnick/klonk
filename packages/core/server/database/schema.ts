@@ -22,6 +22,10 @@ export const organizations = pgTable('organizations', {
   licenseToken: text(),
   /** Erlaubte Speicherorte für Lernmodule: cloud, browser, folder (Verwaltung → Organisation) */
   learnStorage: text().array().notNull().default(['cloud', 'browser', 'folder']),
+  /** Schulen: Land (`DE`), Bundesland (`BY` …) und Schulform – bestimmen die Jahrgangsstufen (shared/utils/school.ts) */
+  country: text(),
+  state: text(),
+  schoolForm: text(),
   createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
 })
 
@@ -192,6 +196,8 @@ export const groups = pgTable('groups', {
   membersCanWrite: boolean().notNull().default(false),
   /** Speicherorte für Lernmodule der Gruppe (Gruppenleitung), `null` = Vorgabe der Organisation */
   learnStorage: text().array(),
+  /** Einordnung: Jahrgangsstufe (`'5'` …), `'courses'` = Zusatzkurse, `null` = nicht zugeordnet */
+  level: text(),
   createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
 }, t => [uniqueIndex('groups_organization_name_idx').on(t.organizationId, t.name)])
 

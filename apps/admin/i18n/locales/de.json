@@ -256,7 +256,13 @@
         "leader": "Gruppenleitung",
         "member": "Mitglied"
       },
-      "leaderHint": "Als Gruppenleitung kannst du weitere Lehrkräfte hinzufügen und ihnen ebenfalls die Leitung geben."
+      "leaderHint": "Als Gruppenleitung kannst du weitere Lehrkräfte hinzufügen und ihnen ebenfalls die Leitung geben.",
+      "level": "Jahrgangsstufe {n}",
+      "courses": "Zusatzkurse",
+      "unassigned": "Nicht zugeordnet",
+      "placement": "Einordnung",
+      "createIn": "Neue Gruppe in {name}",
+      "structureHint": "Tipp: Stelle unter Organisation Bundesland und Schulform ein – dann ordnet Klonk die Klassen nach Jahrgangsstufen."
     },
     "accounts": {
       "intro": "Konten ohne Organisation (Google, Microsoft, Apple, GitHub, Klonk ID). Besitzer:innen vergeben hier Betreiberrechte – Klonk-ID-Konten erhalten ihre Rolle aus den Gruppen.",
@@ -288,6 +294,154 @@
         "pro": "Pro",
         "pro-ai": "Pro + KI"
       }
+    },
+    "school": {
+      "country": "Land",
+      "state": "Bundesland",
+      "form": "Schulform",
+      "chooseState": "Bundesland wählen",
+      "chooseForm": "Schulform wählen",
+      "help": "Die Schulform bestimmt die Jahrgangsstufen unter Gruppen – Klassen lassen sich dort einer Stufe zuordnen, AGs und Wahlkurse den Zusatzkursen.",
+      "countries": {
+        "DE": "Deutschland"
+      },
+      "states": {
+        "BW": "Baden-Württemberg",
+        "BY": "Bayern",
+        "BE": "Berlin",
+        "BB": "Brandenburg",
+        "HB": "Bremen",
+        "HH": "Hamburg",
+        "HE": "Hessen",
+        "MV": "Mecklenburg-Vorpommern",
+        "NI": "Niedersachsen",
+        "NW": "Nordrhein-Westfalen",
+        "RP": "Rheinland-Pfalz",
+        "SL": "Saarland",
+        "SN": "Sachsen",
+        "ST": "Sachsen-Anhalt",
+        "SH": "Schleswig-Holstein",
+        "TH": "Thüringen"
+      },
+      "forms": {
+        "grundschule": "Grundschule",
+        "grundschule6": "Grundschule",
+        "hauptschule": "Hauptschule",
+        "mittelschule": "Mittelschule",
+        "werkrealschule": "Werkrealschule",
+        "realschule": "Realschule",
+        "realschulePlus": "Realschule plus",
+        "regionaleSchule": "Regionale Schule",
+        "regelschule": "Regelschule",
+        "oberschule": "Oberschule",
+        "oberschule7": "Oberschule",
+        "sekundarschule": "Sekundarschule",
+        "integrierteSekundarschule": "Integrierte Sekundarschule",
+        "stadtteilschule": "Stadtteilschule",
+        "gemeinschaftsschule": "Gemeinschaftsschule",
+        "gesamtschule": "Gesamtschule",
+        "gymnasium8": "Gymnasium (G8)",
+        "gymnasium9": "Gymnasium (G9)",
+        "gymnasium7": "Gymnasium (ab Klasse 7)",
+        "beruflichesGymnasium": "Berufliches Gymnasium",
+        "fos": "Fachoberschule",
+        "bos": "Berufsoberschule",
+        "berufsschule": "Berufsschule",
+        "berufskolleg": "Berufskolleg",
+        "foerderschule": "Förderschule",
+        "other": "Andere Schulform"
+      }
+    },
+    "import": {
+      "users": "Liste importieren",
+      "members": "Liste hochladen",
+      "usersTitle": "Konten aus einer Liste anlegen",
+      "usersDescription": "CSV, Excel oder OpenDocument hochladen, Spalten zuordnen, Vorschau prüfen.",
+      "membersTitle": "Konten per Liste Gruppen zuordnen",
+      "membersDescription": "Vorhandene Konten über Benutzername oder Namen finden und in Gruppen eintragen.",
+      "dropHint": "Datei hierher ziehen oder auswählen",
+      "chooseFile": "Datei auswählen",
+      "otherFile": "Andere Datei",
+      "formats": "CSV/TXT (Trennzeichen ; , oder Tab), Excel (.xlsx), OpenDocument-Tabelle (.ods) oder die erste Tabelle eines Textdokuments (.odt). Die Datei wird nur im Browser gelesen.",
+      "fileErrors": {
+        "invalid": "Die Datei ließ sich nicht lesen.",
+        "empty": "In der Datei steht keine Tabelle.",
+        "unsupported": "Dieses Format geht nicht – bitte als .xlsx, .ods oder .csv speichern."
+      },
+      "columnsTitle": "Spalten",
+      "hasHeader": "Erste Zeile enthält Überschriften",
+      "noColumn": "–",
+      "column": "Spalte {n}",
+      "columns": {
+        "firstName": "Vorname",
+        "lastName": "Nachname",
+        "fullName": "Name",
+        "username": "Benutzername",
+        "password": "Passwort",
+        "group": "Klasse / Gruppe",
+        "role": "Rolle"
+      },
+      "usernameTitle": "Benutzername",
+      "usernameHelp": "Wird kleingeschrieben, Umlaute werden zu ae/oe/ue/ss. Anmeldung mit name{'@'}{domain}.",
+      "separator": "Trennzeichen",
+      "noSeparator": "ohne",
+      "patterns": {
+        "firstLast": "Vorname + Nachname",
+        "initialLast": "Initiale + Nachname",
+        "lastFirst": "Nachname + Vorname",
+        "column": "Aus der Spalte Benutzername"
+      },
+      "passwordTitle": "Startpasswort",
+      "passwordModes": {
+        "random": "Zufällig je Konto",
+        "same": "Für alle gleich",
+        "column": "Aus der Spalte Passwort"
+      },
+      "samePasswordPlaceholder": "mind. 8 Zeichen",
+      "roleTitle": "Rolle",
+      "roleColumnHelp": "Die Spalte Rolle gewinnt (z. B. „Lehrkraft“); diese Rolle gilt, wenn sie leer ist.",
+      "groupsTitle": "Gruppen",
+      "groupModes": {
+        "none": "Keiner Gruppe zuordnen",
+        "fixed": "Alle in dieselbe(n) Gruppe(n)",
+        "column": "Aus der Spalte Klasse / Gruppe"
+      },
+      "chooseGroups": "Gruppen wählen",
+      "createGroups": "Fehlende Gruppen anlegen",
+      "newGroups": "Neu: {names}",
+      "preview": "Vorschau: {valid} von {total} Konten werden angelegt",
+      "previewLimited": "Angezeigt werden die ersten {n} Zeilen.",
+      "problems": {
+        "noName": "Name fehlt",
+        "invalidUsername": "Benutzername ungültig",
+        "exists": "Gibt es schon",
+        "shortPassword": "Passwort zu kurz"
+      },
+      "createAccounts": "{n} Konten anlegen",
+      "progress": "{done} von {total} …",
+      "createdCount": "{n} Konten angelegt",
+      "skippedCount": "{n} übersprungen",
+      "groupsCreated": "Neue Gruppen: {names}",
+      "status": {
+        "username_taken": "Benutzername vergeben",
+        "user_limit_reached": "Kontengrenze erreicht",
+        "failed": "Fehler"
+      },
+      "credentialsHint": "Alle neuen Konten müssen ihr Passwort bei der ersten Anmeldung ändern. Lade die Zugangsdaten jetzt herunter – die Passwörter werden nirgends gespeichert.",
+      "downloadCredentials": "Zugangsdaten herunterladen (CSV)",
+      "close": "Schließen",
+      "matchHint": "Konten werden über den Benutzernamen (mit oder ohne {'@'}{domain}) oder den Namen gefunden.",
+      "targetTitle": "Gruppe",
+      "targetCurrent": "Gruppe „{name}“",
+      "matched": "{found} von {total} Zeilen zugeordnet",
+      "matchStatus": {
+        "found": "Gefunden",
+        "notFound": "Kein Konto",
+        "ambiguous": "Mehrdeutig",
+        "noGroup": "Keine Gruppe"
+      },
+      "assign": "{n} zuordnen",
+      "assignedCount": "{n} Zuordnungen in {groups} Gruppen"
     }
   },
   "errors": {

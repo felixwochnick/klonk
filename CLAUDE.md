@@ -348,6 +348,14 @@ node scripts/build-csharp.ts        # C#-Host bauen (.NET-SDK 10 nötig; Ausgabe
   (`klonk:license`); `useAuth().logout` löscht beides. Service Worker nur im Produktions-Build ⇒ `e2e/pwa.spec.ts` läuft nur
   gegen den Stack (Chromium mit `--ignore-certificate-errors`, sonst registriert sich der SW bei selbst signierten Zertifikaten nicht).
   Lokales Dateisystem über File System Access API (Projektordner öffnen).
+- **Schulstruktur & Listenimport** (Verwaltung, vom User so gewünscht): Schulen stellen Land/Bundesland/Schulform ein (`organizations.country|state|school_form`,
+  Daten in `core/shared/utils/school.ts`: `GERMAN_STATES`, `SCHOOL_FORMS` mit Stufenbereich, `schoolLevels`, `levelFromGroupName`). Gruppen haben `groups.level`
+  (Stufe `'5'`…, `'courses'` = Zusatzkurse, `null` = nicht zugeordnet); die Gruppenseite gliedert danach, neue Gruppen erraten die Stufe aus dem Namen.
+  **Import** aus CSV/TSV (UTF-8 oder Windows-1252), `.xlsx`, `.ods`, `.odt` (erste Tabelle) – gelesen nur im Browser (`admin/app/utils/spreadsheet.ts`, fflate + DOMParser,
+  keine Fremdbibliothek): `UserImport.vue` (Konten: Spalten-Erkennung `import-columns.ts`, Benutzername-Muster, Passwort zufällig/gleich/Spalte, Gruppen fest/Spalte,
+  Vorschau, Zugangsdaten als CSV; Server `POST /api/admin/users/import` je Zeile, vorhandene Namen übersprungen, fehlende Gruppen per `insertGroup`) und
+  `GroupMemberImport.vue` (vorhandene Konten per Benutzername/Name Gruppen zuordnen). Reka-Select: Trennzeichen „ohne“ = `'none'`. E2E `e2e/admin-school.spec.ts`
+  (läuft nach admin-license – die erwartet genau 3 Konten – und räumt auf).
 - **Auth:** siehe „Konten & Anmeldung“. Schulen und Unternehmen wählen selbst OIDC, LDAP und/oder lokale Konten.
 - **Docs-Gliederung** (vom User so festgelegt: die Docs erklären zuerst die Anwendung, Selbsthosten kommt zuletzt): `1.getting-started`
   (Was ist Klonk?, Das erste Programm), `2.world`, `3.klonk-script` (Navigation „Programmieren“; Slug bleibt, `LanguageDocs.vue` verlinkt

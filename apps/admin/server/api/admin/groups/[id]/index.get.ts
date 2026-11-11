@@ -10,6 +10,7 @@ export default defineEventHandler(async (event) => {
       id: groups.id,
       name: groups.name,
       membersCanWrite: groups.membersCanWrite,
+      level: groups.level,
       canManage: sql<boolean>`klonk.can_manage_group(${groups.id})`,
     }).from(groups).where(eq(groups.id, id))
     if (!group) throw createError({ statusCode: 404, message: 'group_not_found' })

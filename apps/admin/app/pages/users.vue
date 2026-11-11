@@ -88,6 +88,11 @@ async function create() {
   }
 }
 
+// Liste importieren (CSV, Excel, OpenDocument)
+const importOpen = ref(false)
+const onImported = () => Promise.all([refresh(), refreshUsage()])
+const existingUsernames = computed(() => users.value.flatMap(u => (u.username ? [u.username] : [])))
+
 // Bearbeiten
 const editing = ref<UserRow | null>(null)
 const editForm = reactive({ displayName: '', role: 'member' as MemberRole })
@@ -153,6 +158,14 @@ async function remove(row: UserRow) {
           <UDashboardSidebarCollapse />
         </template>
         <template #right>
+          <UButton
+            v-if="isAdmin"
+            variant="outline"
+            icon="i-lucide-file-spreadsheet"
+            :label="t('admin.import.users')"
+            data-testid="users-import"
+            @click="importOpen = true"
+          />
           <UButton
             v-if="isAdmin"
             icon="i-lucide-user-plus"
@@ -224,6 +237,16 @@ async function remove(row: UserRow) {
           </div>
         </template>
       </UTable>
+
+      <UserImport
+        v-if="isAdmin && organization"
+        v-model:open="importOpen"
+        :domain="organization.domain"
+        :existing="existingUsernames"
+        :query="query"
+        :role-label="roleLabel"
+        @done="onImported"
+      />
 
       <UModal
         v-model:open="createOpen"
