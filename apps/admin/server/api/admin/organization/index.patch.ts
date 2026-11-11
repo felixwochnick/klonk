@@ -8,6 +8,8 @@ export default defineEventHandler(async (event) => {
     name: z.string().trim().min(2).max(200).optional(),
     type: z.enum(['school', 'company']).optional(),
     domain: domainSchema.optional(),
+    /** Erlaubte Speicherorte für Lernmodule */
+    learnStorage: z.array(z.enum(['cloud', 'browser', 'folder'])).min(1).max(3).optional(),
   }))
 
   const rows = await withUserDb(user.id, tx => tx.update(schema.organizations).set(input)

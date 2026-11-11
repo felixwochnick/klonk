@@ -13,7 +13,15 @@ const form = reactive({
   name: org.value?.name ?? '',
   type: (org.value?.type ?? 'school') as OrganizationType,
   domain: org.value?.domain ?? '',
+  learnStorage: [...(org.value?.learnStorage ?? ['cloud', 'browser', 'folder'])] as ('cloud' | 'browser' | 'folder')[],
 })
+
+// Speicherorte für Lernmodule (Gruppenleitungen können sie für ihre Gruppe weiter einschränken)
+const storageItems = computed(() => (['cloud', 'browser', 'folder'] as const).map(value => ({
+  value,
+  label: t(`admin.organization.learnStorage.${value}.label`),
+  description: t(`admin.organization.learnStorage.${value}.description`),
+})))
 
 const typeItems = computed(() => [
   { label: t('admin.organizationType.school'), value: 'school' },
@@ -71,9 +79,20 @@ async function save() {
             required
           />
         </UFormField>
+        <UFormField
+          :label="t('admin.organization.learnStorage.title')"
+          :help="t('admin.organization.learnStorage.help')"
+        >
+          <UCheckboxGroup
+            v-model="form.learnStorage"
+            :items="storageItems"
+            data-testid="organization-learn-storage"
+          />
+        </UFormField>
         <UButton
           type="submit"
           :label="t('admin.save')"
+          :disabled="!form.learnStorage.length"
         />
       </form>
     </template>

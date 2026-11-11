@@ -169,7 +169,8 @@ node scripts/build-csharp.ts        # C#-Host bauen (.NET-SDK 10 nötig; Ausgabe
   `createCharacter`/`selectCharacter` sind keine Methoden einer Figur (`CLASS_COMMANDS`).
 - **Designs** (Lizenz-Feature `models`): `RobotDesign` (Grundform + Farben + **Skin** + Zubehör, `designSchema`, `DEFAULT_DESIGNS`; `SKINS`/`SKIN_PRESETS`/`SKIN_COLORS`,
   `ACCESSORIES`/`ACCESSORY_COLORS` in `world/src/types.ts` – Farben passend zu `build_models.py`), Dateien
-  `*.klonkdesign.json` (Dateiart `design`) öffnen sich immer im `DesignEditor` (in der IDE statt Code, Live-Vorschau mit `KlonkWorld`).
+  `*.klonkdesign.json` (Dateiart `design`) öffnen sich **immer im Kleiderschrank** `/designs` (vom User so festgelegt; `DesignEditor` mit
+  Live-Vorschau `KlonkWorld`, eigene Auswahl `useProject().designPath`/`selectDesign` – nie als IDE-Tab).
   Figuren betten ihr Design ein (`CharacterData.design`), Welten bleiben eigenständig. Renderer: `utils/character-look.ts`
   (`applyDesign` färbt Materialien `<modell>-skin|shirt|pants|hair`/`eye`/`outfit-main-*`/`acc-main-*` um und hängt Skin/Zubehör aus `outfits.glb`
   (erst bei Bedarf geladen, Empties `skin__<skin>__<Gelenk>`/`acc__<zubehör>__<Gelenk>`) an die gleichnamigen Gelenke; Kopfbedeckungen blenden `HairTop*`
@@ -263,6 +264,15 @@ node scripts/build-csharp.ts        # C#-Host bauen (.NET-SDK 10 nötig; Ausgabe
   Baumansicht (`tree`, zugeklappte Ordner modulweit) und Ziehen & Ablegen (`onDragStart/onDragOver/onDrop`, `''` = oberste Ebene)
   in `useProjectExplorer()`; Vollbild-Explorer navigiert per Pfadleiste, Suche durchsucht alles.
   IDE lädt die Projektwelt auch beim Mount (Projekt kann schon offen sein); `/world?load=1` lädt die gewählte Projektwelt.
+- **Tabs** (vom User so gewünscht, wie VS Code): `useProject()` hält offene Dateien als Puffer (`buffers`: Text + gespeicherter Stand,
+  Autosave je Datei), `tabs` + `currentPath` (aktiver Tab; nur Programme/SQL/Datenbanken, `opensInEditor`), gemerkt mit Design und Welt in
+  `klonk:project:<quelle>:<name>`. `EditorTabs.vue` (Schließen, Andere/Rechts/Alle, Mittelklick, Ziehen). `KlonkEditor` merkt Cursor/Scroll je
+  Datei (`viewStates`), Modelle werden weiter beim Wechsel verworfen. **Programmieren** öffnet die zuletzt aktive Programmdatei.
+  Vollbild-Code (`focus`) blendet Projekt und Welt aus, die Dateileiste lässt sich darin wieder einblenden (vom User so gewünscht).
+- **Projektlisten** (`ProjectEntry.vue`): Namen gekürzt, Rechtsklick/⋯ = Öffnen, Umbenennen (Browser: `renameBrowserProject`, Cloud: PATCH),
+  Als ZIP herunterladen, Löschen bzw. Aus der Liste entfernen. **ZIP** (fflate): `downloadProjectZip`/`importProjectZip` (wird Browser-Projekt)
+  – Weg auf die Festplatte in Browsern ohne File System Access API (Firefox, Safari, Brave ohne Flag). „Ordner auf dem Rechner“ bleibt im
+  Dialog „Neues Projekt“ sichtbar, ohne API ausgegraut mit Hinweis (vorher verschwand die Option stillschweigend).
 - **IDE** (`apps/app/app/pages/index.vue`): Monaco (`utils/monaco.ts`: Monarch ohne `\p{L}` – Monarch kennt keine Unicode-Klassen;
   Themes `klonk-light/-dark`; `acceptSuggestionOnEnter: 'smart'`, `autoIndent: 'full'`), `KlonkEditor` (Breakpoints, aktive Zeile),
   Programme je Sprache + Breakpoints in localStorage (`klonk:program`: `{ language, programs }`). An Worker nur Plain-Daten senden (Vue-Proxys ⇒ DataCloneError).
@@ -285,7 +295,10 @@ node scripts/build-csharp.ts        # C#-Host bauen (.NET-SDK 10 nötig; Ausgabe
   Rechts Tabs **Welt | Doku** (`LanguageDocs.vue`: Kurzreferenz je Sprache aus den Tabellen, Link `public.docsUrl`); Ausführen zeigt die Welt.
 - **Navigation:** Projekte · Programmieren · Lernen (`/learn`) · Kleiderschrank (`/designs`, Designs des Projekts) · Welt.
 - **Lernmodule** (vom User so festgelegt: Aufgabenmodus in der App, thematisch gegliedert, zuerst Grundkurs Klonk-Script; **Speicherung in der
-  Klonk Cloud, Freigabe je Gruppe, Lernstand für die Gruppenleitung**): Daten in `@klonk/learn` (Texte de/en als Markdown im Paket, nicht in i18n),
+  Klonk Cloud, Freigabe je Gruppe, Lernstand für die Gruppenleitung**; **Speicherort wählbar: Cloud, Browser, Ordner** – Admins erlauben je
+  Organisation (`organizations.learn_storage`, Verwaltung → Organisation), die Gruppenleitung schränkt je Gruppe ein (`groups.learn_storage`, `null` = Vorgabe),
+  `LearnStatus.storage` je Modul; lokale Modulprojekte legt der Browser an (`useLearn().start`, `moduleProjectFiles`), gemerkt in
+  `klonk:learn-local:<konto>` (Ordner-Handles in IndexedDB `handles`), Lernstand dafür nur lokal): Daten in `@klonk/learn` (Texte de/en als Markdown im Paket, nicht in i18n),
   Seiten `/learn`, `/learn/<modul>`, `/learn/<modul>/<aufgabe>` (`key: fullPath`; `?project=<id>&name=…&back=…` = Programm einer anderen
   Person nur lesen), `/learn/groups/<id>` (Freigabe + Lernstand). Jedes gestartete Modul = **eigenes Cloud-Projekt** (`cloud_projects.learn_module`,
   eindeutig je Konto), Projektart Klonk-Script & Blöcke. **Je Aufgabe ein Ordner** (vom User so festgelegt) `1 Zur Marke/` mit `Aufgabe.md`,
@@ -294,7 +307,7 @@ node scripts/build-csharp.ts        # C#-Host bauen (.NET-SDK 10 nötig; Ausgabe
   Projekte ohne `tasks`-Eintrag (erste Fassung, Programme im Wurzelordner) zieht die Lernansicht beim Öffnen um (`ensureTaskFolder`).
   Freigabe in `group_learn_modules` mit **Sprachvorgabe je Gruppe und Modul** (`languages`: both|blocks|klonk; Lernende bekommen die Vereinigung
   ihrer Gruppen, `LearnStatus.languages`). Startbar (`klonk.can_start_learn_module`): Privatkonten und Lehrkräfte/Admins alle (beide Sprachen),
-  Lernende nur in einer ihrer Gruppen freigegebene; **ohne Cloud keine Lernmodule** (`requireCloud`). Gruppenleitung liest
+  Lernende nur in einer ihrer Gruppen freigegebene; ohne Cloud nur Browser/Ordner (Cloud-Start `learn_storage`, `requireCloud`). Gruppenleitung liest
   Modulprojekte ihrer Mitglieder nur für freigegebene Module (`klonk.leads_learner` in `can_read_cloud_project` + Policy), `learn_module` lässt sich
   per UPDATE nicht ändern. Server: `apps/app/server/utils/learn.ts` (`/api/learn`, `/api/learn/modules/:id/start`, `/api/learn/groups/:id[/modules]`),
   Lernstand = aus `klonk.json` + Aufgabendateien (`progressFromFiles`). Prüfung im Browser (Status „gelöst“ ist nicht fälschungssicher).

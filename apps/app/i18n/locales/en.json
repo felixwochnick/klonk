@@ -154,6 +154,13 @@
       "docs": "Docs",
       "ai": "AI",
       "diagrams": "Diagram"
+    },
+    "tabsMenu": {
+      "close": "Close",
+      "closeOthers": "Close others",
+      "closeRight": "Close to the right",
+      "closeAll": "Close all",
+      "closeFile": "Close {name}"
     }
   },
   "script": {
@@ -274,9 +281,19 @@
     "newProject": "New project",
     "location": "Location",
     "locations": {
-      "cloud": { "label": "Klonk Cloud", "description": "Available on all your devices and synced automatically." },
-      "browser": { "label": "In the browser", "description": "Stored only in this browser on this device." },
-      "folder": { "label": "Folder on your computer", "description": "New folder – you choose where it is created. Can also be edited with other programs." }
+      "cloud": {
+        "label": "Klonk Cloud",
+        "description": "Available on all your devices and synced automatically."
+      },
+      "browser": {
+        "label": "In the browser",
+        "description": "Stored only in this browser on this device."
+      },
+      "folder": {
+        "label": "Folder on your computer",
+        "description": "New folder – you choose where it is created. Can also be edited with other programs.",
+        "unsupported": "Not possible in this browser – use Chrome, Edge or Opera. Projects can be downloaded as a ZIP here."
+      }
     },
     "recentFolders": "Recent folders",
     "browserProjects": "Browser projects",
@@ -326,7 +343,8 @@
       "invalidName": "This name is not allowed.",
       "permission": "Access to the folder was not granted.",
       "invalidWorld": "The world file is invalid.",
-      "generic": "That didn't work."
+      "generic": "That didn't work.",
+      "zip": "The ZIP file could not be read."
     },
     "explorer": "Explorer",
     "fileCount": "no files | one file | {count} files",
@@ -360,9 +378,21 @@
     "open": "Open",
     "useWorld": "Use as project world",
     "packageHelp": "Separate parts with dots, e.g. game.characters",
-    "klonkAndBlocks": "Klonk-Script & blocks"
+    "klonkAndBlocks": "Klonk-Script & blocks",
+    "openInWardrobe": "Open in wardrobe",
+    "renameProject": "Rename project",
+    "downloadZip": "Download as ZIP",
+    "importZip": "Import ZIP",
+    "zipImported": "Project “{name}” imported from the ZIP file",
+    "forget": "Remove from list",
+    "foldersUnsupported": "Only Chrome, Edge and Opera can open folders on your computer (Brave: enable “File System Access API” under brave://flags). Otherwise download the project as a ZIP and import it again."
   },
-  "fullscreen": { "enter": "Full screen", "exit": "Exit full screen", "unavailable": "Full screen is not available in this browser", "unavailableHint": "Add Klonk to your home screen (Share → “Add to Home Screen”) to use it without browser bars." },
+  "fullscreen": {
+    "enter": "Full screen",
+    "exit": "Exit full screen",
+    "unavailable": "Full screen is not available in this browser",
+    "unavailableHint": "Add Klonk to your home screen (Share → “Add to Home Screen”) to use it without browser bars."
+  },
   "pwa": {
     "install": "Install app",
     "offline": "Offline"
@@ -558,7 +588,7 @@
     "start": "Start",
     "continue": "Continue",
     "completed": "Completed",
-    "storageHint": "Your programs and progress are stored in your Klonk Cloud – you can continue on any device.",
+    "storageHint": "You choose where your programs and progress are stored when you start a module: in the Klonk Cloud (on every device), in the browser or in a folder on your computer.",
     "allModules": "All modules",
     "notFound": "This module or task does not exist.",
     "objectives": "Learning objectives",
@@ -606,9 +636,7 @@
       "timeout": "In world {world} the program does not end – maybe an endless loop?"
     },
     "teacherNotes": "Notes for teachers",
-    "storageHintGroup": "Your programs and progress are stored in your Klonk Cloud. Your teacher can see your progress and your programs in enabled modules.",
-    "cloudRequired": "Learning modules require Klonk Cloud.",
-    "cloudRequiredHint": "Started modules are saved as a cloud project. The cloud is not included in your subscription or your school's.",
+    "storageHintGroup": "You choose where your programs and progress are stored when you start a module. If they are in the Klonk Cloud, your teacher sees your progress and programs in enabled modules.",
     "noModules": "No learning modules enabled yet.",
     "noModulesHint": "Your teacher enables learning modules for your group. They will appear here afterwards.",
     "notEnabled": "This module has not been enabled for you.",
@@ -646,7 +674,36 @@
     },
     "languageFor": "Language for {module}",
     "openInLearn": "Check in the learning view",
-    "learnTaskHint": "Task “{task}” from {module}"
+    "learnTaskHint": "Task “{task}” from {module}",
+    "storage": {
+      "cloud": {
+        "label": "Klonk Cloud",
+        "description": "On every device you sign in on. Your teacher sees your progress."
+      },
+      "browser": {
+        "label": "In the browser",
+        "description": "Only in this browser on this device. Your teacher does not see your progress."
+      },
+      "folder": {
+        "label": "Folder on your computer",
+        "description": "A folder you choose (e.g. a USB stick). Your teacher does not see your progress.",
+        "unsupported": "Not possible in this browser – use Chrome, Edge or Opera."
+      }
+    },
+    "noStorage": "No storage location is available for learning modules.",
+    "noStorageHint": "Only the Klonk Cloud is allowed, which is not part of your or your school’s subscription – or a folder on your computer, which this browser cannot do. Please ask your teacher or school administration.",
+    "chooseStorage": "Where should the module be saved?",
+    "chooseStorageHint": "Your programs and progress are stored there. This cannot be changed later.",
+    "storedIn": "Saved: {place}",
+    "startFailed": "The module could not be created.",
+    "chooseStorageFirst": "First choose on the module page where the module is saved.",
+    "folderPermission": "Klonk needs access to this module’s folder again.",
+    "toModule": "To the module page",
+    "grantFolder": "Allow access",
+    "storageSettings": "Storage locations",
+    "storageSettingsHint": "Where learners may save their module projects. You only see their progress when it is saved in the Klonk Cloud.",
+    "storageReset": "Organization default",
+    "storageInherited": "Organization default"
   },
   "karol": {
     "import": "Import Robot Karol",

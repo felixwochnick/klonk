@@ -52,11 +52,12 @@ test('Eigenes Design: visueller Editor, im Welt-Editor setzen, im Programm erste
   await page.getByTestId('toggle-project').click()
   await page.getByTestId('browser-project-Designs').click()
 
-  // Neues Design ⇒ öffnet den visuellen Editor
+  // Neues Design ⇒ öffnet den Kleiderschrank (Designs bearbeitet nie die IDE)
   await page.getByTestId('new-file').click()
   await page.getByRole('menuitem', { name: 'Roboter-Design' }).click()
   await page.getByTestId('project-dialog-name').fill('ritter')
   await page.getByTestId('project-dialog-submit').click()
+  await expect(page).toHaveURL(`${APP_URL}/designs`)
   await expect(page.getByTestId('design-editor')).toBeVisible()
   await expect(page.getByTestId('design-license')).toHaveCount(0)
   await page.getByTestId('design-color-shirt').evaluate((input: HTMLInputElement) => {
@@ -70,12 +71,16 @@ test('Eigenes Design: visueller Editor, im Welt-Editor setzen, im Programm erste
   await expect(page.getByTestId('design-color-outfit')).toHaveValue('#ff7a1a')
   await page.getByTestId('design-accessory').click()
   await page.getByRole('option', { name: 'Krone' }).click()
-  await expect(page.getByTestId('save-status')).toHaveAttribute('data-status', 'saved', { timeout: 5_000 })
-  await page.waitForTimeout(800)
+  await expect.poll(() => page.evaluate(async () => {
+    const dir = await (await (await navigator.storage.getDirectory()).getDirectoryHandle('klonk-projects')).getDirectoryHandle('Designs')
+    return (await (await dir.getFileHandle('ritter.klonkdesign.json')).getFile()).text()
+  })).toContain('"crown"')
   await page.getByTestId('design-editor').screenshot({ path: 'test-results/design-editor.png' })
 
-  // Im Programm verwenden
-  await page.getByTestId('file-main.klonk').click()
+  // Im Programm verwenden: „Programmieren“ öffnet wieder die letzte Programmdatei
+  await page.getByRole('link', { name: 'Programmieren' }).click()
+  await expect(page.getByTestId('editor-tab-main.klonk')).toHaveAttribute('aria-selected', 'true')
+  await expect(page.getByTestId('design-editor')).toHaveCount(0)
   await page.getByTestId('run').click()
   await expect(state(page)).toHaveAttribute('data-state', 'done', { timeout: 30_000 })
   await expect(page.getByTestId('output')).toHaveText('2')
@@ -115,5 +120,6 @@ test('Programm speichert ein Design ins Projekt', async ({ page }) => {
   await expect(state(page)).toHaveAttribute('data-state', 'done', { timeout: 30_000 })
   await expect(page.getByTestId('file-jaeger.klonkdesign.json')).toBeVisible()
   await page.getByTestId('file-jaeger.klonkdesign.json').click()
+  await expect(page).toHaveURL(`${APP_URL}/designs`)
   await expect(page.getByTestId('design-accessory')).toContainText('Zylinder')
 })

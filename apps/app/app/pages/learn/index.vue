@@ -8,6 +8,8 @@ const learn = useLearn()
 const lang = computed(() => (locale.value === 'en' ? 'en' : 'de'))
 const status = computed(() => learn.status.value)
 const moduleNumber = (id: string) => LEARN_MODULES.findIndex(m => m.id === id) + 1
+// Module freigegeben, aber kein erlaubter Speicherort nutzbar (z. B. nur Cloud ohne Abo)
+const noStorage = computed(() => !!learn.modules.value.length && learn.modules.value.every(m => !learn.canStart(m.id)))
 </script>
 
 <template>
@@ -33,14 +35,14 @@ const moduleNumber = (id: string) => LEARN_MODULES.findIndex(m => m.id === id) +
 
     <template v-else-if="status">
       <UAlert
-        v-if="!status.cloud"
+        v-if="noStorage"
         color="warning"
         variant="subtle"
         icon="i-lucide-cloud-off"
-        :title="t('learn.cloudRequired')"
-        :description="t('learn.cloudRequiredHint')"
+        :title="t('learn.noStorage')"
+        :description="t('learn.noStorageHint')"
         class="mb-6"
-        data-testid="learn-cloud-required"
+        data-testid="learn-no-storage"
       />
 
       <!-- Gruppenleitung: Freigabe und Lernstand -->
@@ -86,7 +88,7 @@ const moduleNumber = (id: string) => LEARN_MODULES.findIndex(m => m.id === id) +
       </section>
 
       <UAlert
-        v-if="status.cloud && !learn.modules.value.length"
+        v-if="!learn.modules.value.length"
         color="info"
         variant="subtle"
         icon="i-lucide-lock"

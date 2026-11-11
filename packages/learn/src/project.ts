@@ -1,7 +1,8 @@
 import type { LearnModule, LearnTask } from './types'
 
 /**
- * Lernmodule in der Klonk Cloud: jedes gestartete Modul ist ein eigenes Cloud-Projekt (Projektart Klonk-Script & Blöcke).
+ * Lernmodule: jedes gestartete Modul ist ein eigenes Projekt (Projektart Klonk-Script & Blöcke) – in der Klonk Cloud,
+ * im Browser oder in einem Ordner auf dem Rechner (`LearnStorage`).
  * Je Aufgabe ein Ordner, z. B. `1 Zur Marke/` mit `Aufgabe.md`, Startwelt(en) `Welt.klonkworld.json` und dem Programm
  * `Programm.blocks` bzw. `Programm.klonk`. Im Manifest `klonk.json` stehen die Ordner der Aufgaben und der Lernstand.
  */
@@ -15,6 +16,15 @@ export const LEARN_LANGUAGES: LearnLanguage[] = ['blocks', 'klonk']
 export type LearnLanguageChoice = 'both' | LearnLanguage
 export const LEARN_LANGUAGE_CHOICES: LearnLanguageChoice[] = ['both', 'blocks', 'klonk']
 export const choiceLanguages = (choice: LearnLanguageChoice): LearnLanguage[] => (choice === 'both' ? [...LEARN_LANGUAGES] : [choice])
+
+/**
+ * Speicherort eines Modulprojekts: Klonk Cloud (Lernstand für die Gruppenleitung, alle Geräte), Browser (OPFS) oder Ordner
+ * auf dem Rechner. Erlaubt sind sie je Organisation, die Gruppenleitung kann sie für ihre Gruppe weiter einschränken.
+ */
+export type LearnStorage = 'cloud' | 'browser' | 'folder'
+export const LEARN_STORAGES: LearnStorage[] = ['cloud', 'browser', 'folder']
+/** Gültige Speicherorte in fester Reihenfolge (z. B. aus der Datenbank) */
+export const learnStorages = (values: readonly unknown[] | null | undefined): LearnStorage[] => LEARN_STORAGES.filter(s => values?.includes(s))
 
 export type LearnManifest = {
   module: string
@@ -85,6 +95,20 @@ export function taskFolderFiles(task: LearnTask, index: number, lang: 'de' | 'en
   }
 }
 
+/** Startinhalt eines Modulprojekts: Manifest und je Aufgabe ein Ordner (Cloud: der Server, lokal: der Browser) */
+export function moduleProjectFiles(module: LearnModule, lang: 'de' | 'en', language: LearnLanguage) {
+  const manifest = emptyManifest(module.id)
+  const folders: string[] = []
+  const files: { path: string, content: string }[] = []
+  module.tasks.forEach((task, i) => {
+    const entry = taskFolderFiles(task, i, lang, language)
+    manifest.tasks[task.id] = entry.program
+    folders.push(entry.folder)
+    files.push(...entry.files)
+  })
+  return { folders, files: [{ path: LEARN_MANIFEST, content: serializeManifest(manifest) }, ...files] }
+}
+
 /** Stand einer Aufgabe in der Übersicht für Lehrkräfte */
 export type LearnTaskState = 'solved' | 'started' | 'open'
 
@@ -99,12 +123,14 @@ export type LearnModuleProgress = {
 
 /** GET /api/learn – was das Konto starten darf, eigene Modulprojekte, geleitete Gruppen */
 export type LearnStatus = {
-  /** Klonk Cloud verfügbar (gehostet nur mit Abo) – ohne gibt es keine Lernmodule */
+  /** Klonk Cloud verfügbar (gehostet nur mit Abo) – ohne bleiben Browser und Ordner, falls erlaubt */
   cloud: boolean
   /** Startbare Module (Privatkonten/Lehrkräfte alle, Lernende nur freigegebene) */
   modules: string[]
   /** Erlaubte Sprachen je startbarem Modul (Vorgabe der Gruppenleitung, sonst beide) */
   languages: Record<string, LearnLanguage[]>
+  /** Erlaubte Speicherorte je startbarem Modul (Organisation, ggf. eingeschränkt durch die Gruppe; Cloud nur mit Klonk Cloud) */
+  storage: Record<string, LearnStorage[]>
   /** Freigabe über Gruppen (Lernende einer Organisation) – sonst alle Module */
   restricted: boolean
   projects: Record<string, LearnModuleProgress>
@@ -119,6 +145,9 @@ export type LearnGroupProgress = {
   modules: string[]
   /** Sprachvorgabe je freigegebenem Modul */
   languages: Record<string, LearnLanguageChoice>
+  /** Speicherorte der Gruppe (`null` = Vorgabe der Organisation) und die der Organisation */
+  storage: LearnStorage[] | null
+  organizationStorage: LearnStorage[]
   members: { userId: string, displayName: string, username: string | null, modules: Record<string, LearnModuleProgress> }[]
 }
 

@@ -7,21 +7,21 @@ const { t } = useI18n()
 useSeoMeta({ title: () => t('wardrobe.title') })
 
 const proj = useProject()
-const { project, designFiles, currentPath, kind } = proj
+const { project, designFiles, designPath: selected } = proj
 const toast = useToast()
 
-const selected = computed(() => (kind.value === 'design' ? currentPath.value : null))
+// Designs öffnen sich nur hier (eigene Auswahl, unabhängig von der Datei in der IDE)
 async function open(file: ProjectFile) {
-  await proj.select(file.path).catch(() => toast.add({ title: t('project.errors.generic'), color: 'error' }))
+  await proj.selectDesign(file.path).catch(() => toast.add({ title: t('project.errors.generic'), color: 'error' }))
 }
 // Erstes Design gleich öffnen
 watch(designFiles, (files) => {
-  if (!selected.value && files[0]) void open(files[0])
+  if (!files.some(f => f.path === selected.value) && files[0]) void open(files[0])
 }, { immediate: true })
 
 const source = computed({
-  get: () => proj.content.value,
-  set: (value: string) => proj.update(value),
+  get: () => proj.designContent.value,
+  set: (value: string) => proj.updateDesign(value),
 })
 
 const dialogOpen = ref(false)
@@ -98,6 +98,7 @@ async function create() {
         </aside>
         <DesignEditor
           v-if="selected"
+          :key="selected"
           v-model="source"
         />
       </template>

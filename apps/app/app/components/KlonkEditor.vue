@@ -10,6 +10,8 @@ const EXTENSION: Record<string, string> = { klonk: 'klonk', javascript: 'js', ty
 /** SQL (SQLite bzw. PostgreSQL): keine Haltepunkte, Strg+Enter führt aus */
 const isSql = (language: string) => language === 'sql' || language === 'pgsql'
 let modelCounter = 0
+/** Cursor, Auswahl und Scrollposition je Projektdatei – beim Wechsel zwischen Tabs wiederherstellen */
+const viewStates = new Map<string, MonacoEditor.ICodeEditorViewState>()
 
 // Code-Editor (Monaco) für Klonk-Script mit Breakpoints und Hervorhebung der aktuellen Zeile.
 // Nur im Browser verwenden (<ClientOnly>).
@@ -111,6 +113,8 @@ onMounted(async () => {
   editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter, () => emit('run'))
 
   let model = editor.getModel()!
+  const initialState = viewStates.get(model.uri.toString())
+  if (initialState) editor.restoreViewState(initialState)
   const check = async () => {
     if (!monaco) return
     // JS/TS prüft der TypeScript-Worker von Monaco selbst, Klonk-Script der eigene Parser
@@ -139,10 +143,13 @@ onMounted(async () => {
   })
   stopLanguageWatch = watch([() => props.language, () => props.path], ([language]) => {
     const previous = model
+    saveViewState()
     // Gleicher Pfad (z. B. nach Umbenennen zurück) ⇒ altes Modell zuerst freigeben
     if (previous.uri.toString() === `file:///${props.path}`) previous.dispose()
     model = createModel(source.value, language)
     editor!.setModel(model)
+    const state = viewStates.get(model.uri.toString())
+    if (state) editor!.restoreViewState(state)
     editor!.updateOptions({ glyphMargin: !isSql(language) })
     if (!previous.isDisposed()) previous.dispose()
     updateDecorations()
@@ -175,7 +182,15 @@ onMounted(async () => {
   ready.value = true
 })
 
+/** Ansicht der Projektdatei merken (Modelle ohne Projekt haben jedes Mal eine neue Adresse) */
+function saveViewState() {
+  const model = editor?.getModel()
+  const state = editor?.saveViewState()
+  if (model && state && !model.uri.path.startsWith('/__klonk/')) viewStates.set(model.uri.toString(), state)
+}
+
 onBeforeUnmount(() => {
+  saveViewState()
   stopLanguageWatch?.()
   stopFilesWatch?.()
   for (const lib of projectLibs) lib.dispose()

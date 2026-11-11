@@ -274,14 +274,17 @@ export async function ensurePermission(handle: FileSystemDirectoryHandle) {
   return (await h.requestPermission?.({ mode: 'readwrite' })) === 'granted'
 }
 
-// Zuletzt geöffnete Ordner (Handles lassen sich nur in IndexedDB speichern)
+// Zuletzt geöffnete Ordner und Ordner der Lernmodule (Handles lassen sich nur in IndexedDB speichern)
 const DB = 'klonk'
 const STORE = 'recent-projects'
+const HANDLES = 'handles'
 
 function db(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
-    const request = indexedDB.open(DB, 1)
-    request.onupgradeneeded = () => request.result.createObjectStore(STORE)
+    const request = indexedDB.open(DB, 2)
+    request.onupgradeneeded = () => {
+      for (const store of [STORE, HANDLES]) if (!request.result.objectStoreNames.contains(store)) request.result.createObjectStore(store)
+    }
     request.onsuccess = () => resolve(request.result)
     request.onerror = () => reject(request.error)
   })
@@ -315,7 +318,93 @@ export async function recentProjects(): Promise<RecentProject[]> {
   }
 }
 
+/** Ordner-Handle unter einem Schlüssel merken (z. B. Ordner eines Lernmoduls) */
+export async function storeHandle(key: string, handle: FileSystemDirectoryHandle) {
+  const database = await db()
+  await new Promise<void>((resolve, reject) => {
+    const tx = database.transaction(HANDLES, 'readwrite')
+    tx.objectStore(HANDLES).put(handle, key)
+    tx.oncomplete = () => resolve()
+    tx.onerror = () => reject(tx.error)
+  })
+}
+
+export async function loadHandle(key: string): Promise<FileSystemDirectoryHandle | null> {
+  try {
+    const database = await db()
+    return await new Promise((resolve, reject) => {
+      const request = database.transaction(HANDLES).objectStore(HANDLES).get(key)
+      request.onsuccess = () => resolve((request.result as FileSystemDirectoryHandle | undefined) ?? null)
+      request.onerror = () => reject(request.error)
+    })
+  }
+  catch {
+    return null
+  }
+}
+
 export async function forgetProject(source: ProjectSource, name: string) {
   const database = await db()
   database.transaction(STORE, 'readwrite').objectStore(STORE).delete(`${source}:${name}`)
+}
+
+// -----------------------------------------------------------------------------
+// Browser-Projekte umbenennen, Projekte als ZIP (Weg auf die Festplatte in Browsern ohne Ordnerzugriff)
+
+/** Browser-Projekt umbenennen: Inhalt rekursiv in einen neuen Ordner kopieren, alten löschen */
+export async function renameBrowserProject(from: string, to: string) {
+  if (!isValidName(to)) throw new Error('invalid_name')
+  const root = await browserRoot()
+  if (await root.getDirectoryHandle(to).then(() => true, () => false)) throw new Error('exists')
+  const copy = async (source: FileSystemDirectoryHandle, target: FileSystemDirectoryHandle) => {
+    for await (const [name, entry] of source as unknown as AsyncIterable<[string, FileSystemHandle]>) {
+      if (entry.kind === 'directory') await copy(entry as FileSystemDirectoryHandle, await target.getDirectoryHandle(name, { create: true }))
+      else {
+        const writable = await (await target.getFileHandle(name, { create: true })).createWritable()
+        await writable.write(await (entry as FileSystemFileHandle).getFile())
+        await writable.close()
+      }
+    }
+  }
+  await copy(await root.getDirectoryHandle(from), await root.getDirectoryHandle(to, { create: true }))
+  await root.removeEntry(from, { recursive: true })
+}
+
+/** Projekt als ZIP herunterladen (alle Dateien inkl. klonk.json, leere Ordner bleiben erhalten) */
+export async function downloadProjectZip(project: Project) {
+  const { zipSync, strToU8 } = await import('fflate')
+  const { files, folders } = await project.scan()
+  const entries: Record<string, Uint8Array> = {}
+  for (const folder of folders) entries[`${folder}/`] = new Uint8Array()
+  for (const file of files) entries[file.path] = strToU8(await project.read(file.path))
+  const manifest = await project.read(MANIFEST).catch(() => null)
+  if (manifest !== null) entries[MANIFEST] = strToU8(manifest)
+  const blob = new Blob([zipSync(entries) as Uint8Array<ArrayBuffer>], { type: 'application/zip' })
+  const link = Object.assign(document.createElement('a'), { href: URL.createObjectURL(blob), download: `${project.name}.zip` })
+  link.click()
+  setTimeout(() => URL.revokeObjectURL(link.href), 1000)
+}
+
+/**
+ * ZIP als neues Browser-Projekt übernehmen (Name aus dem Dateinamen, bei Bedarf mit Nummer). Liegt alles in einem
+ * gemeinsamen Ordner (ZIP eines Ordners), wird dieser zur Wurzel.
+ */
+export async function importProjectZip(file: File): Promise<Project> {
+  const { unzipSync, strFromU8 } = await import('fflate')
+  const entries = Object.entries(unzipSync(new Uint8Array(await file.arrayBuffer())))
+    .filter(([path]) => !path.startsWith('__MACOSX/') && !path.split('/').some(p => p === '.DS_Store'))
+  const tops = new Set(entries.map(([path]) => path.split('/')[0]))
+  const strip = tops.size === 1 && entries.every(([path]) => path.includes('/')) ? `${[...tops][0]}/` : ''
+  const base = file.name.replace(/\.zip$/i, '').replace(/[/\\:*?"<>|]/g, '').trim() || 'Projekt'
+  const existing = new Set(await listBrowserProjects())
+  let name = base
+  for (let i = 2; existing.has(name); i++) name = `${base} ${i}`
+  const project = await openBrowserProject(name, true)
+  for (const [raw, data] of entries) {
+    const path = raw.slice(strip.length).replace(/\/$/, '')
+    if (!path || !path.split('/').every(isValidName)) continue
+    if (raw.endsWith('/')) await project.createFolder(path).catch(() => {})
+    else await project.write(path, strFromU8(data))
+  }
+  return project
 }

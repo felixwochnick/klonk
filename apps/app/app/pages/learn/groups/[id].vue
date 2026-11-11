@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { LEARN_LANGUAGE_CHOICES, LEARN_MODULES, type LearnGroupProgress, type LearnLanguageChoice, type LearnModuleProgress, type LearnTaskState } from '@klonk/learn'
+import { LEARN_LANGUAGE_CHOICES, LEARN_MODULES, LEARN_STORAGES, type LearnGroupProgress, type LearnLanguageChoice, type LearnModuleProgress, type LearnStorage, type LearnTaskState } from '@klonk/learn'
 
 const { t, locale, d } = useI18n()
 const route = useRoute()
@@ -41,10 +41,22 @@ function setChoice(moduleId: string, languages: LearnLanguageChoice) {
   return save(data.value.modules.map(id => ({ id, languages: id === moduleId ? languages : choiceOf(id) })))
 }
 
-async function save(modules: { id: string, languages: LearnLanguageChoice }[]) {
+// Speicherorte der Gruppe: nur, was die Organisation erlaubt; ohne eigene Auswahl gilt deren Vorgabe
+const storageItems = computed(() => LEARN_STORAGES.map(value => ({
+  value,
+  label: t(`learn.storage.${value}.label`),
+  disabled: !data.value?.organizationStorage.includes(value),
+})))
+const groupStorage = computed(() => data.value?.storage ?? data.value?.organizationStorage ?? [])
+function setStorage(value: LearnStorage[] | null) {
+  if (!data.value || (value && !value.length)) return
+  return save(data.value.modules.map(id => ({ id, languages: choiceOf(id) })), value)
+}
+
+async function save(modules: { id: string, languages: LearnLanguageChoice }[], storage?: LearnStorage[] | null) {
   saving.value = true
   try {
-    await $fetch(`/api/learn/groups/${groupId}/modules` as string, { method: 'PUT', headers: clientHostHeaders(), body: { modules } })
+    await $fetch(`/api/learn/groups/${groupId}/modules` as string, { method: 'PUT', headers: clientHostHeaders(), body: { modules, storage } })
     await Promise.all([refresh(), learn.refresh()])
   }
   catch (e) {
@@ -174,6 +186,46 @@ function viewLink(member: LearnGroupProgress['members'][number], moduleId: strin
               @update:model-value="value => setChoice(module.id, value as LearnLanguageChoice)"
             />
           </div>
+        </div>
+      </UCard>
+
+      <!-- Speicherorte -->
+      <UCard
+        class="mb-6"
+        data-testid="learn-storage-settings"
+      >
+        <template #header>
+          <h2 class="font-semibold">
+            {{ t('learn.storageSettings') }}
+          </h2>
+          <p class="mt-1 text-sm text-(--ui-text-muted)">
+            {{ t('learn.storageSettingsHint') }}
+          </p>
+        </template>
+        <div class="flex flex-wrap items-center justify-between gap-3">
+          <UCheckboxGroup
+            :model-value="groupStorage"
+            :items="storageItems"
+            :disabled="saving"
+            orientation="horizontal"
+            data-testid="learn-storage-group"
+            @update:model-value="value => setStorage(value as LearnStorage[])"
+          />
+          <UButton
+            v-if="data.storage"
+            variant="ghost"
+            color="neutral"
+            size="sm"
+            icon="i-lucide-rotate-ccw"
+            :label="t('learn.storageReset')"
+            :disabled="saving"
+            data-testid="learn-storage-reset"
+            @click="setStorage(null)"
+          />
+          <span
+            v-else
+            class="text-xs text-(--ui-text-muted)"
+          >{{ t('learn.storageInherited') }}</span>
         </div>
       </UCard>
 

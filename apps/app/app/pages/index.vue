@@ -14,14 +14,13 @@ useSeoMeta({ title: () => t('editor.title') })
 const program = useProgram()
 const proj = useProject()
 const inProject = computed(() => !!proj.project.value)
-const showProject = ref(false)
+// Projekt schon offen (z. B. zurück aus dem Kleiderschrank) ⇒ Dateileiste gleich zeigen
+const showProject = ref(inProject.value)
 watch(inProject, (open) => {
   if (open) showProject.value = true
 })
 
 const KIND_LANGUAGE = { blocks: 'blocks', klonk: 'klonk', javascript: 'javascript', typescript: 'typescript', python: 'python', java: 'java', csharp: 'csharp' } as const
-/** Im Projekt: Datei der passenden Art geöffnet? (Welten/Sonstiges sind keine Programme) */
-const isDesign = computed(() => inProject.value && proj.kind.value === 'design')
 /** SQL-Abfrage (`.sql`) bzw. Datenbankdatei: eigene Ansichten, „Ausführen“ führt SQL aus */
 const isSql = computed(() => inProject.value && proj.kind.value === 'sql')
 const isDatabase = computed(() => inProject.value && proj.kind.value === 'database')
@@ -280,10 +279,17 @@ const errorActions = computed(() => [
   ...(ai.enabled.value ? [{ label: t('ai.explainError'), icon: 'i-lucide-sparkles', variant: 'outline' as const, color: 'error' as const, size: 'xs' as const, onClick: explainError }] : []),
 ])
 
-// Code in voller Breite (z. B. auf dem Tablet): Projekt und Welt ausblenden, Ausgabe kompakt unter dem Code
+// Code in voller Breite (z. B. auf dem Tablet): Projekt und Welt ausblenden, Ausgabe kompakt unter dem Code.
+// Die Dateileiste lässt sich darin wieder einblenden; beim Verlassen gilt die Einstellung von vorher.
 const focus = ref(false)
+let projectBeforeFocus = false
 function toggleFocus() {
   focus.value = !focus.value
+  if (focus.value) {
+    projectBeforeFocus = showProject.value
+    showProject.value = false
+  }
+  else showProject.value = projectBeforeFocus
 }
 
 // Rechts: 3D-Welt, Kurzreferenz der Sprache oder KI-Assistent (die Welt bleibt dabei geladen)
@@ -548,7 +554,7 @@ const paneStyle = computed(() => ({
       :style="paneStyle"
     >
       <!-- Projekt -->
-      <template v-if="showProject && !focus">
+      <template v-if="showProject">
         <aside
           class="shrink-0 border-b border-(--ui-border) lg:w-(--pane-project) lg:border-b-0"
           data-testid="project-pane"
@@ -572,10 +578,19 @@ const paneStyle = computed(() => ({
         :class="focus ? '' : 'lg:w-(--pane-code) lg:max-w-[calc(100%-20rem)] lg:flex-none'"
         data-testid="code-pane"
       >
-        <ClientOnly v-if="isDesign">
-          <DesignEditor v-model="source" />
-        </ClientOnly>
-        <ClientOnly v-else-if="isDatabase">
+        <!-- Offene Dateien des Projekts -->
+        <EditorTabs
+          v-if="inProject && proj.tabs.value.length"
+          :tabs="proj.tabs.value"
+          :active="proj.currentPath.value"
+          @select="path => proj.select(path)"
+          @close="path => proj.closeTab(path)"
+          @close-others="path => proj.closeTabs({ keep: path })"
+          @close-right="path => proj.closeTabs({ rightOf: path })"
+          @close-all="proj.closeTabs()"
+          @move="(path, before) => proj.moveTab(path, before)"
+        />
+        <ClientOnly v-if="isDatabase">
           <DatabaseEditor
             ref="sqlView"
             :path="proj.currentPath.value!"
@@ -634,18 +649,20 @@ const paneStyle = computed(() => ({
           </div>
         </ClientOnly>
         <ClientOnly v-if="hasDocument && !isBlocks">
-          <KlonkEditor
-            ref="codeEditor"
-            v-model="source"
-            v-model:breakpoints="breakpoints"
-            :language="runLanguage"
-            :read-only="running || proj.readOnly.value"
-            :active-line="running ? snapshot.line : null"
-            :error-line="errorLine"
-            :error-message="errorMessage"
-            :files="checkFiles"
-            :path="inProject ? proj.currentPath.value : null"
-          />
+          <div class="min-h-0 flex-1">
+            <KlonkEditor
+              ref="codeEditor"
+              v-model="source"
+              v-model:breakpoints="breakpoints"
+              :language="runLanguage"
+              :read-only="running || proj.readOnly.value"
+              :active-line="running ? snapshot.line : null"
+              :error-line="errorLine"
+              :error-message="errorMessage"
+              :files="checkFiles"
+              :path="inProject ? proj.currentPath.value : null"
+            />
+          </div>
         </ClientOnly>
         <!-- Vollbild: kompakte Ausgabe unter dem Code -->
         <div
@@ -731,7 +748,7 @@ const paneStyle = computed(() => ({
         >
           <AiChat
             :context="aiContext"
-            :can-apply="hasDocument && !isBlocks && !isDesign && !running && !proj.readOnly.value"
+            :can-apply="hasDocument && !isBlocks && !running && !proj.readOnly.value"
             @insert="code => codeEditor?.insertText(code)"
             @replace="code => codeEditor?.replaceAll(code)"
           />

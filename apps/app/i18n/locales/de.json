@@ -154,6 +154,13 @@
       "docs": "Doku",
       "ai": "KI",
       "diagrams": "Diagramm"
+    },
+    "tabsMenu": {
+      "close": "Schließen",
+      "closeOthers": "Andere schließen",
+      "closeRight": "Rechts davon schließen",
+      "closeAll": "Alle schließen",
+      "closeFile": "{name} schließen"
     }
   },
   "script": {
@@ -274,9 +281,19 @@
     "newProject": "Neues Projekt",
     "location": "Speicherort",
     "locations": {
-      "cloud": { "label": "Klonk Cloud", "description": "Auf allen Geräten verfügbar und automatisch synchronisiert." },
-      "browser": { "label": "Im Browser", "description": "Nur in diesem Browser auf diesem Gerät gespeichert." },
-      "folder": { "label": "Ordner auf dem Rechner", "description": "Neuer Ordner – du wählst, wo er angelegt wird. Auch mit anderen Programmen bearbeitbar." }
+      "cloud": {
+        "label": "Klonk Cloud",
+        "description": "Auf allen Geräten verfügbar und automatisch synchronisiert."
+      },
+      "browser": {
+        "label": "Im Browser",
+        "description": "Nur in diesem Browser auf diesem Gerät gespeichert."
+      },
+      "folder": {
+        "label": "Ordner auf dem Rechner",
+        "description": "Neuer Ordner – du wählst, wo er angelegt wird. Auch mit anderen Programmen bearbeitbar.",
+        "unsupported": "In diesem Browser nicht möglich – Chrome, Edge oder Opera nutzen. Projekte lassen sich hier als ZIP herunterladen."
+      }
     },
     "recentFolders": "Zuletzt geöffnete Ordner",
     "browserProjects": "Browser-Projekte",
@@ -326,7 +343,8 @@
       "invalidName": "Dieser Name ist nicht erlaubt.",
       "permission": "Kein Zugriff auf den Ordner erlaubt.",
       "invalidWorld": "Die Welt-Datei ist ungültig.",
-      "generic": "Das hat nicht geklappt."
+      "generic": "Das hat nicht geklappt.",
+      "zip": "Die ZIP-Datei konnte nicht gelesen werden."
     },
     "explorer": "Explorer",
     "fileCount": "keine Dateien | eine Datei | {count} Dateien",
@@ -360,9 +378,21 @@
     "open": "Öffnen",
     "useWorld": "Als Projektwelt verwenden",
     "packageHelp": "Teile mit Punkt trennen, z. B. spiel.figuren",
-    "klonkAndBlocks": "Klonk-Script & Blöcke"
+    "klonkAndBlocks": "Klonk-Script & Blöcke",
+    "openInWardrobe": "Im Kleiderschrank öffnen",
+    "renameProject": "Projekt umbenennen",
+    "downloadZip": "Als ZIP herunterladen",
+    "importZip": "ZIP importieren",
+    "zipImported": "Projekt „{name}“ aus der ZIP-Datei übernommen",
+    "forget": "Aus der Liste entfernen",
+    "foldersUnsupported": "Ordner auf dem Rechner öffnen nur Chrome, Edge und Opera (Brave: unter brave://flags „File System Access API“ einschalten). Sonst: Projekt als ZIP herunterladen und wieder importieren."
   },
-  "fullscreen": { "enter": "Vollbild", "exit": "Vollbild beenden", "unavailable": "Vollbild ist in diesem Browser nicht möglich", "unavailableHint": "Füge Klonk zum Home-Bildschirm hinzu (Teilen → „Zum Home-Bildschirm“), dann läuft es ohne Browserleisten." },
+  "fullscreen": {
+    "enter": "Vollbild",
+    "exit": "Vollbild beenden",
+    "unavailable": "Vollbild ist in diesem Browser nicht möglich",
+    "unavailableHint": "Füge Klonk zum Home-Bildschirm hinzu (Teilen → „Zum Home-Bildschirm“), dann läuft es ohne Browserleisten."
+  },
   "pwa": {
     "install": "App installieren",
     "offline": "Offline"
@@ -558,7 +588,7 @@
     "start": "Starten",
     "continue": "Weitermachen",
     "completed": "Abgeschlossen",
-    "storageHint": "Deine Programme und dein Fortschritt liegen in deiner Klonk Cloud – du kannst auf jedem Gerät weitermachen.",
+    "storageHint": "Wo deine Programme und dein Fortschritt liegen, wählst du beim Start eines Moduls: in der Klonk Cloud (auf jedem Gerät), im Browser oder in einem Ordner auf dem Rechner.",
     "allModules": "Alle Module",
     "notFound": "Dieses Modul oder diese Aufgabe gibt es nicht.",
     "objectives": "Lernziele",
@@ -606,9 +636,7 @@
       "timeout": "In Welt {world} endet das Programm nicht – vielleicht eine Endlosschleife?"
     },
     "teacherNotes": "Hinweise für Lehrkräfte",
-    "storageHintGroup": "Deine Programme und dein Fortschritt liegen in deiner Klonk Cloud. Deine Lehrkraft sieht deinen Lernstand und deine Programme in freigegebenen Modulen.",
-    "cloudRequired": "Lernmodule brauchen die Klonk Cloud.",
-    "cloudRequiredHint": "Gestartete Module werden als Cloud-Projekt gespeichert. Die Cloud ist in deinem Abo bzw. dem deiner Schule nicht enthalten.",
+    "storageHintGroup": "Wo deine Programme und dein Fortschritt liegen, wählst du beim Start eines Moduls. Liegen sie in der Klonk Cloud, sieht deine Lehrkraft deinen Lernstand und deine Programme in freigegebenen Modulen.",
     "noModules": "Noch keine Lernmodule freigegeben.",
     "noModulesHint": "Deine Lehrkraft gibt Lernmodule für deine Gruppe frei. Danach erscheinen sie hier.",
     "notEnabled": "Dieses Modul ist für dich nicht freigegeben.",
@@ -646,7 +674,36 @@
     },
     "languageFor": "Sprache für {module}",
     "openInLearn": "In der Lernansicht prüfen",
-    "learnTaskHint": "Aufgabe „{task}“ aus {module}"
+    "learnTaskHint": "Aufgabe „{task}“ aus {module}",
+    "storage": {
+      "cloud": {
+        "label": "Klonk Cloud",
+        "description": "Auf allen Geräten, auf denen du angemeldet bist. Deine Lehrkraft sieht deinen Lernstand."
+      },
+      "browser": {
+        "label": "Im Browser",
+        "description": "Nur in diesem Browser auf diesem Gerät. Deine Lehrkraft sieht deinen Lernstand nicht."
+      },
+      "folder": {
+        "label": "Ordner auf dem Rechner",
+        "description": "Ein Ordner, den du wählst (z. B. USB-Stick). Deine Lehrkraft sieht deinen Lernstand nicht.",
+        "unsupported": "In diesem Browser nicht möglich – Chrome, Edge oder Opera nutzen."
+      }
+    },
+    "noStorage": "Für Lernmodule ist kein Speicherort verfügbar.",
+    "noStorageHint": "Erlaubt ist nur die Klonk Cloud, die in deinem Abo bzw. dem deiner Schule nicht enthalten ist – oder ein Ordner auf dem Rechner, den dieser Browser nicht kann. Wende dich an deine Lehrkraft bzw. die Schulverwaltung.",
+    "chooseStorage": "Wo soll das Modul gespeichert werden?",
+    "chooseStorageHint": "Deine Programme und dein Fortschritt liegen dort. Das lässt sich später nicht mehr ändern.",
+    "storedIn": "Gespeichert: {place}",
+    "startFailed": "Das Modul konnte nicht angelegt werden.",
+    "chooseStorageFirst": "Wähle zuerst auf der Modulseite, wo das Modul gespeichert wird.",
+    "folderPermission": "Klonk braucht wieder Zugriff auf den Ordner dieses Moduls.",
+    "toModule": "Zur Modulseite",
+    "grantFolder": "Zugriff erlauben",
+    "storageSettings": "Speicherorte",
+    "storageSettingsHint": "Wo Lernende ihre Modulprojekte speichern dürfen. Den Lernstand sehen Sie nur bei Speicherung in der Klonk Cloud.",
+    "storageReset": "Vorgabe der Organisation",
+    "storageInherited": "Vorgabe der Organisation"
   },
   "karol": {
     "import": "Robot Karol importieren",

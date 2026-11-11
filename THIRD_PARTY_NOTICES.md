@@ -24,6 +24,7 @@ Their licenses apply unchanged; the license texts are included with the packages
 | sucrase | 3.35 | MIT | https://github.com/alangpierce/sucrase |
 | java-parser | 3.0 | Apache-2.0 | https://github.com/jhipster/prettier-java |
 | zod | 4.6 | MIT | https://github.com/colinhacks/zod |
+| fflate | 0.8 | MIT | https://github.com/101arrowz/fflate |
 | Pyodide (inkl. CPython) | 314.0.7 | MPL-2.0 (CPython: PSF-2.0) | https://github.com/pyodide/pyodide |
 | Jedi | 0.20.1 | MIT | https://github.com/davidhalter/jedi |
 | typeshed (in Jedi) | – | Apache-2.0 | https://github.com/python/typeshed |

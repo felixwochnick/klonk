@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { findModule, LEARN_MODULES } from '@klonk/learn'
+import { findModule, LEARN_MODULES, type LearnStorage } from '@klonk/learn'
 
 const { t, locale } = useI18n()
 const route = useRoute()
@@ -8,13 +8,55 @@ const lang = computed(() => (locale.value === 'en' ? 'en' : 'de'))
 
 const module = computed(() => findModule(String(route.params.module)))
 const index = computed(() => LEARN_MODULES.findIndex(m => m.id === module.value?.id))
-// Lernende einer Organisation: nur freigegebene Module (ohne Cloud keine)
+// Lernende einer Organisation: nur freigegebene Module; ohne erlaubten (bzw. hier möglichen) Speicherort keine
 const locked = computed(() => !!module.value && !!learn.status.value && !learn.canStart(module.value.id))
+const lockedReason = computed(() => (module.value && learn.status.value?.modules.includes(module.value.id) ? t('learn.noStorage') : t('learn.notEnabled')))
+
+// Speicherort beim Start: mehrere erlaubt ⇒ wählen lassen (Ordner nur in Browsern mit Ordnerzugriff)
+const storage = computed(() => (module.value ? learn.storageOf(module.value.id) : null))
+const storageItems = computed(() => (module.value ? learn.storages(module.value.id) : []).map(s => ({
+  value: s.value,
+  label: t(`learn.storage.${s.value}.label`),
+  description: s.supported ? t(`learn.storage.${s.value}.description`) : t('learn.storage.folder.unsupported'),
+  disabled: !s.supported,
+})))
+const chooseOpen = ref(false)
+const chosen = ref<LearnStorage>('cloud')
+const starting = ref(false)
+const toast = useToast()
+const apiError = useApiError()
+const nextTask = () => `/learn/${module.value!.id}/${learn.nextTaskId(module.value!)}`
+
+function startModule() {
+  if (!module.value) return
+  if (storage.value) return navigateTo(nextTask())
+  const usable = storageItems.value.filter(s => !s.disabled)
+  if (usable.length === 1 && storageItems.value.length === 1) return begin(usable[0]!.value)
+  chosen.value = usable[0]?.value ?? 'cloud'
+  chooseOpen.value = true
+}
+
+/** Modul am gewählten Ort anlegen – direkt aus dem Klick (Ordnerauswahl braucht die Nutzeraktion) */
+async function begin(value: LearnStorage) {
+  starting.value = true
+  try {
+    await learn.start(module.value!.id, lang.value, value)
+    chooseOpen.value = false
+    await navigateTo(nextTask())
+  }
+  catch (error) {
+    if ((error as Error)?.message !== 'cancelled') toast.add({ title: (error as { data?: unknown })?.data ? apiError(error) : t('learn.startFailed'), color: 'error' })
+  }
+  finally {
+    starting.value = false
+  }
+}
 useSeoMeta({ title: () => module.value?.title[lang.value] ?? t('learn.title') })
 
 // Hinweise für Lehrkräfte nur in der App (nicht in der öffentlichen Doku) und nur für Lehrkräfte, Admins, Betreiber
 const { user } = useAuth()
 const isTeacher = computed(() => !!user.value && (user.value.role !== 'member' || user.value.platformRole !== 'user'))
+const STORAGE_ICON: Record<LearnStorage, string> = { cloud: 'i-lucide-cloud', browser: 'i-lucide-hard-drive', folder: 'i-lucide-folder' }
 </script>
 
 <template>
@@ -87,7 +129,7 @@ const isTeacher = computed(() => !!user.value && (user.value.role !== 'member' |
           color="warning"
           variant="subtle"
           icon="i-lucide-lock"
-          :description="learn.status.value?.cloud ? t('learn.notEnabled') : t('learn.cloudRequired')"
+          :description="lockedReason"
           data-testid="learn-locked"
         />
         <h2 class="mb-3 font-semibold">
@@ -120,15 +162,54 @@ const isTeacher = computed(() => !!user.value && (user.value.role !== 'member' |
           </li>
         </ol>
         <UButton
-          :to="locked ? undefined : `/learn/${module.id}/${learn.nextTaskId(module)}`"
           :label="learn.progress(module.id) ? t('learn.continue') : t('learn.start')"
           :disabled="locked || !learn.status.value"
+          :loading="starting"
           trailing-icon="i-lucide-arrow-right"
           class="mt-4"
           block
           data-testid="learn-start"
+          @click="startModule"
         />
+        <p
+          v-if="storage"
+          class="mt-2 flex items-center gap-1.5 text-xs text-(--ui-text-muted)"
+          data-testid="learn-storage"
+          :data-storage="storage"
+        >
+          <UIcon :name="STORAGE_ICON[storage]" />
+          {{ t('learn.storedIn', { place: t(`learn.storage.${storage}.label`) }) }}
+        </p>
       </aside>
     </div>
+
+    <UModal
+      v-model:open="chooseOpen"
+      :title="t('learn.chooseStorage')"
+      :description="t('learn.chooseStorageHint')"
+    >
+      <template #body>
+        <URadioGroup
+          v-model="chosen"
+          :items="storageItems"
+          variant="card"
+          :ui="{ fieldset: 'gap-2' }"
+          data-testid="learn-storage-choice"
+        >
+          <template #label="{ item }">
+            <span :data-testid="`learn-storage-${(item as { value: string }).value}`">{{ (item as { label: string }).label }}</span>
+          </template>
+        </URadioGroup>
+      </template>
+      <template #footer>
+        <UButton
+          :label="t('learn.start')"
+          :loading="starting"
+          trailing-icon="i-lucide-arrow-right"
+          data-testid="learn-storage-start"
+          @click="begin(chosen)"
+        />
+      </template>
+    </UModal>
   </UContainer>
 </template>

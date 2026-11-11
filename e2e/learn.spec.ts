@@ -187,9 +187,65 @@ test('Blöcke lösen eine Aufgabe, Hinweise für Lehrkräfte', async ({ browser 
   await page.getByTestId('explorer-folder-2 Die Marke finden').click()
   await page.getByTestId('explorer-file-2 Die Marke finden/Programm.blocks').click()
   await expect(page.getByTestId('learn-task-hint')).toContainText('Aufgabe „Die Marke finden“ aus Bedingte Wiederholung')
-  await page.getByTestId('toggle-project').click()
+  // Dateileiste ist offen (Projekt kommt aus dem Explorer)
   await expect(page.getByTestId('project-world')).toContainText('Welt 1')
   await page.getByTestId('learn-task-open').click()
   await expect(page).toHaveURL(/\/learn\/while\/find-the-mark$/)
   await page.context().close()
+})
+
+test('Speicherorte: Organisation und Gruppe legen fest, Lernende speichern im Browser oder wählen', async ({ browser }) => {
+  test.setTimeout(180_000)
+  // Organisation: Cloud und Browser erlaubt (kein Ordner)
+  const admin = await device(browser, ADMIN_URL, ['admin@gym-muster.de', 'admin-passwort'])
+  expect((await api(admin, `${ADMIN_URL}/api/admin/organization`, 'PATCH', { learnStorage: ['cloud', 'browser'] })).status).toBe(200)
+
+  // Gruppenleitung: Modul 2 nur im Browser
+  const teacher = await device(browser, APP_URL, TEACHER)
+  const groupId = (await api<{ groups: { id: string, name: string }[] }>(teacher, '/api/learn')).body.groups.find(g => g.name === '9c')!.id
+  expect((await api(teacher, `/api/learn/groups/${groupId}/modules`, 'PUT', { modules: [{ id: 'repeat', languages: 'both' }], storage: ['browser'] })).status).toBe(200)
+  await gotoHydrated(teacher, `${APP_URL}/learn/groups/${groupId}`)
+  const settings = teacher.getByTestId('learn-storage-group')
+  await expect(settings.getByRole('checkbox', { name: 'Im Browser' })).toBeChecked()
+  await expect(settings.getByRole('checkbox', { name: 'Klonk Cloud' })).not.toBeChecked()
+  await expect(settings.getByRole('checkbox', { name: 'Ordner auf dem Rechner' })).toBeDisabled()
+
+  // Lernende: nur Browser – kein Cloud-Start, das Modul landet im Browser-Projekt
+  const student = await device(browser, APP_URL, STUDENT)
+  expect((await api<{ storage: Record<string, string[]> }>(student, '/api/learn')).body.storage.repeat).toEqual(['browser'])
+  expect((await api<{ message: string }>(student, '/api/learn/modules/repeat/start', 'POST', { lang: 'de' })).status).toBe(403)
+  await gotoHydrated(student, `${APP_URL}/learn/repeat`)
+  await student.getByTestId('learn-start').click()
+  await expect(student).toHaveURL(/\/learn\/repeat\/[\w-]+$/)
+  await expect(student.getByTestId('code-editor').or(student.getByTestId('blocks-editor'))).toHaveAttribute('data-ready', 'true', { timeout: 30_000 })
+  const local = await student.evaluate(async () => {
+    const root = await (await navigator.storage.getDirectory()).getDirectoryHandle('klonk-projects')
+    for await (const [name] of root as unknown as AsyncIterable<[string]>) {
+      if (name.startsWith('Lernmodul 2')) return { name, manifest: await (await (await (await root.getDirectoryHandle(name)).getFileHandle('klonk.json')).getFile()).text() }
+    }
+    return null
+  })
+  expect(local?.manifest).toContain('"module": "repeat"')
+  expect((await api<{ projects: Record<string, unknown> }>(student, '/api/learn')).body.projects.repeat).toBeUndefined()
+  await gotoHydrated(student, `${APP_URL}/learn/repeat`)
+  await expect(student.getByTestId('learn-storage')).toHaveAttribute('data-storage', 'browser')
+  await expect(student.getByTestId('learn-start')).toHaveText('Weitermachen')
+
+  // Vorgabe der Organisation (Cloud oder Browser) ⇒ Lernende wählen beim Start
+  await teacher.getByTestId('learn-storage-reset').click()
+  await expect(settings.getByRole('checkbox', { name: 'Klonk Cloud' })).toBeChecked()
+  await teacher.getByRole('switch', { name: '4. Verzweigung' }).click()
+  await gotoHydrated(student, `${APP_URL}/learn/conditions`)
+  await student.getByTestId('learn-start').click()
+  await expect(student.getByTestId('learn-storage-choice')).toBeVisible()
+  await expect(student.getByTestId('learn-storage-folder')).toHaveCount(0)
+  await student.getByTestId('learn-storage-cloud').click()
+  await student.getByTestId('learn-storage-start').click()
+  await expect(student).toHaveURL(/\/learn\/conditions\/[\w-]+$/)
+  await expect.poll(async () => !!(await api<{ projects: Record<string, unknown> }>(student, '/api/learn')).body.projects.conditions).toBe(true)
+
+  // Aufräumen: alle Orte, keine Freigaben
+  expect((await api(admin, `${ADMIN_URL}/api/admin/organization`, 'PATCH', { learnStorage: ['cloud', 'browser', 'folder'] })).status).toBe(200)
+  expect((await api(teacher, `/api/learn/groups/${groupId}/modules`, 'PUT', { modules: [], storage: null })).status).toBe(200)
+  for (const page of [admin, teacher, student]) await page.context().close()
 })

@@ -5,7 +5,8 @@ import { World } from '@klonk/world'
 import { ProgramRunner, type RunError, type RunnerSnapshot } from '@klonk/runtime'
 import RunnerWorker from '@klonk/runtime/worker?worker'
 import type { LearnCheckResult } from '~/utils/learn-check'
-import type { CloudProject } from '~/utils/cloud-project'
+import { CloudProject } from '~/utils/cloud-project'
+import type { Project } from '~/utils/project-fs'
 
 // Nächste Aufgabe = gleiche Seite mit anderen Parametern ⇒ neu aufbauen (Runner, Welt, Editor)
 definePageMeta({ key: route => route.fullPath })
@@ -23,14 +24,18 @@ const task = module?.tasks.find(x => x.id === String(route.params.task))
 const taskIndex = module && task ? module.tasks.indexOf(task) : -1
 useSeoMeta({ title: () => task?.title[lang.value] ?? t('learn.title') })
 
-// Programm der Aufgabe: im Cloud-Projekt des Moduls – das eigene oder (Gruppenleitung, `?project=`) das einer anderen Person, nur lesen
+// Programm der Aufgabe: im Projekt des Moduls (Cloud, Browser oder Ordner) – das eigene oder (Gruppenleitung, `?project=`)
+// das Cloud-Projekt einer anderen Person, nur lesen
 const foreign = typeof route.query.project === 'string' ? { id: route.query.project, name: String(route.query.name ?? '') } : null
 const program = reactive<{ language: LearnLanguage, blocks: string, klonk: string }>({ language: 'blocks', blocks: '', klonk: '' })
 const ready = ref(false)
 const loadError = ref<string | null>(null)
+/** Nur Ordner erlaubt bzw. Ordnerfreigabe verloren ⇒ Nutzeraktion nötig */
+const needsAction = ref<'choose' | 'permission' | null>(null)
+const isReadOnly = (p: Project | undefined) => p instanceof CloudProject && p.readOnly
 const readOnly = ref(!!foreign)
 const solvedHere = ref(false)
-let project: CloudProject | undefined
+let project: Project | undefined
 let shared = false
 let manifest: LearnManifest | undefined
 let saved = { language: '', blocks: '', klonk: '' }
@@ -40,7 +45,7 @@ let saved = { language: '', blocks: '', klonk: '' }
  * hatten die Programme direkt im Projektordner – deren Inhalt zieht mit um)
  */
 async function ensureTaskFolder() {
-  if (!project || project.readOnly || !manifest || !module || !task || manifest.tasks[task.id]) return
+  if (!project || isReadOnly(project) || !manifest || !module || !task || manifest.tasks[task.id]) return
   const index = module.tasks.indexOf(task)
   const entry = taskFolderFiles(task, index, lang.value, allowedLanguages.value[0] ?? 'blocks')
   await project.createFolder(entry.folder)
@@ -68,27 +73,33 @@ async function loadProgram() {
   saved = { ...program }
 }
 
-onMounted(async () => {
+async function openProject() {
   if (!module || !task) return
+  loadError.value = null
+  needsAction.value = null
   try {
     const opened = foreign ? await learn.openForeign(foreign.id, foreign.name) : await learn.openOwn(module.id, lang.value)
     project = opened.project
     shared = opened.shared
-    readOnly.value = project.readOnly
+    readOnly.value = isReadOnly(project)
     await loadProgram()
     // Gruppenleitung sieht Änderungen der Lernenden, sobald sie hochgeladen sind
-    if (project.readOnly && !shared) project.onRemoteChange = () => void loadProgram()
+    if (project instanceof CloudProject && project.readOnly && !shared) project.onRemoteChange = () => void loadProgram()
     ready.value = true
   }
   catch (error) {
-    loadError.value = apiError(error)
+    const code = (error as Error)?.message
+    if (code === 'learn_choose_storage') needsAction.value = 'choose'
+    else if (code === 'learn_permission') needsAction.value = 'permission'
+    else loadError.value = code === 'learn_no_storage' ? t('learn.noStorage') : apiError(error)
   }
-})
+}
+onMounted(openProject)
 
 // Speichern (lokal, die Cloud-Kopie lädt im Hintergrund hoch)
 let saveTimer: ReturnType<typeof setTimeout> | undefined
 async function save() {
-  if (!project || project.readOnly || !manifest || !task || !ready.value) return
+  if (!project || isReadOnly(project) || !manifest || !task || !ready.value) return
   if (program.blocks !== saved.blocks) await project.write(taskFile(manifest, task.id, 'blocks'), program.blocks)
   if (program.klonk !== saved.klonk) await project.write(taskFile(manifest, task.id, 'klonk'), program.klonk)
   if (program.language !== saved.language) {
@@ -105,12 +116,12 @@ watch(() => [program.language, program.blocks, program.klonk], () => {
 onBeforeUnmount(() => {
   clearTimeout(saveTimer)
   void save().finally(() => {
-    if (!shared) project?.stop()
+    if (!shared && project instanceof CloudProject) project.stop()
   })
 })
 
 async function markSolved() {
-  if (!project || project.readOnly || !manifest || !module || !task) return
+  if (!project || isReadOnly(project) || !manifest || !module || !task) return
   manifest.solved[task.id] ??= new Date().toISOString()
   await project.write(LEARN_MANIFEST, serializeManifest(manifest))
   solvedHere.value = true
@@ -465,6 +476,19 @@ const showSolution = ref(false)
           :description="loadError"
           data-testid="learn-load-error"
         />
+        <!-- Ordner: erst wählen (Modulseite) bzw. Zugriff erneut erlauben (braucht einen Klick) -->
+        <UAlert
+          v-if="needsAction"
+          class="mb-4"
+          color="warning"
+          variant="subtle"
+          icon="i-lucide-folder-lock"
+          :description="needsAction === 'choose' ? t('learn.chooseStorageFirst') : t('learn.folderPermission')"
+          :actions="needsAction === 'choose'
+            ? [{ label: t('learn.toModule'), to: `/learn/${module.id}`, size: 'xs' }]
+            : [{ label: t('learn.grantFolder'), icon: 'i-lucide-folder-open', size: 'xs', onClick: () => void openProject() }]"
+          data-testid="learn-needs-action"
+        />
         <div class="flex items-center justify-between gap-2">
           <p class="text-xs font-semibold uppercase tracking-wide text-(--ui-text-muted)">
             {{ t('learn.taskNumber', { n: taskIndex + 1, total: module.tasks.length }) }}
@@ -568,7 +592,7 @@ const showSolution = ref(false)
           class="flex flex-1 items-center justify-center text-(--ui-text-muted)"
         >
           <UIcon
-            v-if="!loadError"
+            v-if="!loadError && !needsAction"
             name="i-lucide-loader-circle"
             class="size-6 animate-spin"
           />

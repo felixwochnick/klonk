@@ -24,7 +24,23 @@
       "name": "Name",
       "domain": "Domain",
       "domainHelp": "Wird Teil des Benutzernamens: name{'@'}domain",
-      "domainChangeHelp": "Achtung: Alle Benutzernamen ändern sich mit der Domain."
+      "domainChangeHelp": "Achtung: Alle Benutzernamen ändern sich mit der Domain.",
+      "learnStorage": {
+        "title": "Speicherorte für Lernmodule",
+        "help": "Wo Lernende gestartete Lernmodule speichern dürfen. Gruppenleitungen können das für ihre Gruppe weiter einschränken. Den Lernstand sehen Lehrkräfte nur bei Speicherung in der Klonk Cloud.",
+        "cloud": {
+          "label": "Klonk Cloud",
+          "description": "Auf allen Geräten; Lehrkräfte sehen Lernstand und Programme."
+        },
+        "browser": {
+          "label": "Im Browser",
+          "description": "Nur im Browser des jeweiligen Geräts."
+        },
+        "folder": {
+          "label": "Ordner auf dem Rechner",
+          "description": "Ordner auf dem Gerät, USB-Stick oder Netzlaufwerk (Chrome, Edge, Opera)."
+        }
+      }
     },
     "setup": {
       "title": "Klonk einrichten",

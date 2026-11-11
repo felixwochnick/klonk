@@ -1,7 +1,7 @@
 import { translate } from '@klonk/klonk-script'
 import { World } from '@klonk/world'
 import { describe, expect, it } from 'vitest'
-import { compareOutcome, emptyManifest, expectedOutcomes, LEARN_MODULES, map, missingConstructs, parseManifest, progressFromFiles, runTrusted, serializeManifest, taskFolderFiles } from '../src'
+import { compareOutcome, emptyManifest, expectedOutcomes, LEARN_MODULES, learnStorages, map, missingConstructs, moduleProjectFiles, parseManifest, progressFromFiles, runTrusted, serializeManifest, taskFolderFiles } from '../src'
 
 describe('Karten', () => {
   it('übersetzt Zeichen in Felder und Figur', () => {
@@ -110,5 +110,21 @@ describe('Modulprojekt', () => {
       { path: 'around-the-corner.blocks', content: '{"blocks":{}}' },
       { path: 'wall.klonk', content: '  ' },
     ])).toEqual({ solved: ['to-the-mark'], started: ['to-the-mark', 'around-the-corner'] })
+  })
+})
+
+describe('Modulprojekt und Speicherorte', () => {
+  it('legt Manifest und je Aufgabe einen Ordner an', () => {
+    const module = LEARN_MODULES[0]!
+    const { folders, files } = moduleProjectFiles(module, 'de', 'klonk')
+    expect(folders).toHaveLength(module.tasks.length)
+    const manifest = parseManifest(files.find(f => f.path === 'klonk.json')!.content, module.id)
+    expect(Object.keys(manifest.tasks)).toEqual(module.tasks.map(t => t.id))
+    for (const program of Object.values(manifest.tasks)) expect(files.some(f => f.path === `${program}.klonk`)).toBe(true)
+  })
+
+  it('Speicherorte in fester Reihenfolge, Unbekanntes fällt weg', () => {
+    expect(learnStorages(['folder', 'x', 'cloud'])).toEqual(['cloud', 'folder'])
+    expect(learnStorages(null)).toEqual([])
   })
 })

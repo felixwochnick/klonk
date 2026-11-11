@@ -406,3 +406,94 @@ test('Rechtsklick-Menüs: Neues anlegen, Packages (Java, Python) und Namespaces 
   await page.getByTestId('project-dialog-submit').click()
   await expect.poll(() => readProjectFile(page, 'KontextCs', 'src/Spiel/Werkzeuge/Helfer.cs').catch(() => '')).toContain('namespace Spiel.Werkzeuge;')
 })
+
+test('Tabs: mehrere Dateien offen, schließen, gemerkt; Vollbild mit Dateileiste', async ({ page }) => {
+  await openIde(page)
+  await seedProject(page, 'Tabs', {
+    'klonk.json': '{ "language": "klonk" }',
+    'a.klonk': 'schritt\n',
+    'b.klonk': 'linksDrehen\n',
+    'ordner/c.klonk': 'rechtsDrehen\n',
+  })
+  await page.reload()
+  await page.locator('html[data-hydrated="true"]').waitFor({ state: 'attached' })
+  await page.getByTestId('toggle-project').click()
+  await page.getByTestId('browser-project-Tabs').click()
+  const tab = (path: string) => page.getByTestId(`editor-tab-${path}`)
+  const editor = page.getByTestId('code-editor')
+  await expect(tab('a.klonk')).toHaveAttribute('aria-selected', 'true')
+
+  // Weitere Dateien öffnen neue Tabs, die vorigen bleiben offen
+  await page.getByTestId('file-b.klonk').click()
+  await page.getByTestId('file-ordner/c.klonk').click()
+  await expect(page.getByTestId('editor-tabs').getByRole('tab')).toHaveCount(3)
+  await expect(tab('ordner/c.klonk')).toHaveAttribute('aria-selected', 'true')
+  await expect(editor).toContainText('rechtsDrehen')
+  await tab('a.klonk').click()
+  await expect(editor).toContainText('schritt')
+
+  // Schließen: × und „Andere schließen“
+  await page.getByTestId('editor-tab-close-b.klonk').click()
+  await expect(tab('b.klonk')).toHaveCount(0)
+  await tab('a.klonk').click({ button: 'right' })
+  await page.getByRole('menuitem', { name: 'Andere schließen' }).click()
+  await expect(page.getByTestId('editor-tabs').getByRole('tab')).toHaveCount(1)
+
+  // Offene Tabs bleiben nach dem Neuladen erhalten
+  await page.getByTestId('file-b.klonk').click()
+  await expect(tab('b.klonk')).toHaveAttribute('aria-selected', 'true')
+  await page.reload()
+  await page.locator('html[data-hydrated="true"]').waitFor({ state: 'attached' })
+  await page.getByTestId('toggle-project').click()
+  await page.getByTestId('browser-project-Tabs').click()
+  await expect(page.getByTestId('editor-tabs').getByRole('tab')).toHaveCount(2)
+  await expect(tab('b.klonk')).toHaveAttribute('aria-selected', 'true')
+
+  // Vollbild: Dateileiste zunächst aus, lässt sich einblenden
+  await page.getByTestId('focus-mode').click()
+  await expect(page.getByTestId('ide')).toHaveAttribute('data-focus', 'true')
+  await expect(page.getByTestId('project-pane')).toHaveCount(0)
+  await page.getByTestId('toggle-project').click()
+  await expect(page.getByTestId('project-pane')).toBeVisible()
+  await page.getByTestId('file-a.klonk').click()
+  await expect(tab('a.klonk')).toHaveAttribute('aria-selected', 'true')
+  await expect(page.getByTestId('world-view')).toBeHidden()
+})
+
+test('Projektliste: lange Namen gekürzt, umbenennen per Rechtsklick, ZIP herunterladen und importieren', async ({ page }) => {
+  await gotoHydrated(page, `${APP_URL}/projects`)
+  const long = 'Ein sehr langer Projektname der nicht in die Seitenleiste passt'
+  await page.evaluate(async () => {
+    const root = await (await navigator.storage.getDirectory()).getDirectoryHandle('klonk-projects', { create: true })
+    for (const name of ['Kurz', 'Kurz 2']) await root.removeEntry(name, { recursive: true }).catch(() => {})
+  })
+  await seedProject(page, long, { 'klonk.json': '{ "language": "klonk" }', 'a.klonk': 'schritt\n', 'leer/.keep': '' })
+  await page.reload()
+  await page.locator('html[data-hydrated="true"]').waitFor({ state: 'attached' })
+
+  // Gekürzt: der Eintrag bleibt in der Seitenleiste
+  const entry = page.getByTestId(`explorer-project-${long}`)
+  const aside = (await page.locator('aside').first().boundingBox())!
+  const box = (await entry.boundingBox())!
+  expect(box.x + box.width).toBeLessThanOrEqual(aside.x + aside.width)
+
+  await entry.click({ button: 'right' })
+  await page.getByRole('menuitem', { name: 'Umbenennen' }).click()
+  await page.getByTestId('project-dialog-name').fill('Kurz')
+  await page.getByTestId('project-dialog-submit').click()
+  await expect(page.getByTestId('explorer-project-Kurz')).toBeVisible()
+  await expect(entry).toHaveCount(0)
+
+  // Als ZIP herunterladen und als neues Browser-Projekt wieder einlesen
+  await page.getByTestId('explorer-project-Kurz').click()
+  await expect(page.getByTestId('explorer-project-name')).toHaveText('Kurz')
+  const [download] = await Promise.all([page.waitForEvent('download'), page.getByTestId('download-zip').click()])
+  expect(download.suggestedFilename()).toBe('Kurz.zip')
+  const zip = test.info().outputPath('Kurz.zip')
+  await download.saveAs(zip)
+  const [chooser] = await Promise.all([page.waitForEvent('filechooser'), page.getByTestId('import-zip').click()])
+  await chooser.setFiles(zip)
+  await expect(page.getByTestId('explorer-project-name')).toHaveText('Kurz 2')
+  await expect(page.getByTestId('explorer-file-a.klonk')).toBeVisible()
+  expect(await readProjectFile(page, 'Kurz 2', 'klonk.json')).toContain('klonk')
+})

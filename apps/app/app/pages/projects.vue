@@ -6,14 +6,15 @@ const { t } = useI18n()
 useSeoMeta({ title: () => t('project.explorer') })
 
 const {
-  proj, cloud, canFolders, canCreateProject, locations, dialogLocation, browserProjects, recent, openFolder, openRecent, openBrowserProject, removeBrowserProject,
+  proj, cloud, canFolders, canCreateProject, locations, dialogLocation, browserProjects, recent, openFolder, openRecent, openBrowserProject,
+  downloadZip, importZip, browserProjectItems, recentItems, cloudProjectItems, isOpenProject,
   dialog, dialogName, dialogLanguage, dialogTitle, openDialog, submitDialog, openFile, newItemsIn, fileActions, fileContextItems, areaContextItems, kindLabel,
   folders, folderActions, parentOf, baseName, dropTarget, onDragStart, onDragOver, onDrop,
 } = useProjectExplorer({
-  // Programme öffnen sich in der IDE, Welten werden nur als Projektwelt gewählt
+  // Programme öffnen sich in der IDE (Designs im Kleiderschrank), Welten werden nur als Projektwelt gewählt
   onOpenFile: file => file.kind !== 'world' && navigateTo('/'),
 })
-const { project, files, currentPath, worldPath, status } = proj
+const { project, files, currentPath, tabs, worldPath, status } = proj
 
 // Ordner-Navigation: Kacheln zeigen den aktuellen Ordner; die Suche durchsucht das ganze Projekt
 const folder = ref('')
@@ -37,7 +38,6 @@ const visibleFiles = computed(() => {
 const newItems = computed(() => newItemsIn(folder.value || undefined))
 
 const folderOf = (file: ProjectFile) => file.path.slice(0, -file.name.length - 1)
-const isActive = (source: 'folder' | 'browser', name: string) => project.value?.source === source && project.value.name === name
 
 // Klonk Cloud
 const cloudStatus = cloud.status
@@ -73,22 +73,35 @@ const syncLabel = computed(() => (proj.sync.value ? t(`cloud.sync.${proj.sync.va
             block
             @click="openFolder"
           />
+          <UButton
+            icon="i-lucide-file-archive"
+            variant="outline"
+            :label="t('project.importZip')"
+            block
+            data-testid="import-zip"
+            @click="importZip"
+          />
+          <p
+            v-if="!canFolders"
+            class="text-xs text-(--ui-text-muted)"
+            data-testid="folders-unsupported"
+          >
+            {{ t('project.foldersUnsupported') }}
+          </p>
         </div>
 
         <div v-if="recent.length">
           <p class="mb-1 text-xs font-semibold text-(--ui-text-muted)">
             {{ t('project.recentFolders') }}
           </p>
-          <UButton
+          <ProjectEntry
             v-for="item in recent"
             :key="item.name"
-            :variant="isActive('folder', item.name) ? 'soft' : 'ghost'"
-            :color="isActive('folder', item.name) ? 'primary' : 'neutral'"
-            icon="i-lucide-folder"
             :label="item.name"
-            block
-            class="justify-start"
-            @click="openRecent(item)"
+            icon="i-lucide-folder"
+            :active="isOpenProject('folder', item.name)"
+            :items="recentItems(item)"
+            @open="openRecent(item)"
           />
         </div>
 
@@ -96,30 +109,16 @@ const syncLabel = computed(() => (proj.sync.value ? t(`cloud.sync.${proj.sync.va
           <p class="mb-1 text-xs font-semibold text-(--ui-text-muted)">
             {{ t('project.browserProjects') }}
           </p>
-          <div
+          <ProjectEntry
             v-for="name in browserProjects"
             :key="name"
-            class="group flex items-center"
-          >
-            <UButton
-              :variant="isActive('browser', name) ? 'soft' : 'ghost'"
-              :color="isActive('browser', name) ? 'primary' : 'neutral'"
-              icon="i-lucide-hard-drive"
-              :label="name"
-              class="flex-1 justify-start"
-              :data-testid="`explorer-project-${name}`"
-              @click="openBrowserProject(name)"
-            />
-            <UButton
-              variant="ghost"
-              color="neutral"
-              size="xs"
-              icon="i-lucide-trash-2"
-              class="opacity-60 group-hover:opacity-100"
-              :aria-label="t('project.delete')"
-              @click="removeBrowserProject(name)"
-            />
-          </div>
+            :label="name"
+            icon="i-lucide-hard-drive"
+            :active="isOpenProject('browser', name)"
+            :items="browserProjectItems(name)"
+            :data-testid="`explorer-project-${name}`"
+            @open="openBrowserProject(name)"
+          />
         </div>
 
         <div
@@ -146,30 +145,16 @@ const syncLabel = computed(() => (proj.sync.value ? t(`cloud.sync.${proj.sync.va
           >
             {{ t('cloud.locked') }}
           </p>
-          <div
+          <ProjectEntry
             v-for="item in ownProjects"
             :key="item.id"
-            class="group flex items-center"
-          >
-            <UButton
-              :variant="cloud.isOpen(item.id) ? 'soft' : 'ghost'"
-              :color="cloud.isOpen(item.id) ? 'primary' : 'neutral'"
-              :icon="item.kind === 'submission' ? 'i-lucide-pencil-line' : 'i-lucide-cloud'"
-              :label="item.name"
-              class="flex-1 justify-start"
-              :data-testid="`cloud-project-${item.name}`"
-              @click="cloud.openProject(item)"
-            />
-            <UButton
-              variant="ghost"
-              color="neutral"
-              size="xs"
-              icon="i-lucide-trash-2"
-              class="opacity-60 group-hover:opacity-100"
-              :aria-label="t('cloud.delete', { name: item.name })"
-              @click="cloud.remove(item)"
-            />
-          </div>
+            :label="item.name"
+            :icon="item.kind === 'submission' ? 'i-lucide-pencil-line' : 'i-lucide-cloud'"
+            :active="cloud.isOpen(item.id)"
+            :items="cloudProjectItems(item)"
+            :data-testid="`cloud-project-${item.name}`"
+            @open="cloud.openProject(item)"
+          />
           <template v-if="cloudStatus.groups.length">
             <p class="mt-3 mb-1 text-xs font-semibold text-(--ui-text-muted)">
               {{ t('cloud.groups') }}
@@ -181,8 +166,10 @@ const syncLabel = computed(() => (proj.sync.value ? t(`cloud.sync.${proj.sync.va
               :color="cloud.isOpen(group.projectId) ? 'primary' : 'neutral'"
               icon="i-lucide-users-round"
               :label="group.name"
+              :title="group.name"
               block
               class="justify-start"
+              :ui="{ label: 'truncate' }"
               :data-testid="`cloud-group-${group.name}`"
               @click="cloud.openGroup(group)"
             />
@@ -252,6 +239,16 @@ const syncLabel = computed(() => (proj.sync.value ? t(`cloud.sync.${proj.sync.va
               data-testid="cloud-upload"
               @click="openDialog({ mode: 'upload' })"
             />
+            <UTooltip :text="t('project.downloadZip')">
+              <UButton
+                variant="ghost"
+                color="neutral"
+                icon="i-lucide-file-archive"
+                :aria-label="t('project.downloadZip')"
+                data-testid="download-zip"
+                @click="downloadZip"
+              />
+            </UTooltip>
             <UInput
               v-model="search"
               icon="i-lucide-search"
@@ -416,7 +413,7 @@ const syncLabel = computed(() => (proj.sync.value ? t(`cloud.sync.${proj.sync.va
                         size="sm"
                       />
                       <UBadge
-                        v-else-if="file.path === currentPath"
+                        v-else-if="tabs.includes(file.path)"
                         :label="t('project.openInIde')"
                         variant="subtle"
                         size="sm"

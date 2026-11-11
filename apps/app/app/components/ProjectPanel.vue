@@ -2,7 +2,8 @@
 // Projekt-Explorer (Seitenleiste der IDE): Ordner/Browser-Projekte öffnen, Dateien anlegen, umbenennen, löschen, Welt wählen
 const { t } = useI18n()
 const {
-  proj, canFolders, canCreateProject, locations, dialogLocation, browserProjects, recent, openFolder, openRecent, openBrowserProject, removeBrowserProject,
+  proj, canFolders, canCreateProject, locations, dialogLocation, browserProjects, recent, openFolder, openRecent, openBrowserProject,
+  importZip, browserProjectItems, recentItems,
   dialog, dialogName, dialogLanguage, dialogTitle, openDialog, submitDialog, openFile, newItems, fileActions, fileContextItems, areaContextItems,
   tree, toggleFolder, folderActions, parentOf, dropTarget, onDragStart, onDragOver, onDrop,
 } = useProjectExplorer()
@@ -49,21 +50,31 @@ const selectedWorld = computed({
         block
         @click="openFolder"
       />
+      <UButton
+        icon="i-lucide-file-archive"
+        variant="outline"
+        :label="t('project.importZip')"
+        block
+        @click="importZip"
+      />
+      <p
+        v-if="!canFolders"
+        class="text-xs text-(--ui-text-muted)"
+      >
+        {{ t('project.foldersUnsupported') }}
+      </p>
 
       <div v-if="recent.length">
         <p class="mb-1 text-xs font-semibold text-(--ui-text-muted)">
           {{ t('project.recentFolders') }}
         </p>
-        <UButton
+        <ProjectEntry
           v-for="item in recent"
           :key="item.name"
-          variant="ghost"
-          color="neutral"
-          icon="i-lucide-folder"
           :label="item.name"
-          block
-          class="justify-start"
-          @click="openRecent(item)"
+          icon="i-lucide-folder"
+          :items="recentItems(item)"
+          @open="openRecent(item)"
         />
       </div>
 
@@ -71,29 +82,15 @@ const selectedWorld = computed({
         <p class="mb-1 text-xs font-semibold text-(--ui-text-muted)">
           {{ t('project.browserProjects') }}
         </p>
-        <div
+        <ProjectEntry
           v-for="name in browserProjects"
           :key="name"
-          class="flex items-center"
-        >
-          <UButton
-            variant="ghost"
-            color="neutral"
-            icon="i-lucide-hard-drive"
-            :label="name"
-            class="flex-1 justify-start"
-            :data-testid="`browser-project-${name}`"
-            @click="openBrowserProject(name)"
-          />
-          <UButton
-            variant="ghost"
-            color="neutral"
-            size="xs"
-            icon="i-lucide-trash-2"
-            :aria-label="t('project.delete')"
-            @click="removeBrowserProject(name)"
-          />
-        </div>
+          :label="name"
+          icon="i-lucide-hard-drive"
+          :items="browserProjectItems(name)"
+          :data-testid="`browser-project-${name}`"
+          @open="openBrowserProject(name)"
+        />
       </div>
     </template>
 
@@ -101,12 +98,13 @@ const selectedWorld = computed({
     <template v-else>
       <div class="flex items-center gap-2">
         <UIcon
-          :name="project.source === 'folder' ? 'i-lucide-folder-open' : 'i-lucide-hard-drive'"
+          :name="project.source === 'folder' ? 'i-lucide-folder-open' : project.source === 'cloud' ? 'i-lucide-cloud' : 'i-lucide-hard-drive'"
           class="shrink-0"
         />
         <span
-          class="flex-1 truncate font-semibold"
+          class="min-w-0 flex-1 truncate font-semibold"
           data-testid="project-name"
+          :title="project.name"
         >{{ project.name }}</span>
         <UTooltip :text="t('project.explorer')">
           <UButton

@@ -20,6 +20,8 @@ export const organizations = pgTable('organizations', {
   domain: text().notNull().unique(),
   // Lizenz-Token der Organisation (gehostete Plattform: Abo von Schule/Unternehmen)
   licenseToken: text(),
+  /** Erlaubte Speicherorte für Lernmodule: cloud, browser, folder (Verwaltung → Organisation) */
+  learnStorage: text().array().notNull().default(['cloud', 'browser', 'folder']),
   createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
 })
 
@@ -188,6 +190,8 @@ export const groups = pgTable('groups', {
   name: text().notNull(),
   /** Dürfen Mitglieder im gemeinsamen Ordner schreiben? (Gruppenleitung immer) */
   membersCanWrite: boolean().notNull().default(false),
+  /** Speicherorte für Lernmodule der Gruppe (Gruppenleitung), `null` = Vorgabe der Organisation */
+  learnStorage: text().array(),
   createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
 }, t => [uniqueIndex('groups_organization_name_idx').on(t.organizationId, t.name)])
 

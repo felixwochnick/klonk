@@ -86,7 +86,8 @@
     "learn_not_enabled": "Dieses Lernmodul ist für dich nicht freigegeben.",
     "cannot_change_self": "Das eigene Konto lässt sich hier nicht ändern.",
     "owner_only": "Nur Besitzer:innen dürfen das.",
-    "role_from_groups": "Die Rolle dieses Kontos kommt aus den Klonk-ID-Gruppen."
+    "role_from_groups": "Die Rolle dieses Kontos kommt aus den Klonk-ID-Gruppen.",
+    "learn_storage": "Dieses Modul darf nicht in der Klonk Cloud gespeichert werden."
   },
   "settings": {
     "title": "Einstellungen",

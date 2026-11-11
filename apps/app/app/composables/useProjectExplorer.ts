@@ -4,7 +4,7 @@ import type { SqlEngineName } from '@klonk/runtime'
 import { databaseSample, sqlSample } from '~/utils/sql-samples'
 import { convertKarolFile, KAROL_ACCEPT, type KarolHint, type KarolTarget } from '~/utils/karol-import'
 import {
-  createFolderProject, DATABASE_EXTENSIONS, deleteBrowserProject, ensurePermission, forgetProject, listBrowserProjects, pickFolder, recentProjects,
+  createFolderProject, DATABASE_EXTENSIONS, deleteBrowserProject, downloadProjectZip, ensurePermission, forgetProject, importProjectZip, listBrowserProjects, pickFolder, recentProjects, renameBrowserProject,
   supportsBrowserProjects, supportsFolders, Project, type FileKind, type ProjectFile, type RecentProject,
 } from '~/utils/project-fs'
 
@@ -23,6 +23,8 @@ export type ProjectDialog
     | { mode: 'renameFolder', path: string }
     /** Klonk Cloud: geöffnetes lokales Projekt hochladen */
     | { mode: 'upload' }
+    /** Browser- bzw. Cloud-Projekt umbenennen */
+    | { mode: 'renameProject', source: 'browser' | 'cloud', name: string, id?: string }
 
 /** Zeile der Baumansicht: Ordner (auf-/zuklappbar) oder Datei, mit Einrückung */
 export type TreeRow
@@ -112,6 +114,96 @@ export function useProjectExplorer(options: { onOpenFile?: (file: ProjectFile) =
     await loadLists()
   }
 
+  /** Browser-Projekt umbenennen – ist es offen, danach unter neuem Namen wieder öffnen */
+  async function renameProject(source: 'browser' | 'cloud', from: string, to: string, id?: string) {
+    if (source === 'cloud') {
+      await $fetch(`/api/cloud/projects/${id}` as string, { method: 'PATCH', headers: clientHostHeaders(), body: { name: to } })
+      await cloud.refresh()
+      // Geöffnetes Projekt: Namen übernehmen (Kopfzeile, Seitenleiste)
+      const current = cloud.current.value
+      if (current && current.meta.id === id) {
+        current.meta.name = to
+        triggerRef(proj.project)
+      }
+      return
+    }
+    const open = proj.project.value?.source === 'browser' && proj.project.value.name === from
+    if (open) await proj.close()
+    await renameBrowserProject(from, to)
+    await loadLists()
+    if (open) await proj.openBrowserProject(to)
+  }
+
+  /** Geöffnetes Projekt als ZIP herunterladen (vorher speichern) */
+  async function downloadZip() {
+    if (!proj.project.value) return
+    await proj.flush()
+    await downloadProjectZip(proj.project.value).catch(fail)
+  }
+
+  /** ZIP-Datei als neues Browser-Projekt übernehmen und öffnen */
+  function importZip() {
+    const input = Object.assign(document.createElement('input'), { type: 'file', accept: '.zip,application/zip' })
+    input.onchange = async () => {
+      const file = input.files?.[0]
+      if (!file) return
+      try {
+        const imported = await importProjectZip(file)
+        await proj.open(imported)
+        await loadLists()
+        toast.add({ title: t('project.zipImported', { name: imported.name }), color: 'success' })
+      }
+      catch {
+        toast.add({ title: t('project.errors.zip'), color: 'error' })
+      }
+    }
+    input.click()
+  }
+
+  const isOpenProject = (source: 'folder' | 'browser', name: string) => proj.project.value?.source === source && proj.project.value.name === name
+
+  /** Menü eines Browser-Projekts (Rechtsklick bzw. „…“) */
+  function browserProjectItems(name: string): DropdownMenuItem[][] {
+    return [
+      [{ label: t('project.open'), icon: 'i-lucide-folder-open', onSelect: () => openBrowserProject(name) }],
+      [
+        { label: t('project.rename'), icon: 'i-lucide-pencil', onSelect: () => openDialog({ mode: 'renameProject', source: 'browser', name }) },
+        { label: t('project.downloadZip'), icon: 'i-lucide-file-archive', onSelect: async () => {
+          if (!isOpenProject('browser', name)) await openBrowserProject(name)
+          await downloadZip()
+        } },
+      ],
+      [{ label: t('project.delete'), icon: 'i-lucide-trash-2', color: 'error', onSelect: () => removeBrowserProject(name) }],
+    ]
+  }
+
+  /** Menü eines zuletzt geöffneten Ordners */
+  function recentItems(item: RecentProject): DropdownMenuItem[][] {
+    return [
+      [{ label: t('project.open'), icon: 'i-lucide-folder-open', onSelect: () => openRecent(item) }],
+      [{ label: t('project.forget'), icon: 'i-lucide-list-x', onSelect: async () => {
+        await forgetProject(item.source, item.name)
+        await loadLists()
+      } }],
+    ]
+  }
+
+  /** Menü eines Cloud-Projekts: eigene umbenennen/löschen, Abgaben und Gruppenordner nur öffnen */
+  function cloudProjectItems(item: CloudProjectInfo): DropdownMenuItem[][] {
+    const items: DropdownMenuItem[][] = [[{ label: t('project.open'), icon: 'i-lucide-cloud', onSelect: () => cloud.openProject(item) }]]
+    if (item.writable && cloud.status.value?.enabled) {
+      items.push([
+        ...(item.kind === 'personal' ? [{ label: t('project.rename'), icon: 'i-lucide-pencil', onSelect: () => openDialog({ mode: 'renameProject', source: 'cloud', name: item.name, id: item.id }) }] : []),
+        { label: t('project.downloadZip'), icon: 'i-lucide-file-archive', onSelect: async () => {
+          if (!cloud.isOpen(item.id)) await cloud.openProject(item)
+          await downloadZip()
+        } },
+      ])
+    }
+    items.push([{ label: t('project.delete'), icon: 'i-lucide-trash-2', color: 'error', onSelect: () => cloud.remove(item) }])
+    return items
+  }
+
   // Dialoge: neues Projekt, neue Datei, umbenennen
   const dialog = ref<ProjectDialog | null>(null)
   const dialogName = ref('')
@@ -120,6 +212,7 @@ export function useProjectExplorer(options: { onOpenFile?: (file: ProjectFile) =
     const mode = dialog.value?.mode
     if (mode === 'project') return t('project.newProject')
     if (mode === 'upload') return t('cloud.upload')
+    if (mode === 'renameProject') return t('project.renameProject')
     if (mode === 'init') return t('project.setup')
     if (mode === 'folder') return t('project.newFolder')
     if (dialog.value?.mode === 'package') return t(`project.newPackage.${dialog.value.language}`)
@@ -140,7 +233,10 @@ export function useProjectExplorer(options: { onOpenFile?: (file: ProjectFile) =
       })
     }
     if (canBrowser.value) items.push({ value: 'browser', label: t('project.locations.browser.label'), description: t('project.locations.browser.description') })
-    if (canFolders.value) items.push({ value: 'folder', label: t('project.locations.folder.label'), description: t('project.locations.folder.description') })
+    // Ordner auf dem Rechner gibt es nur mit File System Access API (Chrome, Edge, Opera) – sonst Hinweis statt verschwinden
+    items.push(canFolders.value
+      ? { value: 'folder', label: t('project.locations.folder.label'), description: t('project.locations.folder.description') }
+      : { value: 'folder', label: t('project.locations.folder.label'), description: t('project.locations.folder.unsupported'), disabled: true })
     return items
   })
   const canCreateProject = computed(() => locations.value.some(l => !l.disabled))
@@ -152,17 +248,21 @@ export function useProjectExplorer(options: { onOpenFile?: (file: ProjectFile) =
     if (value.mode === 'project' || value.mode === 'init') dialogLanguage.value = projectLanguage(program.language.value)
     // Speicherort: gewünschter, sonst Cloud vor Browser vor Ordner
     if (value.mode === 'project') dialogLocation.value = value.location ?? locations.value.find(l => !l.disabled)?.value ?? 'browser'
-    dialogName.value = value.mode === 'upload'
-      ? proj.project.value?.name ?? ''
-      : value.mode === 'rename'
-        ? value.file.path
-        : value.mode === 'renameFolder'
-          ? value.path
-          : value.mode === 'project' || value.mode === 'init'
-            ? (value.mode === 'init' ? proj.project.value?.name ?? '' : t('project.defaultProjectName'))
-            : value.mode === 'folder'
-              ? t('project.defaultName.folder')
-              : value.mode === 'package' ? t(`project.defaultName.package.${value.language}`) : t(`project.defaultName.${value.kind}`)
+    dialogName.value = defaultDialogName(value)
+  }
+
+  function defaultDialogName(value: ProjectDialog) {
+    switch (value.mode) {
+      case 'upload': return proj.project.value?.name ?? ''
+      case 'renameProject': return value.name
+      case 'rename': return value.file.path
+      case 'renameFolder': return value.path
+      case 'init': return proj.project.value?.name ?? ''
+      case 'project': return t('project.defaultProjectName')
+      case 'folder': return t('project.defaultName.folder')
+      case 'package': return t(`project.defaultName.package.${value.language}`)
+      case 'file': return t(`project.defaultName.${value.kind}`)
+    }
   }
 
   async function submitDialog() {
@@ -213,6 +313,12 @@ export function useProjectExplorer(options: { onOpenFile?: (file: ProjectFile) =
                 : programSample(d.kind as ProgramLanguage, lang)
         await proj.create(join(d.folder, name), d.kind, initial)
         if (d.folder) expand(d.folder)
+        // Designs bearbeitet der Kleiderschrank
+        if (d.kind === 'design') {
+          dialog.value = null
+          await navigateTo('/designs')
+          return
+        }
       }
       else if (d.mode === 'folder') {
         await proj.createFolder(join(d.parent, name))
@@ -220,6 +326,9 @@ export function useProjectExplorer(options: { onOpenFile?: (file: ProjectFile) =
       }
       else if (d.mode === 'package') {
         await createPackage(d.language, name, d.parent)
+      }
+      else if (d.mode === 'renameProject') {
+        if (name !== d.name) await renameProject(d.source, d.name, name, d.id)
       }
       else if (d.mode === 'renameFolder') {
         if (name !== d.path) await proj.renameFolder(d.path, name)
@@ -241,10 +350,15 @@ export function useProjectExplorer(options: { onOpenFile?: (file: ProjectFile) =
     await proj.remove(file.path).catch(fail)
   }
 
-  /** Programm öffnen bzw. Welt als Projektwelt wählen */
+  /** Programm in der IDE öffnen, Design im Kleiderschrank bzw. Welt als Projektwelt wählen */
   async function openFile(file: ProjectFile) {
     if (file.kind === 'other') return
     if (file.kind === 'world') proj.selectWorld(file.path)
+    else if (file.kind === 'design') {
+      await proj.selectDesign(file.path).catch(fail)
+      await navigateTo('/designs')
+      return
+    }
     else await proj.select(file.path).catch(fail)
     options.onOpenFile?.(file)
   }
@@ -485,7 +599,8 @@ export function useProjectExplorer(options: { onOpenFile?: (file: ProjectFile) =
 
   /** Rechtsklick auf eine Datei: Öffnen, Bearbeiten/Umbenennen/Löschen, daneben Neues anlegen */
   function fileContextItems(file: ProjectFile): DropdownMenuItem[][] {
-    const open: DropdownMenuItem[] = file.kind === 'other' ? [] : [{ label: t(file.kind === 'world' ? 'project.useWorld' : 'project.open'), icon: 'i-lucide-file-input', onSelect: () => openFile(file) }]
+    const label = file.kind === 'world' ? 'project.useWorld' : file.kind === 'design' ? 'project.openInWardrobe' : 'project.open'
+    const open: DropdownMenuItem[] = file.kind === 'other' ? [] : [{ label: t(label), icon: file.kind === 'design' ? 'i-lucide-shirt' : 'i-lucide-file-input', onSelect: () => openFile(file) }]
     if (proj.readOnly.value) return open.length ? [open] : []
     return [...(open.length ? [open] : []), ...fileActions(file), createItemsIn(parentOf(file.path) || undefined)]
   }
@@ -508,7 +623,7 @@ export function useProjectExplorer(options: { onOpenFile?: (file: ProjectFile) =
 
   return {
     proj, cloud, canFolders, canBrowser, browserProjects, recent, loadLists, fail, locations, canCreateProject, dialogLocation,
-    openFolder, openRecent, openBrowserProject, removeBrowserProject,
+    openFolder, openRecent, openBrowserProject, removeBrowserProject, downloadZip, importZip, browserProjectItems, recentItems, cloudProjectItems, isOpenProject,
     dialog, dialogName, dialogLanguage, dialogTitle, openDialog, submitDialog,
     remove, openFile, newItems, newItemsIn, fileActions, fileContextItems, areaContextItems, kindLabel,
     folders, tree, toggleFolder, expand, folderActions, removeFolder, move, parentOf, baseName,

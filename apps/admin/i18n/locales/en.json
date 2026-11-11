@@ -24,7 +24,23 @@
       "name": "Name",
       "domain": "Domain",
       "domainHelp": "Becomes part of the username: name{'@'}domain",
-      "domainChangeHelp": "Note: changing the domain changes all usernames."
+      "domainChangeHelp": "Note: changing the domain changes all usernames.",
+      "learnStorage": {
+        "title": "Storage locations for learning modules",
+        "help": "Where learners may save the learning modules they start. Group leaders can restrict this further for their group. Teachers only see progress when it is saved in the Klonk Cloud.",
+        "cloud": {
+          "label": "Klonk Cloud",
+          "description": "On every device; teachers see progress and programs."
+        },
+        "browser": {
+          "label": "In the browser",
+          "description": "Only in the browser of the respective device."
+        },
+        "folder": {
+          "label": "Folder on the computer",
+          "description": "Folder on the device, USB stick or network drive (Chrome, Edge, Opera)."
+        }
+      }
     },
     "setup": {
       "title": "Set up Klonk",
