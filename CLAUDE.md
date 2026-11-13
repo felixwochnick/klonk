@@ -365,7 +365,10 @@ node scripts/build-csharp.ts        # C#-Host bauen (.NET-SDK 10 nötig; Ausgabe
   Eignung (★★★/★★/★/–), Link zum Lehrplan-Volltext, Unterrichtsideen; Codebeispiele müssen mit der echten API laufen.
   Ordner alphabetisch nummeriert (`2.baden-wuerttemberg`, `3.bavaria`, `4.hesse`, `5.lower-saxony`, `6.north-rhine-westphalia`,
   `7.saxony`), Stufenbündel als `grade-5-6.md`, Oberstufe `upper-secondary.md`. Bayern: Gymnasium, Realschule (IT modular ⇒
-  Anfangs-/Aufbauunterricht), Mittelschule, FOS/BOS (KIT/KIWI ab 2026/27); übrige Länder bisher nur Gymnasium.
+  Anfangs-/Aufbauunterricht), Mittelschule, FOS/BOS (KIT/KIWI ab 2026/27), Grundschule (kein Fach Informatik ⇒ Mathe „Raum und Form“),
+  Förderschule (`foerderschule/lernen` = eigener Lehrplan Informatik 5–9; Sprache/Hören/Sehen/KME/ESE = Mittelschul-Lernbereiche + entwicklungsbezogene
+  Kompetenzen ⇒ `other-focus-areas` verweist auf Mittelschul-Seiten; geistige Entwicklung ohne Informatik; Sehen: Klonk für Blinde ungeeignet);
+  übrige Länder bisher nur Gymnasium.
   Zielgruppe: Lehrkräfte, Schulleitungen, Kultusverwaltung (Sie-Form, sachlich, Lehrplanbegriffe, keine Werbesprache; vom User so festgelegt); Betrieb/Datenschutz/Lizenz für Schulen in `4.teaching/3.schools.md`.
   Lernmodule in der Doku nur als Übersicht `4.teaching/2.modules/1.overview.md` (Konzept, Modulliste, Lehrplan-Zuordnung – keine Aufgaben/Lösungen); Klassenseiten nennen passende Module (Abschnitt „Passende Lernmodule“).
   Neue Länder/Schulformen ⇒ Tabellen in `4.teaching/1.overview.md`, `4.germany/1.overview.md` (inkl. „Wie das Fach heißt“) und der Landesübersicht ergänzen.
