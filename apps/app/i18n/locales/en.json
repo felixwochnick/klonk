@@ -620,6 +620,7 @@
       "repeatWhile": "a conditional loop (repeat while/until)",
       "if": "a branch (if … then)",
       "procedure": "a procedure of your own (procedure … end)",
+      "function": "a function with a return value (function … return … end)",
       "variable": "a variable (var)"
     },
     "check": {

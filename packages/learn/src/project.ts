@@ -70,9 +70,9 @@ const LABELS = {
 /** Name ohne Zeichen, die in Cloud-Pfaden nicht erlaubt sind (`:` u. a.) */
 const safeName = (text: string) => text.replace(/:\s*/g, ' – ').replace(/[\\/*?"<>|]/g, '').trim()
 
-/** Name des Cloud-Projekts, z. B. „Lernmodul 1 – Erste Schritte – Anweisungen“ */
-export function learnProjectName(module: LearnModule, index: number, lang: 'de' | 'en') {
-  return `${LABELS[lang].module} ${index + 1} – ${safeName(module.title[lang])}`
+/** Name des Cloud-Projekts, z. B. „Lernmodul 1 – Erste Schritte – Anweisungen“ (`label` aus `moduleLabel`) */
+export function learnProjectName(module: LearnModule, label: string, lang: 'de' | 'en') {
+  return `${LABELS[lang].module} ${label} – ${safeName(module.title[lang])}`
 }
 
 /**

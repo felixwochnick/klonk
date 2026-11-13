@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { LEARN_LANGUAGE_CHOICES, LEARN_MODULES, LEARN_STORAGES, type LearnGroupProgress, type LearnLanguageChoice, type LearnModuleProgress, type LearnStorage, type LearnTaskState } from '@klonk/learn'
+import { LEARN_LANGUAGE_CHOICES, LEARN_MODULES, LEARN_STORAGES, moduleLabel, type LearnGroupProgress, type LearnLanguageChoice, type LearnModuleProgress, type LearnStorage, type LearnTaskState } from '@klonk/learn'
 
 const { t, locale, d } = useI18n()
 const route = useRoute()
@@ -23,7 +23,7 @@ onMounted(() => {
 })
 onBeforeUnmount(() => clearInterval(timer))
 
-const moduleNumber = (id: string) => LEARN_MODULES.findIndex(m => m.id === id) + 1
+const moduleNumber = (id: string) => moduleLabel(id)
 const enabledModules = computed(() => LEARN_MODULES.filter(m => data.value?.modules.includes(m.id)))
 const members = computed(() => data.value?.members ?? [])
 

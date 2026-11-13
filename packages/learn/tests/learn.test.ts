@@ -1,7 +1,7 @@
 import { translate } from '@klonk/klonk-script'
 import { World } from '@klonk/world'
 import { describe, expect, it } from 'vitest'
-import { compareOutcome, emptyManifest, expectedOutcomes, LEARN_MODULES, learnStorages, map, missingConstructs, moduleProjectFiles, parseManifest, progressFromFiles, runTrusted, serializeManifest, taskFolderFiles } from '../src'
+import { compareOutcome, emptyManifest, expectedOutcomes, findModule, LEARN_MODULES, moduleLabel, learnStorages, map, missingConstructs, moduleProjectFiles, parseManifest, progressFromFiles, runTrusted, serializeManifest, taskFolderFiles } from '../src'
 
 describe('Karten', () => {
   it('übersetzt Zeichen in Felder und Figur', () => {
@@ -91,12 +91,12 @@ describe('Modulprojekt', () => {
         })
       }
     }
-    const first = taskFolderFiles(LEARN_MODULES[0]!.tasks[0]!, 0, 'de', 'klonk')
+    const first = taskFolderFiles(findModule('sequence')!.tasks[0]!, 0, 'de', 'klonk')
     expect(first.files.map(f => f.path)).toEqual(['1 Zur Marke/Aufgabe.md', '1 Zur Marke/Welt.klonkworld.json', '1 Zur Marke/Programm.klonk'])
   })
 
   it('liest den Lernstand aus Manifest und Programmen (auch aus Projekten ohne Ordner)', () => {
-    const module = LEARN_MODULES[0]!
+    const module = findModule('sequence')!
     const manifest = emptyManifest(module.id)
     manifest.tasks['to-the-mark'] = '1 Zur Marke/Programm'
     manifest.solved['to-the-mark'] = '2026-11-03T10:00:00.000Z'
@@ -115,7 +115,7 @@ describe('Modulprojekt', () => {
 
 describe('Modulprojekt und Speicherorte', () => {
   it('legt Manifest und je Aufgabe einen Ordner an', () => {
-    const module = LEARN_MODULES[0]!
+    const module = findModule('sequence')!
     const { folders, files } = moduleProjectFiles(module, 'de', 'klonk')
     expect(folders).toHaveLength(module.tasks.length)
     const manifest = parseManifest(files.find(f => f.path === 'klonk.json')!.content, module.id)
@@ -126,5 +126,25 @@ describe('Modulprojekt und Speicherorte', () => {
   it('Speicherorte in fester Reihenfolge, Unbekanntes fällt weg', () => {
     expect(learnStorages(['folder', 'x', 'cloud'])).toEqual(['cloud', 'folder'])
     expect(learnStorages(null)).toEqual([])
+  })
+})
+
+describe('Nummerierung', () => {
+  it('zählt Einstieg und Grundkurs getrennt', () => {
+    expect(moduleLabel('paths')).toBe('E1')
+    expect(moduleLabel('patterns')).toBe('E3')
+    expect(moduleLabel('sequence')).toBe('1')
+    expect(moduleLabel('functions')).toBe('7')
+  })
+
+  it('Einstiegswelten bestehen aus ganzen 3×3-Platten (druckbar)', () => {
+    for (const module of LEARN_MODULES.filter(m => m.track === 'start')) {
+      for (const task of module.tasks) {
+        for (const world of task.worlds) {
+          expect(world.size.width % 3, `${module.id}/${task.id}`).toBe(0)
+          expect(world.size.depth % 3, `${module.id}/${task.id}`).toBe(0)
+        }
+      }
+    }
   })
 })

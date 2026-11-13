@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { findModule, LEARN_MODULES, type LearnStorage } from '@klonk/learn'
+import { findModule, moduleLabel, type LearnStorage } from '@klonk/learn'
 
 const { t, locale } = useI18n()
 const route = useRoute()
@@ -7,7 +7,7 @@ const learn = useLearn()
 const lang = computed(() => (locale.value === 'en' ? 'en' : 'de'))
 
 const module = computed(() => findModule(String(route.params.module)))
-const index = computed(() => LEARN_MODULES.findIndex(m => m.id === module.value?.id))
+const label = computed(() => module.value ? moduleLabel(module.value) : '')
 // Lernende einer Organisation: nur freigegebene Module; ohne erlaubten (bzw. hier möglichen) Speicherort keine
 const locked = computed(() => !!module.value && !!learn.status.value && !learn.canStart(module.value.id))
 const lockedReason = computed(() => (module.value && learn.status.value?.modules.includes(module.value.id) ? t('learn.noStorage') : t('learn.notEnabled')))
@@ -84,7 +84,7 @@ const STORAGE_ICON: Record<LearnStorage, string> = { cloud: 'i-lucide-cloud', br
     >
       <article class="max-w-3xl">
         <p class="text-xs font-semibold uppercase tracking-wide text-(--ui-text-muted)">
-          {{ t('learn.moduleNumber', { n: index + 1 }) }}
+          {{ t('learn.moduleNumber', { n: label }) }}
         </p>
         <h1 class="mt-1 text-2xl font-bold">
           {{ module.title[lang] }}

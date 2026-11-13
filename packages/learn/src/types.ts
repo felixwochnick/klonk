@@ -4,7 +4,7 @@ import type { Direction, WorldData } from '@klonk/world'
 export type Text = { de: string, en: string }
 
 /** Sprachbausteine, die eine Aufgabe verlangen kann (geprüft am Syntaxbaum) */
-export const CONSTRUCTS = ['repeatTimes', 'repeatWhile', 'if', 'procedure', 'variable'] as const
+export const CONSTRUCTS = ['repeatTimes', 'repeatWhile', 'if', 'procedure', 'function', 'variable'] as const
 export type Construct = typeof CONSTRUCTS[number]
 
 /** Was nach dem Programm mit dem Ergebnis der Musterlösung übereinstimmen muss */
@@ -36,6 +36,8 @@ export type LearnTask = {
 export type LearnModule = {
   /** Eindeutig, Teil der URL */
   id: string
+  /** Einstieg (Grundschule, Förderschule; Welten aus 3×3-Platten, druckbar) – sonst Grundkurs */
+  track?: 'start'
   title: Text
   /** Ein Satz für die Übersicht */
   summary: Text

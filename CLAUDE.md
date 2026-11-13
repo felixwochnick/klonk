@@ -314,7 +314,10 @@ node scripts/build-csharp.ts        # C#-Host bauen (.NET-SDK 10 nötig; Ausgabe
   Zielzustand = Ergebnis der **Musterlösung** in jeder Startwelt (`expectedOutcomes`); geprüft wird je Aufgabe nur, was `check` verlangt
   (Position/Richtung/Felder/Zahlen der Ausgabe) + `requires` am Syntaxbaum. Nutzerprogramme laufen beim Prüfen headless im Runner-Worker mit
   `delay: 0` und 5-s-Zeitlimit (`utils/learn-check.ts`). Musterlösung sichtbar nach dem Lösen, für Rolle ≠ member, Betreiber und Privatkonten.
-  Unit-Tests lösen jede Aufgabe mit der Musterlösung (de/en) in allen Welten. **Aufgaben, Lösungen und Lehrkraft-Hinweise nie in die öffentliche
+  Unit-Tests lösen jede Aufgabe mit der Musterlösung (de/en) in allen Welten. **Einstieg** (vom User gewünscht, Grundschule/Förderschule): Module mit `track: 'start'` (E1 Wege, E2 Bauplan, E3 Muster),
+  Nummern über `moduleLabel()` (E1…, Grundkurs 1… – nie Index), Welten **immer aus ganzen 3×3-Platten** (Test), weil sie als 3D-Druck nachgebaut werden:
+  `assets/print/*.solidcraft` (SolidCraft, parametrisch; 1 Feld = 4×4 Noppen = 32 mm, Ziegel 9,6, Platte 3,2), STL + Vorschaubilder in `apps/docs/public/print/`,
+  Doku `4.teaching/2.modules/2.printing.md`; Figur starr, Füße 1×1 mit Noppenloch, Nase = Blickrichtung. Konstrukt `function` (`funktion … zurück`). **Aufgaben, Lösungen und Lehrkraft-Hinweise nie in die öffentliche
   Doku** (vom User so festgelegt) – Hinweise für Lehrkräfte zeigt die Modulseite der App nur für Rolle ≠ member bzw. Betreiber.
   Ist das Modulprojekt in der IDE offen, nutzt die Lernansicht dieselbe `CloudProject`-Instanz (`useLearn().open`, sonst zwei Sync-Warteschlangen
   auf einer OPFS-Kopie). IDE: Datei in einem Aufgabenordner ⇒ Leiste „In der Lernansicht prüfen“ (`learnTask` in `pages/index.vue`).
@@ -519,5 +522,5 @@ node scripts/build-csharp.ts        # C#-Host bauen (.NET-SDK 10 nötig; Ausgabe
 14. [x] Datenbanken: SQLite + PostgreSQL (PGlite) im Browser, SQL-Konsole, Welt als Datenbank, Datenbank-API in JS/TS/Python/Java/C#
 14b. [ ] ER-Modellierung (Diagramm zeichnen ⇒ Tabellen), MySQL-Dialekt
 15. [x] Diagramme: Struktogramm, Klassen- und Objektdiagramm aus dem Code, ER-Diagramm aus der Datenbank
-15. [x] Lernmodule: Grundkurs Klonk-Script (6 Module, 20 Aufgaben, automatische Prüfung, Cloud-Projekt je Modul, Freigabe je Gruppe, Lernstand)
+15. [x] Lernmodule: Einstieg E1–E3 (Welten aus 3×3-Platten, druckbar) + Grundkurs Klonk-Script (7 Module, 35 Aufgaben gesamt, automatische Prüfung, Cloud-Projekt je Modul, Freigabe je Gruppe, Lernstand)
 15b. [ ] Lernmodule für Python/Java (Objekte, Klassen)

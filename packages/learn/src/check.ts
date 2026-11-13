@@ -53,6 +53,7 @@ const CONSTRUCT_NODES: Record<Construct, (s: Statement) => boolean> = {
   repeatWhile: s => s.type === 'RepeatWhile',
   if: s => s.type === 'If',
   procedure: s => s.type === 'Definition',
+  function: s => s.type === 'Definition' && s.kind === 'function',
   variable: s => s.type === 'VarDeclaration',
 }
 

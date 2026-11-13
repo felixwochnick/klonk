@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { LEARN_MODULES } from '@klonk/learn'
+import { moduleLabel } from '@klonk/learn'
 
 const { t, locale } = useI18n()
 useSeoMeta({ title: () => t('learn.title') })
@@ -7,7 +7,7 @@ useSeoMeta({ title: () => t('learn.title') })
 const learn = useLearn()
 const lang = computed(() => (locale.value === 'en' ? 'en' : 'de'))
 const status = computed(() => learn.status.value)
-const moduleNumber = (id: string) => LEARN_MODULES.findIndex(m => m.id === id) + 1
+const moduleNumber = (id: string) => moduleLabel(id)
 // Module freigegeben, aber kein erlaubter Speicherort nutzbar (z. B. nur Cloud ohne Abo)
 const noStorage = computed(() => !!learn.modules.value.length && learn.modules.value.every(m => !learn.canStart(m.id)))
 </script>

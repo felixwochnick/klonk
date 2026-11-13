@@ -620,6 +620,7 @@
       "repeatWhile": "eine bedingte Schleife (wiederhole solange/bis)",
       "if": "eine Verzweigung (wenn … dann)",
       "procedure": "eine eigene Anweisung (anweisung … ende)",
+      "function": "eine Funktion mit Rückgabewert (funktion … zurück … ende)",
       "variable": "eine Variable (var)"
     },
     "check": {

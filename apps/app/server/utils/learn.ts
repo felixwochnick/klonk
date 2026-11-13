@@ -1,6 +1,6 @@
 import type { H3Event } from 'h3'
 import { and, asc, eq, inArray, isNotNull, sql } from 'drizzle-orm'
-import { choiceLanguages, findModule, LEARN_LANGUAGES, LEARN_MODULES, LEARN_STORAGES, learnProjectName, learnStorages, moduleProjectFiles, progressFromFiles, type LearnGroupProgress, type LearnLanguage, type LearnLanguageChoice, type LearnModuleProgress, type LearnStatus, type LearnStorage, type TeachingOverview, type TeachingProgress } from '@klonk/learn'
+import { choiceLanguages, findModule, LEARN_LANGUAGES, LEARN_MODULES, LEARN_STORAGES, learnProjectName, learnStorages, moduleLabel, moduleProjectFiles, progressFromFiles, type LearnGroupProgress, type LearnLanguage, type LearnLanguageChoice, type LearnModuleProgress, type LearnStatus, type LearnStorage, type TeachingOverview, type TeachingProgress } from '@klonk/learn'
 
 type Tx = Parameters<Parameters<typeof withUserDb>[1]>[0]
 const { cloudFiles, cloudProjects, groupLearnModules, groupMembers, groups, organizations, users } = schema
@@ -104,8 +104,8 @@ export async function learnStatus(user: SessionUser, event: H3Event): Promise<Le
 
 /** Modul in der Cloud starten: eigenes Cloud-Projekt anlegen (oder das schon begonnene liefern); lokal legt der Browser es an */
 export async function startLearnModule(user: SessionUser, moduleId: string, lang: 'de' | 'en') {
-  const index = LEARN_MODULES.findIndex(m => m.id === moduleId)
-  if (index < 0) throw createError({ statusCode: 404, message: 'learn_not_found' })
+  const module = LEARN_MODULES.find(m => m.id === moduleId)
+  if (!module) throw createError({ statusCode: 404, message: 'learn_not_found' })
   return withUserDb(user.id, async (tx) => {
     const [started] = await tx.select().from(cloudProjects)
       .where(and(eq(cloudProjects.ownerId, user.id), eq(cloudProjects.learnModule, moduleId)))
@@ -117,10 +117,9 @@ export async function startLearnModule(user: SessionUser, moduleId: string, lang
     if (!allowed?.storage.includes('cloud')) throw createError({ statusCode: 403, message: 'learn_storage' })
 
     // Je Aufgabe ein Ordner mit Aufgabentext, Welt(en) und Programm in der ersten erlaubten Sprache
-    const module = LEARN_MODULES[index]!
     const { folders, files } = moduleProjectFiles(module, lang, allowed.languages[0] ?? 'blocks')
     return createCloudProject(tx, user, {
-      name: learnProjectName(module, index, lang),
+      name: learnProjectName(module, moduleLabel(module), lang),
       learnModule: moduleId,
       unique: true,
       folders,

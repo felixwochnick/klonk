@@ -1,7 +1,7 @@
 import { existsSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { CURRICULUM, CURRICULUM_MODULE_ORDER, curriculumFor, formatModuleNumbers, hasCurriculum, LEARN_MODULES, recommendedModules } from '../src'
+import { CURRICULUM, CURRICULUM_BASIC_MODULES, CURRICULUM_MODULE_ORDER, curriculumFor, formatModuleNumbers, hasCurriculum, LEARN_MODULES, recommendedModules } from '../src'
 
 const DOCS = join(import.meta.dirname, '../../../apps/docs/content')
 
@@ -38,12 +38,17 @@ describe('Lehrplan-Zuordnung', () => {
     expect(recommendedModules('BY', 'gymnasium9', 'courses')).toEqual([])
     // Realschule: Stufe 8 gehört zu 5–8 und 8–10
     expect(curriculumFor('BY', 'realschule', 8)).toHaveLength(2)
-    expect(recommendedModules('BY', 'realschule', '8')).toEqual(CURRICULUM_MODULE_ORDER)
+    expect(recommendedModules('BY', 'realschule', '8')).toEqual(CURRICULUM_BASIC_MODULES)
+    // Grundschule und Förderschule beginnen mit dem Einstieg
+    expect(recommendedModules('BY', 'grundschule', '3')).toEqual(['paths', 'building', 'patterns'])
+    expect(recommendedModules('BY', 'foerderschule', '5').slice(0, 3)).toEqual(['paths', 'building', 'patterns'])
   })
 
   it('fasst Modulnummern zusammen', () => {
     expect(formatModuleNumbers(['sequence', 'repeat', 'while', 'conditions', 'variables'])).toBe('1–4, 6')
     expect(formatModuleNumbers(['repeat', 'while'])).toBe('2, 3')
     expect(formatModuleNumbers([])).toBe('')
+    expect(formatModuleNumbers(['paths', 'building', 'patterns', 'sequence', 'repeat', 'functions'])).toBe('E1–E3, 1, 2, 7')
+    expect(formatModuleNumbers(['paths', 'patterns'])).toBe('E1, E3')
   })
 })

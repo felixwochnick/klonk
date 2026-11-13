@@ -156,6 +156,27 @@ test('Prüfung: Fehlermeldungen, mehrere Welten, Endlosschleifen', async ({ brow
   await page.context().close()
 })
 
+test('Einstiegsmodule: eigene Nummerierung, Funktionen im Grundkurs', async ({ browser }) => {
+  test.setTimeout(120_000)
+  const page = await device(browser, APP_URL, TEACHER)
+  await gotoHydrated(page, `${APP_URL}/learn/paths`)
+  await expect(page.getByText('Modul E1', { exact: true })).toBeVisible()
+
+  await prepare(page, 'paths', 'turn', 'klonk', 'schritt\nschritt\nrechtsDrehen\nschritt\nschritt')
+  await openTask(page, 'paths/turn')
+  await expect(await check(page)).toHaveAttribute('data-status', 'solved')
+
+  // Projektname mit der Nummer des Einstiegs, nicht mit dem Index
+  const projects = (await api<{ projects: { name: string, learnModule: string | null }[] }>(page, '/api/cloud')).body.projects
+  expect(projects.find(p => p.learnModule === 'paths')?.name).toBe('Lernmodul E1 – Wege finden')
+
+  // Funktion verlangt: eine Lösung ohne `funktion` wird zurückgewiesen
+  await prepare(page, 'functions', 'distance', 'klonk', 'var n = 0\nwiederhole solange nicht istWand\n  schritt\n  n = n + 1\nende\nausgabe(n)')
+  await openTask(page, 'functions/distance')
+  await expect(await check(page)).toContainText('eine Funktion mit Rückgabewert')
+  await page.context().close()
+})
+
 test('Blöcke lösen eine Aufgabe, Hinweise für Lehrkräfte', async ({ browser }) => {
   const page = await device(browser, APP_URL, TEACHER)
   const workspace = {

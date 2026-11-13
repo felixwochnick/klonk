@@ -1,4 +1,4 @@
-import { LEARN_MODULES, learnProjectName, moduleProjectFiles, parseManifest, LEARN_MANIFEST, type LearnModule, type LearnStatus, type LearnStorage } from '@klonk/learn'
+import { LEARN_MODULES, learnProjectName, moduleLabel, moduleProjectFiles, parseManifest, LEARN_MANIFEST, type LearnModule, type LearnStatus, type LearnStorage } from '@klonk/learn'
 import { CloudProject, openCloudProject, type CloudProjectMeta } from '~/utils/cloud-project'
 import { createFolderProject, ensurePermission, listBrowserProjects, loadHandle, openBrowserProject, Project, storeHandle, supportsBrowserProjects, supportsFolders } from '~/utils/project-fs'
 
@@ -126,15 +126,14 @@ export function useLearn() {
    * kommen (Ordnerauswahl) – daher dort vor jedem anderen `await`.
    */
   async function start(moduleId: string, lang: 'de' | 'en', storage: LearnStorage) {
-    const index = LEARN_MODULES.findIndex(m => m.id === moduleId)
-    const module = LEARN_MODULES[index]
+    const module = LEARN_MODULES.find(m => m.id === moduleId)
     if (!module) throw new Error('learn_not_found')
     if (storage === 'cloud') {
       await $fetch(`/api/learn/modules/${moduleId}/start` as string, { method: 'POST', headers: clientHostHeaders(), body: { lang } })
       await refresh()
       return
     }
-    const base = learnProjectName(module, index, lang)
+    const base = learnProjectName(module, moduleLabel(module), lang)
     let project: Project | null
     if (storage === 'folder') {
       project = await createFolderProject(base)

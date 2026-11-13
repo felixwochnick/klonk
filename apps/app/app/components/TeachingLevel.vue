@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { LEARN_MODULES, type TeachingGroup, type TeachingProgress } from '@klonk/learn'
+import { LEARN_MODULES, moduleLabel, type TeachingGroup, type TeachingProgress } from '@klonk/learn'
 
 // Klassen einer Jahrgangsstufe (bzw. Zusatzkurse, nicht zugeordnete Gruppen) mit Freigabe-Matrix Module × Klassen:
 // laut Lehrplan empfohlene Module zuerst, je Zelle Freigabe und Anteil gelöster Aufgaben
@@ -19,7 +19,7 @@ const { data: progress, refresh: refreshProgress } = useFetch<TeachingProgress>(
 })
 
 const recommended = computed(() => teaching.recommended(props.level))
-const moduleNumber = (id: string) => LEARN_MODULES.findIndex(m => m.id === id) + 1
+const moduleNumber = (id: string) => moduleLabel(id)
 // Empfohlene zuerst; ohne Empfehlung alle in Kursreihenfolge
 const recommendedRows = computed(() => LEARN_MODULES.filter(m => recommended.value.includes(m.id)))
 const otherRows = computed(() => LEARN_MODULES.filter(m => !recommended.value.includes(m.id)))
