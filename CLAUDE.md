@@ -317,7 +317,8 @@ node scripts/build-csharp.ts        # C#-Host bauen (.NET-SDK 10 nötig; Ausgabe
   Unit-Tests lösen jede Aufgabe mit der Musterlösung (de/en) in allen Welten. **Einstieg** (vom User gewünscht, Grundschule/Förderschule): Module mit `track: 'start'` (E1 Wege, E2 Bauplan, E3 Muster),
   Nummern über `moduleLabel()` (E1…, Grundkurs 1… – nie Index), Welten **immer aus ganzen 3×3-Platten** (Test), weil sie als 3D-Druck nachgebaut werden:
   `assets/print/*.solidcraft` (SolidCraft, parametrisch; 1 Feld = 4×4 Noppen = 32 mm, Ziegel 9,6, Platte 3,2), STL + Vorschaubilder in `apps/docs/public/print/`,
-  Doku `4.teaching/2.modules/2.printing.md`; Figur starr, Füße 1×1 mit Noppenloch, Nase = Blickrichtung. Konstrukt `function` (`funktion … zurück`). **Aufgaben, Lösungen und Lehrkraft-Hinweise nie in die öffentliche
+  Doku `4.teaching/2.modules/2.printing.md`; Figuren = Original aus Blender (vom User so gewünscht), `assets/blender/export_print.py` baut sie
+  ohne Animationen (Ruhehaltung), vereinigt alle Teile (EXACT, `use_self`) und ersetzt das Fußloch beim Bauen durch Ø 4,9 × 1,9 mm (nicht nachträglich füllen ⇒ offene Kanten). Konstrukt `function` (`funktion … zurück`). **Aufgaben, Lösungen und Lehrkraft-Hinweise nie in die öffentliche
   Doku** (vom User so festgelegt) – Hinweise für Lehrkräfte zeigt die Modulseite der App nur für Rolle ≠ member bzw. Betreiber.
   Ist das Modulprojekt in der IDE offen, nutzt die Lernansicht dieselbe `CloudProject`-Instanz (`useLearn().open`, sonst zwei Sync-Warteschlangen
   auf einer OPFS-Kopie). IDE: Datei in einem Aufgabenordner ⇒ Leiste „In der Lernansicht prüfen“ (`learnTask` in `pages/index.vue`).
