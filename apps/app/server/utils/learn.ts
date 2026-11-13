@@ -1,6 +1,6 @@
 import type { H3Event } from 'h3'
 import { and, asc, eq, inArray, isNotNull, sql } from 'drizzle-orm'
-import { choiceLanguages, findModule, LEARN_LANGUAGES, LEARN_MODULES, LEARN_STORAGES, learnProjectName, learnStorages, moduleProjectFiles, progressFromFiles, type LearnGroupProgress, type LearnLanguage, type LearnLanguageChoice, type LearnModuleProgress, type LearnStatus, type LearnStorage } from '@klonk/learn'
+import { choiceLanguages, findModule, LEARN_LANGUAGES, LEARN_MODULES, LEARN_STORAGES, learnProjectName, learnStorages, moduleProjectFiles, progressFromFiles, type LearnGroupProgress, type LearnLanguage, type LearnLanguageChoice, type LearnModuleProgress, type LearnStatus, type LearnStorage, type TeachingOverview, type TeachingProgress } from '@klonk/learn'
 
 type Tx = Parameters<Parameters<typeof withUserDb>[1]>[0]
 const { cloudFiles, cloudProjects, groupLearnModules, groupMembers, groups, organizations, users } = schema
@@ -148,7 +148,7 @@ export async function setGroupLearnModules(user: SessionUser, groupId: string, m
 /** Lernstand aller Mitglieder einer Gruppe in den freigegebenen Modulen */
 export async function groupLearnProgress(user: SessionUser, groupId: string): Promise<LearnGroupProgress> {
   return withUserDb(user.id, async (tx) => {
-    const [group] = await tx.select({ id: groups.id, name: groups.name, organizationId: groups.organizationId, storage: groups.learnStorage, lead: sql<boolean>`klonk.leads_group(${groups.id})` })
+    const [group] = await tx.select({ id: groups.id, name: groups.name, level: groups.level, organizationId: groups.organizationId, storage: groups.learnStorage, lead: sql<boolean>`klonk.leads_group(${groups.id})` })
       .from(groups).where(eq(groups.id, groupId))
     if (!group?.lead) throw createError({ statusCode: 404, message: 'learn_not_found' })
 
@@ -167,6 +167,7 @@ export async function groupLearnProgress(user: SessionUser, groupId: string): Pr
     return {
       id: group.id,
       name: group.name,
+      level: group.level,
       modules,
       languages: Object.fromEntries(rows.map(r => [r.moduleId, r.languages])),
       storage: group.storage && learnStorages(group.storage),
@@ -176,5 +177,68 @@ export async function groupLearnProgress(user: SessionUser, groupId: string): Pr
         modules: Object.fromEntries(projects.filter(p => p.ownerId === m.userId && progress.has(p.id)).map(p => [p.learnModule!, progress.get(p.id)!])),
       })),
     }
+  })
+}
+
+/** Unterricht: Schule (Bundesland, Schulform ⇒ Lehrplan je Jahrgangsstufe) und geleitete Gruppen mit Stufe und Freigaben */
+export async function teachingOverview(user: SessionUser): Promise<TeachingOverview> {
+  return withUserDb(user.id, async (tx) => {
+    const [org] = user.organizationId
+      ? await tx.select({ type: organizations.type, country: organizations.country, state: organizations.state, schoolForm: organizations.schoolForm })
+          .from(organizations).where(eq(organizations.id, user.organizationId))
+      : []
+    const led = await tx.select({ id: groups.id, name: groups.name, level: groups.level }).from(groups)
+      .where(sql`klonk.leads_group(${groups.id})`).orderBy(asc(groups.name))
+    const ids = led.map(g => g.id)
+    const enabled = ids.length ? await tx.select().from(groupLearnModules).where(inArray(groupLearnModules.groupId, ids)) : []
+    const counts = ids.length
+      ? await tx.select({ groupId: groupMembers.groupId, n: sql<number>`count(*)::int` }).from(groupMembers)
+          .where(and(inArray(groupMembers.groupId, ids), eq(groupMembers.role, 'member'))).groupBy(groupMembers.groupId)
+      : []
+    return {
+      school: org ?? null,
+      admin: !!user.organizationId && user.role === 'admin',
+      groups: led.map((g) => {
+        const rows = enabled.filter(e => e.groupId === g.id)
+        return {
+          ...g,
+          members: counts.find(c => c.groupId === g.id)?.n ?? 0,
+          modules: LEARN_MODULES.map(m => m.id).filter(id => rows.some(r => r.moduleId === id)),
+          languages: Object.fromEntries(rows.map(r => [r.moduleId, r.languages])),
+        }
+      }),
+    }
+  })
+}
+
+/** Lernstand der geleiteten Gruppen einer Jahrgangsstufe (`'none'` = nicht zugeordnet, `'all'` = alle) – je freigegebenem Modul zusammengefasst */
+export async function teachingProgress(user: SessionUser, level: string): Promise<TeachingProgress> {
+  return withUserDb(user.id, async (tx) => {
+    const led = await tx.select({ id: groups.id }).from(groups)
+      .where(and(sql`klonk.leads_group(${groups.id})`, level === 'all' ? undefined : level === 'none' ? sql`${groups.level} is null` : eq(groups.level, level)))
+    const ids = led.map(g => g.id)
+    if (!ids.length) return {}
+    const enabled = await tx.select({ groupId: groupLearnModules.groupId, moduleId: groupLearnModules.moduleId }).from(groupLearnModules)
+      .where(inArray(groupLearnModules.groupId, ids))
+    const members = await tx.select({ groupId: groupMembers.groupId, userId: groupMembers.userId }).from(groupMembers)
+      .where(and(inArray(groupMembers.groupId, ids), eq(groupMembers.role, 'member')))
+    const modules = [...new Set(enabled.map(e => e.moduleId))]
+    const projects = members.length && modules.length
+      ? await tx.select({ id: cloudProjects.id, ownerId: cloudProjects.ownerId, learnModule: cloudProjects.learnModule, updatedAt: cloudProjects.updatedAt })
+          .from(cloudProjects).where(and(inArray(cloudProjects.ownerId, [...new Set(members.map(m => m.userId))]), inArray(cloudProjects.learnModule, modules)))
+      : []
+    const progress = await progressOf(tx, projects)
+
+    const result: TeachingProgress = {}
+    for (const { groupId, moduleId } of enabled) {
+      const userIds = new Set(members.filter(m => m.groupId === groupId).map(m => m.userId))
+      const own = projects.filter(p => p.learnModule === moduleId && userIds.has(p.ownerId!) && progress.has(p.id))
+      result[groupId] ??= {}
+      result[groupId][moduleId] = {
+        solved: own.reduce((sum, p) => sum + progress.get(p.id)!.solved.length, 0),
+        started: own.length,
+      }
+    }
+    return result
   })
 }

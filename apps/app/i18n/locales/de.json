@@ -104,7 +104,9 @@
     "code": "Programmieren",
     "projects": "Projekte",
     "wardrobe": "Kleiderschrank",
-    "learn": "Lernen"
+    "learn": "Lernen",
+    "teaching": "Unterricht",
+    "training": "Ausbildung"
   },
   "editor": {
     "title": "Programmieren",
@@ -703,7 +705,9 @@
     "storageSettings": "Speicherorte",
     "storageSettingsHint": "Wo Lernende ihre Modulprojekte speichern dürfen. Den Lernstand sehen Sie nur bei Speicherung in der Klonk Cloud.",
     "storageReset": "Vorgabe der Organisation",
-    "storageInherited": "Vorgabe der Organisation"
+    "storageInherited": "Vorgabe der Organisation",
+    "manageInTeaching": "Freigaben und Lernstand deiner Gruppen findest du jetzt unter Unterricht – geordnet nach Jahrgangsstufen und passend zum Lehrplan.",
+    "toTeaching": "Zum Unterricht"
   },
   "karol": {
     "import": "Robot Karol importieren",
@@ -777,5 +781,40 @@
         "schema": "Relationenschema"
       }
     }
+  },
+  "teaching": {
+    "title": "Unterricht",
+    "titleCompany": "Ausbildung",
+    "intro": "Deine Klassen und Kurse nach Jahrgangsstufen – mit den Lernmodulen, die zum Lehrplan der Stufe passen. Hier gibst du Module frei und siehst den Lernstand.",
+    "level": "Jahrgangsstufe {n}",
+    "courses": "Zusatzkurse",
+    "unassigned": "Nicht zugeordnet",
+    "myGroups": "Meine Gruppen",
+    "noClasses": "Keine eigenen Klassen",
+    "noClassesInLevel": "Du leitest in dieser Stufe keine Gruppe. Gruppen legen Lehrkräfte und Admins in der Verwaltung unter Gruppen an und ordnen sie dort einer Jahrgangsstufe zu.",
+    "noGroups": "Du leitest noch keine Gruppe.",
+    "noGroupsHint": "Gruppen (Klassen, Kurse) legen Lehrkräfte und Admins in der Verwaltung unter Gruppen an – wer eine Gruppe anlegt, leitet sie.",
+    "noSchoolForm": "Bundesland und Schulform fehlen",
+    "noSchoolFormAdmin": "Stelle sie in der Verwaltung unter Organisation ein – dann ordnet Klonk deine Klassen nach Jahrgangsstufen und empfiehlt die Lernmodule passend zum Lehrplan.",
+    "noSchoolFormTeacher": "Die Admins deiner Schule können sie in der Verwaltung unter Organisation einstellen – dann ordnet Klonk deine Klassen nach Jahrgangsstufen und empfiehlt die Lernmodule passend zum Lehrplan.",
+    "toAdmin": "Zur Verwaltung",
+    "curriculum": "Lehrplan",
+    "grades": "Jahrgangsstufe {range}",
+    "recommended": "Passende Module: {modules}",
+    "noRecommendation": "Keine passenden Lernmodule im Lehrplan dieser Stufe",
+    "noCurriculum": "Für {school} gibt es noch keine Zuordnung zum Lehrplan – alle Module stehen zur Wahl.",
+    "docs": "Lehrplan und Unterrichtsideen",
+    "classes": "Klassen und Kurse",
+    "modulesTitle": "Lernmodule",
+    "modulesHint": "Ein Häkchen gibt das Modul für die Klasse frei. Darunter steht, welcher Anteil der Aufgaben gelöst ist (nur bei Speicherung in der Klonk Cloud).",
+    "module": "Modul",
+    "actions": "Aktionen",
+    "curriculumBadge": "Lehrplan",
+    "otherModules": "Weitere Module",
+    "releaseFor": "{module} für {group} freigeben",
+    "releaseAll": "Für alle freigeben",
+    "releaseRecommended": "Passende Module freigeben",
+    "releaseRecommendedAll": "Passende Module für alle Klassen freigeben",
+    "share": "{n} % gelöst"
   }
 }

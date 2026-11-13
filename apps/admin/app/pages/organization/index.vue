@@ -23,10 +23,10 @@ const school = reactive({
   state: org.value?.state ?? NONE,
   schoolForm: org.value?.schoolForm ?? NONE,
 })
-const countryItems = computed(() => SCHOOL_COUNTRIES.map(value => ({ value, label: t(`admin.school.countries.${value}`) })))
+const countryItems = computed(() => SCHOOL_COUNTRIES.map(value => ({ value, label: t(`school.countries.${value}`) })))
 const stateItems = computed(() => [
   { value: NONE, label: t('admin.school.chooseState') },
-  ...schoolStates(school.country).map(value => ({ value, label: t(`admin.school.states.${value}`) }))
+  ...schoolStates(school.country).map(value => ({ value, label: t(`school.states.${value}`) }))
     .sort((a, b) => a.label.localeCompare(b.label)),
 ])
 const formItems = computed(() => [
@@ -35,7 +35,7 @@ const formItems = computed(() => [
 ])
 const schoolFormLabel = (form: SchoolForm) => {
   const levels = schoolLevels(form)
-  return `${t(`admin.school.forms.${form}`)} (${levels[0]}–${levels.at(-1)})`
+  return `${t(`school.forms.${form}`)} (${levels[0]}–${levels.at(-1)})`
 }
 // Schulform passt nicht mehr zum Bundesland ⇒ zurücksetzen
 watch(() => school.state, () => {

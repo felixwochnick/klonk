@@ -293,14 +293,14 @@ node scripts/build-csharp.ts        # C#-Host bauen (.NET-SDK 10 nötig; Ausgabe
 - **Monaco-Modelle:** eines je Sprache mit Dateiendung (`file:///__klonk/<n>/program.ts`, im Projekt `file:///<pfad>`) – der TS-Dienst erkennt TS/JS an der Endung.
 - **Code in voller Breite** (`focus`, vom User so gewünscht – kein Browser-Vollbild): Projekt/Welt aus, Ausgabe kompakt unter dem Editor.
   Rechts Tabs **Welt | Doku** (`LanguageDocs.vue`: Kurzreferenz je Sprache aus den Tabellen, Link `public.docsUrl`); Ausführen zeigt die Welt.
-- **Navigation:** Projekte · Programmieren · Lernen (`/learn`) · Kleiderschrank (`/designs`, Designs des Projekts) · Welt.
+- **Navigation:** Projekte · Programmieren · Lernen (`/learn`) · Unterricht (`/teaching`, nur Lehrkräfte/Admins einer Organisation, in Unternehmen „Ausbildung“) · Kleiderschrank (`/designs`, Designs des Projekts) · Welt.
 - **Lernmodule** (vom User so festgelegt: Aufgabenmodus in der App, thematisch gegliedert, zuerst Grundkurs Klonk-Script; **Speicherung in der
   Klonk Cloud, Freigabe je Gruppe, Lernstand für die Gruppenleitung**; **Speicherort wählbar: Cloud, Browser, Ordner** – Admins erlauben je
   Organisation (`organizations.learn_storage`, Verwaltung → Organisation), die Gruppenleitung schränkt je Gruppe ein (`groups.learn_storage`, `null` = Vorgabe),
   `LearnStatus.storage` je Modul; lokale Modulprojekte legt der Browser an (`useLearn().start`, `moduleProjectFiles`), gemerkt in
   `klonk:learn-local:<konto>` (Ordner-Handles in IndexedDB `handles`), Lernstand dafür nur lokal): Daten in `@klonk/learn` (Texte de/en als Markdown im Paket, nicht in i18n),
   Seiten `/learn`, `/learn/<modul>`, `/learn/<modul>/<aufgabe>` (`key: fullPath`; `?project=<id>&name=…&back=…` = Programm einer anderen
-  Person nur lesen), `/learn/groups/<id>` (Freigabe + Lernstand). Jedes gestartete Modul = **eigenes Cloud-Projekt** (`cloud_projects.learn_module`,
+  Person nur lesen, `back` nur `/teaching/…`), `/teaching/groups/<id>` (Freigabe + Lernstand einer Gruppe; alte Adresse `/learn/groups/<id>` leitet weiter). Jedes gestartete Modul = **eigenes Cloud-Projekt** (`cloud_projects.learn_module`,
   eindeutig je Konto), Projektart Klonk-Script & Blöcke. **Je Aufgabe ein Ordner** (vom User so festgelegt) `1 Zur Marke/` mit `Aufgabe.md`,
   `Welt[ n].klonkworld.json` und `Programm.blocks|klonk` (`taskFolderFiles`, legt der Server beim Start an); Manifest `klonk.json`
   `{ language: 'klonk', learn: { module, tasks: { id: '<ordner>/Programm' }, languages, solved } }` (`packages/learn/src/project.ts`);
@@ -319,6 +319,15 @@ node scripts/build-csharp.ts        # C#-Host bauen (.NET-SDK 10 nötig; Ausgabe
   Ist das Modulprojekt in der IDE offen, nutzt die Lernansicht dieselbe `CloudProject`-Instanz (`useLearn().open`, sonst zwei Sync-Warteschlangen
   auf einer OPFS-Kopie). IDE: Datei in einem Aufgabenordner ⇒ Leiste „In der Lernansicht prüfen“ (`learnTask` in `pages/index.vue`).
   E2E `e2e/learn.spec.ts` (Konto tom, Gruppe 9c; Programme per Cloud-API in den Aufgabenordner geschrieben).
+- **Unterricht** (vom User so gewünscht: Lernmodule für Lehrkräfte nach Jahrgangsstufen → Klassen verwalten, Lehrplan ⇒ Module): `/teaching` zeigt die
+  Stufen der Schulform (`schoolLevels`, dazu Zusatzkurse/nicht zugeordnet) mit den **geleiteten** Gruppen (`groups.level`) und den passenden Modulen,
+  `/teaching/<stufe>` Lehrplan-Einträge (Link zur Klassenseite der Doku) + `TeachingLevel.vue` (Klassen-Karten, Matrix Module × Klassen: Freigabe je Zelle,
+  „Für alle freigeben“, „Passende Module für alle Klassen freigeben“, Anteil gelöster Aufgaben); ohne Schulform/in Unternehmen alle Gruppen direkt (`level=all`).
+  **Lehrplan-Zuordnung als Daten** in `@klonk/learn` `src/curriculum.ts` (`CURRICULUM`: Bundesland + Schulformen + Stufen ⇒ Module, `note`, `docs`-Pfad;
+  `curriculumFor`, `recommendedModules`, `formatModuleNumbers`) – **gleich halten mit der Tabelle** in `4.teaching/2.modules/1.overview.md`; der Test prüft,
+  dass jede `docs`-Seite in de/en existiert. Server `teachingOverview`/`teachingProgress` in `apps/app/server/utils/learn.ts` (`/api/teaching`,
+  `/api/teaching/progress?level=`), Client `useTeaching()`; Freigaben weiter über `PUT /api/learn/groups/:id/modules`. Namen von Bundesländern/Schulformen
+  liegen in der Core-i18n (`school.states|forms|countries`). E2E `e2e/teaching.spec.ts` (nach learn.spec, nutzt 9c/Tom, räumt auf).
 - **Robot-Karol-Import** (vom User so festgelegt: Programme ⇒ Klonk-Script oder Blöcke, Welten ⇒ Klonk-Welten, damit Lehrkräfte eigene Aufgaben
   weiterverwenden): `convertKarolProgram`/`decodeKarolFile` in `@klonk/klonk-script` (`src/karol.ts`, Latin-1, `*wiederhole`/`endewiederhole`,
   nachprüfende Schleife ⇒ `wiederhole immer` + `abbrechen`, `Bedingung` ⇒ `funktion` mit `ergebnis`, Quader/Ton/Rucksack ⇒ Kommentar + Hinweis),

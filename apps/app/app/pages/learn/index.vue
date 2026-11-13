@@ -45,47 +45,18 @@ const noStorage = computed(() => !!learn.modules.value.length && learn.modules.v
         data-testid="learn-no-storage"
       />
 
-      <!-- Gruppenleitung: Freigabe und Lernstand -->
-      <section
+      <!-- Gruppenleitung: Freigaben und Lernstand liegen unter Unterricht -->
+      <UAlert
         v-if="status.groups.length"
+        color="primary"
+        variant="subtle"
+        icon="i-lucide-school"
+        :title="t('learn.myGroups')"
+        :description="t('learn.manageInTeaching')"
+        :actions="[{ label: t('learn.toTeaching'), to: '/teaching', trailingIcon: 'i-lucide-arrow-right' }]"
         class="mb-8"
         data-testid="learn-groups"
-      >
-        <h2 class="mb-3 text-lg font-semibold">
-          {{ t('learn.myGroups') }}
-        </h2>
-        <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          <UCard
-            v-for="group in status.groups"
-            :key="group.id"
-            :data-testid="`learn-group-${group.name}`"
-          >
-            <div class="flex items-start justify-between gap-3">
-              <div>
-                <h3 class="font-semibold">
-                  {{ group.name }}
-                </h3>
-                <p class="mt-1 text-sm text-(--ui-text-muted)">
-                  {{ t('learn.groupSummary', { members: group.members, modules: group.modules.length }) }}
-                </p>
-              </div>
-              <UIcon
-                name="i-lucide-users"
-                class="size-5 shrink-0 text-(--ui-text-muted)"
-              />
-            </div>
-            <template #footer>
-              <UButton
-                :to="`/learn/groups/${group.id}`"
-                :label="t('learn.openProgress')"
-                trailing-icon="i-lucide-arrow-right"
-                variant="soft"
-                block
-              />
-            </template>
-          </UCard>
-        </div>
-      </section>
+      />
 
       <UAlert
         v-if="!learn.modules.value.length"

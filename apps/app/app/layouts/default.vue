@@ -6,6 +6,18 @@ const { isLocal } = useLicense()
 // Angemeldet: Sprache und Darstellung unter Einstellungen (Kontomenü)
 const { user } = useAuth()
 
+// Unterricht (Klassen, Freigaben, Lernstand) nur für Lehrkräfte und Admins einer Organisation
+const nav = computed(() => [
+  { label: t('nav.projects'), icon: 'i-lucide-folder-tree', to: '/projects' },
+  { label: t('nav.code'), icon: 'i-lucide-code', to: '/', exact: true },
+  { label: t('nav.learn'), icon: 'i-lucide-graduation-cap', to: '/learn' },
+  ...(user.value?.organizationId && user.value.role !== 'member'
+    ? [{ label: user.value.organizationType === 'company' ? t('nav.training') : t('nav.teaching'), icon: 'i-lucide-school', to: '/teaching' }]
+    : []),
+  { label: t('nav.wardrobe'), icon: 'i-lucide-shirt', to: '/designs' },
+  { label: t('nav.world'), icon: 'i-lucide-boxes', to: '/world' },
+])
+
 // Optionales Browser-Vollbild, die Kopfzeile bleibt
 const fullscreen = useAppFullscreen()
 </script>
@@ -16,15 +28,7 @@ const fullscreen = useAppFullscreen()
       <template #title>
         <KlonkLogo />
       </template>
-      <UNavigationMenu
-        :items="[
-          { label: t('nav.projects'), icon: 'i-lucide-folder-tree', to: '/projects' },
-          { label: t('nav.code'), icon: 'i-lucide-code', to: '/', exact: true },
-          { label: t('nav.learn'), icon: 'i-lucide-graduation-cap', to: '/learn' },
-          { label: t('nav.wardrobe'), icon: 'i-lucide-shirt', to: '/designs' },
-          { label: t('nav.world'), icon: 'i-lucide-boxes', to: '/world' },
-        ]"
-      />
+      <UNavigationMenu :items="nav" />
 
       <template #right>
         <UButton

@@ -10,6 +10,7 @@ export * from './types'
 export * from './check'
 export { map } from './map'
 export * from './project'
+export * from './curriculum'
 
 /** Grundkurs Klonk-Script – Reihenfolge = empfohlene Reihenfolge im Unterricht */
 export const LEARN_MODULES: LearnModule[] = [sequence, repeat, whileLoop, conditions, procedures, variables]

@@ -20,6 +20,8 @@ async function createAccount(page: Page, data: { name: string, username: string,
 }
 
 test('Einrichtung, Kontenverwaltung und Passwort-Reset durch Lehrkraft', async ({ browser }) => {
+  // Erster Test des Laufs: die Dev-Server übersetzen die Seiten erst beim ersten Aufruf
+  test.setTimeout(90_000)
   // 1. Ersteinrichtung
   const admin = await browser.newPage()
   await gotoHydrated(admin, ADMIN_URL)

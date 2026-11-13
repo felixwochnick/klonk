@@ -77,7 +77,8 @@ test('Freigabe, Lernen in der Cloud und Lernstand für die Gruppenleitung', asyn
   // Lehrkraft gibt Modul 1 frei
   const teacher = await device(browser, APP_URL, TEACHER)
   await gotoHydrated(teacher, `${APP_URL}/learn`)
-  await teacher.getByTestId('learn-group-9c').getByRole('link', { name: 'Lernstand und Freigabe' }).click()
+  await teacher.getByTestId('learn-groups').getByRole('link', { name: 'Zum Unterricht' }).click()
+  await teacher.getByTestId('teaching-group-9c').getByRole('link', { name: 'Lernstand und Freigabe' }).click()
   await expect(teacher.getByRole('heading', { level: 1 })).toHaveText('Lernstand – 9c')
   await teacher.getByRole('switch', { name: '1. Erste Schritte: Anweisungen' }).click()
   await expect(teacher.getByTestId('learn-cell-tom-sequence')).toHaveText('nicht begonnen')

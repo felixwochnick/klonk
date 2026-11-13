@@ -148,8 +148,32 @@ export type LearnGroupProgress = {
   /** Speicherorte der Gruppe (`null` = Vorgabe der Organisation) und die der Organisation */
   storage: LearnStorage[] | null
   organizationStorage: LearnStorage[]
+  /** Jahrgangsstufe der Gruppe (`'courses'` = Zusatzkurse, `null` = nicht zugeordnet) */
+  level: string | null
   members: { userId: string, displayName: string, username: string | null, modules: Record<string, LearnModuleProgress> }[]
 }
+
+/** Gruppe in der Unterrichtsübersicht (nur geleitete Gruppen) */
+export type TeachingGroup = {
+  id: string
+  name: string
+  level: string | null
+  /** Lernende (ohne Gruppenleitung) */
+  members: number
+  modules: string[]
+  languages: Record<string, LearnLanguageChoice>
+}
+
+/** GET /api/teaching – Schule (für die Lehrplan-Zuordnung) und geleitete Gruppen */
+export type TeachingOverview = {
+  school: { type: 'school' | 'company', country: string | null, state: string | null, schoolForm: string | null } | null
+  /** Admin der Organisation (Hinweis auf die Einstellungen in der Verwaltung) */
+  admin: boolean
+  groups: TeachingGroup[]
+}
+
+/** GET /api/teaching/progress?level= – je Gruppe und freigegebenem Modul: gelöste Aufgaben aller Lernenden, begonnene Modulprojekte */
+export type TeachingProgress = Record<string, Record<string, { solved: number, started: number }>>
 
 /** Lernstand aus den Dateien eines Modulprojekts (Server und Tests) */
 export function progressFromFiles(module: LearnModule, files: { path: string, content: string | null }[]): Pick<LearnModuleProgress, 'solved' | 'started'> {

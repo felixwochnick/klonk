@@ -27,6 +27,8 @@ useSeoMeta({ title: () => task?.title[lang.value] ?? t('learn.title') })
 // Programm der Aufgabe: im Projekt des Moduls (Cloud, Browser oder Ordner) – das eigene oder (Gruppenleitung, `?project=`)
 // das Cloud-Projekt einer anderen Person, nur lesen
 const foreign = typeof route.query.project === 'string' ? { id: route.query.project, name: String(route.query.name ?? '') } : null
+// Rücksprung zum Lernstand – nur Seiten der App unter Unterricht
+const foreignBack = typeof route.query.back === 'string' && /^\/teaching\/[\w/-]+$/.test(route.query.back) ? route.query.back : '/teaching'
 const program = reactive<{ language: LearnLanguage, blocks: string, klonk: string }>({ language: 'blocks', blocks: '', klonk: '' })
 const ready = ref(false)
 const loadError = ref<string | null>(null)
@@ -331,7 +333,7 @@ const showSolution = ref(false)
     <!-- Werkzeugleiste -->
     <div class="flex flex-wrap items-center gap-2 border-b border-(--ui-border) px-3 py-2">
       <UButton
-        :to="foreign && typeof route.query.back === 'string' ? route.query.back : `/learn/${module.id}`"
+        :to="foreign ? foreignBack : `/learn/${module.id}`"
         icon="i-lucide-arrow-left"
         variant="ghost"
         color="neutral"

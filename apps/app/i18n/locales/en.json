@@ -104,7 +104,9 @@
     "code": "Code",
     "projects": "Projects",
     "wardrobe": "Wardrobe",
-    "learn": "Learn"
+    "learn": "Learn",
+    "teaching": "Teaching",
+    "training": "Training"
   },
   "editor": {
     "title": "Code",
@@ -703,7 +705,9 @@
     "storageSettings": "Storage locations",
     "storageSettingsHint": "Where learners may save their module projects. You only see their progress when it is saved in the Klonk Cloud.",
     "storageReset": "Organization default",
-    "storageInherited": "Organization default"
+    "storageInherited": "Organization default",
+    "manageInTeaching": "Enabling modules and your groups' progress are now under Teaching – ordered by grade and matched to the curriculum.",
+    "toTeaching": "Go to Teaching"
   },
   "karol": {
     "import": "Import Robot Karol",
@@ -777,5 +781,40 @@
         "schema": "Relational schema"
       }
     }
+  },
+  "teaching": {
+    "title": "Teaching",
+    "titleCompany": "Training",
+    "intro": "Your classes and courses by grade – with the learning modules that fit the curriculum of each grade. Enable modules and follow progress here.",
+    "level": "Grade {n}",
+    "courses": "Additional courses",
+    "unassigned": "Not assigned",
+    "myGroups": "My groups",
+    "noClasses": "No classes of your own",
+    "noClassesInLevel": "You don’t lead a group in this grade. Teachers and admins create groups under Groups in the admin area and assign them to a grade there.",
+    "noGroups": "You don’t lead any group yet.",
+    "noGroupsHint": "Teachers and admins create groups (classes, courses) under Groups in the admin area – whoever creates a group leads it.",
+    "noSchoolForm": "State and school type are missing",
+    "noSchoolFormAdmin": "Set them under Organization in the admin area – Klonk then orders your classes by grade and recommends learning modules matching the curriculum.",
+    "noSchoolFormTeacher": "Your school’s admins can set them under Organization in the admin area – Klonk then orders your classes by grade and recommends learning modules matching the curriculum.",
+    "toAdmin": "Open admin area",
+    "curriculum": "Curriculum",
+    "grades": "Grade {range}",
+    "recommended": "Matching modules: {modules}",
+    "noRecommendation": "No matching learning modules in this grade’s curriculum",
+    "noCurriculum": "There is no curriculum mapping for {school} yet – all modules are available.",
+    "docs": "Curriculum and lesson ideas",
+    "classes": "Classes and courses",
+    "modulesTitle": "Learning modules",
+    "modulesHint": "A check mark enables the module for the class. Below it you see the share of solved tasks (only when stored in Klonk Cloud).",
+    "module": "Module",
+    "actions": "Actions",
+    "curriculumBadge": "Curriculum",
+    "otherModules": "Other modules",
+    "releaseFor": "Enable {module} for {group}",
+    "releaseAll": "Enable for all",
+    "releaseRecommended": "Enable matching modules",
+    "releaseRecommendedAll": "Enable matching modules for all classes",
+    "share": "{n} % solved"
   }
 }

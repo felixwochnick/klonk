@@ -100,5 +100,56 @@
   "license": {
     "local": "Lokaler Testmodus",
     "localHint": "Auf diesem Rechner (localhost) sind alle Funktionen zum Ausprobieren freigeschaltet. Für den Betrieb ist ein Lizenz-Token nötig."
+  },
+  "school": {
+    "countries": {
+      "DE": "Deutschland"
+    },
+    "states": {
+      "BW": "Baden-Württemberg",
+      "BY": "Bayern",
+      "BE": "Berlin",
+      "BB": "Brandenburg",
+      "HB": "Bremen",
+      "HH": "Hamburg",
+      "HE": "Hessen",
+      "MV": "Mecklenburg-Vorpommern",
+      "NI": "Niedersachsen",
+      "NW": "Nordrhein-Westfalen",
+      "RP": "Rheinland-Pfalz",
+      "SL": "Saarland",
+      "SN": "Sachsen",
+      "ST": "Sachsen-Anhalt",
+      "SH": "Schleswig-Holstein",
+      "TH": "Thüringen"
+    },
+    "forms": {
+      "grundschule": "Grundschule",
+      "grundschule6": "Grundschule",
+      "hauptschule": "Hauptschule",
+      "mittelschule": "Mittelschule",
+      "werkrealschule": "Werkrealschule",
+      "realschule": "Realschule",
+      "realschulePlus": "Realschule plus",
+      "regionaleSchule": "Regionale Schule",
+      "regelschule": "Regelschule",
+      "oberschule": "Oberschule",
+      "oberschule7": "Oberschule",
+      "sekundarschule": "Sekundarschule",
+      "integrierteSekundarschule": "Integrierte Sekundarschule",
+      "stadtteilschule": "Stadtteilschule",
+      "gemeinschaftsschule": "Gemeinschaftsschule",
+      "gesamtschule": "Gesamtschule",
+      "gymnasium8": "Gymnasium (G8)",
+      "gymnasium9": "Gymnasium (G9)",
+      "gymnasium7": "Gymnasium (ab Klasse 7)",
+      "beruflichesGymnasium": "Berufliches Gymnasium",
+      "fos": "Fachoberschule",
+      "bos": "Berufsoberschule",
+      "berufsschule": "Berufsschule",
+      "berufskolleg": "Berufskolleg",
+      "foerderschule": "Förderschule",
+      "other": "Andere Schulform"
+    }
   }
 }
