@@ -5,7 +5,7 @@ Druckvorlagen der Figuren (3D-Druck) aus denselben Modellen wie in der App.
 
 Baut die Figuren mit build_models.py (ohne Animationen ⇒ Ruhehaltung), vereinigt alle Teile zu einem geschlossenen
 Körper und exportiert sie in Millimetern (1 Einheit = 1 Feld = 32 mm) nach apps/docs/public/print/klonk-figur-<modell>.stl.
-Die Noppenlöcher der Füße werden an die gedruckten Noppen angepasst (Ø 4,8 mm, 1,7 mm hoch – siehe assets/print):
+Die Noppenlöcher der Füße werden an die gedruckten Noppen angepasst (Ø 4,8 mm, 1,8 mm hoch – siehe assets/print):
 Ø 4,9 mm und 1,9 mm tief, damit die Figur klemmt und flach aufsteht.
 """
 import math
