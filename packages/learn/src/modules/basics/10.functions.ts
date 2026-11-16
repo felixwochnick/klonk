@@ -1,13 +1,15 @@
-import { map } from '../map'
-import type { LearnModule } from '../types'
+import { map } from '../../map'
+import type { LearnModule } from '../../types'
 
 export const functions: LearnModule = {
   id: 'functions',
+  track: 'basics',
   title: { de: 'Funktionen mit Rückgabewert', en: 'Functions with return values' },
   summary: {
     de: 'Eigene Funktionen schreiben, die etwas herausfinden und das Ergebnis zurückgeben.',
     en: 'Write your own functions that find something out and return the result.',
   },
+  prerequisites: ['procedures', 'variables'],
   objectives: [
     { de: 'Funktionen mit `funktion … ende` definieren und mit `zurück` einen Wert zurückgeben', en: 'Define functions with `function … end` and return a value with `return`' },
     { de: 'Den Rückgabewert in Bedingungen, Rechnungen und Ausgaben verwenden', en: 'Use the return value in conditions, calculations and output' },

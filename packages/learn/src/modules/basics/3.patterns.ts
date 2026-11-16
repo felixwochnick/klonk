@@ -1,15 +1,17 @@
-import { map } from '../map'
-import type { LearnModule } from '../types'
+import { map } from '../../map'
+import type { LearnModule } from '../../types'
 
 /** Einstieg: Farbmuster mit Marken und Ziegeln – Welten 3×3, die letzte aus zwei Platten (6×3) */
 export const patterns: LearnModule = {
   id: 'patterns',
-  track: 'start',
+  track: 'basics',
+  printable: true,
   title: { de: 'Muster und Farben', en: 'Patterns and colours' },
   summary: {
     de: 'Farbige Muster legen, fortsetzen und mit einer Wiederholung kürzer beschreiben.',
     en: 'Lay out coloured patterns, continue them and describe them more briefly with a repetition.',
   },
+  prerequisites: ['building'],
   objectives: [
     { de: 'Befehlen eine Farbe mitgeben: `markieren(rot)`, `hinlegen(blau)`', en: 'Give commands a colour: `setMark(red)`, `placeBrick(blue)`' },
     { de: 'Ein Muster erkennen und fortsetzen', en: 'Recognise and continue a pattern' },

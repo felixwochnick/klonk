@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { formatModuleNumbers, hasCurriculum } from '@klonk/learn'
+import { formatModuleCodes, hasCurriculum } from '@klonk/learn'
 
 // Eine Jahrgangsstufe: Lehrplan (passende Lernmodule, Link zur Klassenseite der Doku) und die eigenen Klassen
 definePageMeta({ key: route => route.fullPath })
@@ -85,7 +85,7 @@ const docsLink = (path: string) => `${config.public.docsUrl}/${lang.value}/${pat
                 </template>
               </p>
               <p class="text-sm text-(--ui-text-muted)">
-                {{ entry.modules.length ? t('teaching.recommended', { modules: formatModuleNumbers(entry.modules) }) : t('teaching.noRecommendation') }}
+                {{ entry.modules.length ? t('teaching.recommended', { modules: formatModuleCodes(entry.modules) }) : t('teaching.noRecommendation') }}
               </p>
             </div>
             <UButton

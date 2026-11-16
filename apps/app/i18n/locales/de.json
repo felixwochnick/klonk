@@ -142,7 +142,8 @@
       "blocks": "Blöcke",
       "python": "Python",
       "java": "Java",
-      "csharp": "C#"
+      "csharp": "C#",
+      "sql": "SQL"
     },
     "language": "Programmiersprache",
     "resizeProject": "Breite des Projekts ändern",
@@ -584,8 +585,7 @@
   },
   "learn": {
     "title": "Lernmodule",
-    "intro": "Grundkurs Klonk-Script: Schritt für Schritt vom ersten Befehl bis zu Variablen. Jedes Modul erklärt ein neues Thema und hat Aufgaben, die Klonk automatisch prüft – mit Blöcken oder Klonk-Script. Ein gestartetes Modul wird als Projekt in deiner Klonk Cloud gespeichert.",
-    "moduleNumber": "Modul {n}",
+    "intro": "Schritt für Schritt programmieren lernen – in vier Reihen: E (Einfach) mit Blöcken und Klonk-Script, F (Fortgeschritten) in Python, Java, JavaScript, TypeScript oder C#, S mit SQL-Datenbanken und A (Anwendungen), in der Programme mit Datenbanken arbeiten. Jedes Modul erklärt ein neues Thema und hat Aufgaben, die Klonk automatisch prüft.",
     "progress": "{solved} von {total} Aufgaben gelöst",
     "start": "Starten",
     "continue": "Weitermachen",
@@ -599,7 +599,7 @@
     "showTask": "Aufgabenstellung einblenden",
     "hideTask": "Aufgabenstellung ausblenden",
     "taskNumber": "Aufgabe {n} von {total}",
-    "severalWorlds": "Dein Programm wird in {n} Welten geprüft – du findest sie über die Reiter über der Welt.",
+    "severalWorlds": "Deine Lösung wird in {n} Welten geprüft – du findest sie über die Reiter über der Welt.",
     "hint": "Tipp {n}",
     "showSolution": "Musterlösung zeigen",
     "hideSolution": "Musterlösung ausblenden",
@@ -620,23 +620,46 @@
       "repeatWhile": "eine bedingte Schleife (wiederhole solange/bis)",
       "if": "eine Verzweigung (wenn … dann)",
       "procedure": "eine eigene Anweisung (anweisung … ende)",
+      "variable": "eine Variable (var)",
       "function": "eine Funktion mit Rückgabewert (funktion … zurück … ende)",
-      "variable": "eine Variable (var)"
+      "recursion": "Rekursion (eine Anweisung, Funktion oder Methode, die sich selbst aufruft)",
+      "loop": "eine Schleife (for oder while)",
+      "method": "eine eigene Funktion bzw. Methode",
+      "returnValue": "eine Funktion bzw. Methode mit Rückgabewert (return)",
+      "class": "eine eigene Klasse",
+      "inheritance": "Vererbung (eine Klasse, die eine eigene Klasse erweitert)",
+      "groupBy": "eine Gruppierung (GROUP BY)",
+      "subquery": "eine Unterabfrage (SELECT in Klammern)"
     },
     "check": {
       "button": "Prüfen",
       "empty": "Schreib zuerst ein Programm.",
-      "solved": "Geschafft! Dein Programm löst die Aufgabe in allen Welten.",
+      "solved": "Geschafft! Deine Lösung erfüllt die Aufgabe in allen Welten.",
       "syntax": "Dein Programm enthält einen Fehler: {message}",
       "missing": "Die Aufgabe verlangt {constructs}.",
-      "position": "In Welt {world} steht Klonk am Ende auf Feld {x}{'|'}{y} – das Ziel ist Feld {expectedX}{'|'}{expectedY}.",
-      "direction": "In Welt {world} schaut Klonk am Ende nach {direction}, soll aber nach {expected} schauen.",
-      "cell": "In Welt {world} sieht Feld {x}{'|'}{y} am Ende anders aus als verlangt. Vergleiche mit „Ziel zeigen“.",
-      "output": "In Welt {world} passt die Ausgabe nicht: erwartet {expected}, ausgegeben {actual}.",
+      "position": "{where} steht {name} am Ende auf Feld {x}{'|'}{y} – das Ziel ist Feld {expectedX}{'|'}{expectedY}.",
+      "direction": "{where} schaut {name} am Ende nach {direction}, soll aber nach {expected} schauen.",
+      "cell": "{where} sieht Feld {x}{'|'}{y} am Ende anders aus als verlangt. Vergleiche mit „Ziel zeigen“.",
+      "output": "{where} passt die Ausgabe nicht: erwartet {expected}, ausgegeben {actual}.",
       "nothing": "nichts",
-      "character_missing": "In Welt {world} gibt es Klonk am Ende nicht mehr.",
-      "error": "In Welt {world} bricht das Programm ab: {message}",
-      "timeout": "In Welt {world} endet das Programm nicht – vielleicht eine Endlosschleife?"
+      "character_missing": "{where} gibt es die Figur {name} am Ende nicht.",
+      "error": "{where} bricht das Programm ab: {message}",
+      "timeout": "{where} endet das Programm nicht – vielleicht eine Endlosschleife?",
+      "solvedData": "Geschafft! Deine Lösung stimmt mit allen Datensätzen.",
+      "no_result": "{where} liefert deine Lösung kein Ergebnis mit Spalten – die letzte Anweisung muss eine Abfrage (SELECT) sein.",
+      "result_columns": "{where} hat dein Ergebnis {actual} Spalten, verlangt sind {expected}.",
+      "result_rows": "{where} hat dein Ergebnis {actual} Zeilen, verlangt sind {expected}.",
+      "result_values": "{where} stimmt das Ergebnis nicht: Zeile {row} des Ziels fehlt bei dir. Vergleiche mit „Ziel zeigen“.",
+      "result_order": "{where} stimmen die Zeilen, aber nicht ihre Reihenfolge – achte auf die Sortierung.",
+      "table_missing": "{where} fehlt am Ende die Tabelle {table}.",
+      "table_rows": "{where} hat die Tabelle {table} am Ende {actual} Zeilen, verlangt sind {expected}.",
+      "table_values": "{where} stimmt der Inhalt der Tabelle {table} am Ende nicht.",
+      "schema_column": "Die Tabelle {table} braucht die Spalte {column}.",
+      "schema_extra": "Die Tabelle {table} hat eine Spalte zu viel: {column}.",
+      "schema_type": "Die Spalte {column} der Tabelle {table} hat den falschen Datentyp – verlangt ist {expected}.",
+      "schema_key": "Der Primärschlüssel der Tabelle {table} stimmt nicht – verlangt: {columns}.",
+      "schema_foreign": "In der Tabelle {table} fehlt der Fremdschlüssel {columns} auf die Tabelle {target}.",
+      "schema_not_null": "In der Tabelle {table} darf die Spalte {column} nicht leer bleiben – es fehlt NOT NULL."
     },
     "teacherNotes": "Hinweise für Lehrkräfte",
     "storageHintGroup": "Wo deine Programme und dein Fortschritt liegen, wählst du beim Start eines Moduls. Liegen sie in der Klonk Cloud, sieht deine Lehrkraft deinen Lernstand und deine Programme in freigegebenen Modulen.",
@@ -651,7 +674,7 @@
     "groupHint": "Gelöste Aufgaben der Lernenden in den freigegebenen Modulen. Ein Klick auf eine Aufgabe zeigt das Programm.",
     "refresh": "Aktualisieren",
     "enableModules": "Module freigeben",
-    "enableModulesHint": "Nur freigegebene Module können die Lernenden dieser Gruppe starten. Je Modul legen Sie fest, ob mit Blöcken, Klonk-Script oder beidem gearbeitet wird. Den Lernstand sehen Sie für alle freigegebenen Module.",
+    "enableModulesHint": "Nur freigegebene Module können die Lernenden dieser Gruppe starten. Je Modul legen Sie fest, in welcher Sprache gearbeitet wird – in Reihe E mit Blöcken, Klonk-Script oder beidem, in den Reihen F und A in einer bestimmten Programmiersprache oder nach freier Wahl. Den Lernstand sehen Sie für alle freigegebenen Module.",
     "noMembers": "Diese Gruppe hat noch keine Lernenden. Mitglieder verwalten Sie in der Verwaltung unter Gruppen.",
     "noEnabledModules": "Geben Sie oben Module frei, um den Lernstand zu sehen.",
     "overview": "Lernstand der Gruppe",
@@ -673,7 +696,13 @@
     "languageChoice": {
       "both": "Blöcke und Klonk-Script",
       "blocks": "nur Blöcke",
-      "klonk": "nur Klonk-Script"
+      "klonk": "nur Klonk-Script",
+      "python": "nur Python",
+      "java": "nur Java",
+      "javascript": "nur JavaScript",
+      "typescript": "nur TypeScript",
+      "csharp": "nur C#",
+      "sql": "SQL"
     },
     "languageFor": "Sprache für {module}",
     "openInLearn": "In der Lernansicht prüfen",
@@ -708,7 +737,46 @@
     "storageReset": "Vorgabe der Organisation",
     "storageInherited": "Vorgabe der Organisation",
     "manageInTeaching": "Freigaben und Lernstand deiner Gruppen findest du jetzt unter Unterricht – geordnet nach Jahrgangsstufen und passend zum Lehrplan.",
-    "toTeaching": "Zum Unterricht"
+    "toTeaching": "Zum Unterricht",
+    "moduleCode": "Modul {code}",
+    "prerequisites": "Baut auf:",
+    "exampleLanguage": "Sprache der Beispiele",
+    "tracks": {
+      "basics": {
+        "title": "Einfach: Blöcke und Klonk-Script",
+        "description": "Die Grundlagen des Programmierens mit Blöcken oder Klonk-Script – von der ersten Anweisung bis zu Funktionen, mehreren Figuren und Knobelaufgaben."
+      },
+      "advanced": {
+        "title": "Fortgeschritten: Programmiersprachen",
+        "description": "Dieselben Ideen in Python, Java, JavaScript, TypeScript oder C# – dazu Methoden, Listen, eigene Klassen, Vererbung und Rekursion."
+      },
+      "sql": {
+        "title": "SQL: Datenbanken abfragen",
+        "description": "Tabellen abfragen, ändern, verknüpfen und anlegen – zuerst mit der Welt als Datenbank, dann mit eigenen Datenbanken."
+      },
+      "apps": {
+        "title": "Anwendungen: Programm und Datenbank",
+        "description": "Programme, die Daten aus einer Datenbank lesen, speichern und mit der Welt verbinden – setzt Reihe F und SQL voraus."
+      }
+    },
+    "dataset": "Daten {n}",
+    "severalDatasets": "Deine Lösung wird mit {n} verschiedenen Datensätzen geprüft – du wählst sie über die Reiter „Daten 1“, „Daten 2“ … rechts.",
+    "inWorld": "In Welt {n}",
+    "inDataset": "Mit Daten {n}",
+    "views": {
+      "world": "Welt",
+      "database": "Datenbank"
+    },
+    "loadingTables": "Tabellen werden geladen …",
+    "goalResult": "Erwartetes Ergebnis",
+    "noResultYet": "Noch kein Ergebnis – mit „Ausführen“ (Strg+Enter) siehst du es hier.",
+    "expectedFailed": "Der Zielzustand dieser Aufgabe konnte nicht berechnet werden. Lade die Seite neu.",
+    "languageChoiceAll": {
+      "basics": "Blöcke und Klonk-Script",
+      "advanced": "Freie Wahl der Sprache",
+      "sql": "SQL",
+      "apps": "Freie Wahl der Sprache"
+    }
   },
   "karol": {
     "import": "Robot Karol importieren",

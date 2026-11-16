@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { moduleLabel } from '@klonk/learn'
+import { LEARN_TRACKS, moduleCode, TRACK_CODES } from '@klonk/learn'
 
 const { t, locale } = useI18n()
 useSeoMeta({ title: () => t('learn.title') })
@@ -7,7 +7,8 @@ useSeoMeta({ title: () => t('learn.title') })
 const learn = useLearn()
 const lang = computed(() => (locale.value === 'en' ? 'en' : 'de'))
 const status = computed(() => learn.status.value)
-const moduleNumber = (id: string) => moduleLabel(id)
+// Module nach Reihen (E, F, S, A) – nur Reihen mit startbaren Modulen
+const tracks = computed(() => LEARN_TRACKS.map(track => ({ track, code: TRACK_CODES[track], modules: learn.modules.value.filter(m => m.track === track) })).filter(g => g.modules.length))
 // Module freigegeben, aber kein erlaubter Speicherort nutzbar (z. B. nur Cloud ohne Abo)
 const noStorage = computed(() => !!learn.modules.value.length && learn.modules.value.every(m => !learn.canStart(m.id)))
 </script>
@@ -76,53 +77,77 @@ const noStorage = computed(() => !!learn.modules.value.length && learn.modules.v
           {{ t('learn.modules') }}
         </h2>
         <div
-          class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3"
+          class="space-y-10"
           data-testid="learn-modules"
         >
-          <UCard
-            v-for="module in learn.modules.value"
-            :key="module.id"
-            :data-testid="`learn-module-${module.id}`"
+          <section
+            v-for="group in tracks"
+            :key="group.track"
+            :data-testid="`learn-track-${group.track}`"
           >
-            <div class="flex items-start justify-between gap-3">
-              <div>
-                <p class="text-xs font-semibold uppercase tracking-wide text-(--ui-text-muted)">
-                  {{ t('learn.moduleNumber', { n: moduleNumber(module.id) }) }}
-                </p>
-                <h2 class="mt-1 font-semibold">
-                  {{ module.title[lang] }}
-                </h2>
-              </div>
-              <UIcon
-                v-if="learn.solvedCount(module) === module.tasks.length"
-                name="i-lucide-circle-check"
-                class="size-6 shrink-0 text-(--ui-success)"
-                :aria-label="t('learn.completed')"
-              />
-            </div>
-            <p class="mt-2 text-sm text-(--ui-text-muted)">
-              {{ module.summary[lang] }}
-            </p>
-            <div class="mt-4">
-              <div class="mb-1 flex justify-between text-xs text-(--ui-text-muted)">
-                <span>{{ t('learn.progress', { solved: learn.solvedCount(module), total: module.tasks.length }) }}</span>
-              </div>
-              <UProgress
-                :model-value="learn.solvedCount(module)"
-                :max="module.tasks.length"
-                size="sm"
-              />
-            </div>
-            <template #footer>
-              <UButton
-                :to="`/learn/${module.id}`"
-                :label="learn.progress(module.id) ? t('learn.continue') : t('learn.start')"
-                trailing-icon="i-lucide-arrow-right"
+            <div class="mb-3 flex items-start gap-3">
+              <UBadge
+                :label="group.code"
+                size="lg"
                 variant="soft"
-                block
+                class="font-mono"
               />
-            </template>
-          </UCard>
+              <div>
+                <h3 class="font-semibold">
+                  {{ t(`learn.tracks.${group.track}.title`) }}
+                </h3>
+                <p class="text-sm text-(--ui-text-muted)">
+                  {{ t(`learn.tracks.${group.track}.description`) }}
+                </p>
+              </div>
+            </div>
+            <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              <UCard
+                v-for="module in group.modules"
+                :key="module.id"
+                :data-testid="`learn-module-${module.id}`"
+              >
+                <div class="flex items-start justify-between gap-3">
+                  <div>
+                    <p class="text-xs font-semibold uppercase tracking-wide text-(--ui-text-muted)">
+                      {{ t('learn.moduleCode', { code: moduleCode(module.id) }) }}
+                    </p>
+                    <h2 class="mt-1 font-semibold">
+                      {{ module.title[lang] }}
+                    </h2>
+                  </div>
+                  <UIcon
+                    v-if="learn.solvedCount(module) === module.tasks.length"
+                    name="i-lucide-circle-check"
+                    class="size-6 shrink-0 text-(--ui-success)"
+                    :aria-label="t('learn.completed')"
+                  />
+                </div>
+                <p class="mt-2 text-sm text-(--ui-text-muted)">
+                  {{ module.summary[lang] }}
+                </p>
+                <div class="mt-4">
+                  <div class="mb-1 flex justify-between text-xs text-(--ui-text-muted)">
+                    <span>{{ t('learn.progress', { solved: learn.solvedCount(module), total: module.tasks.length }) }}</span>
+                  </div>
+                  <UProgress
+                    :model-value="learn.solvedCount(module)"
+                    :max="module.tasks.length"
+                    size="sm"
+                  />
+                </div>
+                <template #footer>
+                  <UButton
+                    :to="`/learn/${module.id}`"
+                    :label="learn.progress(module.id) ? t('learn.continue') : t('learn.start')"
+                    trailing-icon="i-lucide-arrow-right"
+                    variant="soft"
+                    block
+                  />
+                </template>
+              </UCard>
+            </div>
+          </section>
         </div>
 
         <p class="mt-8 text-xs text-(--ui-text-muted)">

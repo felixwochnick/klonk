@@ -1,8 +1,9 @@
-import { map } from '../map'
-import type { LearnModule } from '../types'
+import { map } from '../../map'
+import type { LearnModule } from '../../types'
 
 export const repeat: LearnModule = {
   id: 'repeat',
+  track: 'basics',
   title: { de: 'Wiederholung mit fester Anzahl', en: 'Repetition with a fixed count' },
   summary: {
     de: 'Gleiche Anweisungen nicht abschreiben, sondern wiederholen lassen.',

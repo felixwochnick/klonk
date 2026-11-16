@@ -91,7 +91,6 @@ async function run() {
 
 defineExpose({ run, running })
 
-const display = (value: unknown) => (value === null ? null : typeof value === 'object' ? JSON.stringify(value) : String(value))
 const errorActions = computed(() => (error.value?.line
   ? [{ label: t('editor.showErrorLine'), icon: 'i-lucide-locate', variant: 'outline' as const, color: 'error' as const, size: 'xs' as const, onClick: () => editor.value?.revealLine(error.value!.line!) }]
   : []))
@@ -195,43 +194,10 @@ const errorActions = computed(() => (error.value?.line
             {{ t('database.rows', { count: result.rows.length }, result.rows.length) }}
             <span v-if="result.truncated">· {{ t('database.truncated', { count: result.rows.length }) }}</span>
           </p>
-          <div class="overflow-x-auto rounded-md border border-(--ui-border)">
-            <table class="w-full font-mono text-xs">
-              <thead class="bg-(--ui-bg-elevated)">
-                <tr>
-                  <th
-                    v-for="(column, c) in result.columns"
-                    :key="c"
-                    class="whitespace-nowrap px-2 py-1 text-start font-semibold"
-                  >
-                    {{ column }}
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr
-                  v-for="(row, r) in result.rows"
-                  :key="r"
-                  class="border-t border-(--ui-border)"
-                >
-                  <td
-                    v-for="(value, c) in row"
-                    :key="c"
-                    class="max-w-80 truncate whitespace-nowrap px-2 py-0.5"
-                    :title="display(value) ?? 'NULL'"
-                  >
-                    <span
-                      v-if="value === null"
-                      class="text-(--ui-text-dimmed) italic"
-                    >NULL</span>
-                    <template v-else>
-                      {{ display(value) }}
-                    </template>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
+          <SqlResultTable
+            :columns="result.columns"
+            :rows="result.rows"
+          />
         </template>
       </div>
     </div>

@@ -4,6 +4,8 @@ type TE = (key: string) => boolean
 /** Fehlermeldung zu einem Klonk-Script-Fehlercode (Weltfehler kommen als `world` + `worldCode`) */
 export function scriptErrorMessage(t: T, te: TE, code: string, params: Record<string, string | number> = {}) {
   if (code === 'world' && params.worldCode) return t(`world.errors.${params.worldCode}`, params)
+  // SQL auf den Welt-Tabellen (Lernmodule): Tabellen passen nicht zur Welt
+  if (code === 'world_sql' && params.worldCode) return t(`database.worldErrors.${params.worldCode}`, params)
   if (te(`script.errors.${code}`)) return t(`script.errors.${code}`, params)
   return t('script.errors.unknown', { code })
 }

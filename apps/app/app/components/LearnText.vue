@@ -1,15 +1,38 @@
 <script setup lang="ts">
-// Texte der Lernmodule: kleines Markdown (Absätze, Listen, `code`, **fett**, Codeblöcke) ohne v-html
-const props = defineProps<{ text: string }>()
+import { isCodeLanguage } from '@klonk/learn'
+
+// Texte der Lernmodule: kleines Markdown (Absätze, Listen, `code`, **fett**, Codeblöcke) ohne v-html.
+// Folgen Codeblöcke in mehreren Programmiersprachen direkt aufeinander, zeigt `language` nur den passenden
+// (TypeScript ohne eigenen Block: JavaScript; ohne Sprache: alle).
+const props = defineProps<{ text: string, language?: string | null }>()
 
 type Part = ReturnType<typeof parseAiMarkdown>[number]
 type Line = Extract<Part, { type: 'text' }>['lines'][number]
 type Section = { type: 'code', code: string } | { type: 'paragraph', lines: Line[] } | { type: 'list', items: Line[] }
 
 // Leerzeilen trennen Absätze, „- “ beginnt einen Listenpunkt
+function visibleBlocks() {
+  const blocks = parseAiMarkdown(props.text)
+  const language = props.language
+  if (!language || !isCodeLanguage(language)) return blocks
+  const wanted = (lang: string) => lang === language || (language === 'typescript' && lang === 'javascript')
+  return blocks.filter((block, i) => {
+    if (block.type !== 'code' || !isCodeLanguage(block.lang)) return true
+    // Gruppe direkt aufeinanderfolgender Codeblöcke in Programmiersprachen
+    let from = i
+    while (from > 0 && blocks[from - 1]!.type === 'code' && isCodeLanguage((blocks[from - 1] as { lang: string }).lang)) from--
+    let to = i
+    while (to + 1 < blocks.length && blocks[to + 1]!.type === 'code' && isCodeLanguage((blocks[to + 1] as { lang: string }).lang)) to++
+    const group = blocks.slice(from, to + 1) as { lang: string }[]
+    const exact = group.findIndex(b => b.lang === language)
+    const pick = exact >= 0 ? exact : group.findIndex(b => wanted(b.lang))
+    return i - from === (pick >= 0 ? pick : 0)
+  })
+}
+
 const sections = computed(() => {
   const result: Section[] = []
-  for (const block of parseAiMarkdown(props.text)) {
+  for (const block of visibleBlocks()) {
     if (block.type === 'code') {
       result.push({ type: 'code', code: block.code })
       continue

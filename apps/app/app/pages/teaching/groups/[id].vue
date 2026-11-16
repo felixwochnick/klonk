@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { LEARN_LANGUAGE_CHOICES, LEARN_MODULES, LEARN_STORAGES, moduleLabel, type LearnGroupProgress, type LearnLanguageChoice, type LearnModuleProgress, type LearnStorage, type LearnTaskState } from '@klonk/learn'
+import { languageChoices, LEARN_MODULES, LEARN_STORAGES, LEARN_TRACKS, moduleCode, TRACK_CODES, type LearnGroupProgress, type LearnLanguageChoice, type LearnModuleProgress, type LearnTrack, type LearnStorage, type LearnTaskState } from '@klonk/learn'
 
 const { t, locale, d } = useI18n()
 const route = useRoute()
@@ -23,7 +23,9 @@ onMounted(() => {
 })
 onBeforeUnmount(() => clearInterval(timer))
 
-const moduleNumber = (id: string) => moduleLabel(id)
+const available = LEARN_MODULES.filter(m => m.tasks.length)
+// Freigabe nach Reihen (E, F, S, A)
+const tracks = LEARN_TRACKS.map(track => ({ track, code: TRACK_CODES[track], modules: available.filter(m => m.track === track) })).filter(g => g.modules.length)
 const enabledModules = computed(() => LEARN_MODULES.filter(m => data.value?.modules.includes(m.id)))
 const members = computed(() => data.value?.members ?? [])
 
@@ -35,7 +37,8 @@ const recommended = computed(() => (data.value?.level ? teaching.recommended(dat
 
 // Freigabe je Modul mit Sprachvorgabe
 const saving = ref(false)
-const choiceItems = computed(() => LEARN_LANGUAGE_CHOICES.map(value => ({ label: t(`learn.languageChoice.${value}`), value })))
+/** Sprachvorgaben je Reihe (`both` = alle Sprachen der Reihe) */
+const choiceItems = (track: LearnTrack) => languageChoices(track).map(value => ({ label: value === 'both' ? t(`learn.languageChoiceAll.${track}`) : t(`learn.languageChoice.${value}`), value }))
 const choiceOf = (moduleId: string): LearnLanguageChoice => data.value?.languages[moduleId] ?? 'both'
 
 function toggle(moduleId: string, on: boolean) {
@@ -166,41 +169,51 @@ function viewLink(member: LearnGroupProgress['members'][number], moduleId: strin
           </p>
         </template>
         <div
-          class="grid gap-x-6 gap-y-3 md:grid-cols-2"
+          class="space-y-5"
           data-testid="learn-enable"
         >
           <div
-            v-for="module in LEARN_MODULES"
-            :key="module.id"
-            class="flex min-h-9 flex-wrap items-center justify-between gap-2"
+            v-for="group in tracks"
+            :key="group.track"
           >
-            <div class="flex items-center gap-2">
-              <USwitch
-                :model-value="data.modules.includes(module.id)"
-                :disabled="saving"
-                :label="`${moduleNumber(module.id)}. ${module.title[lang]}`"
-                :data-testid="`learn-enable-${module.id}`"
-                @update:model-value="on => toggle(module.id, !!on)"
-              />
-              <UBadge
-                v-if="recommended.includes(module.id)"
-                :label="t('teaching.curriculumBadge')"
-                color="primary"
-                variant="subtle"
-                size="sm"
-              />
+            <p class="mb-2 text-xs font-semibold tracking-wide text-(--ui-text-muted) uppercase">
+              {{ group.code }} · {{ t(`learn.tracks.${group.track}.title`) }}
+            </p>
+            <div class="grid gap-x-6 gap-y-3 md:grid-cols-2">
+              <div
+                v-for="module in group.modules"
+                :key="module.id"
+                class="flex min-h-9 flex-wrap items-center justify-between gap-2"
+              >
+                <div class="flex items-center gap-2">
+                  <USwitch
+                    :model-value="data.modules.includes(module.id)"
+                    :disabled="saving"
+                    :label="`${moduleCode(module.id)} ${module.title[lang]}`"
+                    :data-testid="`learn-enable-${module.id}`"
+                    @update:model-value="on => toggle(module.id, !!on)"
+                  />
+                  <UBadge
+                    v-if="recommended.includes(module.id)"
+                    :label="t('teaching.curriculumBadge')"
+                    color="primary"
+                    variant="subtle"
+                    size="sm"
+                  />
+                </div>
+                <USelect
+                  v-if="data.modules.includes(module.id) && choiceItems(module.track).length > 1"
+                  :model-value="choiceOf(module.id)"
+                  :items="choiceItems(module.track)"
+                  :disabled="saving"
+                  size="sm"
+                  class="w-52"
+                  :aria-label="t('learn.languageFor', { module: module.title[lang] })"
+                  :data-testid="`learn-languages-${module.id}`"
+                  @update:model-value="value => setChoice(module.id, value as LearnLanguageChoice)"
+                />
+              </div>
             </div>
-            <USelect
-              v-if="data.modules.includes(module.id)"
-              :model-value="choiceOf(module.id)"
-              :items="choiceItems"
-              :disabled="saving"
-              size="sm"
-              class="w-52"
-              :aria-label="t('learn.languageFor', { module: module.title[lang] })"
-              :data-testid="`learn-languages-${module.id}`"
-              @update:model-value="value => setChoice(module.id, value as LearnLanguageChoice)"
-            />
           </div>
         </div>
       </UCard>
@@ -286,7 +299,7 @@ function viewLink(member: LearnGroupProgress['members'][number], moduleId: strin
                     :class="selected === module.id ? 'text-(--ui-primary)' : ''"
                     @click="selected = module.id"
                   >
-                    {{ moduleNumber(module.id) }}. {{ module.title[lang] }}
+                    {{ moduleCode(module.id) }} {{ module.title[lang] }}
                   </button>
                 </th>
                 <th class="px-3 py-2 font-semibold">
@@ -350,7 +363,7 @@ function viewLink(member: LearnGroupProgress['members'][number], moduleId: strin
         <template v-if="selectedModule">
           <div class="mb-3 flex flex-wrap items-center justify-between gap-3">
             <h2 class="text-lg font-semibold">
-              {{ moduleNumber(selectedModule.id) }}. {{ selectedModule.title[lang] }}
+              {{ moduleCode(selectedModule.id) }} {{ selectedModule.title[lang] }}
             </h2>
             <div class="flex flex-wrap gap-3 text-xs text-(--ui-text-muted)">
               <span

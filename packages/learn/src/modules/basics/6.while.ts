@@ -1,8 +1,9 @@
-import { map } from '../map'
-import type { LearnModule } from '../types'
+import { map } from '../../map'
+import type { LearnModule } from '../../types'
 
 export const whileLoop: LearnModule = {
   id: 'while',
+  track: 'basics',
   title: { de: 'Bedingte Wiederholung', en: 'Conditional repetition' },
   summary: {
     de: 'Wiederholen, solange eine Bedingung gilt – egal, wie groß die Welt ist.',

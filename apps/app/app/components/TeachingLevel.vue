@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { LEARN_MODULES, moduleLabel, type TeachingGroup, type TeachingProgress } from '@klonk/learn'
+import { LEARN_MODULES, moduleCode, type TeachingGroup, type TeachingProgress } from '@klonk/learn'
 
 // Klassen einer Jahrgangsstufe (bzw. Zusatzkurse, nicht zugeordnete Gruppen) mit Freigabe-Matrix Module × Klassen:
 // laut Lehrplan empfohlene Module zuerst, je Zelle Freigabe und Anteil gelöster Aufgaben
@@ -19,10 +19,10 @@ const { data: progress, refresh: refreshProgress } = useFetch<TeachingProgress>(
 })
 
 const recommended = computed(() => teaching.recommended(props.level))
-const moduleNumber = (id: string) => moduleLabel(id)
-// Empfohlene zuerst; ohne Empfehlung alle in Kursreihenfolge
-const recommendedRows = computed(() => LEARN_MODULES.filter(m => recommended.value.includes(m.id)))
-const otherRows = computed(() => LEARN_MODULES.filter(m => !recommended.value.includes(m.id)))
+// Empfohlene zuerst; ohne Empfehlung alle in Kursreihenfolge (Reihen E, F, S, A)
+const available = LEARN_MODULES.filter(m => m.tasks.length)
+const recommendedRows = computed(() => available.filter(m => recommended.value.includes(m.id)))
+const otherRows = computed(() => available.filter(m => !recommended.value.includes(m.id)))
 
 const released = (group: TeachingGroup, moduleId: string) => group.modules.includes(moduleId)
 /** Anteil gelöster Aufgaben aller Lernenden der Klasse (Prozent) */
@@ -180,7 +180,7 @@ const missingForAll = (moduleIds: string[]) => props.groups.some(g => moduleIds.
                     :to="`/learn/${module.id}`"
                     class="font-medium hover:underline"
                   >
-                    {{ moduleNumber(module.id) }}. {{ module.title[lang] }}
+                    {{ moduleCode(module.id) }} {{ module.title[lang] }}
                   </NuxtLink>
                   <UBadge
                     v-if="index === 0"

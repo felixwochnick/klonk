@@ -1,0 +1,2 @@
+ALTER TABLE "group_learn_modules" DROP CONSTRAINT "group_learn_modules_languages_check";--> statement-breakpoint
+ALTER TABLE "group_learn_modules" ADD CONSTRAINT "group_learn_modules_languages_check" CHECK ("group_learn_modules"."languages" IN ('both', 'blocks', 'klonk', 'python', 'java', 'javascript', 'typescript', 'csharp', 'sql'));

@@ -12,6 +12,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@klonk/diagrams": "workspace:*",
     "@klonk/klonk-script": "workspace:*",
     "@klonk/world": "workspace:*"
   },

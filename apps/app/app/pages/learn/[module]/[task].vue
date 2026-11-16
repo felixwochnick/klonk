@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import type { GeneratedProgram } from '~/utils/blocks/generator'
-import { compareOutcome, expectedOutcomes, findModule, LEARN_LANGUAGES, LEARN_MANIFEST, parseManifest, serializeManifest, taskFile, taskFolderFiles, type CheckFailure, type LearnLanguage, type LearnManifest, type Outcome } from '@klonk/learn'
+import { codeSolution, collectTables, compareOutcome, findModule, isCodeLanguage, LEARN_MANIFEST, moduleCode, parseManifest, scenarioCount, serializeManifest, starterSource, taskFile, taskFolderFiles, TRACK_LANGUAGES, type CheckFailure, type LearnLanguage, type LearnManifest, type Outcome } from '@klonk/learn'
 import { World } from '@klonk/world'
-import { ProgramRunner, type RunError, type RunnerSnapshot } from '@klonk/runtime'
+import { ProgramRunner, type RunError, type RunLanguage, type RunnerSnapshot, type SqlResult } from '@klonk/runtime'
 import RunnerWorker from '@klonk/runtime/worker?worker'
-import type { LearnCheckResult } from '~/utils/learn-check'
+import { checkTask, computeExpected, runSqlTask, scenarioTables, scenarioWorld, taskMaxCharacters, TaskDatabases, type LearnCheckResult, type ScenarioTables } from '~/utils/learn-check'
 import { CloudProject } from '~/utils/cloud-project'
 import type { Project } from '~/utils/project-fs'
 
@@ -22,6 +22,7 @@ const lang = computed(() => (locale.value === 'en' ? 'en' : 'de'))
 const module = findModule(String(route.params.module))
 const task = module?.tasks.find(x => x.id === String(route.params.task))
 const taskIndex = module && task ? module.tasks.indexOf(task) : -1
+const track = module?.track ?? 'basics'
 useSeoMeta({ title: () => task?.title[lang.value] ?? t('learn.title') })
 
 // Programm der Aufgabe: im Projekt des Moduls (Cloud, Browser oder Ordner) – das eigene oder (Gruppenleitung, `?project=`)
@@ -29,7 +30,8 @@ useSeoMeta({ title: () => task?.title[lang.value] ?? t('learn.title') })
 const foreign = typeof route.query.project === 'string' ? { id: route.query.project, name: String(route.query.name ?? '') } : null
 // Rücksprung zum Lernstand – nur Seiten der App unter Unterricht
 const foreignBack = typeof route.query.back === 'string' && /^\/teaching\/[\w/-]+$/.test(route.query.back) ? route.query.back : '/teaching'
-const program = reactive<{ language: LearnLanguage, blocks: string, klonk: string }>({ language: 'blocks', blocks: '', klonk: '' })
+/** Sprache und Programm je Sprache (fehlt eine Datei, gilt die Startvorlage) */
+const program = reactive<{ language: LearnLanguage, sources: Partial<Record<LearnLanguage, string>> }>({ language: TRACK_LANGUAGES[track][0]!, sources: {} })
 const ready = ref(false)
 const loadError = ref<string | null>(null)
 /** Nur Ordner erlaubt bzw. Ordnerfreigabe verloren ⇒ Nutzeraktion nötig */
@@ -40,23 +42,38 @@ const solvedHere = ref(false)
 let project: Project | undefined
 let shared = false
 let manifest: LearnManifest | undefined
-let saved = { language: '', blocks: '', klonk: '' }
+let saved: { language: string, sources: Partial<Record<LearnLanguage, string>> } = { language: '', sources: {} }
+
+/** Zuletzt gewählte Programmiersprache (Reihen F und A) – Vorgabe für neue Aufgaben */
+const PREFERRED_KEY = 'klonk:learn-language'
+function preferredLanguage(): LearnLanguage | null {
+  // Zuletzt in diesem Modul genutzte Sprache, sonst die zuletzt überhaupt gewählte
+  const used = Object.values(manifest?.languages ?? {}).filter(l => allowedLanguages.value.includes(l))
+  if (used.length) return used.at(-1)!
+  try {
+    const stored = localStorage.getItem(PREFERRED_KEY) as LearnLanguage | null
+    return stored && allowedLanguages.value.includes(stored) ? stored : null
+  }
+  catch {
+    return null
+  }
+}
 
 /**
- * Aufgabenordner (Text, Welten, Programm) anlegen, falls das Projekt noch keinen hat (Projekte aus der ersten Fassung
- * hatten die Programme direkt im Projektordner – deren Inhalt zieht mit um)
+ * Aufgabenordner (Text, Welten, Datenbanken, Programm) anlegen, falls das Projekt noch keinen hat (Projekte aus der
+ * ersten Fassung hatten die Programme direkt im Projektordner – deren Inhalt zieht mit um)
  */
 async function ensureTaskFolder() {
   if (!project || isReadOnly(project) || !manifest || !module || !task || manifest.tasks[task.id]) return
   const index = module.tasks.indexOf(task)
-  const entry = taskFolderFiles(task, index, lang.value, allowedLanguages.value[0] ?? 'blocks')
+  const entry = taskFolderFiles(task, index, lang.value, allowedLanguages.value[0] ?? TRACK_LANGUAGES[track][0]!, track)
   await project.createFolder(entry.folder)
   for (const file of entry.files) if (!await project.exists(file.path)) await project.write(file.path, file.content)
-  for (const language of LEARN_LANGUAGES) {
-    const old = await project.read(`${task.id}.${language}`).catch(() => null)
+  for (const language of TRACK_LANGUAGES[track]) {
+    const old = await project.read(taskFile(manifest, task.id, language)).catch(() => null)
     if (old === null) continue
-    await project.write(`${entry.program}.${language}`, old)
-    await project.remove(`${task.id}.${language}`)
+    await project.write(`${entry.program}.${taskFile(manifest, task.id, language).split('.').pop()}`, old)
+    await project.remove(taskFile(manifest, task.id, language))
   }
   manifest.tasks[task.id] = entry.program
   await project.write(LEARN_MANIFEST, serializeManifest(manifest))
@@ -66,13 +83,18 @@ async function loadProgram() {
   if (!project || !module || !task) return
   manifest = parseManifest(await project.read(LEARN_MANIFEST).catch(() => null), module.id)
   await ensureTaskFolder()
-  const read = (language: LearnLanguage) => project!.read(taskFile(manifest!, task.id, language)).catch(() => '')
+  const sources: Partial<Record<LearnLanguage, string>> = {}
+  for (const language of TRACK_LANGUAGES[track]) {
+    const text = await project.read(taskFile(manifest, task.id, language)).catch(() => null)
+    if (text !== null) sources[language] = text
+  }
   const stored = manifest.languages[task.id]
-  program.language = stored && (readOnly.value || allowedLanguages.value.includes(stored)) ? stored : allowedLanguages.value[0] ?? 'blocks'
-  program.blocks = await read('blocks')
-  program.klonk = await read('klonk')
+  program.language = stored && (readOnly.value || allowedLanguages.value.includes(stored))
+    ? stored
+    : (readOnly.value && Object.keys(sources)[0] as LearnLanguage) || preferredLanguage() || allowedLanguages.value[0] || TRACK_LANGUAGES[track][0]!
+  program.sources = sources
   solvedHere.value = !!manifest.solved[task.id]
-  saved = { ...program }
+  saved = { language: program.language, sources: { ...sources } }
 }
 
 async function openProject() {
@@ -102,15 +124,17 @@ onMounted(openProject)
 let saveTimer: ReturnType<typeof setTimeout> | undefined
 async function save() {
   if (!project || isReadOnly(project) || !manifest || !task || !ready.value) return
-  if (program.blocks !== saved.blocks) await project.write(taskFile(manifest, task.id, 'blocks'), program.blocks)
-  if (program.klonk !== saved.klonk) await project.write(taskFile(manifest, task.id, 'klonk'), program.klonk)
+  for (const language of TRACK_LANGUAGES[track]) {
+    const text = program.sources[language]
+    if (text !== undefined && text !== saved.sources[language]) await project.write(taskFile(manifest, task.id, language), text)
+  }
   if (program.language !== saved.language) {
     manifest.languages[task.id] = program.language
     await project.write(LEARN_MANIFEST, serializeManifest(manifest))
   }
-  saved = { ...program }
+  saved = { language: program.language, sources: { ...program.sources } }
 }
-watch(() => [program.language, program.blocks, program.klonk], () => {
+watch(() => [program.language, ...TRACK_LANGUAGES[track].map(l => program.sources[l])], () => {
   if (!ready.value || readOnly.value) return
   clearTimeout(saveTimer)
   saveTimer = setTimeout(() => void save(), 400)
@@ -133,49 +157,107 @@ const language = computed({
   get: () => program.language,
   set: (value) => {
     program.language = value
+    if (isCodeLanguage(value)) {
+      try {
+        localStorage.setItem(PREFERRED_KEY, value)
+      }
+      catch {
+        // kein Speicher (privater Modus)
+      }
+    }
   },
 })
 // Sprachvorgabe der Gruppenleitung (fremde Programme: so, wie sie geschrieben wurden)
-const allowedLanguages = computed<LearnLanguage[]>(() => (foreign || !module ? LEARN_LANGUAGES : learn.status.value?.languages[module.id] ?? LEARN_LANGUAGES))
+const allowedLanguages = computed<LearnLanguage[]>(() => (foreign || !module ? TRACK_LANGUAGES[track] : learn.status.value?.languages[module.id] ?? TRACK_LANGUAGES[track]))
 const languageItems = computed(() => allowedLanguages.value.map(value => ({ label: t(`editor.languages.${value}`), value })))
 const isBlocks = computed(() => language.value === 'blocks')
+const isSql = computed(() => language.value === 'sql')
+/** Text des Programms in der gewählten Sprache (Blöcke: Blockly-JSON) */
+const code = computed({
+  get: () => program.sources[language.value] ?? starterSource(language.value, track, lang.value),
+  set: (value: string) => {
+    program.sources[language.value] = value
+  },
+})
+const blocksSource = computed({
+  get: () => program.sources.blocks ?? '',
+  set: (value: string) => {
+    program.sources.blocks = value
+  },
+})
 const blocksProgram = shallowRef<GeneratedProgram>({ code: '', lineToBlock: {} })
 function onBlocksProgram(generated: GeneratedProgram) {
   blocksProgram.value = generated
 }
 const lineToBlock = (line: number | null | undefined) => (line ? blocksProgram.value.lineToBlock[line] ?? null : null)
-const source = computed(() => (isBlocks.value ? blocksProgram.value.code : program.klonk))
+const source = computed(() => (isBlocks.value ? blocksProgram.value.code : code.value))
+const runLanguage = computed<RunLanguage>(() => (isBlocks.value ? 'klonk' : language.value as RunLanguage))
+const editorLanguage = computed(() => (isSql.value ? 'sql' : language.value as RunLanguage))
 const breakpoints = ref<number[]>([])
 
-// Startwelten und Zielzustände (Ergebnis der Musterlösung)
+// Startsituationen (Welten bzw. Datensätze) und Zielzustände (Ergebnis der Musterlösung)
+const scenarios = task ? scenarioCount(task) : 1
+const hasWorld = !!task?.worlds.length
+/** Startsituationen unterscheiden sich in der Welt (sonst nur in den Daten: „Daten 1“ statt „Welt 1“) */
+const byWorld = !!task && task.worlds.length >= scenarios
+const hasDatabase = !!task && (!!task.databases?.length || !!task.worldDatabase)
 const variant = ref(0)
 const expected = shallowRef<Outcome[] | null>(null)
-onMounted(async () => {
-  if (task) expected.value = await expectedOutcomes(task)
-})
-const startWorld = () => new World(task!.worlds[variant.value]!)
+const expectedError = ref(false)
+const startWorld = () => new World(scenarioWorld(task!, variant.value) ?? World.empty().toJSON())
 const world = shallowRef(task ? startWorld() : World.empty())
+onMounted(async () => {
+  if (!module || !task) return
+  try {
+    expected.value = await computeExpected(module, task, { lang: lang.value, maxCharacters: maxCharacters.value })
+  }
+  catch {
+    expectedError.value = true
+  }
+})
 const showGoal = ref(false)
-const goalWorld = computed(() => (expected.value ? new World(expected.value[variant.value]!.world) : null))
+const goal = computed(() => expected.value?.[variant.value] ?? null)
+const goalWorld = computed(() => (goal.value?.world ? new World(goal.value.world) : null))
 const shownWorld = computed(() => (showGoal.value && goalWorld.value ? goalWorld.value : world.value))
+
+// Rechte Seite: Welt und/oder Tabellen der Aufgabendatenbank
+const view = ref<'world' | 'database'>(hasWorld ? 'world' : 'database')
+const tables = shallowRef<ScenarioTables | null>(null)
+async function loadTables() {
+  if (!task || !hasDatabase) return
+  tables.value = await scenarioTables(task, variant.value, lang.value).catch(() => null)
+}
+onMounted(loadTables)
+watch(variant, loadTables)
 
 // Ausführen mit Animation auf der gewählten Welt
 const speed = ref(300)
 const idle: RunnerSnapshot = { state: 'idle', line: null, pausedRange: null, variables: {}, heap: null, output: [], error: null }
 const snapshot = ref<RunnerSnapshot>(idle)
-/** Ergebnis des letzten Laufs auf der angezeigten Welt (null = Ziel erreicht) */
+/** Ergebnis des letzten Laufs in der angezeigten Startsituation (null = Ziel erreicht) */
 const runResult = ref<{ failure: CheckFailure | null } | null>(null)
+/** SQL: Ergebnisse des letzten Laufs */
+const sqlResults = shallowRef<SqlResult[]>([])
 let runner: ProgramRunner | undefined
+let runDatabases: TaskDatabases | undefined
 onMounted(() => {
   runner = new ProgramRunner(() => new RunnerWorker(), (s) => {
     snapshot.value = s
     if (s.state === 'done' && expected.value && task) {
-      const failure = compareOutcome(task.check, task.worlds[variant.value]!, expected.value[variant.value]!, { world: world.value.toJSON(), output: s.output })
-      runResult.value = { failure }
+      const want = expected.value[variant.value]!
+      const output = s.output
+      const finished = world.value.toJSON()
+      void (runDatabases?.all() ?? Promise.resolve([])).then(sessions => collectTables(task, lang.value, sessions)).then((tables) => {
+        runResult.value = { failure: compareOutcome(task.check, want, { world: finished, output, tables }) }
+      })
     }
   })
+  runner.onDatabase = request => runDatabases?.answer(request) ?? Promise.resolve({ ok: false, code: 'db_unavailable', params: {} })
 })
-onBeforeUnmount(() => runner?.dispose())
+onBeforeUnmount(() => {
+  runner?.dispose()
+  runDatabases?.close()
+})
 
 const running = computed(() => snapshot.value.state === 'running' || snapshot.value.state === 'paused')
 
@@ -191,19 +273,42 @@ const errorLine = computed(() => (snapshot.value.state === 'error' ? snapshot.va
 const errorText = (error: RunError) => scriptErrorMessage(t, te, error.code, error.params)
 const errorMessage = computed(() => (snapshot.value.error ? errorText(snapshot.value.error) : null))
 
-function run(pauseOnStart = false) {
-  if (!runner || !task) return
+async function runSql() {
+  if (!task) return
   showGoal.value = false
   runResult.value = null
   world.value = startWorld()
+  snapshot.value = { ...idle, state: 'running' }
+  const run = await runSqlTask(task, code.value, variant.value, lang.value)
+  sqlResults.value = run.results
+  if ('error' in run) {
+    snapshot.value = { ...idle, state: 'error', error: run.error }
+    return
+  }
+  if (run.outcome.world && task.worldDatabase) world.value = new World(run.outcome.world)
+  snapshot.value = { ...idle, state: 'done' }
+  if (expected.value) runResult.value = { failure: compareOutcome(task.check, expected.value[variant.value]!, run.outcome) }
+}
+
+function run(pauseOnStart = false) {
+  if (!runner || !task) return
+  if (isSql.value) {
+    void runSql()
+    return
+  }
+  showGoal.value = false
+  runResult.value = null
+  world.value = startWorld()
+  runDatabases?.close()
+  runDatabases = new TaskDatabases(task, variant.value, lang.value)
   runner.run(world.value, {
-    language: 'klonk',
+    language: runLanguage.value,
     source: source.value,
     breakpoints: isBlocks.value ? [] : breakpoints.value,
     delay: speed.value,
     allowImports: false,
     files: {},
-    maxCharacters: maxCharacters.value,
+    maxCharacters: taskMaxCharacters(task, maxCharacters.value),
     pauseOnStart,
   })
 }
@@ -215,6 +320,7 @@ function reset() {
   runner?.stop()
   snapshot.value = idle
   runResult.value = null
+  sqlResults.value = []
   world.value = startWorld()
 }
 function selectVariant(index: number) {
@@ -225,7 +331,7 @@ function selectVariant(index: number) {
 watch(breakpoints, lines => runner?.setBreakpoints(lines))
 watch(speed, delay => runner?.setDelay(delay))
 
-// Prüfen: alle Startwelten ohne Animation
+// Prüfen: alle Startsituationen ohne Animation
 const checking = ref(false)
 const result = ref<LearnCheckResult | null>(null)
 
@@ -253,14 +359,14 @@ watch(result, (value) => {
 })
 async function check() {
   if (!task || !module || !expected.value || running.value) return
-  if (!source.value.trim()) {
+  if (!source.value.trim() || source.value.trim() === starterSource(language.value, track, lang.value).trim()) {
     result.value = null
     useToast().add({ title: t('learn.check.empty'), color: 'warning' })
     return
   }
   checking.value = true
   try {
-    result.value = await checkTask(task, expected.value, source.value, maxCharacters.value)
+    result.value = await checkTask(task, expected.value, language.value, source.value, { lang: lang.value, maxCharacters: maxCharacters.value })
   }
   finally {
     checking.value = false
@@ -274,25 +380,27 @@ async function check() {
 
 const directionName = (direction: string) => t(`learn.directions.${direction}`)
 function failureText(failure: CheckFailure, worldNumber: number) {
+  const where = byWorld ? t('learn.inWorld', { n: worldNumber }) : t('learn.inDataset', { n: worldNumber })
   switch (failure.code) {
     case 'direction':
-      return t('learn.check.direction', { world: worldNumber, direction: directionName(failure.direction), expected: directionName(failure.expected) })
+      return t('learn.check.direction', { where, name: failure.name, direction: directionName(failure.direction), expected: directionName(failure.expected) })
     case 'output':
-      return t('learn.check.output', { world: worldNumber, expected: failure.expected || t('learn.check.nothing'), actual: failure.actual || t('learn.check.nothing') })
+      return t('learn.check.output', { where, expected: failure.expected || t('learn.check.nothing'), actual: failure.actual || t('learn.check.nothing') })
     default:
-      return t(`learn.check.${failure.code}`, { world: worldNumber, ...failure })
+      return t(`learn.check.${failure.code}`, { where, ...failure })
   }
 }
 const resultText = computed(() => {
   const r = result.value
   if (!r) return null
+  const where = (n: number) => (byWorld ? t('learn.inWorld', { n }) : t('learn.inDataset', { n }))
   switch (r.status) {
-    case 'solved': return t('learn.check.solved')
+    case 'solved': return t(byWorld ? 'learn.check.solved' : 'learn.check.solvedData')
     case 'syntax': return t('learn.check.syntax', { message: errorText(r.error) })
     case 'missing': return t('learn.check.missing', { constructs: r.constructs.map(c => t(`learn.constructs.${c}`)).join(', ') })
     case 'failed': return failureText(r.failure, r.world + 1)
-    case 'error': return t('learn.check.error', { world: r.world + 1, message: errorText(r.error) })
-    case 'timeout': return t('learn.check.timeout', { world: r.world + 1 })
+    case 'error': return t('learn.check.error', { where: where(r.world + 1), message: errorText(r.error) })
+    case 'timeout': return t('learn.check.timeout', { where: where(r.world + 1) })
   }
   return null
 })
@@ -302,6 +410,13 @@ const next = computed(() => (module && task && !foreign ? learn.following(module
 // Musterlösung: nach dem Lösen, für Lehrkräfte/Admins und für Privatkonten (ohne Organisation) jederzeit
 const canSeeSolution = computed(() => solved.value || !user.value || !user.value.organizationId || user.value.role !== 'member' || user.value.platformRole !== 'user')
 const showSolution = ref(false)
+const solutionText = computed(() => {
+  if (!task) return ''
+  if (task.solutions) return codeSolution(task.solutions, isCodeLanguage(language.value) ? language.value : 'javascript', lang.value)
+  return task.solution?.[lang.value] ?? ''
+})
+/** Sprache der Codebeispiele in Einführung und Tipps (Reihen F und A) */
+const textLanguage = computed(() => (isCodeLanguage(language.value) ? language.value : null))
 </script>
 
 <template>
@@ -337,7 +452,7 @@ const showSolution = ref(false)
         icon="i-lucide-arrow-left"
         variant="ghost"
         color="neutral"
-        :label="foreign ? t('learn.backToProgress') : module.title[lang]"
+        :label="foreign ? t('learn.backToProgress') : `${moduleCode(module.id)} · ${module.title[lang]}`"
         class="max-w-64"
       />
       <UButton
@@ -361,7 +476,10 @@ const showSolution = ref(false)
         data-testid="pause"
         @click="runner?.pause()"
       />
-      <UTooltip :text="t('editor.stepHelp')">
+      <UTooltip
+        v-if="!isSql"
+        :text="t('editor.stepHelp')"
+      >
         <UButton
           icon="i-lucide-step-forward"
           variant="outline"
@@ -372,6 +490,7 @@ const showSolution = ref(false)
         />
       </UTooltip>
       <UButton
+        v-if="!isSql"
         icon="i-lucide-square"
         variant="outline"
         color="error"
@@ -388,7 +507,10 @@ const showSolution = ref(false)
         data-testid="reset"
         @click="reset"
       />
-      <div class="ms-2 flex w-32 items-center gap-2">
+      <div
+        v-if="!isSql"
+        class="ms-2 flex w-32 items-center gap-2"
+      >
         <UIcon
           name="i-lucide-gauge"
           class="shrink-0 text-(--ui-text-muted)"
@@ -405,6 +527,7 @@ const showSolution = ref(false)
       </div>
       <div class="ms-auto flex items-center gap-2">
         <USelect
+          v-if="languageItems.length > 1 || !isSql"
           v-model="language"
           :items="languageItems"
           :disabled="running || readOnly || !ready"
@@ -419,6 +542,7 @@ const showSolution = ref(false)
           :label="t('learn.check.button')"
           :loading="checking"
           :disabled="running || !expected || !ready"
+          :title="expectedError ? t('learn.expectedFailed') : undefined"
           data-testid="learn-check"
           @click="check"
         />
@@ -520,13 +644,14 @@ const showSolution = ref(false)
         </h1>
         <LearnText
           :text="task.text[lang]"
+          :language="textLanguage"
           data-testid="learn-text"
         />
         <p
-          v-if="task.worlds.length > 1"
+          v-if="scenarios > 1"
           class="mt-3 text-xs text-(--ui-text-muted)"
         >
-          {{ t('learn.severalWorlds', { n: task.worlds.length }) }}
+          {{ byWorld ? t('learn.severalWorlds', { n: scenarios }) : t('learn.severalDatasets', { n: scenarios }) }}
         </p>
 
         <UAlert
@@ -560,6 +685,7 @@ const showSolution = ref(false)
             <template #content>
               <LearnText
                 :text="hint[lang]"
+                :language="textLanguage"
                 class="px-2 pb-2"
               />
             </template>
@@ -583,7 +709,7 @@ const showSolution = ref(false)
             v-if="showSolution"
             class="mt-2 overflow-x-auto rounded-md border border-(--ui-border) bg-(--ui-bg-muted) p-3 font-mono text-xs"
             data-testid="learn-solution"
-          >{{ task.solution[lang] }}</pre>
+          >{{ solutionText }}</pre>
         </div>
       </aside>
 
@@ -602,7 +728,7 @@ const showSolution = ref(false)
         <ClientOnly v-else-if="isBlocks">
           <div class="relative min-h-80 flex-1">
             <KlonkBlocks
-              v-model="program.blocks"
+              v-model="blocksSource"
               :read-only="running || readOnly"
               :active-block="running ? lineToBlock(snapshot.line) : null"
               :error-block="snapshot.state === 'error' ? lineToBlock(snapshot.error?.range?.line) : null"
@@ -612,33 +738,45 @@ const showSolution = ref(false)
         </ClientOnly>
         <ClientOnly v-else>
           <KlonkEditor
-            v-model="program.klonk"
+            v-model="code"
             v-model:breakpoints="breakpoints"
-            language="klonk"
+            :language="editorLanguage"
             :read-only="running || readOnly"
             :active-line="running ? snapshot.line : null"
             :error-line="errorLine"
             :error-message="errorMessage"
+            :sql-tables="isSql ? tables?.schema ?? [] : []"
+            @run="run()"
           />
         </ClientOnly>
       </section>
 
-      <!-- Welt -->
+      <!-- Welt bzw. Datenbank, darunter Ausgabe oder Ergebnis -->
       <section class="flex min-h-0 flex-col">
         <div class="flex flex-wrap items-center gap-1 border-b border-(--ui-border) px-2 py-1">
-          <template v-if="task.worlds.length > 1">
+          <template v-if="scenarios > 1">
             <UButton
-              v-for="(_, i) in task.worlds"
+              v-for="i in scenarios"
               :key="i"
               size="xs"
-              :variant="variant === i ? 'soft' : 'ghost'"
-              :color="variant === i ? 'primary' : 'neutral'"
-              :label="t('learn.world', { n: i + 1 })"
+              :variant="variant === i - 1 ? 'soft' : 'ghost'"
+              :color="variant === i - 1 ? 'primary' : 'neutral'"
+              :label="byWorld ? t('learn.world', { n: i }) : t('learn.dataset', { n: i })"
               :disabled="running"
-              :data-testid="`learn-world-${i + 1}`"
-              @click="selectVariant(i)"
+              :data-testid="`learn-world-${i}`"
+              @click="selectVariant(i - 1)"
             />
           </template>
+          <UTabs
+            v-if="hasWorld && hasDatabase"
+            v-model="view"
+            :items="[{ label: t('learn.views.world'), value: 'world', icon: 'i-lucide-box' }, { label: t('learn.views.database'), value: 'database', icon: 'i-lucide-database' }]"
+            :content="false"
+            size="xs"
+            variant="link"
+            class="ms-2"
+            data-testid="learn-view"
+          />
           <USwitch
             v-model="showGoal"
             :label="t('learn.showGoal')"
@@ -648,7 +786,10 @@ const showSolution = ref(false)
             data-testid="learn-show-goal"
           />
         </div>
-        <div class="relative min-h-80 flex-1 bg-(--ui-bg-muted)">
+        <div
+          v-if="view === 'world' && hasWorld"
+          class="relative min-h-80 flex-1 bg-(--ui-bg-muted)"
+        >
           <ClientOnly>
             <KlonkWorld
               ref="worldView"
@@ -686,8 +827,53 @@ const showSolution = ref(false)
             </template>
           </div>
         </div>
+        <!-- Tabellen der Aufgabendatenbank in dieser Startsituation -->
         <div
-          class="max-h-48 shrink-0 overflow-y-auto border-t border-(--ui-border) p-3 text-sm"
+          v-else
+          class="min-h-60 flex-1 space-y-4 overflow-y-auto p-3"
+          data-testid="learn-tables"
+        >
+          <div
+            class="flex gap-2"
+            data-testid="run-state"
+            :data-state="snapshot.state"
+          >
+            <UBadge
+              v-if="runResult && !showGoal"
+              :color="runResult.failure ? 'warning' : 'success'"
+              variant="subtle"
+              :icon="runResult.failure ? 'i-lucide-circle-x' : 'i-lucide-flag'"
+              :label="runResult.failure ? t('learn.goalMissed') : t('learn.goalReached')"
+              data-testid="learn-run-result"
+            />
+          </div>
+          <p
+            v-if="!tables"
+            class="text-sm text-(--ui-text-muted)"
+          >
+            {{ t('learn.loadingTables') }}
+          </p>
+          <div
+            v-for="table in tables?.tables ?? []"
+            :key="table.name"
+          >
+            <p class="mb-1 flex items-center gap-1 text-sm font-semibold">
+              <UIcon
+                name="i-lucide-table"
+                class="text-(--ui-text-muted)"
+              />
+              {{ table.name }}
+              <span class="font-normal text-(--ui-text-muted)">· {{ t('database.rows', { count: table.rows.length }, table.rows.length) }}</span>
+            </p>
+            <SqlResultTable
+              :columns="table.columns"
+              :rows="table.rows"
+            />
+          </div>
+        </div>
+        <div
+          class="shrink-0 overflow-y-auto border-t border-(--ui-border) p-3 text-sm"
+          :class="isSql ? 'max-h-[45%]' : 'max-h-48'"
           data-testid="output-pane"
         >
           <UAlert
@@ -706,7 +892,57 @@ const showSolution = ref(false)
           >
             {{ failureText(runResult.failure, variant + 1) }}
           </p>
+          <!-- SQL: erwartetes bzw. eigenes Ergebnis -->
+          <template v-if="isSql">
+            <div
+              v-if="showGoal && goal?.result"
+              data-testid="learn-goal-result"
+            >
+              <p class="mb-1 text-xs font-semibold text-(--ui-text-muted)">
+                {{ t('learn.goalResult') }}
+              </p>
+              <SqlResultTable
+                :columns="goal.result.columns"
+                :rows="goal.result.rows"
+              />
+            </div>
+            <template v-else>
+              <p
+                v-if="!sqlResults.length && !errorMessage"
+                class="text-(--ui-text-muted)"
+              >
+                {{ t('learn.noResultYet') }}
+              </p>
+              <div
+                v-for="(item, i) in sqlResults"
+                :key="i"
+                class="mb-3"
+                data-testid="sql-result"
+              >
+                <p
+                  v-if="!item.columns.length"
+                  class="text-(--ui-text-muted)"
+                >
+                  <UIcon
+                    name="i-lucide-check"
+                    class="me-1 align-middle text-(--ui-success)"
+                  />
+                  {{ item.changes ? t('database.changed', { count: item.changes }, item.changes) : t('database.ok') }}
+                </p>
+                <template v-else>
+                  <p class="mb-1 text-xs text-(--ui-text-muted)">
+                    {{ t('database.rows', { count: item.rows.length }, item.rows.length) }}
+                  </p>
+                  <SqlResultTable
+                    :columns="item.columns"
+                    :rows="item.rows"
+                  />
+                </template>
+              </div>
+            </template>
+          </template>
           <pre
+            v-else
             class="whitespace-pre-wrap font-mono text-xs"
             data-testid="output"
           >{{ snapshot.output.join('\n') || t('editor.noOutput') }}</pre>

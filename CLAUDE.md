@@ -314,8 +314,8 @@ node scripts/build-csharp.ts        # C#-Host bauen (.NET-SDK 10 nötig; Ausgabe
   Zielzustand = Ergebnis der **Musterlösung** in jeder Startwelt (`expectedOutcomes`); geprüft wird je Aufgabe nur, was `check` verlangt
   (Position/Richtung/Felder/Zahlen der Ausgabe) + `requires` am Syntaxbaum. Nutzerprogramme laufen beim Prüfen headless im Runner-Worker mit
   `delay: 0` und 5-s-Zeitlimit (`utils/learn-check.ts`). Musterlösung sichtbar nach dem Lösen, für Rolle ≠ member, Betreiber und Privatkonten.
-  Unit-Tests lösen jede Aufgabe mit der Musterlösung (de/en) in allen Welten. **Einstieg** (vom User gewünscht, Grundschule/Förderschule): Module mit `track: 'start'` (E1 Wege, E2 Bauplan, E3 Muster),
-  Nummern über `moduleLabel()` (E1…, Grundkurs 1… – nie Index), Welten **immer aus ganzen 3×3-Platten** (Test), weil sie als 3D-Druck nachgebaut werden:
+  Unit-Tests lösen jede Aufgabe mit der Musterlösung (de/en) in allen Welten. **Einstieg** (vom User gewünscht, Grundschule/Förderschule): Module mit `printable: true` am Anfang der Reihe E (E1 Wege, E2 Bauplan, E3 Muster),
+  Kürzel über `moduleCode()` (nie Index), Welten **immer aus ganzen 3×3-Platten** (Test), weil sie als 3D-Druck nachgebaut werden:
   `assets/print/*.solidcraft` (SolidCraft, parametrisch; 1 Feld = 4×4 Noppen = 32 mm, Ziegel 9,6, Platte 3,2; Noppe Ø 4,8 × 1,8 mit 0,2-Fase, Klemmnasen 0,6 innen an der Wand ab 0,3 über Unterkante;
   `klonk-ziegel` mit `h`/`n` ⇒ Ziegel 9,6/4, **Marke 3,2/2 (nur die 4 mittleren Noppen für die Figur, vom User so festgelegt)**, Quader 28,8/4; Neuberechnung dauert Minuten), STL + Vorschaubilder in `apps/docs/public/print/`,
   Doku `4.teaching/2.modules/2.printing.md`; Figuren = Original aus Blender (vom User so gewünscht), `assets/blender/export_print.py` baut sie
@@ -324,12 +324,27 @@ node scripts/build-csharp.ts        # C#-Host bauen (.NET-SDK 10 nötig; Ausgabe
   Ist das Modulprojekt in der IDE offen, nutzt die Lernansicht dieselbe `CloudProject`-Instanz (`useLearn().open`, sonst zwei Sync-Warteschlangen
   auf einer OPFS-Kopie). IDE: Datei in einem Aufgabenordner ⇒ Leiste „In der Lernansicht prüfen“ (`learnTask` in `pages/index.vue`).
   E2E `e2e/learn.spec.ts` (Konto tom, Gruppe 9c; Programme per Cloud-API in den Aufgabenordner geschrieben).
+- **Modulreihen** (vom User so festgelegt: Kürzel E1, F1, S1, A1 …, jede Reihe baut aufeinander auf, Lehrpläne teilweise abgedeckt):
+  **E** Einfach (Klonk-Script & Blöcke, `basics`; E1–E3 Einstieg, ab E4 Grundkurs), **F** Fortgeschritten (Python/Java/JS/TS/C#, `advanced`), **S** SQL (`sql`), **A** Anwendungen
+  = Programm + Datenbank (`apps`). `LearnModule.track`, Kürzel aus der Position in der Reihe (`moduleCode`, `registry.ts` – **IDs nie ändern**,
+  sie stehen in `group_learn_modules`/`cloud_projects`), `prerequisites` auch über Reihen. Dateien `packages/learn/src/modules/<reihe>/N.name.ts`.
+  Sprachen je Reihe `TRACK_LANGUAGES` (Vorgabe der Gruppe `both` = alle Sprachen der Reihe, sonst eine; Migration 0018), Programm im Aufgabenordner
+  `Programm.<endung>` (Java `public class Programm`, Lösungen `class Program` ⇒ `codeSolution()` benennt um), SQL `Abfrage.sql`, Aufgabendatenbanken
+  als `<name>.sqlite.sql`; Startvorlagen `starterSource()` zählen nicht als begonnen. F/A-Lösungen `solutions` je Sprache (Roboter-/Datenbank-API
+  englisch, A-Datenbanken englisch), S-Lösungen und -Datenbanken je UI-Sprache. **Startsituationen** = Welten bzw. Datensätze (`sql` als Liste,
+  `scenarioCount`). Zielzustand: E Interpreter, F/A **JavaScript-Lösung** headless im Runner-Worker, S SQL-Lösung im Datenbank-Worker
+  (`computeExpected` in `utils/learn-check.ts`; jeder Lauf frische Datenbanken `TaskDatabases`, `onDatabase`). Prüfung zusätzlich SQL-Ergebnis
+  (`result` ordered/unordered, Spaltennamen frei), Tabelleninhalt (`tables`), Schema (`schema`, Typ-Affinität), Ausgabezeilen (`output: 'lines'`),
+  alle Figuren (`characters` = Figuren über die Lizenzgrenze hinaus). Verlangte Bausteine: Klonk-Script am Syntaxbaum, Programmiersprachen an der
+  Diagramm-Auswertung (`missingCodeConstructs`, C# über Roslyn), SQL am Text. Codebeispiele in Texten als aufeinanderfolgende ```python/```java/
+  ```javascript/```csharp-Blöcke – `LearnText` zeigt nur die gewählte Sprache. Tests: E in `packages/learn/tests`, F/A/S in
+  `packages/runtime/tests/learn.test.ts` (Prüfstand `learn-harness.ts`: alle Sprachen echt, Vergleich mit der JS-Lösung, Startvorlage löst nichts).
 - **Unterricht** (vom User so gewünscht: Lernmodule für Lehrkräfte nach Jahrgangsstufen → Klassen verwalten, Lehrplan ⇒ Module): `/teaching` zeigt die
   Stufen der Schulform (`schoolLevels`, dazu Zusatzkurse/nicht zugeordnet) mit den **geleiteten** Gruppen (`groups.level`) und den passenden Modulen,
   `/teaching/<stufe>` Lehrplan-Einträge (Link zur Klassenseite der Doku) + `TeachingLevel.vue` (Klassen-Karten, Matrix Module × Klassen: Freigabe je Zelle,
   „Für alle freigeben“, „Passende Module für alle Klassen freigeben“, Anteil gelöster Aufgaben); ohne Schulform/in Unternehmen alle Gruppen direkt (`level=all`).
   **Lehrplan-Zuordnung als Daten** in `@klonk/learn` `src/curriculum.ts` (`CURRICULUM`: Bundesland + Schulformen + Stufen ⇒ Module, `note`, `docs`-Pfad;
-  `curriculumFor`, `recommendedModules`, `formatModuleNumbers`) – **gleich halten mit der Tabelle** in `4.teaching/2.modules/1.overview.md`; der Test prüft,
+  `curriculumFor`, `recommendedModules`, `formatModuleCodes`) – **gleich halten mit der Tabelle** in `4.teaching/2.modules/1.overview.md`; der Test prüft,
   dass jede `docs`-Seite in de/en existiert. Server `teachingOverview`/`teachingProgress` in `apps/app/server/utils/learn.ts` (`/api/teaching`,
   `/api/teaching/progress?level=`), Client `useTeaching()`; Freigaben weiter über `PUT /api/learn/groups/:id/modules`. Namen von Bundesländern/Schulformen
   liegen in der Core-i18n (`school.states|forms|countries`). E2E `e2e/teaching.spec.ts` (nach learn.spec, nutzt 9c/Tom, räumt auf).
@@ -524,5 +539,5 @@ node scripts/build-csharp.ts        # C#-Host bauen (.NET-SDK 10 nötig; Ausgabe
 14. [x] Datenbanken: SQLite + PostgreSQL (PGlite) im Browser, SQL-Konsole, Welt als Datenbank, Datenbank-API in JS/TS/Python/Java/C#
 14b. [ ] ER-Modellierung (Diagramm zeichnen ⇒ Tabellen), MySQL-Dialekt
 15. [x] Diagramme: Struktogramm, Klassen- und Objektdiagramm aus dem Code, ER-Diagramm aus der Datenbank
-15. [x] Lernmodule: Einstieg E1–E3 (Welten aus 3×3-Platten, druckbar) + Grundkurs Klonk-Script (7 Module, 35 Aufgaben gesamt, automatische Prüfung, Cloud-Projekt je Modul, Freigabe je Gruppe, Lernstand)
-15b. [ ] Lernmodule für Python/Java (Objekte, Klassen)
+15. [x] Lernmodule: Einstieg E1–E3 (Welten aus 3×3-Platten, druckbar) + Grundkurs Klonk-Script (automatische Prüfung, Cloud-Projekt je Modul, Freigabe je Gruppe, Lernstand)
+15b. [x] Modulreihen (32 Module, 128 Aufgaben): E1–E13 (Einstieg, Grundkurs, Funktionen, mehrere Figuren, Muster, Algorithmen), F1–F8 (Python/Java/JS/TS/C#: Objekte, Klassen, Vererbung, Rekursion), S1–S7 (SQL), A1–A4 (Programm + Datenbank)

@@ -1,4 +1,4 @@
-import { LEARN_MODULES, learnProjectName, moduleLabel, moduleProjectFiles, parseManifest, LEARN_MANIFEST, type LearnModule, type LearnStatus, type LearnStorage } from '@klonk/learn'
+import { LEARN_MODULES, learnProjectName, moduleProjectFiles, parseManifest, LEARN_MANIFEST, TRACK_LANGUAGES, type LearnLanguage, type LearnModule, type LearnStatus, type LearnStorage } from '@klonk/learn'
 import { CloudProject, openCloudProject, type CloudProjectMeta } from '~/utils/cloud-project'
 import { createFolderProject, ensurePermission, listBrowserProjects, loadHandle, openBrowserProject, Project, storeHandle, supportsBrowserProjects, supportsFolders } from '~/utils/project-fs'
 
@@ -42,8 +42,8 @@ export function useLearn() {
   }
   const handleKey = (moduleId: string) => `learn:${user.value?.id ?? 'anonymous'}:${moduleId}`
 
-  /** Module, die das Konto starten darf (in Kursreihenfolge) */
-  const modules = computed(() => LEARN_MODULES.filter(m => status.value?.modules.includes(m.id)))
+  /** Module, die das Konto starten darf (in Kursreihenfolge, nur mit Aufgaben) */
+  const modules = computed(() => LEARN_MODULES.filter(m => m.tasks.length && status.value?.modules.includes(m.id)))
 
   /** Erlaubte Speicherorte beim Start; `supported` = dieser Browser kann es */
   function storages(moduleId: string): { value: LearnStorage, supported: boolean }[] {
@@ -128,12 +128,13 @@ export function useLearn() {
   async function start(moduleId: string, lang: 'de' | 'en', storage: LearnStorage) {
     const module = LEARN_MODULES.find(m => m.id === moduleId)
     if (!module) throw new Error('learn_not_found')
+    const language = startLanguage(module)
     if (storage === 'cloud') {
-      await $fetch(`/api/learn/modules/${moduleId}/start` as string, { method: 'POST', headers: clientHostHeaders(), body: { lang } })
+      await $fetch(`/api/learn/modules/${moduleId}/start` as string, { method: 'POST', headers: clientHostHeaders(), body: { lang, language } })
       await refresh()
       return
     }
-    const base = learnProjectName(module, moduleLabel(module), lang)
+    const base = learnProjectName(module, lang)
     let project: Project | null
     if (storage === 'folder') {
       project = await createFolderProject(base)
@@ -151,7 +152,6 @@ export function useLearn() {
       }
       project = await openBrowserProject(name, true)
     }
-    const language = status.value?.languages[moduleId]?.[0] ?? 'blocks'
     const { folders, files } = moduleProjectFiles(module, lang, language)
     if (!(await project.exists(LEARN_MANIFEST))) {
       for (const folder of folders) await project.createFolder(folder).catch(() => {})
@@ -163,6 +163,19 @@ export function useLearn() {
       [moduleId]: { storage, name: project.name, solved: Object.keys(manifest.solved), updatedAt: new Date().toISOString() },
     }
     saveLocals()
+  }
+
+  /** Sprache der Programme beim Start: zuletzt gewählte Programmiersprache (Reihen F und A), sonst die erste erlaubte */
+  function startLanguage(module: LearnModule): LearnLanguage {
+    const allowed = status.value?.languages[module.id] ?? TRACK_LANGUAGES[module.track]
+    let preferred: string | null = null
+    try {
+      preferred = localStorage.getItem('klonk:learn-language')
+    }
+    catch {
+      // kein Speicher (privater Modus)
+    }
+    return allowed.find(l => l === preferred) ?? allowed[0] ?? TRACK_LANGUAGES[module.track][0]!
   }
 
   /** Lokal gemerktes Modul vergessen (Projekt gelöscht) */

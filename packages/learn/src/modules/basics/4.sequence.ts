@@ -1,8 +1,9 @@
-import { map } from '../map'
-import type { LearnModule } from '../types'
+import { map } from '../../map'
+import type { LearnModule } from '../../types'
 
 export const sequence: LearnModule = {
   id: 'sequence',
+  track: 'basics',
   title: { de: 'Erste Schritte: Anweisungen', en: 'First steps: instructions' },
   summary: {
     de: 'Klonk mit einzelnen Befehlen steuern – eine Anweisung nach der anderen.',

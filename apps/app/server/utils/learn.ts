@@ -1,6 +1,6 @@
 import type { H3Event } from 'h3'
 import { and, asc, eq, inArray, isNotNull, sql } from 'drizzle-orm'
-import { choiceLanguages, findModule, LEARN_LANGUAGES, LEARN_MODULES, LEARN_STORAGES, learnProjectName, learnStorages, moduleLabel, moduleProjectFiles, progressFromFiles, type LearnGroupProgress, type LearnLanguage, type LearnLanguageChoice, type LearnModuleProgress, type LearnStatus, type LearnStorage, type TeachingOverview, type TeachingProgress } from '@klonk/learn'
+import { choiceLanguages, findModule, LEARN_MODULES, LEARN_STORAGES, learnProjectName, learnStorages, moduleProjectFiles, progressFromFiles, TRACK_LANGUAGES, type LearnGroupProgress, type LearnLanguage, type LearnLanguageChoice, type LearnModuleProgress, type LearnStatus, type LearnStorage, type TeachingOverview, type TeachingProgress } from '@klonk/learn'
 
 type Tx = Parameters<Parameters<typeof withUserDb>[1]>[0]
 const { cloudFiles, cloudProjects, groupLearnModules, groupMembers, groups, organizations, users } = schema
@@ -41,13 +41,13 @@ async function organizationStorage(tx: Tx, organizationId: string | null | undef
 type Allowed = { languages: LearnLanguage[], storage: LearnStorage[] }
 
 /**
- * Startbare Module mit erlaubten Sprachen und Speicherorten: Privatkonten und Lehrkräfte/Admins alle mit beiden Sprachen
- * und den Orten der Organisation, Lernende einer Organisation nur in einer ihrer Gruppen freigegebene (Sprachen und Orte
+ * Startbare Module mit erlaubten Sprachen und Speicherorten: Privatkonten und Lehrkräfte/Admins alle mit allen Sprachen
+ * der Reihe und den Orten der Organisation, Lernende einer Organisation nur in einer ihrer Gruppen freigegebene (Sprachen und Orte
  * aller Freigaben zusammen, Orte nie über die Organisation hinaus)
  */
 async function allowedModules(tx: Tx, user: SessionUser) {
   const orgStorage = await organizationStorage(tx, user.organizationId)
-  const all = new Map<string, Allowed>(LEARN_MODULES.map(m => [m.id, { languages: [...LEARN_LANGUAGES], storage: orgStorage }]))
+  const all = new Map<string, Allowed>(LEARN_MODULES.map(m => [m.id, { languages: [...TRACK_LANGUAGES[m.track]], storage: orgStorage }]))
   if (!user.organizationId || user.role !== 'member') return all
   const rows = await tx.select({ moduleId: groupLearnModules.moduleId, languages: groupLearnModules.languages, storage: groups.learnStorage }).from(groupLearnModules)
     .innerJoin(groupMembers, eq(groupMembers.groupId, groupLearnModules.groupId))
@@ -57,9 +57,9 @@ async function allowedModules(tx: Tx, user: SessionUser) {
   for (const module of LEARN_MODULES) {
     const releases = rows.filter(r => r.moduleId === module.id)
     if (!releases.length) continue
-    const choices = releases.flatMap(r => choiceLanguages(r.languages))
+    const choices = releases.flatMap(r => choiceLanguages(r.languages, module.track))
     allowed.set(module.id, {
-      languages: LEARN_LANGUAGES.filter(l => choices.includes(l)),
+      languages: TRACK_LANGUAGES[module.track].filter(l => choices.includes(l)),
       storage: orgStorage.filter(s => releases.some(r => (r.storage ?? orgStorage).includes(s))),
     })
   }
@@ -102,10 +102,13 @@ export async function learnStatus(user: SessionUser, event: H3Event): Promise<Le
   })
 }
 
-/** Modul in der Cloud starten: eigenes Cloud-Projekt anlegen (oder das schon begonnene liefern); lokal legt der Browser es an */
-export async function startLearnModule(user: SessionUser, moduleId: string, lang: 'de' | 'en') {
-  const module = LEARN_MODULES.find(m => m.id === moduleId)
-  if (!module) throw createError({ statusCode: 404, message: 'learn_not_found' })
+/**
+ * Modul in der Cloud starten: eigenes Cloud-Projekt anlegen (oder das schon begonnene liefern); lokal legt der Browser es an.
+ * `language` = gewünschte Sprache der Programme (sonst die erste erlaubte).
+ */
+export async function startLearnModule(user: SessionUser, moduleId: string, lang: 'de' | 'en', language?: LearnLanguage) {
+  const index = LEARN_MODULES.findIndex(m => m.id === moduleId)
+  if (index < 0) throw createError({ statusCode: 404, message: 'learn_not_found' })
   return withUserDb(user.id, async (tx) => {
     const [started] = await tx.select().from(cloudProjects)
       .where(and(eq(cloudProjects.ownerId, user.id), eq(cloudProjects.learnModule, moduleId)))
@@ -116,10 +119,12 @@ export async function startLearnModule(user: SessionUser, moduleId: string, lang
     const allowed = (await allowedModules(tx, user)).get(moduleId)
     if (!allowed?.storage.includes('cloud')) throw createError({ statusCode: 403, message: 'learn_storage' })
 
-    // Je Aufgabe ein Ordner mit Aufgabentext, Welt(en) und Programm in der ersten erlaubten Sprache
-    const { folders, files } = moduleProjectFiles(module, lang, allowed.languages[0] ?? 'blocks')
+    // Je Aufgabe ein Ordner mit Aufgabentext, Welt(en), Datenbanken und Programm in der gewünschten bzw. ersten erlaubten Sprache
+    const module = LEARN_MODULES[index]!
+    const first = language && allowed.languages.includes(language) ? language : allowed.languages[0] ?? TRACK_LANGUAGES[module.track][0]!
+    const { folders, files } = moduleProjectFiles(module, lang, first)
     return createCloudProject(tx, user, {
-      name: learnProjectName(module, moduleLabel(module), lang),
+      name: learnProjectName(module, lang),
       learnModule: moduleId,
       unique: true,
       folders,
@@ -133,7 +138,12 @@ export async function startLearnModule(user: SessionUser, moduleId: string, lang
  * Organisation) – Gruppenleitung; RLS prüft
  */
 export async function setGroupLearnModules(user: SessionUser, groupId: string, modules: { id: string, languages: LearnLanguageChoice }[], storage?: LearnStorage[] | null) {
-  const valid = modules.filter(m => findModule(m.id))
+  // Vorgabe muss zur Reihe passen (sonst alle Sprachen der Reihe)
+  const valid = modules.flatMap((m) => {
+    const module = findModule(m.id)
+    if (!module) return []
+    return [{ id: m.id, languages: m.languages !== 'both' && TRACK_LANGUAGES[module.track].includes(m.languages) && TRACK_LANGUAGES[module.track].length > 1 ? m.languages : 'both' as const }]
+  })
   return withUserDb(user.id, async (tx) => {
     const [lead] = await tx.execute<{ ok: boolean }>(sql`select klonk.leads_group(${groupId}) as ok`)
     if (!lead?.ok) throw createError({ statusCode: 403, message: 'forbidden' })

@@ -1,8 +1,9 @@
-import { map } from '../map'
-import type { LearnModule } from '../types'
+import { map } from '../../map'
+import type { LearnModule } from '../../types'
 
 export const variables: LearnModule = {
   id: 'variables',
+  track: 'basics',
   title: { de: 'Variablen und Zählen', en: 'Variables and counting' },
   summary: {
     de: 'Sich Werte merken, mitzählen und Ergebnisse ausgeben.',

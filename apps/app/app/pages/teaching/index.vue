@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { formatModuleNumbers } from '@klonk/learn'
+import { formatModuleCodes } from '@klonk/learn'
 
 // Unterricht: Jahrgangsstufen der Schulform mit den eigenen Klassen und den laut Lehrplan passenden Lernmodulen.
 // Ohne Schulform (oder in Unternehmen) stehen alle geleiteten Gruppen direkt auf der Seite.
@@ -113,7 +113,7 @@ const missingSchoolForm = computed(() => !!teaching.school.value && !teaching.st
               name="i-lucide-book-open"
               class="me-1 size-3.5 align-[-2px]"
             />
-            {{ card.recommended.length ? t('teaching.recommended', { modules: formatModuleNumbers(card.recommended) }) : t('teaching.noRecommendation') }}
+            {{ card.recommended.length ? t('teaching.recommended', { modules: formatModuleCodes(card.recommended) }) : t('teaching.noRecommendation') }}
           </p>
         </NuxtLink>
       </div>

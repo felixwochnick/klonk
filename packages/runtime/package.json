@@ -27,6 +27,7 @@
     "sucrase": "^3.35.1"
   },
   "devDependencies": {
+    "@klonk/learn": "workspace:*",
     "@nuxt/eslint-config": "^1.17.0",
     "@types/node": "^22.20.5",
     "eslint": "^10.14.0",

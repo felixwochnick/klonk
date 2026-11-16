@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { findModule, moduleLabel, type LearnStorage } from '@klonk/learn'
+import { findModule, isCodeLanguage, moduleCode, TRACK_LANGUAGES, type CodeLanguage, type LearnStorage } from '@klonk/learn'
 
 const { t, locale } = useI18n()
 const route = useRoute()
@@ -7,7 +7,31 @@ const learn = useLearn()
 const lang = computed(() => (locale.value === 'en' ? 'en' : 'de'))
 
 const module = computed(() => findModule(String(route.params.module)))
-const label = computed(() => module.value ? moduleLabel(module.value) : '')
+// Vorausgesetzte Module (auch aus anderen Reihen)
+const prerequisites = computed(() => (module.value?.prerequisites ?? []).map(id => findModule(id)).filter(m => !!m))
+
+// Reihen F und A: Beispiele in der zuletzt gewählten bzw. erlaubten Programmiersprache
+const PREFERRED_KEY = 'klonk:learn-language'
+const codeLanguages = computed(() => (module.value ? (learn.status.value?.languages[module.value.id] ?? TRACK_LANGUAGES[module.value.track]).filter(isCodeLanguage) : []))
+const exampleLanguage = ref<CodeLanguage | null>(null)
+watch(codeLanguages, (allowed) => {
+  let stored: string | null = null
+  try {
+    stored = localStorage.getItem(PREFERRED_KEY)
+  }
+  catch {
+    // kein Speicher (privater Modus)
+  }
+  exampleLanguage.value = allowed.find(l => l === (exampleLanguage.value ?? stored)) ?? allowed[0] ?? null
+}, { immediate: import.meta.client })
+watch(exampleLanguage, (value) => {
+  try {
+    if (value) localStorage.setItem(PREFERRED_KEY, value)
+  }
+  catch {
+    // kein Speicher (privater Modus)
+  }
+})
 // Lernende einer Organisation: nur freigegebene Module; ohne erlaubten (bzw. hier möglichen) Speicherort keine
 const locked = computed(() => !!module.value && !!learn.status.value && !learn.canStart(module.value.id))
 const lockedReason = computed(() => (module.value && learn.status.value?.modules.includes(module.value.id) ? t('learn.noStorage') : t('learn.notEnabled')))
@@ -84,11 +108,27 @@ const STORAGE_ICON: Record<LearnStorage, string> = { cloud: 'i-lucide-cloud', br
     >
       <article class="max-w-3xl">
         <p class="text-xs font-semibold uppercase tracking-wide text-(--ui-text-muted)">
-          {{ t('learn.moduleNumber', { n: label }) }}
+          {{ t('learn.moduleCode', { code: moduleCode(module.id) }) }} · {{ t(`learn.tracks.${module.track}.title`) }}
         </p>
         <h1 class="mt-1 text-2xl font-bold">
           {{ module.title[lang] }}
         </h1>
+        <p
+          v-if="prerequisites.length"
+          class="mt-2 flex flex-wrap items-center gap-1 text-sm text-(--ui-text-muted)"
+          data-testid="learn-prerequisites"
+        >
+          {{ t('learn.prerequisites') }}
+          <UButton
+            v-for="item in prerequisites"
+            :key="item.id"
+            :to="`/learn/${item.id}`"
+            size="xs"
+            variant="soft"
+            color="neutral"
+            :label="`${moduleCode(item.id)} ${item.title[lang]}`"
+          />
+        </p>
 
         <h2 class="mb-2 mt-6 font-semibold">
           {{ t('learn.objectives') }}
@@ -102,10 +142,25 @@ const STORAGE_ICON: Record<LearnStorage, string> = { cloud: 'i-lucide-cloud', br
           </li>
         </ul>
 
-        <h2 class="mb-2 mt-6 font-semibold">
-          {{ t('learn.introduction') }}
-        </h2>
-        <LearnText :text="module.intro[lang]" />
+        <div class="mb-2 mt-6 flex flex-wrap items-center justify-between gap-2">
+          <h2 class="font-semibold">
+            {{ t('learn.introduction') }}
+          </h2>
+          <USelect
+            v-if="codeLanguages.length > 1 && exampleLanguage"
+            v-model="exampleLanguage"
+            :items="codeLanguages.map(value => ({ label: t(`editor.languages.${value}`), value }))"
+            icon="i-lucide-file-code"
+            size="sm"
+            class="w-40"
+            :aria-label="t('learn.exampleLanguage')"
+            data-testid="learn-example-language"
+          />
+        </div>
+        <LearnText
+          :text="module.intro[lang]"
+          :language="exampleLanguage"
+        />
 
         <UCard
           v-if="isTeacher"

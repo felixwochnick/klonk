@@ -1,15 +1,17 @@
-import { map } from '../map'
-import type { LearnModule } from '../types'
+import { map } from '../../map'
+import type { LearnModule } from '../../types'
 
 /** Einstieg: Ziegelstapel nach Bauplan (Würfelgebäude, Grundschule 3/4) – alle Welten 3×3 */
 export const building: LearnModule = {
   id: 'building',
-  track: 'start',
+  track: 'basics',
+  printable: true,
   title: { de: 'Bauen nach Bauplan', en: 'Building from a plan' },
   summary: {
     de: 'Türme, Treppen und Mauern bauen – genau so, wie es der Bauplan zeigt.',
     en: 'Build towers, stairs and walls – exactly as the building plan shows.',
   },
+  prerequisites: ['paths'],
   objectives: [
     { de: 'Einen Bauplan (Draufsicht mit Zahlen) lesen und als Befehlsfolge umsetzen', en: 'Read a building plan (top view with numbers) and turn it into a sequence of commands' },
     { de: 'Mit `hinlegen` und `aufheben` Ziegel stapeln und abbauen', en: 'Stack and remove bricks with `placeBrick` and `pickBrick`' },

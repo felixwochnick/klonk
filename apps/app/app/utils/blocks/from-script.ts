@@ -38,12 +38,18 @@ export function scriptToBlocks(source: string): object {
   const callState = (name: string) => ({ name, params: procedures.get(name)?.params ?? [] })
   const argInputs = (args: Expression[]) => Object.fromEntries(args.map((a, i) => [`ARG${i}`, { block: expression(a) }]))
 
+  /** Ergibt der Ausdruck sicher Text? (Textliteral oder Verkettung mit Text) */
+  const isText = (e: Expression): boolean => e.type === 'String' || (e.type === 'Binary' && e.operator === '+' && (isText(e.left) || isText(e.right)))
+
   function expression(e: Expression): Block {
     switch (e.type) {
       case 'Number': return { type: 'math_number', fields: { NUM: e.value } }
       case 'String': return { type: 'text', fields: { TEXT: e.value } }
       case 'Boolean': return { type: 'logic_boolean', fields: { BOOL: e.value ? 'TRUE' : 'FALSE' } }
-      case 'Variable': return { type: 'variables_get', fields: { VAR: { id: variableId(e.name) } } }
+      // Eigene Funktion ohne Klammern (so schreibt sie auch der Generator: `wiederhole bis istFrei`)
+      case 'Variable':
+        if (procedures.has(e.name)) return { type: 'procedures_callreturn', extraState: callState(e.name) }
+        return { type: 'variables_get', fields: { VAR: { id: variableId(e.name) } } }
       case 'Builtin':
         if (e.name === 'isWall') return { type: 'klonk_is_wall' }
         if (e.name === 'isBrick') return { type: 'klonk_is_brick', fields: { COLOR: 'any' } }
@@ -58,6 +64,8 @@ export function scriptToBlocks(source: string): object {
       case 'Binary':
         if (e.operator === 'and' || e.operator === 'or') return { type: 'logic_operation', fields: { OP: e.operator.toUpperCase() }, inputs: { A: { block: expression(e.left) }, B: { block: expression(e.right) } } }
         if (COMPARE[e.operator]) return { type: 'logic_compare', fields: { OP: COMPARE[e.operator] }, inputs: { A: { block: expression(e.left) }, B: { block: expression(e.right) } } }
+        // Text + … ⇒ Text verbinden (klonk_arithmetic rechnet nur mit Zahlen)
+        if (e.operator === '+' && (isText(e.left) || isText(e.right))) return { type: 'klonk_join', inputs: { A: { block: expression(e.left) }, B: { block: expression(e.right) } } }
         if (ARITHMETIC.has(e.operator)) return { type: 'klonk_arithmetic', fields: { OP: e.operator }, inputs: { A: { block: expression(e.left) }, B: { block: expression(e.right) } } }
         throw new BlocksConversionError(e.operator, e.range.line)
       case 'Call':

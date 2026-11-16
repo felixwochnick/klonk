@@ -28,13 +28,15 @@ let lastSaved = ''
 const BREAKPOINT = 'breakpoint'
 
 async function load() {
-  const [core, , de, en] = await Promise.all([
+  const [core, blocks, de, en] = await Promise.all([
     import('blockly/core'),
     import('blockly/blocks'),
     import('blockly/msg/de'),
     import('blockly/msg/en'),
   ])
   Blockly = core
+  // abbrechen/weiter gelten auch in den Klonk-Schleifen (sonst deaktiviert Blockly sie als „nicht in einer Schleife“)
+  for (const type of ['klonk_repeat_times', 'klonk_repeat_while', 'klonk_repeat_forever']) (blocks.loops.loopTypes as Set<string>).add(type)
   return { de, en }
 }
 

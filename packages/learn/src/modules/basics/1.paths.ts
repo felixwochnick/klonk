@@ -1,10 +1,11 @@
-import { map } from '../map'
-import type { LearnModule } from '../types'
+import { map } from '../../map'
+import type { LearnModule } from '../../types'
 
 /** Einstieg (Grundschule, Förderschule): Wege auf einer 3×3-Platte – alle Welten lassen sich drucken und nachbauen */
 export const paths: LearnModule = {
   id: 'paths',
-  track: 'start',
+  track: 'basics',
+  printable: true,
   title: { de: 'Wege finden', en: 'Finding the way' },
   summary: {
     de: 'Klonk Schritt für Schritt zum Ziel führen – links, rechts und geradeaus.',

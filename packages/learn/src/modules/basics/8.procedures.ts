@@ -1,8 +1,9 @@
-import { map } from '../map'
-import type { LearnModule } from '../types'
+import { map } from '../../map'
+import type { LearnModule } from '../../types'
 
 export const procedures: LearnModule = {
   id: 'procedures',
+  track: 'basics',
   title: { de: 'Eigene Anweisungen', en: 'Your own procedures' },
   summary: {
     de: 'Klonk neue Befehle beibringen und Programme in Teile zerlegen.',

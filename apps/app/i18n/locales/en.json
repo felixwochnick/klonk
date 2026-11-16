@@ -142,7 +142,8 @@
       "blocks": "Blocks",
       "python": "Python",
       "java": "Java",
-      "csharp": "C#"
+      "csharp": "C#",
+      "sql": "SQL"
     },
     "language": "Programming language",
     "resizeProject": "Resize project",
@@ -584,8 +585,7 @@
   },
   "learn": {
     "title": "Learning modules",
-    "intro": "Klonk-Script basics: step by step from the first command to variables. Each module explains a new topic and has tasks that Klonk checks automatically – with blocks or Klonk-Script. A started module is saved as a project in your Klonk Cloud.",
-    "moduleNumber": "Module {n}",
+    "intro": "Learn to program step by step – in four tracks: E (Easy) with blocks and Klonk-Script, F (Advanced) in Python, Java, JavaScript, TypeScript or C#, S with SQL databases and A (Applications), where programs work with databases. Each module explains a new topic and has tasks that Klonk checks automatically.",
     "progress": "{solved} of {total} tasks solved",
     "start": "Start",
     "continue": "Continue",
@@ -599,7 +599,7 @@
     "showTask": "Show task",
     "hideTask": "Hide task",
     "taskNumber": "Task {n} of {total}",
-    "severalWorlds": "Your program is checked in {n} worlds – you can find them via the tabs above the world.",
+    "severalWorlds": "Your solution is checked in {n} worlds – you find them in the tabs above the world.",
     "hint": "Hint {n}",
     "showSolution": "Show sample solution",
     "hideSolution": "Hide sample solution",
@@ -620,23 +620,46 @@
       "repeatWhile": "a conditional loop (repeat while/until)",
       "if": "a branch (if … then)",
       "procedure": "a procedure of your own (procedure … end)",
+      "variable": "a variable (var)",
       "function": "a function with a return value (function … return … end)",
-      "variable": "a variable (var)"
+      "recursion": "recursion (a procedure, function or method that calls itself)",
+      "loop": "a loop (for or while)",
+      "method": "a function or method of your own",
+      "returnValue": "a function or method with a return value (return)",
+      "class": "a class of your own",
+      "inheritance": "inheritance (a class that extends a class of your own)",
+      "groupBy": "grouping (GROUP BY)",
+      "subquery": "a subquery (SELECT in parentheses)"
     },
     "check": {
       "button": "Check",
       "empty": "Write a program first.",
-      "solved": "Well done! Your program solves the task in all worlds.",
+      "solved": "Well done! Your solution solves the task in all worlds.",
       "syntax": "Your program contains an error: {message}",
       "missing": "The task requires {constructs}.",
-      "position": "In world {world} Klonk ends up on cell {x}{'|'}{y} – the goal is cell {expectedX}{'|'}{expectedY}.",
-      "direction": "In world {world} Klonk ends up facing {direction}, but should face {expected}.",
-      "cell": "In world {world} cell {x}{'|'}{y} looks different at the end than required. Compare with “Show goal”.",
-      "output": "In world {world} the output does not match: expected {expected}, printed {actual}.",
+      "position": "{where} {name} ends up on cell {x}{'|'}{y} – the goal is cell {expectedX}{'|'}{expectedY}.",
+      "direction": "{where} {name} ends up facing {direction}, but should face {expected}.",
+      "cell": "{where} cell {x}{'|'}{y} looks different at the end than required. Compare with “Show goal”.",
+      "output": "{where} the output does not match: expected {expected}, printed {actual}.",
       "nothing": "nothing",
-      "character_missing": "In world {world} Klonk no longer exists at the end.",
-      "error": "In world {world} the program stops: {message}",
-      "timeout": "In world {world} the program does not end – maybe an endless loop?"
+      "character_missing": "{where} the character {name} does not exist at the end.",
+      "error": "{where} the program stops: {message}",
+      "timeout": "{where} the program does not end – maybe an endless loop?",
+      "solvedData": "Well done! Your solution is right for all data sets.",
+      "no_result": "{where} your solution returns no result with columns – the last statement has to be a query (SELECT).",
+      "result_columns": "{where} your result has {actual} columns, {expected} are required.",
+      "result_rows": "{where} your result has {actual} rows, {expected} are required.",
+      "result_values": "{where} the result is not right: row {row} of the goal is missing in yours. Compare with “Show goal”.",
+      "result_order": "{where} the rows are right, but not their order – check the sorting.",
+      "table_missing": "{where} the table {table} is missing at the end.",
+      "table_rows": "{where} the table {table} has {actual} rows at the end, {expected} are required.",
+      "table_values": "{where} the content of the table {table} is not right at the end.",
+      "schema_column": "The table {table} needs the column {column}.",
+      "schema_extra": "The table {table} has one column too many: {column}.",
+      "schema_type": "The column {column} of the table {table} has the wrong data type – {expected} is required.",
+      "schema_key": "The primary key of the table {table} is not right – required: {columns}.",
+      "schema_foreign": "The table {table} lacks the foreign key {columns} referencing the table {target}.",
+      "schema_not_null": "In the table {table} the column {column} must not be empty – NOT NULL is missing."
     },
     "teacherNotes": "Notes for teachers",
     "storageHintGroup": "You choose where your programs and progress are stored when you start a module. If they are in the Klonk Cloud, your teacher sees your progress and programs in enabled modules.",
@@ -651,7 +674,7 @@
     "groupHint": "Solved tasks of the learners in the enabled modules. Click a task to see the program.",
     "refresh": "Refresh",
     "enableModules": "Enable modules",
-    "enableModulesHint": "Learners in this group can only start enabled modules. For each module you decide whether they work with blocks, Klonk-Script or both. You see their progress for all enabled modules.",
+    "enableModulesHint": "Learners in this group can only start enabled modules. For each module you decide which language is used – in track E blocks, Klonk-Script or both, in tracks F and A one particular programming language or free choice. You see their progress for all enabled modules.",
     "noMembers": "This group has no learners yet. Manage members in the administration under Groups.",
     "noEnabledModules": "Enable modules above to see the learning progress.",
     "overview": "Learning progress of the group",
@@ -673,7 +696,13 @@
     "languageChoice": {
       "both": "Blocks and Klonk-Script",
       "blocks": "Blocks only",
-      "klonk": "Klonk-Script only"
+      "klonk": "Klonk-Script only",
+      "python": "Python only",
+      "java": "Java only",
+      "javascript": "JavaScript only",
+      "typescript": "TypeScript only",
+      "csharp": "C# only",
+      "sql": "SQL"
     },
     "languageFor": "Language for {module}",
     "openInLearn": "Check in the learning view",
@@ -708,7 +737,46 @@
     "storageReset": "Organization default",
     "storageInherited": "Organization default",
     "manageInTeaching": "Enabling modules and your groups' progress are now under Teaching – ordered by grade and matched to the curriculum.",
-    "toTeaching": "Go to Teaching"
+    "toTeaching": "Go to Teaching",
+    "moduleCode": "Module {code}",
+    "prerequisites": "Builds on:",
+    "exampleLanguage": "Language of the examples",
+    "tracks": {
+      "basics": {
+        "title": "Easy: blocks and Klonk-Script",
+        "description": "The basics of programming with blocks or Klonk-Script – from the first instruction to functions, several characters and puzzles."
+      },
+      "advanced": {
+        "title": "Advanced: programming languages",
+        "description": "The same ideas in Python, Java, JavaScript, TypeScript or C# – plus methods, lists, your own classes, inheritance and recursion."
+      },
+      "sql": {
+        "title": "SQL: querying databases",
+        "description": "Query, change, join and create tables – first with the world as a database, then with databases of their own."
+      },
+      "apps": {
+        "title": "Applications: program and database",
+        "description": "Programs that read data from a database, store data and connect it with the world – builds on track F and SQL."
+      }
+    },
+    "dataset": "Data {n}",
+    "severalDatasets": "Your solution is checked with {n} different data sets – choose them with the tabs “Data 1”, “Data 2” … on the right.",
+    "inWorld": "In world {n}",
+    "inDataset": "With data {n}",
+    "views": {
+      "world": "World",
+      "database": "Database"
+    },
+    "loadingTables": "Loading tables …",
+    "goalResult": "Expected result",
+    "noResultYet": "No result yet – “Run” (Ctrl+Enter) shows it here.",
+    "expectedFailed": "The goal of this task could not be computed. Reload the page.",
+    "languageChoiceAll": {
+      "basics": "Blocks and Klonk-Script",
+      "advanced": "Free choice of language",
+      "sql": "SQL",
+      "apps": "Free choice of language"
+    }
   },
   "karol": {
     "import": "Import Robot Karol",

@@ -127,6 +127,13 @@
       "when": 1794405828915,
       "tag": "0017_school-structure",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1794851269297,
+      "tag": "0018_learn_track_languages",
+      "breakpoints": true
     }
   ]
 }

@@ -4,7 +4,7 @@ import { SqlError, lineAt, toSqlValue, type SqlEngine, type SqlForeignKey, type 
 let module: Promise<Sqlite3Static> | undefined
 
 /** sqlite-wasm einmal laden (Wasm liegt neben dem Modul, Vite liefert es von der eigenen Origin) */
-function sqlite() {
+export function sqlite() {
   // Ausgaben der Laufzeit (z. B. Hinweise zu OPFS) unterdrücken – wir nutzen nur Datenbanken im Speicher
   module ??= import('@sqlite.org/sqlite-wasm').then(m => (m.default as (options: object) => Promise<Sqlite3Static>)({ print: () => {}, printErr: () => {} }))
   return module

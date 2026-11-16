@@ -1,21 +1,39 @@
-import type { LearnModule, LearnTask } from './types'
+import { databaseSql } from './check'
+import { findModule, moduleCode } from './registry'
+import { CODE_LANGUAGES, localize, type CodeLanguage, type LearnModule, type LearnTask, type LearnTrack } from './types'
 
 /**
- * Lernmodule: jedes gestartete Modul ist ein eigenes Projekt (Projektart Klonk-Script & Blöcke) – in der Klonk Cloud,
- * im Browser oder in einem Ordner auf dem Rechner (`LearnStorage`).
- * Je Aufgabe ein Ordner, z. B. `1 Zur Marke/` mit `Aufgabe.md`, Startwelt(en) `Welt.klonkworld.json` und dem Programm
- * `Programm.blocks` bzw. `Programm.klonk`. Im Manifest `klonk.json` stehen die Ordner der Aufgaben und der Lernstand.
+ * Lernmodule: jedes gestartete Modul ist ein eigenes Projekt – in der Klonk Cloud, im Browser oder in einem Ordner auf
+ * dem Rechner (`LearnStorage`). Je Aufgabe ein Ordner, z. B. `1 Zur Marke/` mit `Aufgabe.md`, Startwelt(en)
+ * `Welt.klonkworld.json`, Datenbanken `<name>.sqlite.sql` und dem Programm (`Programm.blocks`, `Programm.py`, `Abfrage.sql` …).
+ * Im Manifest `klonk.json` stehen die Ordner der Aufgaben, die Sprache je Aufgabe und der Lernstand.
  */
 
 export const LEARN_MANIFEST = 'klonk.json'
 
-export type LearnLanguage = 'blocks' | 'klonk'
-export const LEARN_LANGUAGES: LearnLanguage[] = ['blocks', 'klonk']
+/** Sprachen, in denen Aufgaben gelöst werden */
+export type LearnLanguage = 'blocks' | 'klonk' | CodeLanguage | 'sql'
+/** Sprachen je Reihe: E Blöcke und Klonk-Script, F und A die Programmiersprachen, S SQL */
+export const TRACK_LANGUAGES: Record<LearnTrack, LearnLanguage[]> = {
+  basics: ['blocks', 'klonk'],
+  advanced: [...CODE_LANGUAGES],
+  sql: ['sql'],
+  apps: [...CODE_LANGUAGES],
+}
+export const ALL_LEARN_LANGUAGES: LearnLanguage[] = ['blocks', 'klonk', ...CODE_LANGUAGES, 'sql']
+/** Dateiendung des Programms je Sprache */
+export const LEARN_EXTENSIONS: Record<LearnLanguage, string> = { blocks: 'blocks', klonk: 'klonk', python: 'py', java: 'java', javascript: 'js', typescript: 'ts', csharp: 'cs', sql: 'sql' }
 
-/** Sprachvorgabe der Gruppenleitung je Modul */
+/** Sprachvorgabe der Gruppenleitung je Modul: `both` = alle Sprachen der Reihe (historischer Name aus Reihe E) */
 export type LearnLanguageChoice = 'both' | LearnLanguage
-export const LEARN_LANGUAGE_CHOICES: LearnLanguageChoice[] = ['both', 'blocks', 'klonk']
-export const choiceLanguages = (choice: LearnLanguageChoice): LearnLanguage[] => (choice === 'both' ? [...LEARN_LANGUAGES] : [choice])
+export const LEARN_LANGUAGE_CHOICES: LearnLanguageChoice[] = ['both', ...ALL_LEARN_LANGUAGES]
+/** Wählbare Vorgaben einer Reihe (SQL: nur eine Sprache ⇒ keine Wahl) */
+export const languageChoices = (track: LearnTrack): LearnLanguageChoice[] => (TRACK_LANGUAGES[track].length > 1 ? ['both', ...TRACK_LANGUAGES[track]] : ['both'])
+/** Sprachen einer Vorgabe; passt sie nicht zur Reihe, gelten alle Sprachen der Reihe */
+export function choiceLanguages(choice: LearnLanguageChoice, track: LearnTrack = 'basics'): LearnLanguage[] {
+  const all = TRACK_LANGUAGES[track]
+  return choice !== 'both' && all.includes(choice) ? [choice] : [...all]
+}
 
 /**
  * Speicherort eines Modulprojekts: Klonk Cloud (Lernstand für die Gruppenleitung, alle Geräte), Browser (OPFS) oder Ordner
@@ -54,32 +72,70 @@ export function parseManifest(text: string | null | undefined, moduleId: string)
   }
 }
 
-/** `klonk.json` des Modulprojekts: Projektart Klonk-Script & Blöcke plus Lernstand */
+/**
+ * `klonk.json` des Modulprojekts mit Lernstand. Reihe E ist ein Projekt der Art Klonk-Script & Blöcke, die übrigen sind
+ * gemischt (Sprache je Aufgabe wählbar).
+ */
 export function serializeManifest(manifest: LearnManifest) {
-  return `${JSON.stringify({ language: 'klonk', learn: manifest }, null, 2)}\n`
+  const track = findModule(manifest.module)?.track ?? 'basics'
+  return `${JSON.stringify({ ...(track === 'basics' ? { language: 'klonk' } : {}), learn: manifest }, null, 2)}\n`
 }
 
 /** Programmdatei einer Aufgabe (ohne Ordner-Eintrag im Manifest: alte Ablage im Projektordner) */
-export const taskFile = (manifest: LearnManifest, taskId: string, language: LearnLanguage) => `${manifest.tasks[taskId] ?? taskId}.${language}`
+export const taskFile = (manifest: LearnManifest, taskId: string, language: LearnLanguage) => `${manifest.tasks[taskId] ?? taskId}.${LEARN_EXTENSIONS[language]}`
 
 const LABELS = {
-  de: { module: 'Lernmodul', program: 'Programm', world: 'Welt', text: 'Aufgabe', hint: 'Tipp', check: 'Prüfen in Klonk unter **Lernen**.' },
-  en: { module: 'Learning module', program: 'Program', world: 'World', text: 'Task', hint: 'Hint', check: 'Check it in Klonk under **Learn**.' },
+  de: { module: 'Lernmodul', program: 'Programm', query: 'Abfrage', world: 'Welt', text: 'Aufgabe', hint: 'Tipp', check: 'Prüfen in Klonk unter **Lernen**.' },
+  en: { module: 'Learning module', program: 'Program', query: 'Query', world: 'World', text: 'Task', hint: 'Hint', check: 'Check it in Klonk under **Learn**.' },
 }
 
 /** Name ohne Zeichen, die in Cloud-Pfaden nicht erlaubt sind (`:` u. a.) */
 const safeName = (text: string) => text.replace(/:\s*/g, ' – ').replace(/[\\/*?"<>|]/g, '').trim()
 
-/** Name des Cloud-Projekts, z. B. „Lernmodul 1 – Erste Schritte – Anweisungen“ (`label` aus `moduleLabel`) */
-export function learnProjectName(module: LearnModule, label: string, lang: 'de' | 'en') {
-  return `${LABELS[lang].module} ${label} – ${safeName(module.title[lang])}`
+/** Name des Cloud-Projekts, z. B. „Lernmodul E4 – Erste Schritte – Anweisungen“ */
+export function learnProjectName(module: LearnModule, lang: 'de' | 'en') {
+  return `${LABELS[lang].module} ${moduleCode(module.id)} – ${safeName(module.title[lang])}`
 }
 
+/** Name des Programms im Aufgabenordner (ohne Endung) – in Java zugleich der Klassenname */
+export const programName = (track: LearnTrack, lang: 'de' | 'en') => (track === 'sql' ? LABELS[lang].query : LABELS[lang].program)
+
 /**
- * Ordner einer Aufgabe mit Aufgabentext, Startwelt(en) und (leerem) Programm in der ersten erlaubten Sprache.
- * Liefert den Programmpfad ohne Endung für das Manifest.
+ * Startinhalt des Programms: Klonk-Script, Blöcke und SQL leer, die Programmiersprachen mit Import und einer Figur
+ * (Reihe A zusätzlich mit der Datenbank-API). Ein Programm, das noch so aussieht, gilt als nicht begonnen.
  */
-export function taskFolderFiles(task: LearnTask, index: number, lang: 'de' | 'en', language: LearnLanguage) {
+export function starterSource(language: LearnLanguage, track: LearnTrack, lang: 'de' | 'en') {
+  const db = track === 'apps'
+  switch (language) {
+    case 'python':
+      return `from klonk import Klonk${db ? ', Database' : ''}\n\nklonk = Klonk()\n`
+    case 'javascript':
+    case 'typescript':
+      return `import { Klonk${db ? ', Database' : ''} } from 'klonk'\n\nconst klonk = new Klonk()\n`
+    case 'java':
+      return `import klonk.Klonk;
+${db ? 'import klonk.Database;\nimport klonk.Row;\n' : ''}
+public class ${programName(track, lang)} {
+    public static void main(String[] args) {
+        Klonk klonk = new Klonk();
+    }
+}
+`
+    case 'csharp':
+      return 'using klonk;\n\nvar klonk = new Klonk();\n'
+    default:
+      return ''
+  }
+}
+
+/** Datei einer Aufgabendatenbank (im IDE-Explorer als Projektdatenbank sichtbar) */
+export const databaseFile = (name: string) => `${name}.sqlite.sql`
+
+/**
+ * Ordner einer Aufgabe mit Aufgabentext, Startwelt(en), Datenbanken (Daten der ersten Startsituation) und dem Programm in
+ * der ersten erlaubten Sprache. Liefert den Programmpfad ohne Endung für das Manifest.
+ */
+export function taskFolderFiles(task: LearnTask, index: number, lang: 'de' | 'en', language: LearnLanguage, track: LearnTrack = 'basics') {
   const l = LABELS[lang]
   const folder = `${index + 1} ${safeName(task.title[lang])}`
   const text = [`# ${task.title[lang]}`, '', task.text[lang], '', ...(task.hints ?? []).map((h, i) => `> ${l.hint} ${i + 1}: ${h[lang]}`), '', l.check, ''].join('\n')
@@ -87,11 +143,20 @@ export function taskFolderFiles(task: LearnTask, index: number, lang: 'de' | 'en
     path: `${folder}/${task.worlds.length > 1 ? `${l.world} ${i + 1}` : l.world}.klonkworld.json`,
     content: `${JSON.stringify(world, null, 2)}\n`,
   }))
-  const program = `${folder}/${l.program}`
+  const databases = (task.databases ?? []).map(db => ({
+    path: `${folder}/${databaseFile(localize(db.name, lang))}`,
+    content: `${databaseSql(db, 0, lang).trim()}\n`,
+  }))
+  const program = `${folder}/${programName(track, lang)}`
   return {
     folder,
     program,
-    files: [{ path: `${folder}/${l.text}.md`, content: text }, ...worlds, { path: `${program}.${language}`, content: '' }],
+    files: [
+      { path: `${folder}/${l.text}.md`, content: text },
+      ...worlds,
+      ...databases,
+      { path: `${program}.${LEARN_EXTENSIONS[language]}`, content: starterSource(language, track, lang) },
+    ],
   }
 }
 
@@ -101,7 +166,7 @@ export function moduleProjectFiles(module: LearnModule, lang: 'de' | 'en', langu
   const folders: string[] = []
   const files: { path: string, content: string }[] = []
   module.tasks.forEach((task, i) => {
-    const entry = taskFolderFiles(task, i, lang, language)
+    const entry = taskFolderFiles(task, i, lang, language, module.track)
     manifest.tasks[task.id] = entry.program
     folders.push(entry.folder)
     files.push(...entry.files)
@@ -175,10 +240,20 @@ export type TeachingOverview = {
 /** GET /api/teaching/progress?level= – je Gruppe und freigegebenem Modul: gelöste Aufgaben aller Lernenden, begonnene Modulprojekte */
 export type TeachingProgress = Record<string, Record<string, { solved: number, started: number }>>
 
+const LANGS = ['de', 'en'] as const
+
 /** Lernstand aus den Dateien eines Modulprojekts (Server und Tests) */
 export function progressFromFiles(module: LearnModule, files: { path: string, content: string | null }[]): Pick<LearnModuleProgress, 'solved' | 'started'> {
   const manifest = parseManifest(files.find(f => f.path === LEARN_MANIFEST)?.content, module.id)
   const solved = module.tasks.filter(t => manifest.solved[t.id]).map(t => t.id)
-  const started = module.tasks.filter(t => files.some(f => LEARN_LANGUAGES.some(l => f.path === taskFile(manifest, t.id, l)) && !!f.content?.trim())).map(t => t.id)
+  // Begonnen = eigenes Programm in einer Sprache der Reihe (nicht leer, nicht nur die Startvorlage)
+  const begun = (content: string | null, language: LearnLanguage) => {
+    const text = content?.trim()
+    return !!text && LANGS.every(l => text !== starterSource(language, module.track, l).trim())
+  }
+  const started = module.tasks.filter(t => TRACK_LANGUAGES[module.track].some((language) => {
+    const path = taskFile(manifest, t.id, language)
+    return files.some(f => f.path === path && begun(f.content, language))
+  })).map(t => t.id)
   return { solved, started }
 }

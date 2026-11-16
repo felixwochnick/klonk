@@ -1,8 +1,9 @@
-import { map } from '../map'
-import type { LearnModule } from '../types'
+import { map } from '../../map'
+import type { LearnModule } from '../../types'
 
 export const conditions: LearnModule = {
   id: 'conditions',
+  track: 'basics',
   title: { de: 'Verzweigung', en: 'Branching' },
   summary: {
     de: 'Je nach Situation etwas anderes tun: wenn … dann … sonst.',

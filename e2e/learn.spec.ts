@@ -27,30 +27,32 @@ function api<T = unknown>(page: Page, url: string, method = 'GET', body?: unknow
 
 type Changes = { changes: { path: string, revision: number, content: string | null }[] }
 
+const EXTENSIONS = { klonk: 'klonk', blocks: 'blocks', javascript: 'js', python: 'py', java: 'java', csharp: 'cs', sql: 'sql' }
+
 /** Programm einer Aufgabe ins Modulprojekt schreiben (wie von den Lernenden gespeichert) */
-async function prepare(page: Page, module: string, task: string, language: 'klonk' | 'blocks', code: string) {
+async function prepare(page: Page, module: string, task: string, language: keyof typeof EXTENSIONS, code: string) {
   const { body: project } = await api<{ id: string }>(page, `/api/learn/modules/${module}/start`, 'POST', { lang: 'de' })
   const files = async () => (await api<Changes>(page, `/api/cloud/projects/${project.id}/changes?since=0`)).body.changes
   const revision = async (path: string) => (await files()).find(c => c.path === path)?.revision ?? 0
   const put = async (path: string, content: string) => expect((await api(page, `/api/cloud/projects/${project.id}/files`, 'PUT', { path, content, baseRevision: await revision(path) })).status).toBe(200)
   const manifest = JSON.parse((await files()).find(c => c.path === 'klonk.json')!.content!)
   // Programm liegt im Aufgabenordner, z. B. „1 Zur Marke/Programm.klonk“
-  await put(`${manifest.learn.tasks[task]}.${language}`, code)
+  await put(`${manifest.learn.tasks[task]}.${EXTENSIONS[language]}`, code)
   manifest.learn.languages[task] = language
   await put('klonk.json', JSON.stringify(manifest))
   return project.id
 }
 
-async function openTask(page: Page, path: string, editor: 'code-editor' | 'blocks-editor' = 'code-editor') {
+async function openTask(page: Page, path: string, editor: 'code-editor' | 'blocks-editor' = 'code-editor', world = true) {
   await gotoHydrated(page, `${APP_URL}/learn/${path}`)
   await expect(page.getByTestId(editor)).toHaveAttribute('data-ready', 'true', { timeout: 30_000 })
-  await expect(page.getByTestId('world-view')).toHaveAttribute('data-ready', 'true', { timeout: 15_000 })
+  if (world) await expect(page.getByTestId('world-view')).toHaveAttribute('data-ready', 'true', { timeout: 15_000 })
 }
 
 async function check(page: Page) {
   await page.getByTestId('learn-check').click()
   const result = page.getByTestId('learn-result')
-  await expect(result).toBeVisible({ timeout: 20_000 })
+  await expect(result).toBeVisible({ timeout: 60_000 })
   return result
 }
 
@@ -80,7 +82,7 @@ test('Freigabe, Lernen in der Cloud und Lernstand für die Gruppenleitung', asyn
   await teacher.getByTestId('learn-groups').getByRole('link', { name: 'Zum Unterricht' }).click()
   await teacher.getByTestId('teaching-group-9c').getByRole('link', { name: 'Lernstand und Freigabe' }).click()
   await expect(teacher.getByRole('heading', { level: 1 })).toHaveText('Lernstand – 9c')
-  await teacher.getByRole('switch', { name: '1. Erste Schritte: Anweisungen' }).click()
+  await teacher.getByRole('switch', { name: 'E4 Erste Schritte: Anweisungen' }).click()
   await expect(teacher.getByTestId('learn-cell-tom-sequence')).toHaveText('nicht begonnen')
   // Sprachvorgabe für dieses Modul: nur Klonk-Script
   await teacher.getByTestId('learn-languages-sequence').click()
@@ -108,7 +110,7 @@ test('Freigabe, Lernen in der Cloud und Lernstand für die Gruppenleitung', asyn
   // Lernstand liegt in der Cloud (Manifest wird im Hintergrund hochgeladen)
   await expect.poll(async () => (await api<{ projects: Record<string, { solved: string[] }> }>(student, '/api/learn')).body.projects.sequence?.solved, { timeout: 20_000 }).toEqual(['to-the-mark'])
   const projects = (await api<{ projects: { name: string, learnModule: string | null }[] }>(student, '/api/cloud')).body.projects
-  expect(projects.find(p => p.learnModule === 'sequence')?.name).toBe('Lernmodul 1 – Erste Schritte – Anweisungen')
+  expect(projects.find(p => p.learnModule === 'sequence')?.name).toBe('Lernmodul E4 – Erste Schritte – Anweisungen')
 
   // Lehrkraft sieht den Lernstand und öffnet das Programm (nur lesen)
   await teacher.getByRole('button', { name: 'Aktualisieren' }).click()
@@ -124,7 +126,7 @@ test('Freigabe, Lernen in der Cloud und Lernstand für die Gruppenleitung', asyn
 
   // Freigabe zurücknehmen ⇒ kein Zugriff mehr
   await teacher.getByRole('link', { name: 'Zurück zum Lernstand' }).click()
-  await teacher.getByRole('switch', { name: '1. Erste Schritte: Anweisungen' }).click()
+  await teacher.getByRole('switch', { name: 'E4 Erste Schritte: Anweisungen' }).click()
   await gotoHydrated(student, `${APP_URL}/learn`)
   await expect(student.getByTestId('learn-no-modules')).toBeVisible()
   await student.context().close()
@@ -137,7 +139,7 @@ test('Prüfung: Fehlermeldungen, mehrere Welten, Endlosschleifen', async ({ brow
   const page = await device(browser, APP_URL, TEACHER)
   await prepare(page, 'sequence', 'around-the-corner', 'klonk', 'schritt(2)')
   await openTask(page, 'sequence/around-the-corner')
-  await expect(await check(page)).toContainText('auf Feld 3|1 – das Ziel ist Feld 3|4')
+  await expect(await check(page)).toContainText('In Welt 1 steht Klonk am Ende auf Feld 3|1 – das Ziel ist Feld 3|4')
   await page.getByTestId('run').click()
   await expect(page.getByTestId('learn-run-result')).toHaveText('Ziel nicht erreicht', { timeout: 20_000 })
 
@@ -153,27 +155,6 @@ test('Prüfung: Fehlermeldungen, mehrere Welten, Endlosschleifen', async ({ brow
   await prepare(page, 'while', 'find-the-mark', 'klonk', 'wiederhole solange wahr\n  linksDrehen\nende')
   await openTask(page, 'while/find-the-mark')
   await expect(await check(page)).toContainText('endet das Programm nicht', { timeout: 20_000 })
-  await page.context().close()
-})
-
-test('Einstiegsmodule: eigene Nummerierung, Funktionen im Grundkurs', async ({ browser }) => {
-  test.setTimeout(120_000)
-  const page = await device(browser, APP_URL, TEACHER)
-  await gotoHydrated(page, `${APP_URL}/learn/paths`)
-  await expect(page.getByText('Modul E1', { exact: true })).toBeVisible()
-
-  await prepare(page, 'paths', 'turn', 'klonk', 'schritt\nschritt\nrechtsDrehen\nschritt\nschritt')
-  await openTask(page, 'paths/turn')
-  await expect(await check(page)).toHaveAttribute('data-status', 'solved')
-
-  // Projektname mit der Nummer des Einstiegs, nicht mit dem Index
-  const projects = (await api<{ projects: { name: string, learnModule: string | null }[] }>(page, '/api/cloud')).body.projects
-  expect(projects.find(p => p.learnModule === 'paths')?.name).toBe('Lernmodul E1 – Wege finden')
-
-  // Funktion verlangt: eine Lösung ohne `funktion` wird zurückgewiesen
-  await prepare(page, 'functions', 'distance', 'klonk', 'var n = 0\nwiederhole solange nicht istWand\n  schritt\n  n = n + 1\nende\nausgabe(n)')
-  await openTask(page, 'functions/distance')
-  await expect(await check(page)).toContainText('eine Funktion mit Rückgabewert')
   await page.context().close()
 })
 
@@ -205,7 +186,7 @@ test('Blöcke lösen eine Aufgabe, Hinweise für Lehrkräfte', async ({ browser 
 
   // Modulprojekt im Explorer: Programm einer Aufgabe öffnen ⇒ IDE mit der Welt aus dem Aufgabenordner
   await gotoHydrated(page, `${APP_URL}/projects`)
-  await page.getByTestId('cloud-project-Lernmodul 3 – Bedingte Wiederholung').click()
+  await page.getByTestId('cloud-project-Lernmodul E6 – Bedingte Wiederholung').click()
   await page.getByTestId('explorer-folder-2 Die Marke finden').click()
   await page.getByTestId('explorer-file-2 Die Marke finden/Programm.blocks').click()
   await expect(page.getByTestId('learn-task-hint')).toContainText('Aufgabe „Die Marke finden“ aus Bedingte Wiederholung')
@@ -213,6 +194,76 @@ test('Blöcke lösen eine Aufgabe, Hinweise für Lehrkräfte', async ({ browser 
   await expect(page.getByTestId('project-world')).toContainText('Welt 1')
   await page.getByTestId('learn-task-open').click()
   await expect(page).toHaveURL(/\/learn\/while\/find-the-mark$/)
+  await page.context().close()
+})
+
+test('Einstiegsmodule: Kürzel E1, Funktionen verlangt', async ({ browser }) => {
+  test.setTimeout(120_000)
+  const page = await device(browser, APP_URL, TEACHER)
+  await gotoHydrated(page, `${APP_URL}/learn/paths`)
+  await expect(page.getByText('Modul E1 ·')).toBeVisible()
+
+  await prepare(page, 'paths', 'turn', 'klonk', 'schritt\nschritt\nrechtsDrehen\nschritt\nschritt')
+  await openTask(page, 'paths/turn')
+  await expect(await check(page)).toHaveAttribute('data-status', 'solved')
+
+  // Projektname mit dem Kürzel, nicht mit dem Index
+  const projects = (await api<{ projects: { name: string, learnModule: string | null }[] }>(page, '/api/cloud')).body.projects
+  expect(projects.find(p => p.learnModule === 'paths')?.name).toBe('Lernmodul E1 – Wege finden')
+
+  // Funktion verlangt: eine Lösung ohne `funktion` wird zurückgewiesen
+  await prepare(page, 'functions', 'distance', 'klonk', 'var n = 0\nwiederhole solange nicht istWand\n  schritt\n  n = n + 1\nende\nausgabe(n)')
+  await openTask(page, 'functions/distance')
+  await expect(await check(page)).toContainText('eine Funktion mit Rückgabewert')
+  await page.context().close()
+})
+
+test('Programmiersprachen, SQL und Programme mit Datenbank', async ({ browser }) => {
+  test.setTimeout(300_000)
+  const page = await device(browser, APP_URL, TEACHER)
+
+  // F1 in JavaScript: Beispiele und Tipps in der gewählten Sprache, Prüfung im Worker
+  await gotoHydrated(page, `${APP_URL}/learn`)
+  await expect(page.getByTestId('learn-track-advanced')).toContainText('F1')
+  await prepare(page, 'code-start', 'while-wall', 'javascript', 'import { Klonk } from \'klonk\'\n\nconst klonk = new Klonk()\nklonk.step(4)\nklonk.setMark()\n')
+  await openTask(page, 'code-start/while-wall')
+  await expect(page.getByTestId('language')).toContainText('JavaScript')
+  await page.getByTestId('learn-hint-1').click()
+  await expect(page.getByText('Die bedingte Schleife heißt in allen Sprachen')).toBeVisible()
+  await expect(await check(page)).toContainText('Die Aufgabe verlangt eine Schleife')
+  await prepare(page, 'code-start', 'while-wall', 'javascript', 'import { Klonk } from \'klonk\'\n\nconst klonk = new Klonk()\nwhile (!klonk.isWall()) klonk.step()\nklonk.setMark()\n')
+  await openTask(page, 'code-start/while-wall')
+  await expect(await check(page)).toHaveAttribute('data-status', 'solved')
+  await page.getByTestId('run').click()
+  await expect(page.getByTestId('learn-run-result')).toHaveText('Ziel erreicht', { timeout: 30_000 })
+  await page.screenshot({ path: 'test-results/learn-code.png' })
+
+  // Python: Sprache wechseln ⇒ Startvorlage, Musterlösung in Python
+  await page.getByTestId('language').click()
+  await page.getByRole('option', { name: 'Python' }).click()
+  await expect(page.locator('.monaco-editor .view-lines')).toContainText('from klonk import Klonk')
+  await page.getByTestId('learn-show-solution').click()
+  await expect(page.getByTestId('learn-solution')).toContainText('while not klonk.is_wall():')
+
+  // S1: SQL auf der Welt-Datenbank – Ergebnis als Tabelle, Prüfung mit mehreren Welten
+  await prepare(page, 'sql-select', 'red-bricks', 'sql', 'SELECT x, y FROM ziegel WHERE farbe = \'rot\'')
+  await openTask(page, 'sql-select/red-bricks')
+  await expect(await check(page)).toContainText('hat dein Ergebnis 2 Spalten, verlangt sind 3')
+  await page.getByTestId('run').click()
+  await expect(page.getByTestId('sql-result').first()).toContainText('4 Zeilen')
+  await page.getByTestId('learn-view').getByRole('tab', { name: 'Datenbank' }).click()
+  await expect(page.getByTestId('learn-tables')).toContainText('ziegel')
+  await prepare(page, 'sql-select', 'red-bricks', 'sql', 'SELECT x, y, ebene FROM ziegel WHERE farbe = \'rot\'')
+  await openTask(page, 'sql-select/red-bricks')
+  await expect(await check(page)).toHaveAttribute('data-status', 'solved')
+  await page.screenshot({ path: 'test-results/learn-sql.png' })
+
+  // A1: Programm mit Datenbank (frische Kopie je Lauf, mehrere Datensätze)
+  await prepare(page, 'app-query', 'class-list', 'javascript', 'import { Database } from \'klonk\'\n\nconst db = Database.open(\'school\')\nfor (const row of db.query("SELECT name FROM students WHERE class_id = 1 ORDER BY name")) console.log(row.name)\n')
+  await openTask(page, 'app-query/class-list')
+  await page.getByTestId('run').click()
+  await expect(page.getByTestId('output')).toContainText('Ali\nBen\nLea\nMia', { timeout: 30_000 })
+  await expect(await check(page)).toContainText('Mit Daten 3')
   await page.context().close()
 })
 
@@ -243,7 +294,7 @@ test('Speicherorte: Organisation und Gruppe legen fest, Lernende speichern im Br
   const local = await student.evaluate(async () => {
     const root = await (await navigator.storage.getDirectory()).getDirectoryHandle('klonk-projects')
     for await (const [name] of root as unknown as AsyncIterable<[string]>) {
-      if (name.startsWith('Lernmodul 2')) return { name, manifest: await (await (await (await root.getDirectoryHandle(name)).getFileHandle('klonk.json')).getFile()).text() }
+      if (name.startsWith('Lernmodul E5')) return { name, manifest: await (await (await (await root.getDirectoryHandle(name)).getFileHandle('klonk.json')).getFile()).text() }
     }
     return null
   })
@@ -256,7 +307,7 @@ test('Speicherorte: Organisation und Gruppe legen fest, Lernende speichern im Br
   // Vorgabe der Organisation (Cloud oder Browser) ⇒ Lernende wählen beim Start
   await teacher.getByTestId('learn-storage-reset').click()
   await expect(settings.getByRole('checkbox', { name: 'Klonk Cloud' })).toBeChecked()
-  await teacher.getByRole('switch', { name: '4. Verzweigung' }).click()
+  await teacher.getByRole('switch', { name: 'E7 Verzweigung' }).click()
   await gotoHydrated(student, `${APP_URL}/learn/conditions`)
   await student.getByTestId('learn-start').click()
   await expect(student.getByTestId('learn-storage-choice')).toBeVisible()
