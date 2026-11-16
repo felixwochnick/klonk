@@ -48,6 +48,9 @@ describe('Lehrplan-Zuordnung', () => {
     // Förderschule (weitere Förderschwerpunkte) wie Mittelschule, zusammen mit dem Förderschwerpunkt Lernen
     expect(formatModuleCodes(recommendedModules('BY', 'mittelschule', '9'))).toBe('E8, E10, E13, F1–F3')
     expect(formatModuleCodes(recommendedModules('BY', 'foerderschule', '9'))).toBe('E1–E10, E13, F1–F3')
+    // M10: Datenbanken und eine Anwendung mit Datenbank, nicht an der Förderschule
+    expect(formatModuleCodes(recommendedModules('BY', 'mittelschule', '10'))).toBe('S1–S6, A1')
+    expect(recommendedModules('BY', 'foerderschule', '10')).toEqual([])
     // Grundschule und Förderschule beginnen mit dem Einstieg
     expect(recommendedModules('BY', 'grundschule', '3')).toEqual(['paths', 'building', 'patterns'])
     expect(recommendedModules('BY', 'grundschule', '1')).toEqual(['paths', 'patterns'])

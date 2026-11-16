@@ -84,6 +84,8 @@ export const CURRICULUM: CurriculumEntry[] = [
   ...MITTELSCHULE.map(({ grade, modules, note }): CurriculumEntry => ({
     state: 'BY', forms: ['mittelschule'], grades: [grade, grade], modules, note, docs: `${BY}/mittelschule/grade-${grade}`,
   })),
+  // M10: nur Mittlere-Reife-Klasse, Datenbanken und eine Anwendung mit Datenbank (Förderschule bleibt bei 5–9)
+  { state: 'BY', forms: ['mittelschule'], grades: [10, 10], modules: mods('S1-6', 'A1'), note: { de: 'Mittlere-Reife-Klasse', en: 'Mittlere-Reife class' }, docs: `${BY}/mittelschule/grade-10` },
   // Förderschule: Förderschwerpunkt Lernen eigener Lehrplan, übrige Förderschwerpunkte wie Mittelschule
   { state: 'BY', forms: ['foerderschule'], grades: [5, 9], modules: mods('E1-7', 'E9', 'E10'), note: { de: 'Förderschwerpunkt Lernen', en: 'special needs: learning' }, docs: `${BY}/foerderschule/lernen` },
   ...MITTELSCHULE.map(({ grade, modules, note }): CurriculumEntry => ({
