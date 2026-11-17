@@ -1,5 +1,6 @@
 import type { H3Event } from 'h3'
 import { and, asc, eq, gt, inArray, isNotNull, like, or, sql } from 'drizzle-orm'
+import { alias } from 'drizzle-orm/pg-core'
 import { cloudAssignments, cloudFiles, cloudProjects, groupMembers, groups, users } from '../database/schema'
 
 type Tx = Parameters<Parameters<typeof withUserDb>[1]>[0]
@@ -53,9 +54,27 @@ export async function cloudStatus(user: SessionUser, event: H3Event): Promise<Cl
   const enabled = await cloudEnabled(user, event)
   return withUserDb(user.id, async (tx) => {
     const own = await tx.select().from(cloudProjects).where(eq(cloudProjects.ownerId, user.id)).orderBy(asc(cloudProjects.name))
-    const memberships = await tx.select({ id: groups.id, name: groups.name, membersCanWrite: groups.membersCanWrite, role: groupMembers.role })
-      .from(groupMembers).innerJoin(groups, eq(groups.id, groupMembers.groupId))
+    const parent = alias(groups, 'parent')
+    const fields = {
+      id: groups.id,
+      name: groups.name,
+      membersCanWrite: groups.membersCanWrite,
+      parentId: groups.parentId,
+      parentName: parent.name,
+      collabMode: groups.collabMode,
+    }
+    const direct = await tx.select({ ...fields, role: groupMembers.role })
+      .from(groupMembers).innerJoin(groups, eq(groups.id, groupMembers.groupId)).leftJoin(parent, eq(parent.id, groups.parentId))
       .where(eq(groupMembers.userId, user.id)).orderBy(asc(groups.name))
+    // Untergruppen geleiteter Klassen – die Leitung verwaltet sie, ohne Mitglied zu sein
+    const led = direct.filter(g => g.role === 'leader' && !g.parentId).map(g => g.id)
+    const subgroups = led.length
+      ? await tx.select(fields).from(groups).innerJoin(parent, eq(parent.id, groups.parentId)).where(inArray(groups.parentId, led)).orderBy(asc(groups.name))
+      : []
+    const memberships = [
+      ...direct,
+      ...subgroups.filter(s => !direct.some(g => g.id === s.id)).map(s => ({ ...s, role: 'leader' as const })),
+    ]
     const groupIds = memberships.map(g => g.id)
     const shared = groupIds.length ? await tx.select().from(cloudProjects).where(inArray(cloudProjects.groupId, groupIds)) : []
     const assignments = groupIds.length
@@ -85,6 +104,9 @@ export async function cloudStatus(user: SessionUser, event: H3Event): Promise<Cl
           leader: g.role === 'leader',
           membersCanWrite: g.membersCanWrite,
           projectId: project?.id ?? null,
+          parentId: g.parentId,
+          parentName: g.parentName,
+          collabMode: g.collabMode,
           assignments: assignments.filter(a => a.groupId === g.id).map(a => ({
             id: a.id,
             path: a.path,

@@ -93,7 +93,11 @@
       "invalid_design": "Das Design ist ungültig ({reason}).",
       "unknown_design": "Es gibt kein Aussehen „{name}“ (männlich, weiblich, divers oder ein Design des Projekts – mit Lizenz).",
       "no_space": "Kein freies Feld mehr für eine neue Figur.",
-      "design_license": "Eigene Designs brauchen eine Lizenz."
+      "design_license": "Eigene Designs brauchen eine Lizenz.",
+      "live_not_owner": "„{id}“ gehört jemand anderem – in der gemeinsamen Welt steuerst du nur deine eigene Figur.",
+      "live_disconnected": "Die Verbindung zur gemeinsamen Welt ist abgebrochen.",
+      "live_reset": "Die gemeinsame Welt wurde zurückgesetzt.",
+      "live_invalid": "Diesen Befehl kennt die gemeinsame Welt nicht."
     },
     "names": "Namen der Figuren",
     "namesHelp": "Über diesen Namen sprechen Programme eine Figur an, z. B. new Klonk(\"Klara\").",
@@ -1077,6 +1081,72 @@
       "schemaHint": "Tabellen, deren Spalten, Typen und Schlüssel stimmen müssen (CREATE TABLE).",
       "requires": "Verlangte Bausteine",
       "requiresHint": "Das Programm muss diese Bausteine enthalten, sonst gilt die Aufgabe nicht als gelöst."
+    }
+  },
+  "live": {
+    "status": {
+      "connecting": "Verbinde …",
+      "online": "Verbunden",
+      "offline": "Keine Verbindung – neuer Versuch läuft",
+      "denied": "Kein Zugriff"
+    },
+    "modes": {
+      "project": {
+        "label": "Gemeinsames Projekt",
+        "description": "Alle bearbeiten ein Projekt gleichzeitig und sehen Änderungen und Cursor der anderen sofort."
+      },
+      "world": {
+        "label": "Gemeinsame Welt",
+        "description": "Alle programmieren im eigenen Projekt und steuern ihre eigene Figur – in derselben Welt."
+      }
+    },
+    "project": {
+      "title": "Gemeinsames Projekt",
+      "alone": "Gerade bist du allein hier.",
+      "inFile": "in {path}"
+    },
+    "world": {
+      "join": "Gemeinsame Welt",
+      "joinGroup": "Gemeinsame Welt von {name} betreten",
+      "title": "Gemeinsame Welt · {name}",
+      "you": "Du steuerst „{name}“",
+      "watching": "Du schaust zu",
+      "offline": "{name} (nicht verbunden)",
+      "reset": "Welt zurücksetzen",
+      "leave": "Verlassen",
+      "confirmReset": "Die gemeinsame Welt für alle auf die Startwelt zurücksetzen? Laufende Programme halten an.",
+      "resetBy": "{name} hat die gemeinsame Welt zurückgesetzt.",
+      "resetDone": "Die gemeinsame Welt wurde zurückgesetzt.",
+      "spectatorRun": "Du schaust nur zu. Programme laufen mit einer eigenen Figur – als Mitglied der Untergruppe.",
+      "notConnected": "Noch keine Verbindung zur gemeinsamen Welt."
+    },
+    "subgroups": {
+      "title": "Untergruppen",
+      "hint": "Teams aus dieser Klasse: entweder ein gemeinsames Projekt, das alle gleichzeitig bearbeiten, oder eine gemeinsame Welt, in der alle ihre eigene Figur programmieren.",
+      "create": "Neue Untergruppe",
+      "random": "Teams zufällig bilden",
+      "empty": "Noch keine Untergruppen.",
+      "edit": "{name} bearbeiten",
+      "delete": "{name} löschen",
+      "editTitle": "Untergruppe bearbeiten",
+      "name": "Name",
+      "mode": "Zusammenarbeit",
+      "language": "Sprache des Projekts",
+      "members": "Mitglieder",
+      "alsoIn": "schon in {name}",
+      "noLearners": "In der Klasse sind noch keine Lernenden.",
+      "noMembers": "Noch keine Mitglieder",
+      "teamName": "Team {n}",
+      "confirmDelete": "Untergruppe „{name}“ mit ihrem gemeinsamen Ordner löschen? Die eigenen Projekte der Mitglieder bleiben erhalten.",
+      "watch": "Welt ansehen",
+      "openProject": "Projekt öffnen",
+      "unassigned": "Ohne Untergruppe: {names}",
+      "cancel": "Abbrechen",
+      "save": "Speichern",
+      "teamSize": "Personen je Team",
+      "randomHint": "Verteilt die {count} Lernenden, die noch in keiner Untergruppe sind, zufällig auf Teams.",
+      "randomResult": "Anzahl Teams: {teams}",
+      "randomCreate": "Teams anlegen"
     }
   }
 }

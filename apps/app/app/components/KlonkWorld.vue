@@ -2,7 +2,8 @@
 import type { Position, World } from '@klonk/world'
 
 // 3D-Ansicht einer Welt; meldet Klicks auf Felder (für den Editor). Nur im Browser verwenden (<ClientOnly>).
-const props = withDefaults(defineProps<{ world: World, speed?: number, editable?: boolean, showNames?: boolean }>(), { speed: 350, editable: false, showNames: true })
+// `parallel`: gemeinsame Welt – Figuren mehrerer Personen bewegen sich gleichzeitig
+const props = withDefaults(defineProps<{ world: World, speed?: number, editable?: boolean, showNames?: boolean, parallel?: boolean }>(), { speed: 350, editable: false, showNames: true, parallel: false })
 const emit = defineEmits<{ cellClick: [position: Position, event: MouseEvent], ready: [] }>()
 
 const container = ref<HTMLDivElement>()
@@ -15,6 +16,7 @@ onMounted(async () => {
   renderer = new WorldRenderer(container.value!)
   renderer.speed = props.speed
   renderer.showNames = props.showNames
+  renderer.parallel = props.parallel
   renderer.dark = colorMode.value === 'dark'
   await renderer.setWorld(props.world)
   ready.value = true
@@ -32,6 +34,9 @@ watch(() => colorMode.value, (mode) => {
 })
 watch(() => props.speed, (speed) => {
   if (renderer) renderer.speed = speed
+})
+watch(() => props.parallel, (parallel) => {
+  if (renderer) renderer.parallel = parallel
 })
 
 // Klick vs. Kamera ziehen unterscheiden

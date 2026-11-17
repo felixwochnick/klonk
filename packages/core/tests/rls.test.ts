@@ -1,5 +1,5 @@
 import { fileURLToPath } from 'node:url'
-import { eq, sql } from 'drizzle-orm'
+import { and, eq, sql } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/postgres-js'
 import { migrate } from 'drizzle-orm/postgres-js/migrator'
 import postgres from 'postgres'
@@ -309,6 +309,49 @@ describe('RLS: Gruppen und Klonk Cloud', () => {
     // Abgabe nur zu Aufgaben der eigenen Gruppe; fremde Projekte nicht anlegen
     await expectDbError(as('outsider', tx => tx.insert(cloudProjects).values({ ownerId: ids.outsider!, name: 'A', assignmentId: assignment!.id })), /row-level security/)
     await expectDbError(as('outsider', tx => tx.insert(cloudProjects).values({ ownerId: ids.studentA!, name: 'B' })), /row-level security/)
+  })
+
+  it('Untergruppen: die Leitung der Klasse verwaltet sie, Mitglieder kommen nur aus der Klasse', async () => {
+    const [other] = await db.insert(users).values({ organizationId: ids.orgA!, username: 'teacher-sub', displayName: 'Lehrkraft A3', role: 'teacher' }).returning()
+    ids.teacherSub = other!.id
+    await as('teacherA', tx => tx.insert(groupMembers).values({ groupId: ids.group!, userId: ids.student2A!, role: 'member' }))
+    const [team] = await as('teacherA', tx => tx.insert(groups).values({ organizationId: ids.orgA!, name: 'Team 1', parentId: ids.group!, collabMode: 'project', membersCanWrite: true }).returning())
+    ids.team = team!.id
+    // Namen sind je Klasse eindeutig – eine Untergruppe darf wie eine Klasse heißen
+    const [world] = await as('teacherA', tx => tx.insert(groups).values({ organizationId: ids.orgA!, name: '7a', parentId: ids.group!, collabMode: 'world' }).returning())
+    // Nicht erlaubt: Lehrkraft ohne Leitung der Klasse, Lernende, Untergruppe einer Untergruppe, fehlender Modus
+    const sub = (name: string, parentId = ids.group!) => ({ organizationId: ids.orgA!, name, parentId, collabMode: 'world' as const })
+    await expectDbError(as('teacherSub', tx => tx.insert(groups).values(sub('Fremd'))), /row-level security/)
+    await expectDbError(as('studentA', tx => tx.insert(groups).values(sub('Eigen'))), /row-level security/)
+    await expectDbError(as('teacherA', tx => tx.insert(groups).values(sub('Tief', ids.team!))), /row-level security/)
+    await expectDbError(as('teacherA', tx => tx.insert(groups).values({ organizationId: ids.orgA!, name: 'Ohne', parentId: ids.group! })), /groups_collab_mode_check/)
+
+    // Mitglieder nur aus der Klasse; die Leitung der Klasse muss nicht selbst Mitglied sein
+    await as('teacherA', tx => tx.insert(groupMembers).values([{ groupId: ids.team!, userId: ids.studentA! }, { groupId: ids.team!, userId: ids.student2A! }]))
+    await expectDbError(as('teacherA', tx => tx.insert(groupMembers).values({ groupId: ids.team!, userId: ids.outsider! })), /row-level security/)
+    await expectDbError(as('teacherSub', tx => tx.insert(groupMembers).values({ groupId: ids.team!, userId: ids.teacherSub!, role: 'leader' })), /row-level security/)
+
+    // Gemeinsamer Ordner der Untergruppe: die Leitung der Klasse legt ihn an, Mitglieder schreiben darin
+    const [project] = await as('teacherA', tx => tx.insert(cloudProjects).values({ groupId: ids.team!, name: 'Team 1' }).returning())
+    await as('studentA', tx => tx.insert(cloudFiles).values({ projectId: project!.id, path: 'main.klonk', content: 'schritt', revision: 1 }))
+    const files = (who: string) => as(who, tx => tx.select({ path: cloudFiles.path }).from(cloudFiles).where(eq(cloudFiles.projectId, project!.id)))
+    expect(await files('student2A')).toEqual([{ path: 'main.klonk' }])
+    expect(await files('teacherA')).toEqual([{ path: 'main.klonk' }])
+    expect(await files('outsider')).toEqual([])
+
+    // Lernende sehen nur ihre eigenen Untergruppen (student2A ist inzwischen Lehrkraft, siehe oben)
+    const seen = (await as('studentA', tx => tx.select({ id: groups.id }).from(groups))).map(g => g.id)
+    expect(seen).toEqual(expect.arrayContaining([ids.group, ids.team]))
+    expect(seen).not.toContain(world!.id)
+    // Die Leitung der Klasse ändert die Untergruppe, aber nicht deren Klasse
+    expect(await as('teacherA', tx => tx.update(groups).set({ collabMode: 'world' }).where(eq(groups.id, ids.team!)).returning())).toHaveLength(1)
+    await expectDbError(as('teacherA', tx => tx.update(groups).set({ parentId: null, collabMode: null }).where(eq(groups.id, ids.team!))), /row-level security/)
+    expect(await as('teacherSub', tx => tx.update(groups).set({ collabMode: 'project' }).where(eq(groups.id, ids.team!)).returning())).toHaveLength(0)
+
+    // Wer die Klasse verlässt, verlässt auch ihre Untergruppen
+    await as('teacherA', tx => tx.delete(groupMembers).where(and(eq(groupMembers.groupId, ids.group!), eq(groupMembers.userId, ids.student2A!))))
+    expect(await db.select().from(groupMembers).where(and(eq(groupMembers.groupId, ids.team!), eq(groupMembers.userId, ids.student2A!)))).toEqual([])
+    expect(await files('student2A')).toEqual([])
   })
 })
 

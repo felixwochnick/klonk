@@ -38,6 +38,39 @@ export type CloudGroupInfo = {
   /** Gemeinsamer Ordner */
   projectId: string | null
   assignments: CloudAssignmentInfo[]
+  /** Untergruppe: Klasse, zu der sie gehört (`null` bei Klassen und anderen Gruppen) */
+  parentId: string | null
+  parentName: string | null
+  /** Untergruppe: gemeinsames Projekt oder gemeinsame Welt */
+  collabMode: CollabMode | null
+}
+
+/**
+ * Untergruppen (Teams) einer Klasse: `project` = ein gemeinsames Projekt, das alle gleichzeitig bearbeiten;
+ * `world` = jede:r arbeitet im eigenen Projekt, alle steuern ihre Figur in einer gemeinsamen Welt.
+ */
+export const COLLAB_MODES = ['project', 'world'] as const
+export type CollabMode = typeof COLLAB_MODES[number]
+
+export type SubgroupMember = { userId: string, displayName: string, username: string | null }
+
+export type SubgroupInfo = {
+  id: string
+  name: string
+  mode: CollabMode
+  /** Mitglieder dürfen im gemeinsamen Ordner schreiben */
+  membersCanWrite: boolean
+  /** Gemeinsamer Ordner (Projekt bzw. Startwelt) */
+  projectId: string | null
+  members: SubgroupMember[]
+}
+
+/** Klasse mit ihren Mitgliedern und Untergruppen (für die Leitung) */
+export type SubgroupsOverview = {
+  id: string
+  name: string
+  members: (SubgroupMember & { role: 'leader' | 'member' })[]
+  subgroups: SubgroupInfo[]
 }
 
 export type CloudStatus = {

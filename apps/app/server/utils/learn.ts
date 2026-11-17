@@ -1,5 +1,5 @@
 import type { H3Event } from 'h3'
-import { and, asc, eq, inArray, isNotNull, sql } from 'drizzle-orm'
+import { and, asc, eq, inArray, isNotNull, isNull, sql } from 'drizzle-orm'
 import { choiceLanguages, CUSTOM_MODULE_MAX_BYTES, customModule, customSummary, findModule, isCustomModuleId, LEARN_MODULES, LEARN_STORAGES, learnProjectName, learnStorages, moduleProjectFiles, parseCustomModule, progressFromFiles, TRACK_LANGUAGES, type CustomModuleData, type CustomModuleEntry, type LearnGroupProgress, type LearnLanguage, type LearnLanguageChoice, type LearnModule, type LearnModuleProgress, type LearnStatus, type LearnStorage, type TeachingOverview, type TeachingProgress } from '@klonk/learn'
 
 type Tx = Parameters<Parameters<typeof withUserDb>[1]>[0]
@@ -80,10 +80,10 @@ async function progressOf(tx: Tx, projects: { id: string, learnModule: string | 
   return result
 }
 
-/** Gruppen, die das Konto leitet (Gruppenleitung oder Admin der Organisation) */
+/** Gruppen, die das Konto leitet (Gruppenleitung oder Admin der Organisation) – ohne Untergruppen (Teams) */
 async function ledGroups(tx: Tx) {
   return tx.select({ id: groups.id, name: groups.name }).from(groups)
-    .where(sql`klonk.leads_group(${groups.id})`).orderBy(asc(groups.name))
+    .where(and(sql`klonk.leads_group(${groups.id})`, isNull(groups.parentId))).orderBy(asc(groups.name))
 }
 
 /** Speicherorte, die die Organisation für Lernmodule erlaubt (Privatkonten: alle) */
@@ -256,7 +256,7 @@ export async function teachingOverview(user: SessionUser): Promise<TeachingOverv
           .from(organizations).where(eq(organizations.id, user.organizationId))
       : []
     const led = await tx.select({ id: groups.id, name: groups.name, level: groups.level }).from(groups)
-      .where(sql`klonk.leads_group(${groups.id})`).orderBy(asc(groups.name))
+      .where(and(sql`klonk.leads_group(${groups.id})`, isNull(groups.parentId))).orderBy(asc(groups.name))
     const ids = led.map(g => g.id)
     const enabled = ids.length ? await tx.select().from(groupLearnModules).where(inArray(groupLearnModules.groupId, ids)) : []
     const custom = await customRows(tx, enabled.map(e => e.moduleId))
@@ -284,7 +284,7 @@ export async function teachingOverview(user: SessionUser): Promise<TeachingOverv
 export async function teachingProgress(user: SessionUser, level: string): Promise<TeachingProgress> {
   return withUserDb(user.id, async (tx) => {
     const led = await tx.select({ id: groups.id }).from(groups)
-      .where(and(sql`klonk.leads_group(${groups.id})`, level === 'all' ? undefined : level === 'none' ? sql`${groups.level} is null` : eq(groups.level, level)))
+      .where(and(sql`klonk.leads_group(${groups.id})`, isNull(groups.parentId), level === 'all' ? undefined : level === 'none' ? sql`${groups.level} is null` : eq(groups.level, level)))
     const ids = led.map(g => g.id)
     if (!ids.length) return {}
     const enabled = await tx.select({ groupId: groupLearnModules.groupId, moduleId: groupLearnModules.moduleId }).from(groupLearnModules)

@@ -13,7 +13,9 @@ per Code. Vorbild ist die Robot-App aus [felixwochnick/virtual-school](https://g
   (`gotoHydrated` in `e2e/utils.ts`). Die E2E-Tests starten eigene Dev-Server (app :3010, admin :3012) gegen die
   Datenbank `klonk_e2e` und leeren sie vorher – laufende `pnpm dev`-Server derselben App vorher beenden (gemeinsames `.nuxt`).
   Auth läuft im E2E auf :3013. Nach Weiterleitungen über auth.* hinweg mit `waitForPage()` auf Hydration warten,
-  Logins über `loginWithPassword()` (beides `e2e/utils.ts`).
+  Logins über `loginWithPassword()` (beides `e2e/utils.ts`). Mehrere Worktrees gleichzeitig: `KLONK_E2E_PORT_OFFSET=100
+  KLONK_E2E_DATABASE=klonk_e2e_<name>` verschiebt alle Ports (app/admin/auth/Mock-LLM) und nimmt eine eigene Datenbank
+  (sonst nutzt Playwright per `reuseExistingServer` die Server eines anderen Worktrees).
 - RLS-Integrationstests: `pnpm --filter @klonk/core test` (Vitest, legt `klonk_rls_test` an). Neue Tabellen/Policies dort abdecken.
 - Prozesse beenden mit `pgrep -f "nuxt[.]mjs dev"` – ohne die Klammern trifft das Muster die eigene Shell.
 - Vor dem Commit: `pnpm lint` und `pnpm typecheck` müssen sauber sein.
@@ -366,6 +368,33 @@ node scripts/build-csharp.ts        # C#-Host bauen (.NET-SDK 10 nötig; Ausgabe
   **Eigene Lernmodule** (`/teaching/modules`, Export/Import `.klonkmodule.json`), Editor `/teaching/modules/<id>` (Komponenten `learn-editor/*`,
   ausdrückliches Speichern, `customModuleProblems()` ⇒ erst vollständige Module freigebbar; Welten mit `useWorldEditor({ persist: false })`).
   E2E `e2e/teaching-modules.spec.ts`, Doku `4.teaching/2.modules/3.custom.md`.
+- **Untergruppen / Teamarbeit** (vom User gewünscht: Lehrkraft bildet in einer Klasse Untergruppen, entweder gemeinsames Projekt
+  „wie VS Code Live Share“ oder eigene Projekte + gemeinsame Welt mit eigener Figur je Person): Untergruppe = Gruppe mit `groups.parent_id`
+  (nur eine Ebene) + `collab_mode` (`project` | `world`), Namen eindeutig je Klasse (Teilindizes), eigener gemeinsamer Cloud-Ordner
+  (`membersCanWrite` = true). RLS (Migration 0022): `can_manage_group`/`leads_group` gelten auch über die Klasse (Leitung ist kein Mitglied),
+  Mitglieder nur aus der Klasse (`is_group_member`), Klasse nicht änderbar, Trigger `leave_subgroups` (wer die Klasse verlässt, verlässt ihre
+  Untergruppen). Klassenlisten (Verwaltung, Unterricht, Lernmodule, Listenimport) filtern `parent_id IS NULL`; `cloudStatus` liefert Untergruppen
+  (auch der geleiteten Klassen) mit `parentId/parentName/collabMode`. API `/api/teaching/groups/:id/subgroups` (GET/POST mit Startdateien),
+  `/api/teaching/subgroups/:id` (PATCH/DELETE), `server/utils/subgroups.ts`; UI `TeachingSubgroups.vue` auf der Klassenseite (auch „Teams zufällig
+  bilden“). **Transport: Nitro-WebSockets** (`nitro.experimental.websocket`, Route `server/routes/_live.ts`, `server/utils/live.ts`; bewusst kein
+  Colyseus – kein eigener Dienst, Anmeldung über das Session-Cookie, Welt-Logik aus `@klonk/world` statt Schema-Kopie). Ein Socket je Raum
+  (`/_live?project=<id>` | `?world=<id>` + `host` für den lokalen Testmodus), binär, erstes Byte = Art (`LIVE_KIND` in `shared/utils/live.ts`:
+  Yjs-Sync, Awareness, JSON). Räume im Speicher, 10 min nach der letzten Verbindung verworfen (mehrere Instanzen ⇒ Sticky Sessions).
+  - **Gemeinsames Projekt** (alle Gruppenordner, `useLiveProject`, `utils/live/project-session.ts`): ein Y.Doc je Projekt, `texts` (Y.Text je Pfad,
+    `MonacoBinding` mit fremden Cursorn/Namen, eigener Cursor bleibt per relativer Position mit assoc -1) und `blocks` (Y.Map je Pfad: `b:<id>` je
+    oberstem Blockstapel + `rest`, `splitWorkspace`/`joinWorkspace`; Blöcke ohne ID bekommen beim Aufteilen eine feste). Der Server lädt eine Datei beim
+    ersten `open` aus `cloud_files` (sonst Stand des Clients). Speichern bleibt Strg+S/Ausführen über die Cloud; danach `saved` ⇒ die anderen
+    `sync()`en sofort, `remoteChanged` markiert gleiche Inhalte als gespeichert. Datei-Änderungen ⇒ `files` (entfernte Pfade aus dem Doc).
+    Hooks `onProjectSaved`/`onProjectFilesChanged` in `useProject`. Nur lesen ⇒ Server nimmt nur Sync-Schritt 1 an.
+  - **Gemeinsame Welt** (`useLiveWorld`, `utils/live/world-session.ts`, Server `WorldRoom` in `@klonk/runtime/live`): Server führt die Befehle aus
+    (Eigentum je Figur, Reihenfolge für alle gleich), Figur = Anzeigename, Figuren der Startwelt (erste Weltdatei im Ordner der Untergruppe) sind
+    Startplätze, Lehrkraft ohne Mitgliedschaft = zuschauend. Im Worker `LiveWorld` (`createWorld`): Befehle der eigenen Figur synchron über den
+    gemeinsamen Speicher (`live/channel.ts`, Anfrage `{ type: 'live' }` ⇒ `ProgramRunner.run({ live })` ⇒ Server) und erst nach Bestätigung
+    angewendet; bestätigte Befehle aller kommen über einen Eingang im SAB vor jedem Lesen. `new Klonk()`/ohne Namen = eigene Figur. Fehlercodes
+    `live_not_owner|live_disconnected|live_reset|live_invalid` (`world.errors.*`). Renderer `parallel` = eine Animations-Warteschlange je Figur
+    (Rückstau wird schneller abgespielt). Zurücksetzen lädt die Startwelt neu, laufende Programme halten an.
+  Tests: `packages/runtime/tests/live.test.ts`, RLS in `rls.test.ts`, E2E `e2e/teams.spec.ts` (eigene Lernende Ida/Ben, Klasse 8t, räumt auf),
+  Doku `4.teaching/5.teamwork.md`.
 - **Robot-Karol-Import** (vom User so festgelegt: Programme ⇒ Klonk-Script oder Blöcke, Welten ⇒ Klonk-Welten, damit Lehrkräfte eigene Aufgaben
   weiterverwenden): `convertKarolProgram`/`decodeKarolFile` in `@klonk/klonk-script` (`src/karol.ts`, Latin-1, `*wiederhole`/`endewiederhole`,
   nachprüfende Schleife ⇒ `wiederhole immer` + `abbrechen`, `Bedingung` ⇒ `funktion` mit `ergebnis`, Quader/Ton/Rucksack ⇒ Kommentar + Hinweis),
@@ -407,7 +436,7 @@ node scripts/build-csharp.ts        # C#-Host bauen (.NET-SDK 10 nötig; Ausgabe
 - **Auth:** siehe „Konten & Anmeldung“. Schulen und Unternehmen wählen selbst OIDC, LDAP und/oder lokale Konten.
 - **Docs-Gliederung** (vom User so festgelegt: die Docs erklären zuerst die Anwendung, Selbsthosten kommt zuletzt): `1.getting-started`
   (Was ist Klonk?, Das erste Programm), `2.world`, `3.klonk-script` (Navigation „Programmieren“; Slug bleibt, `LanguageDocs.vue` verlinkt
-  dorthin), `4.teaching` (Übersicht, Lernmodule, Für Schulen, Länder), `5.administration`, `6.self-hosting` (Installation, Quelltext-Lizenz). Interne Links immer mit `/de/` bzw. `/en/`.
+  dorthin), `4.teaching` (Übersicht, Lernmodule, Für Schulen, Länder, Teamarbeit), `5.administration`, `6.self-hosting` (Installation, Quelltext-Lizenz). Interne Links immer mit `/de/` bzw. `/en/`.
 - **Unterricht (Docs):** `apps/docs/content/{de,en}/4.teaching/` gegliedert **Land → Bundesland → Schulform → Klasse**
   (`4.germany/3.bavaria/2.gymnasium/N.grade-X.md`, je Ebene `.navigation.yml` + `1.overview.md`). Je Klasse: Lernbereiche mit
   Eignung (★★★/★★/★/–), Link zum Lehrplan-Volltext, Unterrichtsideen; Codebeispiele müssen mit der echten API laufen.
@@ -564,3 +593,4 @@ node scripts/build-csharp.ts        # C#-Host bauen (.NET-SDK 10 nötig; Ausgabe
 15. [x] Lernmodule: Einstieg E1–E3 (Welten aus 3×3-Platten, druckbar) + Grundkurs Klonk-Script (automatische Prüfung, Cloud-Projekt je Modul, Freigabe je Gruppe, Lernstand)
 15b. [x] Modulreihen (32 Module, 128 Aufgaben): E1–E13 (Einstieg, Grundkurs, Funktionen, mehrere Figuren, Muster, Algorithmen), F1–F8 (Python/Java/JS/TS/C#: Objekte, Klassen, Vererbung, Rekursion), S1–S7 (SQL), A1–A4 (Programm + Datenbank)
 15c. [x] Eigene Lernmodule der Lehrkräfte (Editor mit Welten, Datenbanken, Musterlösung und Probelauf; für alle Lehrkräfte der Schule sichtbar, Export/Import)
+16. [x] Untergruppen (Teams) einer Klasse: gemeinsames Projekt live bearbeiten (Yjs, Cursor, Blöcke je Stapel) oder gemeinsame Welt mit eigener Figur (Server führt Befehle aus)

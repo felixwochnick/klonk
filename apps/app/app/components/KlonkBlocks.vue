@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import type * as BlocklyType from 'blockly/core'
+import type * as Y from 'yjs'
 import { CATEGORY_COLORS, defineKlonkBlocks, klonkTheme, toolbox } from '~/utils/blocks/definitions'
 import { generateKlonkScript, type GeneratedProgram } from '~/utils/blocks/generator'
+import type { LiveProjectSession } from '~/utils/live/project-session'
 
 // Blockprogrammierung (Blockly) – erzeugt Klonk-Script. Nur im Browser verwenden (<ClientOnly>).
 const props = withDefaults(defineProps<{
@@ -10,7 +12,9 @@ const props = withDefaults(defineProps<{
   activeBlock?: string | null
   /** Block mit Laufzeitfehler */
   errorBlock?: string | null
-}>(), { readOnly: false, activeBlock: null, errorBlock: null })
+  /** Gemeinsames Projekt (Untergruppe): diese Datei live mit den anderen bearbeiten */
+  live?: { session: LiveProjectSession, path: string } | null
+}>(), { readOnly: false, activeBlock: null, errorBlock: null, live: null })
 
 /** Gespeicherter Arbeitsbereich (Blockly-JSON) */
 const model = defineModel<string>({ required: true })
@@ -78,7 +82,123 @@ function create() {
     if (event.isUiEvent || !workspace) return
     save()
     publish()
+    pushLive()
   })
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+// Gemeinsames Projekt: je oberstem Block ein Eintrag im gemeinsamen Dokument (siehe splitWorkspace) – wer an
+// verschiedenen Stapeln arbeitet, kommt sich nicht in die Quere; am selben Stapel gilt die letzte Änderung.
+
+/** Herkunft eigener Änderungen (nicht als fremde Änderung zurückspielen) */
+const LOCAL_ORIGIN = Symbol('klonk-blocks')
+let liveMap: Y.Map<string> | undefined
+let livePath: string | undefined
+let liveToken = 0
+const remoteKeys = new Set<string>()
+let remoteTimer: ReturnType<typeof setTimeout> | undefined
+const onRemote = (event: Y.YMapEvent<string>, transaction: Y.Transaction) => {
+  if (transaction.origin === LOCAL_ORIGIN) return
+  for (const key of event.keysChanged) remoteKeys.add(key)
+  clearTimeout(remoteTimer)
+  remoteTimer = setTimeout(applyRemote, 0)
+}
+
+function unbindLive() {
+  liveToken++
+  liveMap?.unobserve(onRemote)
+  liveMap = undefined
+  livePath = undefined
+  remoteKeys.clear()
+  clearTimeout(remoteTimer)
+}
+
+async function bindLive() {
+  unbindLive()
+  const token = liveToken
+  const live = props.live
+  if (!live || !workspace) return
+  const ok = await live.session.open(live.path, model.value)
+  const map = live.session.blocks.get(live.path)
+  if (token !== liveToken || !ok || !map || !workspace) return
+  liveMap = map
+  livePath = live.path
+  map.observe(onRemote)
+  // Der gemeinsame Stand gilt
+  loadShared()
+}
+
+/** Eigene Änderung ins gemeinsame Dokument (nur geänderte Stapel) */
+function pushLive() {
+  const map = liveMap
+  // Nur in die Datei, die gerade angezeigt wird (beim Dateiwechsel kommen Ereignisse verspätet)
+  if (!map?.doc || livePath !== props.live?.path) return
+  const entries = splitWorkspace(lastSaved)
+  map.doc.transact(() => {
+    for (const [key, value] of Object.entries(entries)) if (map.get(key) !== value) map.set(key, value)
+    for (const key of [...map.keys()]) if (!(key in entries)) map.delete(key)
+  }, LOCAL_ORIGIN)
+}
+
+/** Ganzen gemeinsamen Stand laden (Ansicht bleibt, wo sie war) */
+function loadShared() {
+  if (!Blockly || !workspace || !liveMap) return
+  const B = Blockly
+  const { scrollX, scrollY } = workspace
+  B.Events.disable()
+  try {
+    workspace.clear()
+    B.serialization.workspaces.load(joinWorkspace(liveMap.entries()), workspace)
+  }
+  catch {
+    // ungültiger Stand – leer lassen
+  }
+  finally {
+    B.Events.enable()
+  }
+  workspace.scroll(scrollX, scrollY)
+  afterRemote()
+}
+
+/** Änderungen der anderen übernehmen: nur betroffene Stapel neu aufbauen (nicht während Ziehen oder Eingabe) */
+function applyRemote() {
+  if (!Blockly || !workspace || !liveMap) return
+  const B = Blockly
+  if (workspace.isDragging() || B.WidgetDiv.isVisible() || B.DropDownDiv.isVisible()) {
+    remoteTimer = setTimeout(applyRemote, 250)
+    return
+  }
+  const keys = [...remoteKeys]
+  remoteKeys.clear()
+  // Variablen und Co. ⇒ alles neu laden (selten)
+  if (keys.includes('rest')) return loadShared()
+  const ids = keys.filter(k => k.startsWith(BLOCK_PREFIX)).map(k => k.slice(BLOCK_PREFIX.length))
+  B.Events.disable()
+  let failed = false
+  try {
+    // Erst alles Betroffene entfernen, dann neu einsetzen (ein Block kann von einem Stapel in den anderen gewandert sein)
+    for (const id of ids) workspace.getBlockById(id)?.dispose(false)
+    for (const id of ids) {
+      const json = liveMap.get(`${BLOCK_PREFIX}${id}`)
+      if (json) B.serialization.blocks.append(JSON.parse(json) as BlocklyType.serialization.blocks.State, workspace)
+    }
+  }
+  catch {
+    failed = true
+  }
+  finally {
+    B.Events.enable()
+  }
+  if (failed) return loadShared()
+  afterRemote()
+}
+
+function afterRemote() {
+  if (!Blockly || !workspace) return
+  lastSaved = JSON.stringify(Blockly.serialization.workspaces.save(workspace))
+  model.value = lastSaved
+  refreshBreakpoints()
+  publish()
 }
 
 /** Auswahl bleibt beim Herausziehen offen (wie Scratch), Kategorien bekommen ihre Farbe als CSS-Variable */
@@ -156,12 +276,16 @@ onMounted(async () => {
   })
   resizeObserver.observe(container.value!)
   ready.value = true
+  void bindLive()
 })
 
 onBeforeUnmount(() => {
+  unbindLive()
   resizeObserver?.disconnect()
   workspace?.dispose()
 })
+watch(() => props.live?.session, () => void bindLive())
+watch(() => props.live?.path, () => void bindLive())
 
 // Sprache/Farbschema: Blöcke neu beschriften (Arbeitsbereich bleibt erhalten)
 watch([locale, () => colorMode.value], rebuild)

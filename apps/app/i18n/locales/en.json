@@ -93,7 +93,11 @@
       "invalid_design": "The design is invalid ({reason}).",
       "unknown_design": "There is no look “{name}” (male, female, diverse or a design of the project – with a license).",
       "no_space": "No free cell left for a new character.",
-      "design_license": "Custom designs need a license."
+      "design_license": "Custom designs need a license.",
+      "live_not_owner": "“{id}” belongs to someone else – in the shared world you only control your own character.",
+      "live_disconnected": "The connection to the shared world was lost.",
+      "live_reset": "The shared world was reset.",
+      "live_invalid": "The shared world does not know this command."
     },
     "names": "Character names",
     "namesHelp": "Programs address a character by this name, e.g. new Klonk(\"Klara\").",
@@ -1077,6 +1081,72 @@
       "schemaHint": "Tables whose columns, types and keys have to match (CREATE TABLE).",
       "requires": "Required constructs",
       "requiresHint": "The program has to contain these constructs, otherwise the task does not count as solved."
+    }
+  },
+  "live": {
+    "status": {
+      "connecting": "Connecting …",
+      "online": "Connected",
+      "offline": "No connection – retrying",
+      "denied": "No access"
+    },
+    "modes": {
+      "project": {
+        "label": "Shared project",
+        "description": "Everyone edits one project at the same time and sees the others' changes and cursors instantly."
+      },
+      "world": {
+        "label": "Shared world",
+        "description": "Everyone programs in their own project and controls their own character – all in the same world."
+      }
+    },
+    "project": {
+      "title": "Shared project",
+      "alone": "You are alone here right now.",
+      "inFile": "in {path}"
+    },
+    "world": {
+      "join": "Shared world",
+      "joinGroup": "Enter the shared world of {name}",
+      "title": "Shared world · {name}",
+      "you": "You control “{name}”",
+      "watching": "You are watching",
+      "offline": "{name} (not connected)",
+      "reset": "Reset world",
+      "leave": "Leave",
+      "confirmReset": "Reset the shared world to the start world for everyone? Running programs will stop.",
+      "resetBy": "{name} reset the shared world.",
+      "resetDone": "The shared world was reset.",
+      "spectatorRun": "You are only watching. Programs run with a character of your own – as a member of the subgroup.",
+      "notConnected": "Not connected to the shared world yet."
+    },
+    "subgroups": {
+      "title": "Subgroups",
+      "hint": "Teams from this class: either a shared project everyone edits at the same time, or a shared world in which everyone programs their own character.",
+      "create": "New subgroup",
+      "random": "Form random teams",
+      "empty": "No subgroups yet.",
+      "edit": "Edit {name}",
+      "delete": "Delete {name}",
+      "editTitle": "Edit subgroup",
+      "name": "Name",
+      "mode": "Collaboration",
+      "language": "Project language",
+      "members": "Members",
+      "alsoIn": "already in {name}",
+      "noLearners": "There are no learners in this class yet.",
+      "noMembers": "No members yet",
+      "teamName": "Team {n}",
+      "confirmDelete": "Delete the subgroup “{name}” with its shared folder? The members' own projects are kept.",
+      "watch": "View world",
+      "openProject": "Open project",
+      "unassigned": "Without subgroup: {names}",
+      "cancel": "Cancel",
+      "save": "Save",
+      "teamSize": "People per team",
+      "randomHint": "Randomly splits the {count} learners who are not in a subgroup yet into teams.",
+      "randomResult": "Number of teams: {teams}",
+      "randomCreate": "Create teams"
     }
   }
 }

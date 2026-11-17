@@ -1,6 +1,6 @@
 /// <reference lib="webworker" />
 import { Interpreter, KlonkError, type SourceRange, type Value } from '@klonk/klonk-script'
-import { World } from '@klonk/world'
+import { createWorld } from './live/live-world'
 import { runJavaScript } from './js/run'
 import { runCSharp } from './csharp/run'
 import { runJava } from './java/run'
@@ -83,7 +83,7 @@ async function run(message: Extract<ToWorker, { type: 'run' }>) {
   delay = message.delay
   stepping = !!message.pauseOnStart
   try {
-    const world = new World(message.world)
+    const world = createWorld(message, post)
     const interpreter = Interpreter.fromSource(message.source, world, {
       checkpoint,
       command: async (command) => {

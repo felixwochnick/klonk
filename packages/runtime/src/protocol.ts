@@ -34,6 +34,8 @@ export type ToWorker
     shared?: SharedArrayBuffer
     /** JS/TS/Python/Java/C#: Antworten der Datenbanken (siehe db/channel.ts) */
     database?: SharedArrayBuffer
+    /** Gemeinsame Welt: Abgleich mit dem Server (siehe live/channel.ts); `characterId` ist dann die eigene Figur */
+    live?: SharedArrayBuffer
   }
   | { type: 'pause' }
   | { type: 'resume' }
@@ -50,6 +52,8 @@ export type FromWorker
     | { type: 'output', text: string }
     /** Datenbankzugriff (`Database.open`, `query` …) – Antwort kommt über den gemeinsamen Speicher */
     | { type: 'db', request: DbRequest }
+    /** Gemeinsame Welt: Befehl der eigenen Figur – Antwort (Server) kommt über den gemeinsamen Speicher */
+    | { type: 'live', command: RobotCommand }
     /** Programm speichert ein Design im Projekt (`saveDesign`) */
     | { type: 'saveDesign', name: string, design: RobotDesign }
     /** `heap`: Objekte und Verweise für das Objektdiagramm (JS/TS, Python, Java, C#) */

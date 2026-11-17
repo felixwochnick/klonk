@@ -4,6 +4,8 @@ import type { editor as MonacoEditor } from 'monaco-editor'
 import type { CheckLanguage, SqlTable } from '@klonk/runtime'
 import { CHECKED_LANGUAGES, checkProgram, modelContexts } from '~/utils/checker'
 import { KLONK_LANGUAGE, loadMonaco, sqlSchemas, updateRobotApi, validate, type Monaco } from '~/utils/monaco'
+import { MonacoBinding } from '~/utils/live/monaco-binding'
+import type { LiveProjectSession } from '~/utils/live/project-session'
 
 const monacoLanguage = (language: string) => (language === 'klonk' ? KLONK_LANGUAGE : language)
 const EXTENSION: Record<string, string> = { klonk: 'klonk', javascript: 'js', typescript: 'ts', python: 'py', java: 'java', csharp: 'cs', sql: 'sql', pgsql: 'sql' }
@@ -31,7 +33,9 @@ const props = withDefaults(defineProps<{
   path?: string | null
   /** SQL: Tabellen und Spalten für Vorschläge */
   sqlTables?: SqlTable[]
-}>(), { path: null, language: 'klonk', readOnly: false, activeLine: null, errorLine: null, errorMessage: null, files: () => ({}), sqlTables: () => [] })
+  /** Gemeinsames Projekt (Untergruppe): die Datei live mit den anderen bearbeiten */
+  live?: LiveProjectSession | null
+}>(), { path: null, language: 'klonk', readOnly: false, activeLine: null, errorLine: null, errorMessage: null, files: () => ({}), sqlTables: () => [], live: null })
 
 /** Strg+Enter (SQL ausführen) */
 const emit = defineEmits<{ run: [] }>()
@@ -49,6 +53,27 @@ let monaco: Monaco | undefined
 let decorations: MonacoEditor.IEditorDecorationsCollection | undefined
 let stopLanguageWatch: (() => void) | undefined
 let stopFilesWatch: (() => void) | undefined
+/** Gemeinsames Projekt: Verbindung des Modells mit dem gemeinsamen Dokument */
+let binding: MonacoBinding | undefined
+let bindToken = 0
+function unbindLive() {
+  bindToken++
+  binding?.dispose()
+  binding = undefined
+}
+/** Datei im gemeinsamen Projekt öffnen und das Modell daran hängen (ohne Verbindung bleibt es beim eigenen Stand) */
+async function bindLive() {
+  unbindLive()
+  const token = bindToken
+  const session = props.live
+  const path = props.path
+  const model = editor?.getModel()
+  if (!session || !path || !model || !editor || !monaco || liveFileKind(path) !== 'text') return
+  const ok = await session.open(path, model.getValue())
+  const text = session.texts.get(path)
+  if (token !== bindToken || !ok || !text || model.isDisposed() || editor.getModel() !== model) return
+  binding = new MonacoBinding(monaco, editor, model, text, session, path)
+}
 /** Marker-Quellen: Prüf-Worker (Python/Java/C#) und Laufzeitfehler */
 const CHECK_OWNER = 'klonk-check'
 const RUNTIME_OWNER = 'klonk-runtime'
@@ -143,6 +168,7 @@ onMounted(async () => {
   })
   stopLanguageWatch = watch([() => props.language, () => props.path], ([language]) => {
     const previous = model
+    unbindLive()
     saveViewState()
     // Gleicher Pfad (z. B. nach Umbenennen zurück) ⇒ altes Modell zuerst freigeben
     if (previous.uri.toString() === `file:///${props.path}`) previous.dispose()
@@ -156,6 +182,7 @@ onMounted(async () => {
     updateRuntimeMarker()
     updateProjectLibs()
     void check()
+    void bindLive()
   })
   stopFilesWatch = watch(() => props.files, (files) => {
     const context = modelContexts.get(model.uri.toString())
@@ -180,6 +207,7 @@ onMounted(async () => {
   updateDecorations()
   updateRuntimeMarker()
   ready.value = true
+  void bindLive()
 })
 
 /** Ansicht der Projektdatei merken (Modelle ohne Projekt haben jedes Mal eine neue Adresse) */
@@ -190,6 +218,7 @@ function saveViewState() {
 }
 
 onBeforeUnmount(() => {
+  unbindLive()
   saveViewState()
   stopLanguageWatch?.()
   stopFilesWatch?.()
@@ -202,6 +231,7 @@ watch(source, (value) => {
   if (editor && value !== editor.getValue()) editor.setValue(value)
 })
 watch(() => props.readOnly, readOnly => editor?.updateOptions({ readOnly }))
+watch(() => props.live, () => void bindLive())
 watch(() => props.sqlTables, (tables) => {
   const model = editor?.getModel()
   if (model) sqlSchemas.set(model.uri.toString(), tables)
