@@ -488,7 +488,7 @@ node scripts/build-csharp.ts        # C#-Host bauen (.NET-SDK 10 nötig; Ausgabe
   Marken gibt es nur in vier Farben (gelb/rot/blau/grün) – Beispiele dürfen keine anderen Markenfarben nutzen.
 - **Klonk Cloud** (vom User so festgelegt; selbst gehostet immer frei, gehostet Lizenz-Feature `cloud`, `cloudEnabled()`): dritte Projektquelle
   `source: 'cloud'` – `CloudProject` (`utils/cloud-project.ts`) erweitert `Project` um eine lokale Kopie im OPFS (`klonk-cloud/<id>`,
-  Zustand `.klonk-sync.json`: Revision, Revision je Datei, Warteschlange) ⇒ offline nutzbar.
+  Zustand `.klonk-sync.json`: Revision, Revision je Datei, Warteschlange – direkt über den Handle, `isValidName` lehnt Punktdateien ab) ⇒ offline nutzbar.
   **Ohne OPFS** (Firefox im privaten Fenster: `getDirectory()` ⇒ SecurityError; Seiten ohne TLS) liefert `browserStorage()` `null` ⇒ Cloud-Kopie im
   Arbeitsspeicher (`utils/memory-fs.ts`, nur online), Browser-Projekte und ZIP-Import aus, Hinweis `project.storageUnavailable`. Schreiben lokal + vormerken, Upload nach 800 ms
   (`PUT /api/cloud/projects/:id/files` mit `baseRevision`), Abholen alle 15 s (`GET …/changes?since=`); Konflikt ⇒ Server gewinnt, eigene

@@ -188,3 +188,30 @@ test('Ohne Browser-Speicher (privates Fenster): Cloud-Projekte und Gruppen trotz
   await expect.poll(() => serverPaths(page, 'Robo'), { timeout: 20_000 }).toContain('privat.klonk')
   await context.close()
 })
+
+test('Noch nicht hochgeladene Änderungen überstehen das Neuladen der Seite', async ({ browser }) => {
+  test.setTimeout(120_000)
+  const page = await device(browser, APP_URL, 'mia@gym-muster.de', 'mia-geheim')
+  await gotoHydrated(page, `${APP_URL}/projects`)
+  await page.getByTestId('cloud-project-Robo').click()
+  await expect(page.getByTestId('explorer-file-welt.klonkworld.json')).toBeVisible()
+  await synced(page)
+
+  // Hochladen scheitert (wie ohne Netz) – auch noch nach dem Neuladen
+  const upload = '**/api/cloud/projects/*/files'
+  await page.route(upload, route => (route.request().method() === 'PUT' ? route.abort() : route.fallback()))
+  const offline = () => expect(page.getByTestId('cloud-sync')).toHaveText('offline – wird später hochgeladen', { timeout: 20_000 })
+  await newEntry(page, 'Klonk-Script', 'unterwegs')
+  await offline()
+  await gotoHydrated(page, `${APP_URL}/projects`)
+  await page.getByTestId('cloud-project-Robo').click()
+  await expect(page.getByTestId('explorer-file-unterwegs.klonk')).toBeVisible()
+  await offline()
+
+  // Wieder online: die gemerkte Warteschlange wird hochgeladen
+  await page.unroute(upload)
+  await page.evaluate(() => window.dispatchEvent(new Event('online')))
+  await expect.poll(() => serverPaths(page, 'Robo'), { timeout: 20_000 }).toContain('unterwegs.klonk')
+  await synced(page)
+  await page.context().close()
+})
