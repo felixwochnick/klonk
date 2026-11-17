@@ -7,7 +7,7 @@ import { changePassword, gotoHydrated, loginWithPassword, waitForPage } from './
 
 // Unterrichtsmaterial zu Lernmodulen: Lena (Lehrkraft aus admin-accounts.spec.ts) erstellt Arbeitsblatt, Lösungsblatt und
 // Präsentation zu E2 – Vorschau mit 3D-Bildern und Bauplänen, Drucken, DOCX/PPTX; eine Schülerin bekommt kein Material.
-// Lizenz-Feature `material`: ohne gesperrt; am Ende gilt wieder die Lizenz aus admin-license.spec.ts.
+// Lizenz-Feature `customModules` (wie eigene Lernmodule): ohne gesperrt; am Ende gilt wieder die Lizenz aus admin-license.spec.ts.
 test.use({ locale: 'de-DE', viewport: { width: 1400, height: 900 } })
 
 async function device(browser: Browser, baseUrl: string, [identifier, password]: readonly [string, string], newPassword?: string) {
@@ -41,10 +41,10 @@ test('Unterrichtsmaterial: Arbeitsblatt, Lösungen und Präsentation', async ({ 
   const admin = await device(browser, ADMIN_URL, ['admin@gym-muster.de', 'admin-passwort'])
   const lena = await device(browser, APP_URL, ['lena@gym-muster.de', 'lena-geheim'])
   // Instanz-Lizenz setzen; die App merkt sich die Lizenz bis zu 60 s
-  const license = async (material: boolean) => {
-    const token = await signLicense({ name: 'Gymnasium Musterstadt', maxUsers: 100, features: material ? [...FEATURES, 'material'] : FEATURES })
+  const license = async (licensed: boolean) => {
+    const token = await signLicense({ name: 'Gymnasium Musterstadt', maxUsers: 100, features: licensed ? [...FEATURES, 'customModules'] : FEATURES })
     expect((await api(admin, `${ADMIN_URL}/api/admin/license/instance`, 'PUT', { token })).status).toBe(200)
-    await expect.poll(async () => (await api<{ features: string[] }>(lena, '/api/license')).body.features.includes('material'), { timeout: 75_000, intervals: [2000] }).toBe(material)
+    await expect.poll(async () => (await api<{ features: string[] }>(lena, '/api/license')).body.features.includes('customModules'), { timeout: 75_000, intervals: [2000] }).toBe(licensed)
   }
 
   // Ohne Lizenz-Feature: Karte mit Hinweis und gesperrten Knöpfen, die Seite zeigt nur den Hinweis

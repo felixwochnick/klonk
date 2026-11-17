@@ -9,9 +9,9 @@ const toast = useToast()
 const apiError = useApiError()
 const teaching = useTeaching()
 const learn = useLearn()
-// Unterrichtsmaterial ist lizenzpflichtig (Feature `material`)
+// Unterrichtsmaterial ist lizenzpflichtig (Feature `customModules`, wie eigene Lernmodule)
 const { can } = useLicense()
-const materialLicensed = computed(() => can('material'))
+const materialLicensed = computed(() => can('customModules'))
 const lang = computed(() => (locale.value === 'en' ? 'en' : 'de'))
 
 const { data: progress, refresh: refreshProgress } = useFetch<TeachingProgress>('/api/teaching/progress', {

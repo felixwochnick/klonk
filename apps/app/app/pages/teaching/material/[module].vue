@@ -25,7 +25,7 @@ import { resolveImages } from '~/utils/material-images'
 
 // Unterrichtsmaterial zu einem Lernmodul: Arbeitsblatt, Lösungsblatt und Präsentation – Vorschau, Drucken (PDF über den
 // Druckdialog) sowie DOCX/PPTX zum Weiterbearbeiten (Euro-Office, OnlyOffice, LibreOffice, Word). Alles entsteht im Browser,
-// daher prüft nur die Oberfläche das Lizenz-Feature `material` (wie Figurengrenze und Bibliotheken; Umgehen verbietet die ELv2).
+// daher prüft nur die Oberfläche das Lizenz-Feature `customModules` (wie eigene Lernmodule; wie Figurengrenze und Bibliotheken; Umgehen verbietet die ELv2).
 definePageMeta({ key: route => route.path })
 
 const { t, locale, locales, loadLocaleMessages } = useI18n()
@@ -40,7 +40,7 @@ const module = await learn.resolve(String(route.params.module))
 // Wie Musterlösung und Hinweise für Lehrkräfte: nicht für Lernende einer Organisation
 const allowed = computed(() => !user.value || !user.value.organizationId || user.value.role !== 'member' || user.value.platformRole !== 'user')
 // Lizenzpflichtig wie eigene Lernmodule; der Hinweis erscheint erst, wenn die Lizenz vom Server geladen ist
-const licensed = computed(() => can('material'))
+const licensed = computed(() => can('customModules'))
 useSeoMeta({ title: () => (module ? `${t('material.title')} · ${moduleLabel(module, locale.value === 'en' ? 'en' : 'de')}` : t('material.title')) })
 
 const KINDS: MaterialKind[] = ['worksheet', 'solutions', 'slides']

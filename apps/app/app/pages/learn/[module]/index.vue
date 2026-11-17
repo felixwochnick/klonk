@@ -93,9 +93,9 @@ const { user } = useAuth()
 const isTeacher = computed(() => !!user.value && (user.value.role !== 'member' || user.value.platformRole !== 'user'))
 // Unterrichtsmaterial (mit Musterlösungen) wie die Musterlösung: nicht für Lernende einer Organisation
 const canUseMaterial = computed(() => !user.value || !user.value.organizationId || isTeacher.value)
-// Lizenz-Feature `material`: ohne Lizenz bleibt die Karte sichtbar (Hinweis), die Knöpfe sind gesperrt
+// Lizenz-Feature `customModules` (wie eigene Lernmodule): ohne Lizenz bleibt die Karte sichtbar (Hinweis), die Knöpfe sind gesperrt
 const { can } = useLicense()
-const materialLicensed = computed(() => can('material'))
+const materialLicensed = computed(() => can('customModules'))
 const MATERIAL = [
   { type: 'worksheet', icon: 'i-lucide-file-pen-line' },
   { type: 'solutions', icon: 'i-lucide-file-check-2' },

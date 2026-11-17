@@ -135,8 +135,7 @@
         "characters": "All characters",
         "models": "Additional 3D models",
         "libraries": "Libraries in Klonk-Script and TypeScript",
-        "customModules": "Create and edit own learning modules",
-        "material": "Teaching material (worksheets, solutions, presentations)",
+        "customModules": "Own learning modules and teaching material",
         "ai": "AI assistant",
         "cloud": "Klonk Cloud (project sync, group folders)"
       },

@@ -354,7 +354,7 @@ node scripts/build-csharp.ts        # C#-Host bauen (.NET-SDK 10 nötig; Ausgabe
   `/api/teaching/progress?level=`), Client `useTeaching()`; Freigaben weiter über `PUT /api/learn/groups/:id/modules`. Namen von Bundesländern/Schulformen
   liegen in der Core-i18n (`school.states|forms|countries`). E2E `e2e/teaching.spec.ts` (nach learn.spec, nutzt 9c/Tom, räumt auf).
 - **Eigene Lernmodule** (vom User gewünscht: Lehrkräfte erstellen Module, **für alle Lehrkräfte der Schule sichtbar**; **Lizenz-Feature
-  `customModules`** (vom User so festgelegt): Erstellen/Speichern prüft `requireFeature` (`requireAuthoring`), ohne Lizenz bleiben Ansehen,
+  `customModules`** (vom User so festgelegt, gilt auch fürs Unterrichtsmaterial): Erstellen/Speichern prüft `requireFeature` (`requireAuthoring`), ohne Lizenz bleiben Ansehen,
   Freigeben, Lösen, Exportieren und Löschen – UI `useLicense().can('customModules')`, Editor dann nur lesend): Tabelle
   `custom_learn_modules` (JSON nach `customModuleSchema` in `@klonk/learn` `src/custom.ts`, ID `custom-<uuid>` vergibt ein Trigger) – steht wie
   eingebaute IDs in `group_learn_modules`/`cloud_projects.learn_module`, daher laufen Freigabe, Modulprojekte und Lernstand unverändert. RLS (Migration 0020):
@@ -405,8 +405,8 @@ node scripts/build-csharp.ts        # C#-Host bauen (.NET-SDK 10 nötig; Ausgabe
   Draufsicht/Bauplan (Zahl = Ziegel, Pfeil = Figur), 3D über einen unsichtbaren `WorldRenderer` (`utils/material-images.ts`, freigestellt, Cache je
   Welt). App-Seite `/teaching/material/<modul>?type=worksheet|solutions|slides` (Vorschau im Sandbox-iframe per `srcdoc`, **PDF = Druckdialog**,
   Einstellungen in `klonk:material`), Einstieg Modulseite (Karte „Unterrichtsmaterial“), Unterricht-Matrix (Drucker-Symbol), Menü eigener Module.
-  Sichtbar wie Musterlösungen (nicht für Lernende einer Organisation). **Lizenz-Feature `material`** (vom User so festgelegt, wie eigene Lernmodule):
-  nur Oberfläche (`useLicense().can('material')`, Hinweis erst nach `loaded`), da alles im Browser entsteht – Modulseite zeigt die Karte mit Hinweis
+  Sichtbar wie Musterlösungen (nicht für Lernende einer Organisation). **Lizenz-Feature `customModules`** (vom User so festgelegt, dasselbe wie eigene Lernmodule):
+  nur Oberfläche (`useLicense().can('customModules')`, Hinweis erst nach `loaded`), da alles im Browser entsteht – Modulseite zeigt die Karte mit Hinweis
   und gesperrten Knöpfen, Matrix/Menü gesperrt; Lernmodule selbst bleiben frei. Andere Dokumentsprache als die UI ⇒ `loadLocaleMessages(lang)` vorher.
   Visuelle Prüfung der DOCX/PPTX: LibreOffice im Docker (`soffice --convert-to pdf`). E2E `e2e/material.spec.ts`, Doku `4.teaching/2.modules/4.material.md`.
 - **Robot-Karol-Import** (vom User so festgelegt: Programme ⇒ Klonk-Script oder Blöcke, Welten ⇒ Klonk-Welten, damit Lehrkräfte eigene Aufgaben
