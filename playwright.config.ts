@@ -1,7 +1,7 @@
 import { defineConfig } from '@playwright/test'
 import { e2eDatabaseUrl } from './e2e/db'
 
-import { ADMIN_URL, APP_URL, AUTH_URL, OIDC_ISSUER, STACK } from './e2e/targets'
+import { ADMIN_URL, APP_URL, AUTH_URL, E2E_PORTS, OIDC_ISSUER, STACK } from './e2e/targets'
 
 export { ADMIN_URL, APP_URL, AUTH_URL }
 
@@ -17,7 +17,7 @@ const env = {
   NUXT_PLATFORM_OIDC_SCOPES: 'openid profile email groups',
   NUXT_PLATFORM_OIDC_OWNER_GROUPS: 'admins',
   // Klonk-KI der gehosteten Plattform gegen den Test-Anbieter (e2e/mock-llm.ts); 1 Anfrage ≈ 105 Credits
-  NUXT_AI_PLATFORM_PROVIDERS: JSON.stringify({ mock: { provider: 'openai', baseUrl: 'http://localhost:3014/v1', apiKey: 'test-key' } }),
+  NUXT_AI_PLATFORM_PROVIDERS: JSON.stringify({ mock: { provider: 'openai', baseUrl: `http://localhost:${E2E_PORTS.llm}/v1`, apiKey: 'test-key' } }),
   NUXT_AI_PLATFORM_MODELS: JSON.stringify([
     { id: 'klonk-mini', label: 'Klonk Mini', provider: 'mock', model: 'mock-platform', inputCredits: 100_000, outputCredits: 100_000 },
     { id: 'klonk-pro', label: 'Klonk Pro', provider: 'mock', model: 'mock-platform-pro', inputCredits: 300_000, outputCredits: 300_000, premium: true },
@@ -46,7 +46,7 @@ export default defineConfig({
   },
   webServer: STACK ? undefined : [
     {
-      command: 'node e2e/ensure-db.ts && pnpm --filter @klonk/auth exec nuxt dev --port 3013 --dotenv ../../.env',
+      command: `node e2e/ensure-db.ts && pnpm --filter @klonk/auth exec nuxt dev --port ${E2E_PORTS.auth} --dotenv ../../.env`,
       url: `${AUTH_URL}/api/health`,
       env,
       timeout: 180_000,
@@ -54,14 +54,14 @@ export default defineConfig({
     },
     {
       // C#-Host (dotnet publish) vorher bauen, falls er fehlt oder veraltet ist
-      command: 'node e2e/ensure-db.ts && node scripts/build-csharp.ts --if-missing && pnpm --filter @klonk/app exec nuxt dev --port 3010 --dotenv ../../.env',
+      command: `node e2e/ensure-db.ts && node scripts/build-csharp.ts --if-missing && pnpm --filter @klonk/app exec nuxt dev --port ${E2E_PORTS.app} --dotenv ../../.env`,
       url: `${APP_URL}/api/health`,
       env,
       timeout: 180_000,
       reuseExistingServer: !process.env.CI,
     },
     {
-      command: 'node e2e/ensure-db.ts && pnpm --filter @klonk/admin exec nuxt dev --port 3012 --dotenv ../../.env',
+      command: `node e2e/ensure-db.ts && pnpm --filter @klonk/admin exec nuxt dev --port ${E2E_PORTS.admin} --dotenv ../../.env`,
       url: `${ADMIN_URL}/api/health`,
       env,
       timeout: 180_000,

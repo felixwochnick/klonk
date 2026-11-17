@@ -1,4 +1,5 @@
 import { createServer, type Server } from 'node:http'
+import { E2E_PORTS } from './targets'
 
 // Nachgebauter Anbieter für die KI-Tests: OpenAI-kompatibel (/v1/chat/completions) und Anthropic (/v1/messages).
 // Antwortet gestreamt mit einem festen Text samt Codeblock, meldet einen festen Verbrauch und merkt sich die
@@ -18,7 +19,7 @@ export const MOCK_USAGE = { input: 1000, output: 50 }
 
 export const MOCK_ANSWER = 'Hier ist ein Tipp: Nutze `step()` in einer **Schleife**.\n\n```js\nimport { Klonk } from \'klonk\'\nconst klonk = new Klonk()\nklonk.step(2)\n```\nViel Erfolg!'
 
-export function startMockLlm(port = 3014): Promise<MockLlm> {
+export function startMockLlm(port = E2E_PORTS.llm): Promise<MockLlm> {
   const requests: MockLlm['requests'] = []
   const server: Server = createServer((req, res) => {
     let body = ''
@@ -85,6 +86,6 @@ export function startMockLlm(port = 3014): Promise<MockLlm> {
 
 // Direkt gestartet: als eigenständiger Testserver (manuelles Ausprobieren)
 if (import.meta.url === `file://${process.argv[1]}`) {
-  const llm = await startMockLlm(Number(process.env.PORT ?? 3014))
+  const llm = await startMockLlm(Number(process.env.PORT ?? E2E_PORTS.llm))
   console.log(`Mock-LLM unter ${llm.url} (API-Schlüssel test-key)`)
 }
