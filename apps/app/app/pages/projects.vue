@@ -6,7 +6,7 @@ const { t } = useI18n()
 useSeoMeta({ title: () => t('project.explorer') })
 
 const {
-  proj, cloud, canFolders, canCreateProject, locations, dialogLocation, browserProjects, recent, openFolder, openRecent, openBrowserProject,
+  proj, cloud, canFolders, canBrowser, canCreateProject, locations, dialogLocation, browserProjects, recent, openFolder, openRecent, openBrowserProject,
   downloadZip, importZip, browserProjectItems, recentItems, cloudProjectItems, isOpenProject,
   dialog, dialogName, dialogLanguage, dialogTitle, openDialog, submitDialog, openFile, newItemsIn, fileActions, fileContextItems, areaContextItems, kindLabel,
   folders, folderActions, parentOf, baseName, dropTarget, onDragStart, onDragOver, onDrop,
@@ -82,6 +82,7 @@ function joinWorld(group: CloudGroupInfo) {
             @click="openFolder"
           />
           <UButton
+            v-if="canBrowser"
             icon="i-lucide-file-archive"
             variant="outline"
             :label="t('project.importZip')"
@@ -95,6 +96,13 @@ function joinWorld(group: CloudGroupInfo) {
             data-testid="folders-unsupported"
           >
             {{ t('project.foldersUnsupported') }}
+          </p>
+          <p
+            v-if="!canBrowser"
+            class="text-xs text-(--ui-text-muted)"
+            data-testid="storage-unavailable"
+          >
+            {{ t('project.storageUnavailable') }}
           </p>
         </div>
 

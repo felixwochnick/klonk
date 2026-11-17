@@ -396,6 +396,7 @@
     "zipImported": "Projekt „{name}“ aus der ZIP-Datei übernommen",
     "forget": "Aus der Liste entfernen",
     "foldersUnsupported": "Ordner auf dem Rechner öffnen nur Chrome, Edge und Opera (Brave: unter brave://flags „File System Access API“ einschalten). Sonst: Projekt als ZIP herunterladen und wieder importieren.",
+    "storageUnavailable": "Dieser Browser speichert hier keine Dateien (z. B. im privaten Fenster). Browser-Projekte und ZIP-Import gehen daher nicht, Projekte in der Klonk Cloud nur mit Internetverbindung.",
     "unsaved": {
       "title": "Ungespeicherte Änderungen",
       "one": "Änderungen an „{name}“ speichern?",

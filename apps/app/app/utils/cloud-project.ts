@@ -1,10 +1,12 @@
-import { MANIFEST, Project } from '~/utils/project-fs'
+import { createMemoryDirectory } from '~/utils/memory-fs'
+import { browserStorage, MANIFEST, Project } from '~/utils/project-fs'
 
 /**
  * Klonk Cloud: Projekt auf dem Server mit lokaler Kopie im Browser (OPFS `klonk-cloud/<id>`).
  * Gelesen und geschrieben wird immer lokal (geht auch offline); Änderungen landen in einer Warteschlange und werden
  * hochgeladen, Änderungen anderer Geräte/Personen per Revision abgeholt. Ändern zwei gleichzeitig dieselbe Datei,
  * gewinnt der Server – die eigene Fassung bleibt als Konfliktkopie erhalten.
+ * Ohne Browser-Speicher (z. B. privates Fenster in Firefox) liegt die Kopie nur im Arbeitsspeicher ⇒ nur online.
  */
 
 type Pending = 'put' | 'delete' | 'folder' | 'delete-folder'
@@ -30,6 +32,7 @@ export class CloudProject extends Project {
 
   private state: SyncState = { revision: 0, files: new Map(), pending: new Map() }
   private running: Promise<void> = Promise.resolve()
+  private saving: Promise<void> = Promise.resolve()
   private pushTimer: ReturnType<typeof setTimeout> | undefined
   private pullTimer: ReturnType<typeof setInterval> | undefined
   private readonly wake = () => void this.sync()
@@ -89,7 +92,9 @@ export class CloudProject extends Project {
   /** Stand laden, einmal abgleichen und regelmäßig weiter (solange geöffnet) */
   async start() {
     try {
-      const saved = JSON.parse(await super.read(STATE_FILE)) as { revision: number, files: Record<string, number>, pending: Record<string, Pending> }
+      // Versteckte Datei: direkt über den Ordner, `read()` lässt keine Namen mit Punkt am Anfang zu
+      const file = await (await this.handle.getFileHandle(STATE_FILE)).getFile()
+      const saved = JSON.parse(await file.text()) as { revision: number, files: Record<string, number>, pending: Record<string, Pending> }
       this.state = { revision: saved.revision, files: new Map(Object.entries(saved.files)), pending: new Map(Object.entries(saved.pending)) }
     }
     catch {
@@ -218,6 +223,8 @@ export class CloudProject extends Project {
   /** Änderungen seit dem letzten Stand übernehmen (eigene, noch nicht hochgeladene Pfade bleiben unangetastet) */
   private async pull() {
     const changed: string[] = []
+    const since = this.state.revision
+    let failed = false
     for (;;) {
       const result = await this.api<CloudChanges>('/changes', { query: { since: this.state.revision } })
       this.writable.value = result.writable
@@ -241,22 +248,41 @@ export class CloudProject extends Project {
           changed.push(change.path)
         }
         catch {
-          // z. B. Ordner schon weg – beim nächsten Abgleich egal
+          // Löschen: z. B. Ordner schon weg – egal; Schreiben (z. B. Speicher voll) holt der nächste Abgleich noch einmal
+          if (!change.deleted) failed = true
         }
       }
       this.state.revision = result.revision
-      if (!result.more) return changed
+      if (!result.more) break
     }
+    if (failed) this.state.revision = since
+    return changed
   }
 
-  private async saveState() {
+  /** Nacheinander speichern – der zuletzt geschriebene ist immer der neueste Stand */
+  private saveState() {
+    this.saving = this.saving.then(() => this.writeState())
+    return this.saving
+  }
+
+  private async writeState() {
     const { revision, files, pending } = this.state
-    await super.write(STATE_FILE, JSON.stringify({ revision, files: Object.fromEntries(files), pending: Object.fromEntries(pending) })).catch(() => {})
+    try {
+      const writable = await (await this.handle.getFileHandle(STATE_FILE, { create: true })).createWritable()
+      await writable.write(JSON.stringify({ revision, files: Object.fromEntries(files), pending: Object.fromEntries(pending) }))
+      await writable.close()
+    }
+    catch {
+      // nächster Versuch beim nächsten Abgleich
+    }
   }
 }
 
+/** Ersatz ohne Browser-Speicher: gilt, bis die Seite neu geladen wird (Wiederöffnen im selben Tab nutzt die Kopie weiter) */
+let memoryRoot: FileSystemDirectoryHandle | undefined
+
 async function cacheRoot() {
-  const root = await navigator.storage.getDirectory()
+  const root = await browserStorage() ?? (memoryRoot ??= createMemoryDirectory())
   return root.getDirectoryHandle('klonk-cloud', { create: true })
 }
 
