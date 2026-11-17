@@ -1,13 +1,18 @@
 import { createHash, randomBytes } from 'node:crypto'
 import { expect, test, type APIRequestContext, type Browser, type Page } from '@playwright/test'
 import { ADMIN_URL, APP_URL, AUTH_URL } from '../playwright.config'
+import { canSignLicense, signLicense } from './license'
 import { gotoHydrated, loginWithPassword } from './utils'
 
 // MCP-Server von App und Verwaltung: Verwaltung schaltet den KI-Zugriff je Konto frei, Lehrkraft verbindet einen
 // KI-Assistenten per persönlichem Token bzw. OAuth (Zustimmungsseite auf auth.*). Baut auf learn.spec.ts auf
-// (Gruppe 9c, Leitung Lena, Lernender Tom) und räumt auf.
+// (Gruppe 9c, Leitung Lena, Lernender Tom), braucht das Lizenz-Feature `mcp` und hinterlässt die Lizenz aus admin-license.spec.ts.
 test.use({ locale: 'de-DE', viewport: { width: 1400, height: 900 } })
 test.describe.configure({ mode: 'serial' })
+test.skip(!canSignLicense, 'Lizenz-Signierschlüssel fehlt')
+
+/** Funktionen der Instanz-Lizenz aus admin-license.spec.ts */
+const FEATURES = ['oidc', 'characters', 'models', 'libraries', 'ai']
 
 const ADMIN = ['admin@gym-muster.de', 'admin-passwort'] as const
 const TEACHER = ['lena@gym-muster.de', 'lena-geheim'] as const
@@ -53,10 +58,20 @@ function mcp(request: APIRequestContext, url: string, token?: string) {
   }
 }
 
+/** Instanz-Lizenz setzen und warten, bis App, Verwaltung und Anmeldung sie kennen (sie merken sich die Lizenz bis zu 60 s) */
+async function setLicense(admin: Page, teacher: Page, mcp: boolean) {
+  const token = await signLicense({ name: 'Gymnasium Musterstadt', maxUsers: 100, features: mcp ? [...FEATURES, 'mcp'] : FEATURES })
+  expect((await api(admin, `${ADMIN_URL}/api/admin/license/instance`, 'PUT', { token })).status).toBe(200)
+  for (const base of [APP_URL, ADMIN_URL, AUTH_URL]) {
+    await expect.poll(async () => ((await (await teacher.request.get(`${base}/api/license`)).json()).features as string[]).includes('mcp'), { timeout: 75_000, intervals: [2000] }).toBe(mcp)
+  }
+}
+
 let classId = ''
+let writeToken = ''
 
 test('Verwaltung schaltet KI-Zugriff frei, Lehrkraft verbindet per Token', async ({ browser, request }) => {
-  test.setTimeout(180_000)
+  test.setTimeout(300_000)
   // Ohne Freischaltung: Einstellungen zeigen den Hinweis, Tokens lassen sich nicht anlegen
   const teacher = await device(browser, APP_URL, TEACHER)
   await gotoHydrated(teacher, `${APP_URL}/settings`)
@@ -68,13 +83,24 @@ test('Verwaltung schaltet KI-Zugriff frei, Lehrkraft verbindet per Token', async
   await gotoHydrated(admin, `${ADMIN_URL}/users`)
   await admin.getByRole('button', { name: 'Aktionen für Lena Lehrkraft' }).click()
   await admin.getByRole('menuitem', { name: 'KI-Zugriff (MCP) …' }).click()
+  // Die Lizenz enthält MCP noch nicht – die Stufe lässt sich trotzdem schon setzen
+  await expect(admin.getByTestId('user-mcp-unlicensed')).toBeVisible()
   await admin.getByTestId('user-mcp-access').getByText('Lesen und ändern').click()
   await admin.getByTestId('user-mcp-save').click()
   await expect(admin.getByRole('row', { name: /Lena Lehrkraft/ }).getByTestId('user-mcp-badge')).toHaveText('KI: Lesen und ändern')
 
-  // Lehrkraft: Stufe und Adressen in den Einstellungen, Token „Nur lesen“ anlegen
+  // Ohne Lizenz-Feature `mcp`: Hinweis, keine neuen Tokens – auch nicht über die API
   await gotoHydrated(teacher, `${APP_URL}/settings`)
   await expect(teacher.getByTestId('mcp-access')).toHaveText('Lesen und ändern')
+  await expect(teacher.getByTestId('mcp-unlicensed')).toBeVisible()
+  await expect(teacher.getByTestId('mcp-new-token')).toBeDisabled()
+  const unlicensed = await api<{ message: string }>(teacher, `${APP_URL}/api/mcp/tokens`, 'POST', { name: 'x', access: 'read', days: 30 })
+  expect([unlicensed.status, unlicensed.body.message]).toEqual([402, 'feature_required'])
+
+  // Mit Lizenz: Stufe und Adressen in den Einstellungen, Token „Nur lesen“ anlegen
+  await setLicense(admin, teacher, true)
+  await gotoHydrated(teacher, `${APP_URL}/settings`)
+  await expect(teacher.getByTestId('mcp-unlicensed')).toHaveCount(0)
   await expect(teacher.getByTestId('mcp-url-app')).toHaveText(`${APP_URL}/mcp`)
   await expect(teacher.getByTestId('mcp-url-admin')).toHaveText(`${ADMIN_URL}/mcp`)
   await teacher.getByTestId('mcp-new-token').click()
@@ -106,7 +132,7 @@ test('Verwaltung schaltet KI-Zugriff frei, Lehrkraft verbindet per Token', async
   expect((await reader.call('release_learn_modules', { class: '9c', modules: ['E5'] })).error).toMatch(/not found/i)
 
   // Lesen und ändern: Modul E5 für die 9c freigeben, Klasse in Teams aufteilen
-  const writeToken = (await api<{ token: string }>(teacher, `${APP_URL}/api/mcp/tokens`, 'POST', { name: 'E2E schreiben', access: 'write', days: 30 })).body.token
+  writeToken = (await api<{ token: string }>(teacher, `${APP_URL}/api/mcp/tokens`, 'POST', { name: 'E2E schreiben', access: 'write', days: 30 })).body.token
   const writer = mcp(request, `${APP_URL}/mcp`, writeToken)
   expect(await writer.tools()).toEqual(expect.arrayContaining(['release_learn_modules', 'split_class_into_teams', 'create_subgroups']))
   expect(await writer.tools()).not.toContain('delete_subgroup')
@@ -141,7 +167,7 @@ test('Verwaltung schaltet KI-Zugriff frei, Lehrkraft verbindet per Token', async
 })
 
 test('OAuth: KI-Assistent meldet sich an, Lehrkraft stimmt zu und kann widerrufen', async ({ browser, request }) => {
-  test.setTimeout(120_000)
+  test.setTimeout(240_000)
   // Metadaten: App verweist auf die zentrale Anmeldung als Autorisierungsserver
   const resource = await (await request.get(`${APP_URL}/.well-known/oauth-protected-resource/mcp`)).json()
   expect(resource).toMatchObject({ resource: `${APP_URL}/mcp`, authorization_servers: [AUTH_URL] })
@@ -211,8 +237,15 @@ test('OAuth: KI-Assistent meldet sich an, Lehrkraft stimmt zu und kann widerrufe
   await expect(connection).toHaveCount(0)
   expect((await renewed.rpc('tools/list')).status).toBe(401)
 
-  // Aufräumen: Zugriff wieder aus ⇒ übrige Tokens (aus dem ersten Test) sind getrennt
+  // Lizenz ohne MCP: bestehende Tokens sehen nur noch das Konto, mit Hinweis
   const admin = await device(browser, ADMIN_URL, ADMIN)
+  await setLicense(admin, teacher, false)
+  const unlicensed = mcp(request, `${APP_URL}/mcp`, writeToken)
+  expect(await unlicensed.tools()).toEqual(['get_account'])
+  expect((await unlicensed.call<{ licensed: boolean }>('get_account')).data!.licensed).toBe(false)
+  expect((await unlicensed.rpc('initialize', { protocolVersion: '2025-06-18', capabilities: {}, clientInfo: { name: 'e2e', version: '1' } })).body.result.instructions).toContain('license')
+
+  // Aufräumen: Zugriff wieder aus ⇒ übrige Tokens (aus dem ersten Test) sind getrennt
   const lena = (await api<{ id: string, username: string }[]>(admin, `${ADMIN_URL}/api/admin/users`)).body.find(u => u.username === 'lena')!
   expect((await api(admin, `${ADMIN_URL}/api/admin/users/${lena.id}`, 'PATCH', { mcpAccess: 'none' })).status).toBe(200)
   expect((await api<unknown[]>(teacher, `${APP_URL}/api/mcp/tokens`)).body).toEqual([])

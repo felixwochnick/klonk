@@ -403,7 +403,9 @@ node scripts/build-csharp.ts        # C#-Host bauen (.NET-SDK 10 nötig; Ausgabe
   ⇒ RLS gilt; Klassen/Module/Personen auch per Name bzw. Kürzel (`E4`). **Stufen** `users.mcp_access` = `none|read|write|full` (`MCP_ACCESS_LEVELS`,
   `shared/utils/mcp.ts`; full = löschen, Konten anlegen, Passwörter): ändern nur Admins der Organisation bzw. Betreiber:innen (Trigger `guard_mcp_access`,
   auch das eigene Konto), `none` ⇒ Trigger löscht alle Tokens; Werkzeuge mit `access` > Stufe werden gar nicht angeboten (Annotations read-only/destructive).
-  Wirksam = min(Zugang, Konto) bei jeder Anfrage. **Anmeldung** (`server/utils/mcp-auth.ts`, Tabelle `mcp_tokens`, nur SHA-256-Hashes): persönliche Tokens
+  Wirksam = min(Zugang, Konto) bei jeder Anfrage. **Lizenz-Feature `mcp`** (vom User so festgelegt): `mcpLicensed`/`requireMcpLicense` (Org-, Privat- oder
+  Instanz-Lizenz) – neue Tokens und OAuth-Zustimmung nur mit Feature (402), MCP-Anfragen ohne Feature bekommen nur `get_account` (mit Hinweis `licensed: false`).
+  Lokaler Testmodus greift bei MCP-Clients nur mit Header `x-klonk-host: localhost` (Regel Host + Browser-Hostname bleibt). **Anmeldung** (`server/utils/mcp-auth.ts`, Tabelle `mcp_tokens`, nur SHA-256-Hashes): persönliche Tokens
   `klonk_pat_…` (Einstellungen → `McpSettings.vue`, RLS: nur für sich, höchstens eigene Stufe, 30/90/365 Tage, gelten für beide Server) und **OAuth 2.1**
   (DCR `/oauth/register`, Zustimmungsseite `pages/oauth/authorize.vue` im Core, `/oauth/token` mit PKCE S256 + rotierenden Refresh-Tokens, `iss` im
   Rücksprung, RFC 8707 `resource` bindet an einen Server). Autorisierungsserver = auth.* (zentrale Anmeldung), sonst jede App (`isMcpAuthorizationServer`);
@@ -549,7 +551,7 @@ node scripts/build-csharp.ts        # C#-Host bauen (.NET-SDK 10 nötig; Ausgabe
 - Token = signiertes JWT (Ed25519) mit Plan, Ablauf, max. Nutzern, Feature-Flags; die App enthält nur den Public Key
   und prüft offline. Ausstellung/Abrechnung (Mollie) nur auf `klonk.*`.
 - **Kostenlos:** 1 Figur, nur Standard-3D-Modelle, max. 10 Nutzer in der DB, LDAP-Login, **keine Bibliotheken/Imports**
-  in Klonk-Script und TS.
+  in Klonk-Script und TS, kein MCP-Zugriff für KI-Assistenten (Feature `mcp`).
 - Verkauf: Tokens (Self-Hosting) und Abos (Privat, Firmen, Schulen); für Schulen auch Kauf auf Rechnung.
 - **Selbsthost-Pläne** (vom User festgelegt, Unterschied nur Plan + Grenze): `self-hosted` (bis 1000 Konten) und
   `self-hosted-enterprise` (> 1000, unbegrenzt oder vereinbart) – `SELF_HOSTED_PLANS`. Kontengrenze: Warnung ab 90 %,

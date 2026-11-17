@@ -164,6 +164,7 @@
     "intro": "With the Model Context Protocol (MCP), AI assistants such as Claude, ChatGPT or GitHub Copilot can use Klonk on your behalf – for example set up classes, release learning modules or form teams. They only see and do what your account may.",
     "docs": "Guide",
     "notEnabled": "Access for AI assistants is not enabled for your account. Admins of your school or organization can enable it in the administration under “Accounts”.",
+    "unlicensed": "The license of your school or organization does not include access for AI assistants (MCP). Connected assistants then only see the account; admins can upgrade the license.",
     "yourAccess": "Your level:",
     "access": {
       "none": "No access",

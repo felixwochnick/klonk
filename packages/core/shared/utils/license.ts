@@ -15,6 +15,8 @@ export const LICENSE_FEATURES = [
   'customModules',
   /** KI-Assistent */
   'ai',
+  /** KI-Assistenten von außen (MCP-Server von App und Verwaltung, persönliche Tokens, OAuth-Verbindungen) */
+  'mcp',
   /** Klonk Cloud auf der gehosteten Plattform (Projekte synchronisieren, Gruppenordner) – selbst gehostet immer frei */
   'cloud',
   /** Gehostete Plattform: Grenzen gelten pro Organisation (über deren eigenes Token) */

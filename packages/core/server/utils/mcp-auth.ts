@@ -131,6 +131,16 @@ export async function authenticateMcp(event: H3Event): Promise<McpAuth | null> {
   return { user, access, tokenId: row.token.id }
 }
 
+/** Enthält die wirksame Lizenz des Kontos (Organisation, Privat-Abo, Instanz) das Feature `mcp`? */
+export async function mcpLicensed(user: Pick<SessionUser, 'id' | 'organizationId'>, event?: H3Event) {
+  return hasFeature(await getEffectiveLicense(user.organizationId, event, user.id), 'mcp')
+}
+
+/** Neue Zugänge (Token, OAuth-Zustimmung) nur mit Lizenz-Feature `mcp` */
+export async function requireMcpLicense(user: Pick<SessionUser, 'id' | 'organizationId'>, event?: H3Event) {
+  if (!(await mcpLicensed(user, event))) throw createError({ statusCode: 402, message: 'feature_required', data: { feature: 'mcp' } })
+}
+
 /** Stufe des Kontos (aktuell aus der Datenbank, nicht aus dem Session-Cookie) */
 export async function accountMcpAccess(userId: string): Promise<McpAccess> {
   const [row] = await withUserDb(userId, tx => tx.select({ access: users.mcpAccess }).from(users).where(eq(users.id, userId)))
@@ -280,6 +290,7 @@ function redirectWith(params: AuthorizeQuery, issuer: string, values: Record<str
 export async function approveAuthorization(event: H3Event, user: SessionUser, query: unknown, access: McpGrant) {
   const { params, client, resource } = await checkAuthorizeRequest(query)
   if (!mcpAllows(await accountMcpAccess(user.id), access)) throw createError({ statusCode: 403, message: 'mcp_access_forbidden' })
+  await requireMcpLicense(user, event)
   const code = newSecret('klonk_code')
   await useSystemDb().insert(mcpOauthCodes).values({
     codeHash: hashToken(code),

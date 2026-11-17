@@ -9,9 +9,11 @@ const route = useRoute()
 const { user } = useUserSession()
 const apiError = useApiError()
 
-type AuthorizeInfo = { client: { name: string, redirect: string }, requested: McpGrant | null, resource: string | null, max: McpAccess }
+type AuthorizeInfo = { client: { name: string, redirect: string }, requested: McpGrant | null, resource: string | null, max: McpAccess, licensed: boolean }
 const query = computed(() => Object.fromEntries(Object.entries(route.query).flatMap(([k, v]) => (typeof v === 'string' ? [[k, v]] : []))))
-const { data, error } = await useFetch<AuthorizeInfo>('/api/oauth/authorize', { query })
+// Im Browser laden: der lokale Testmodus braucht dessen Hostnamen (clientHostHeaders)
+const { data, error } = useFetch<AuthorizeInfo>('/api/oauth/authorize', { query, server: false, headers: clientHostHeaders() })
+const allowed = computed(() => !!data.value && data.value.max !== 'none' && data.value.licensed)
 
 const grants = computed(() => mcpGrantsUpTo(data.value?.max ?? 'none'))
 const access = ref<McpGrant>('read')
@@ -85,6 +87,15 @@ async function decide(approve: boolean) {
         :title="t('oauth.noAccess')"
         :description="t('mcp.notEnabled')"
       />
+      <UAlert
+        v-else-if="!data.licensed"
+        color="warning"
+        variant="subtle"
+        icon="i-lucide-badge-alert"
+        :title="t('oauth.noAccess')"
+        :description="t('mcp.unlicensed')"
+        data-testid="oauth-unlicensed"
+      />
       <URadioGroup
         v-else
         v-model="access"
@@ -115,7 +126,7 @@ async function decide(approve: boolean) {
           @click="decide(false)"
         />
         <UButton
-          v-if="data.max !== 'none'"
+          v-if="allowed"
           icon="i-lucide-check"
           :label="t('oauth.allow')"
           :loading="busy"

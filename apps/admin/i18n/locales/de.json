@@ -86,7 +86,8 @@
           "read": "Klassen, Konten, Lernmodule und Lernstand ansehen.",
           "write": "Zusätzlich anlegen und ändern: Klassen, Mitglieder, Freigaben, Teams.",
           "full": "Zusätzlich löschen, Konten sperren und Passwörter vergeben."
-        }
+        },
+        "unlicensed": "Die Lizenz enthält den Zugriff für KI-Assistenten (MCP) nicht – die Stufe wirkt erst mit einer passenden Lizenz."
       }
     },
     "login": {
@@ -155,6 +156,7 @@
         "libraries": "Bibliotheken in Klonk-Script und TypeScript",
         "customModules": "Eigene Lernmodule erstellen und bearbeiten",
         "ai": "KI-Assistent",
+        "mcp": "KI-Assistenten von außen (MCP)",
         "cloud": "Klonk Cloud (Projekte synchronisieren, Gruppenordner)"
       },
       "plans": {

@@ -47,5 +47,7 @@ export type McpTokenInfo = {
 /** Zugangsdaten für die Einstellungen: Stufe des Kontos und Adressen der MCP-Server */
 export type McpInfo = {
   access: McpAccess
+  /** Lizenz-Feature `mcp` vorhanden (sonst bieten die Server nur `get_account` an) */
+  licensed: boolean
   servers: { id: 'app' | 'admin', url: string }[]
 }

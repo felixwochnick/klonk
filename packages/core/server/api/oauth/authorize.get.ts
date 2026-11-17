@@ -9,5 +9,6 @@ export default defineEventHandler(async (event) => {
     requested,
     resource,
     max: await accountMcpAccess(user.id),
+    licensed: await mcpLicensed(user, event),
   }
 })

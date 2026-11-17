@@ -11,5 +11,6 @@ export default defineEventHandler(async (event) => {
     days: z.number().int().refine(d => (MCP_TOKEN_DAYS as readonly number[]).includes(d)),
   }))
   if (!mcpAllows(await accountMcpAccess(user.id), input.access)) throw createError({ statusCode: 403, message: 'mcp_access_forbidden' })
+  await requireMcpLicense(user, event)
   return createPersonalToken(user, input)
 })

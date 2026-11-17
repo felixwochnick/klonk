@@ -9,7 +9,10 @@ import coreEn from '../../i18n/locales/en.json'
  * {@link defineMcpTool}; angeboten wird nur, was Stufe (Token ∧ Konto) und Kontorolle erlauben. Die Werkzeuge rufen
  * dieselben Funktionen wie die REST-API auf – RLS gilt also genauso.
  */
-export type McpToolContext = { event: H3Event, user: SessionUser, access: McpAccess, isPlatformAdmin: boolean }
+export type McpToolContext = { event: H3Event, user: SessionUser, access: McpAccess, isPlatformAdmin: boolean, licensed: boolean }
+
+/** Hinweis für das Modell, wenn die Lizenz kein MCP enthält (Werkzeuge außer `get_account` fehlen dann) */
+const UNLICENSED = 'The Klonk license of this account does not include access for AI assistants (license feature "mcp"). Only get_account is available. Tell the user that an administrator can upgrade the license; do not try other ways.'
 
 export type KlonkMcpTool<S extends ZodRawShape = ZodRawShape> = {
   name: string
@@ -80,9 +83,13 @@ export async function handleMcpRequest(event: H3Event, server: KlonkMcpServer) {
     return { error: hasToken ? 'invalid_token' : 'unauthorized', error_description: 'Klonk MCP needs an access token (OAuth or personal token from the settings).' }
   }
 
-  const ctx: McpToolContext = { event, user: auth.user, access: auth.access, isPlatformAdmin: auth.user.platformRole !== 'user' }
-  const mcp = new McpServer({ name: server.name, title: server.title, version: '1.0.0' }, { instructions: server.instructions, capabilities: { tools: {} } })
-  for (const tool of availableMcpTools(server.tools, auth.user, auth.access)) {
+  // Lizenz-Feature `mcp` bei jeder Anfrage (abgelaufene Lizenz wirkt sofort); ohne bleibt nur `get_account` mit Hinweis
+  const licensed = await mcpLicensed(auth.user, event)
+  const ctx: McpToolContext = { event, user: auth.user, access: auth.access, isPlatformAdmin: auth.user.platformRole !== 'user', licensed }
+  const instructions = licensed ? server.instructions : `${UNLICENSED}\n\n${server.instructions}`
+  const mcp = new McpServer({ name: server.name, title: server.title, version: '1.0.0' }, { instructions, capabilities: { tools: {} } })
+  const tools = licensed ? availableMcpTools(server.tools, auth.user, auth.access) : server.tools.filter(t => t === whoamiTool)
+  for (const tool of tools) {
     mcp.registerTool(tool.name, {
       title: tool.title,
       description: tool.description,
@@ -117,12 +124,14 @@ export const whoamiTool = defineMcpTool({
   description: 'Returns the signed-in Klonk account (name, role, organization) and the MCP access level of this connection: read = read-only, write = may change data, full = may also delete and set passwords. Call this first if unsure what you may do.',
   access: 'read',
   input: {},
-  handler: async (_input, { user, access }) => ({
+  handler: async (_input, { user, access, licensed }) => ({
     displayName: user.displayName,
     username: user.username && user.domain ? `${user.username}@${user.domain}` : user.username,
     role: user.role,
     platformRole: user.platformRole,
     organization: user.organizationId ? { id: user.organizationId, name: user.organizationName, type: user.organizationType } : null,
     mcpAccess: access,
+    licensed,
+    ...(licensed ? {} : { notice: UNLICENSED }),
   }),
 })

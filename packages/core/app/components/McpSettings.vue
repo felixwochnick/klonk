@@ -5,8 +5,9 @@ const toast = useToast()
 const apiError = useApiError()
 const { docsUrl } = useRuntimeConfig().public
 
-const { data: info } = useFetch<McpInfo>('/api/mcp/info', { server: false })
-const { data: tokens, refresh } = useFetch<McpTokenInfo[]>('/api/mcp/tokens', { server: false, default: () => [] })
+// Lokaler Testmodus braucht den Hostnamen des Browsers (clientHostHeaders)
+const { data: info } = useFetch<McpInfo>('/api/mcp/info', { server: false, headers: clientHostHeaders() })
+const { data: tokens, refresh } = useFetch<McpTokenInfo[]>('/api/mcp/tokens', { server: false, headers: clientHostHeaders(), default: () => [] })
 
 const enabled = computed(() => !!info.value && info.value.access !== 'none')
 const grants = computed(() => mcpGrantsUpTo(info.value?.access ?? 'none'))
@@ -100,6 +101,14 @@ const cliCommand = (url: string, token: string) => `claude mcp add --transport h
           data-testid="mcp-access"
         />
       </p>
+      <UAlert
+        v-if="!info.licensed"
+        color="warning"
+        variant="subtle"
+        icon="i-lucide-badge-alert"
+        :title="t('mcp.unlicensed')"
+        data-testid="mcp-unlicensed"
+      />
 
       <!-- Adressen zum Eintragen im KI-Assistenten (Anmeldung dann per OAuth) -->
       <div class="space-y-2">
@@ -137,6 +146,7 @@ const cliCommand = (url: string, token: string) => `claude mcp add --transport h
             size="sm"
             icon="i-lucide-key-round"
             :label="t('mcp.newToken')"
+            :disabled="!info.licensed"
             data-testid="mcp-new-token"
             @click="openCreate"
           />

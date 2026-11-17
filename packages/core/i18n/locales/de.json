@@ -164,6 +164,7 @@
     "intro": "Über das Model Context Protocol (MCP) können KI-Assistenten wie Claude, ChatGPT oder GitHub Copilot Klonk in Ihrem Namen bedienen – zum Beispiel Klassen einrichten, Lernmodule freigeben oder Teams bilden. Sie sehen und dürfen dabei nur, was Ihr Konto darf.",
     "docs": "Anleitung",
     "notEnabled": "Für Ihr Konto ist der Zugriff für KI-Assistenten nicht freigeschaltet. Admins Ihrer Schule bzw. Organisation können ihn in der Verwaltung unter „Konten“ freischalten.",
+    "unlicensed": "Die Lizenz Ihrer Schule bzw. Organisation enthält den Zugriff für KI-Assistenten (MCP) nicht. Verbundene Assistenten sehen dann nur das Konto; Admins können die Lizenz erweitern.",
     "yourAccess": "Ihre Stufe:",
     "access": {
       "none": "Kein Zugriff",

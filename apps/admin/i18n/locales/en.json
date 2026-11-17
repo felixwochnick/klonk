@@ -86,7 +86,8 @@
           "read": "View classes, accounts, learning modules and progress.",
           "write": "Also create and change: classes, members, releases, teams.",
           "full": "Also delete, lock accounts and set passwords."
-        }
+        },
+        "unlicensed": "The license does not include access for AI assistants (MCP) – the level only takes effect with a matching license."
       }
     },
     "login": {
@@ -155,6 +156,7 @@
         "libraries": "Libraries in Klonk-Script and TypeScript",
         "customModules": "Create and edit own learning modules",
         "ai": "AI assistant",
+        "mcp": "External AI assistants (MCP)",
         "cloud": "Klonk Cloud (project sync, group folders)"
       },
       "plans": {

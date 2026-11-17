@@ -19,6 +19,7 @@ useSeoMeta({ title: () => t('admin.nav.users') })
 const toast = useToast()
 const apiError = useApiError()
 const { user, isPlatformAdmin } = useAuth()
+const { can } = useLicense()
 const isAdmin = computed(() => user.value?.role === 'admin' || isPlatformAdmin.value)
 
 // Plattform-Admins verwalten fremde Organisationen über ?organizationId=
@@ -389,6 +390,15 @@ async function remove(row: UserRow) {
         @update:open="v => !v && (mcpEditing = null)"
       >
         <template #body>
+          <UAlert
+            v-if="!can('mcp')"
+            color="warning"
+            variant="subtle"
+            icon="i-lucide-badge-alert"
+            :title="t('admin.users.mcp.unlicensed')"
+            class="mb-4"
+            data-testid="user-mcp-unlicensed"
+          />
           <URadioGroup
             v-model="mcpAccess"
             :items="mcpItems"
