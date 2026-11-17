@@ -10,6 +10,8 @@ import {
   markdownBlocks,
   renderDocumentHtml,
   renderSlidesHtml,
+  taskImageRows,
+  taskImages,
   worldPlanSvg,
   type ImageMap,
   type MaterialContext,
@@ -96,6 +98,30 @@ describe('Aufbau aus allen Lernmodulen', () => {
     const html = renderDocumentHtml(buildWorksheet(module, DEFAULT_WORKSHEET, ctx('de', module)), {})
     expect(html).not.toContain('<script>')
     expect(html).toContain('&lt;script&gt;')
+  })
+})
+
+describe('Bildzeilen', () => {
+  const module = findModule('building')!
+  const task = module.tasks[0]!
+  const worlds = [task.worlds[0]!, task.worlds[0]!, task.worlds[0]!, task.worlds[0]!]
+  const several = { ...task, worlds }
+  const goals: MaterialContext['expected'] = { [task.id]: worlds.map(world => ({ world, output: [] })) as never }
+
+  it('je Startwelt eine Zeile (Start + Ziel), einzelne Bilder bis zu drei je Zeile', () => {
+    const both = taskImageRows(several, { ...ctx('de', module), expected: goals }, { pictures: 'both', goal: true, allWorlds: true })
+    expect(both.map(row => row.map(image => image.kind))).toEqual([['world', 'plan', 'plan'], ['world', 'plan', 'plan'], ['world', 'plan', 'plan']])
+    const single = taskImageRows(several, ctx('de', module), { pictures: 'plan', goal: false, allWorlds: true })
+    expect(single.map(row => row.length)).toEqual([2, 2])
+    expect(taskImages(several, ctx('de', module), { pictures: 'both', goal: false, allWorlds: true, limit: 3 })).toHaveLength(3)
+  })
+
+  it('HTML: Breite je Bild nach Seitenverhältnis', () => {
+    const sheet = buildWorksheet(module, { ...DEFAULT_WORKSHEET, tasks: [task.id], goal: false }, ctx('de', module))
+    const images = fakeImages(sheet)
+    for (const image of collectImages(sheet)) images[image.id] = image.kind === 'plan' ? { src: PNG, png: PNG, width: 300, height: 300 } : { src: PNG, png: PNG, width: 600, height: 300 }
+    const html = renderDocumentHtml(sheet, images)
+    expect(html).toMatch(/<div class="row"><figure class="world" style="--ar: 2\.0000">.*?<figure class="plan" style="--ar: 1\.0000">/)
   })
 })
 

@@ -69,8 +69,18 @@ export function answerLines(module: LearnModule, task: LearnTask, ctx: MaterialC
   return clamp(count(solution) + 2, 4, 18)
 }
 
-/** Bilder einer Aufgabe: Startwelt(en) und – falls gewünscht – das Ergebnis der Musterlösung */
-export function taskImages(task: LearnTask, ctx: MaterialContext, options: { pictures: PictureStyle, goal: boolean, allWorlds: boolean, limit?: number }): MaterialImage[] {
+/** Liste in möglichst gleich lange Stücke mit höchstens `max` Einträgen (5 ⇒ 3 + 2, 4 ⇒ 2 + 2) */
+function balanced<T>(list: T[], max: number): T[][] {
+  const count = Math.ceil(list.length / max)
+  const size = Math.ceil(list.length / count)
+  return Array.from({ length: count }, (_, i) => list.slice(i * size, (i + 1) * size))
+}
+
+/**
+ * Bilder einer Aufgabe in Zeilen: Startwelt(en) und – falls gewünscht – das Ergebnis der Musterlösung. Je Startwelt eine
+ * Zeile (Start + Ziel nebeneinander); gibt es je Welt nur ein Bild, stehen bis zu drei Welten in einer Zeile.
+ */
+export function taskImageRows(task: LearnTask, ctx: MaterialContext, options: { pictures: PictureStyle, goal: boolean, allWorlds: boolean, limit?: number }): MaterialImage[][] {
   if (options.pictures === 'none' || !task.worlds.length) return []
   const t = ctx.t
   const worlds = options.allWorlds ? task.worlds : task.worlds.slice(0, 1)
@@ -78,13 +88,27 @@ export function taskImages(task: LearnTask, ctx: MaterialContext, options: { pic
   const startKinds: MaterialImage['kind'][] = options.pictures === 'both' ? ['world', 'plan'] : [options.pictures]
   // Ziel als Bauplan, wenn beides gewünscht ist (spart Platz)
   const goalKinds: MaterialImage['kind'][] = options.pictures === 'both' ? ['plan'] : [options.pictures]
-  const images: MaterialImage[] = []
-  worlds.forEach((world, i) => {
-    for (const kind of startKinds) images.push(worldImage(kind, world, several ? t('startN', { n: i + 1 }) : t('start')))
+  const groups = worlds.map((world, i) => {
+    const images = startKinds.map(kind => worldImage(kind, world, several ? t('startN', { n: i + 1 }) : t('start')))
     const goal = options.goal ? ctx.expected?.[task.id]?.[i]?.world : null
     if (goal) for (const kind of goalKinds) images.push(worldImage(kind, goal, several ? t('goalN', { n: i + 1 }) : t('goal')))
+    return images
   })
-  return images.slice(0, options.limit ?? 9)
+  const rows = groups.every(group => group.length === 1) ? balanced(groups.flat(), 3) : groups
+  // Höchstens `limit` Bilder insgesamt
+  let left = options.limit ?? 9
+  const result: MaterialImage[][] = []
+  for (const row of rows) {
+    if (left <= 0) break
+    result.push(row.slice(0, left))
+    left -= row.length
+  }
+  return result
+}
+
+/** Bilder einer Aufgabe als Liste (Folien) */
+export function taskImages(...args: Parameters<typeof taskImageRows>): MaterialImage[] {
+  return taskImageRows(...args).flat()
 }
 
 /** Ergebnis der Musterlösung in der ersten Startsituation als Bild (Lösungsfolien) */

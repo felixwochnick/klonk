@@ -27,7 +27,8 @@ export type MaterialBlock
     | { type: 'paragraph', lines: Line[], muted?: boolean }
     | { type: 'list', items: Line[], check?: boolean }
     | { type: 'code', code: string }
-    | { type: 'images', images: MaterialImage[], note?: string }
+    /** Bildzeilen: Bilder einer Zeile sind gleich hoch und füllen zusammen die ganze Breite */
+    | { type: 'images', rows: MaterialImage[][], note?: string }
     | { type: 'table', table: MaterialTable }
     /**
      * Platz zum Schreiben: `count` Linien; `code` = Programm (Kasten mit Zeilennummern), optional zwischen vorgegebenem
@@ -89,7 +90,7 @@ export function collectImages(content: MaterialDocument | Presentation): Materia
   const found = new Map<string, MaterialImage>()
   const walk = (blocks: MaterialBlock[]) => {
     for (const block of blocks) {
-      if (block.type === 'images') for (const image of block.images) found.set(image.id, image)
+      if (block.type === 'images') for (const image of block.rows.flat()) found.set(image.id, image)
       else if (block.type === 'box') walk(block.blocks)
     }
   }
@@ -111,6 +112,12 @@ export function hashText(text: string) {
     hash = Math.imul(hash, 0x01000193)
   }
   return (hash >>> 0).toString(36)
+}
+
+/** Seitenverhältnis (Breite / Höhe) eines Bilds; fehlende Bilder als 4 : 3 */
+export function imageRatio(image: MaterialImage, images: ImageMap) {
+  const resolved = images[image.id]
+  return resolved && resolved.width > 0 && resolved.height > 0 ? resolved.width / resolved.height : 4 / 3
 }
 
 export function worldImage(kind: MaterialImage['kind'], world: WorldData, caption?: string): MaterialImage {

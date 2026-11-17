@@ -1,5 +1,5 @@
 import { codeOf, type LearnModule, type LearnTask } from '@klonk/learn'
-import { answerLines, isCodeTrack, moduleLabel, selectedTasks, solutionText, starterFrame, taskImages, toTable, type MaterialContext, type PictureStyle } from './content'
+import { answerLines, isCodeTrack, moduleLabel, selectedTasks, solutionText, starterFrame, taskImageRows, toTable, type MaterialContext, type PictureStyle } from './content'
 import { inline, markdownBlocks } from './markdown'
 import type { MaterialBlock, MaterialDocument } from './model'
 
@@ -44,14 +44,14 @@ function taskBlocks(module: LearnModule, task: LearnTask, number: number, ctx: M
   }
 
   // Welten: Start und (Bauaufgaben bzw. Lösungsblatt) Ziel; SQL über die Welt-Datenbank zeigt die Welt mit Koordinaten
-  const images = taskImages(task, ctx, {
+  const rows = taskImageRows(task, ctx, {
     pictures: options.pictures,
     goal: options.goal && (solutions ? !!(task.check.position || task.check.cells || task.check.direction) : !!task.check.cells),
     allWorlds: options.allWorlds,
   })
-  if (images.length) {
-    const plan = images.some(image => image.kind === 'plan')
-    blocks.push({ type: 'images', images, note: plan ? t('planLegend') : undefined })
+  if (rows.length) {
+    const plan = rows.some(row => row.some(image => image.kind === 'plan'))
+    blocks.push({ type: 'images', rows, note: plan ? t('planLegend') : undefined })
   }
   if (task.worlds.length > 1 && !solutions) blocks.push({ type: 'paragraph', muted: true, lines: [[{ kind: 'text', value: t('severalWorlds', { n: task.worlds.length }) }]] })
 

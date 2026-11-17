@@ -5,6 +5,7 @@ import {
   Footer,
   Header,
   HeadingLevel,
+  HeightRule,
   ImageRun,
   Packer,
   PageNumber,
@@ -16,9 +17,10 @@ import {
   TableRow,
   TabStopType,
   TextRun,
+  VerticalAlign,
   WidthType,
 } from 'docx'
-import type { ImageMap, Line, MaterialBlock, MaterialDocument, MaterialImage } from './model'
+import { imageRatio, type ImageMap, type Line, type MaterialBlock, type MaterialDocument, type MaterialImage } from './model'
 
 // Arbeitsblatt bzw. Lösungsblatt als Word-Datei (DOCX) – zum Weiterbearbeiten in Euro-Office, OnlyOffice, LibreOffice
 // oder Word. Nur Schriften, die überall vorhanden sind bzw. ersetzt werden (Arial, Courier New).
@@ -86,49 +88,73 @@ function boxTable(children: (Paragraph | Table)[], options: { fill?: string, bor
 
 const spacer = (after = 120) => new Paragraph({ spacing: { before: 0, after }, children: [] })
 
-function imageParagraph(image: MaterialImage, images: ImageMap, maxWidth: number, maxHeight: number) {
-  const resolved = images[image.id]
-  if (!resolved) return new Paragraph({ children: [] })
-  const scale = Math.min(maxWidth / resolved.width, maxHeight / resolved.height, image.kind === 'plan' ? 1 : 10)
-  return new Paragraph({
-    alignment: AlignmentType.CENTER,
-    spacing: { before: 0, after: 40 },
-    keepNext: true,
-    children: [new ImageRun({
-      type: 'png',
-      data: resolved.png,
-      transformation: { width: Math.round(resolved.width * scale), height: Math.round(resolved.height * scale) },
-      altText: { name: image.caption ?? image.kind, description: image.caption ?? '', title: image.caption ?? '' },
-    })],
+/** Bildzeilen wie in der HTML-Ausgabe (Twips): Lücke zwischen den Rahmen, Innenabstand, Reserve für die Rahmenlinie, höchstens 62 mm hoch */
+const IMAGE_GAP = 150
+const IMAGE_PAD = 45
+const IMAGE_BORDER = 30
+const IMAGE_MAX_HEIGHT = Math.round(62 / 25.4 * 1440)
+const FRAME = thin('D1D5DB')
+
+/**
+ * Eine Bildzeile im Blocksatz: Spaltenbreite je Bild ∝ Seitenverhältnis ⇒ alle Rahmen gleich hoch und zusammen so breit wie
+ * die Seite. Zu hohe Zeilen werden gleichmäßig gekappt (Rahmen bleiben voll breit, Bild mittig). Lücken = leere Spalten.
+ */
+function imageRow(row: MaterialImage[], images: ImageMap, width: number): Table {
+  const ratios = row.map(image => imageRatio(image, images))
+  const sum = ratios.reduce((a, b) => a + b, 0)
+  const inner = width - (row.length - 1) * IMAGE_GAP - row.length * (2 * IMAGE_PAD + IMAGE_BORDER)
+  const height = Math.min(inner / sum, IMAGE_MAX_HEIGHT)
+  const cells = ratios.map(ratio => Math.floor(ratio * inner / sum) + 2 * IMAGE_PAD + IMAGE_BORDER)
+  const columns = cells.flatMap((cell, i) => (i ? [IMAGE_GAP, cell] : [cell]))
+  const noBorders = { top: NONE, bottom: NONE, left: NONE, right: NONE }
+  const gap = () => new TableCell({ width: { size: IMAGE_GAP, type: WidthType.DXA }, borders: noBorders, children: [new Paragraph({ children: [] })] })
+  const between = <T>(list: T[]) => list.flatMap((item, i) => (i ? [gap(), item] : [item]))
+
+  const pictures = row.map((image, i) => {
+    const resolved = images[image.id]
+    return new TableCell({
+      width: { size: cells[i]!, type: WidthType.DXA },
+      verticalAlign: VerticalAlign.CENTER,
+      margins: { top: IMAGE_PAD, bottom: IMAGE_PAD, left: IMAGE_PAD, right: IMAGE_PAD },
+      borders: { top: FRAME, bottom: FRAME, left: FRAME, right: FRAME },
+      children: [new Paragraph({
+        alignment: AlignmentType.CENTER,
+        spacing: { before: 0, after: 0 },
+        keepNext: true,
+        children: resolved
+          ? [new ImageRun({
+              type: 'png',
+              data: resolved.png,
+              // Twips ⇒ Pixel (96 dpi)
+              transformation: { width: Math.floor(ratios[i]! * height / 15), height: Math.floor(height / 15) },
+              altText: { name: image.caption ?? image.kind, description: image.caption ?? '', title: image.caption ?? '' },
+            })]
+          : [],
+      })],
+    })
+  })
+  const captions = row.map((image, i) => new TableCell({
+    width: { size: cells[i]!, type: WidthType.DXA },
+    borders: noBorders,
+    children: [new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 40, after: 40 }, children: [new TextRun({ text: image.caption ?? '', size: 17, color: MUTED })] })],
+  }))
+  return new Table({
+    width: { size: width, type: WidthType.DXA },
+    columnWidths: columns,
+    layout: TableLayoutType.FIXED,
+    borders: NO_BORDERS,
+    rows: [
+      new TableRow({ cantSplit: true, height: { value: Math.ceil(height) + 2 * IMAGE_PAD, rule: HeightRule.ATLEAST }, children: between(pictures) }),
+      new TableRow({ cantSplit: true, children: between(captions) }),
+    ],
   })
 }
 
 function imagesTable(block: Extract<MaterialBlock, { type: 'images' }>, images: ImageMap, width: number): (Paragraph | Table)[] {
-  const perRow = Math.min(block.images.length, 3)
-  const column = Math.floor(width / perRow)
-  const columnPx = Math.floor(column / 1440 * 96) - 12
-  const rows: TableRow[] = []
-  for (let i = 0; i < block.images.length; i += perRow) {
-    const slice = block.images.slice(i, i + perRow)
-    rows.push(new TableRow({
-      cantSplit: true,
-      children: Array.from({ length: perRow }, (_, c) => {
-        const image = slice[c]
-        return new TableCell({
-          width: { size: column, type: WidthType.DXA },
-          borders: { top: NONE, bottom: NONE, left: NONE, right: NONE },
-          children: image
-            ? [
-                imageParagraph(image, images, perRow === 1 ? Math.min(columnPx, 380) : columnPx, 230),
-                new Paragraph({ alignment: AlignmentType.CENTER, spacing: { after: 80 }, children: [new TextRun({ text: image.caption ?? '', size: 17, color: MUTED })] }),
-              ]
-            : [new Paragraph({ children: [] })],
-        })
-      }),
-    }))
-  }
-  const result: (Paragraph | Table)[] = [new Table({ width: { size: width, type: WidthType.DXA }, columnWidths: Array.from({ length: perRow }, () => column), layout: TableLayoutType.FIXED, borders: NO_BORDERS, rows })]
+  // Zwischen zwei Tabellen ein Absatz – sonst verschmilzt Word sie zu einer
+  const result: (Paragraph | Table)[] = block.rows.flatMap((row, i) => (i ? [spacer(60), imageRow(row, images, width)] : [imageRow(row, images, width)]))
   if (block.note) result.push(new Paragraph({ spacing: { before: 40, after: 120 }, children: [new TextRun({ text: block.note, size: 17, color: MUTED, italics: true })] }))
+  else result.push(spacer(120))
   return result
 }
 

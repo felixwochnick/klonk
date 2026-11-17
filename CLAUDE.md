@@ -425,7 +425,9 @@ node scripts/build-csharp.ts        # C#-Host bauen (.NET-SDK 10 nötig; Ausgabe
   Ausgabe `renderDocumentHtml`/`renderSlidesHtml` (alles maskiert, `@page` mit Seitenzahlen), `@klonk/material/docx` (docx, A4, Arial/Courier New)
   und `@klonk/material/pptx` (pptxgenjs, 16:9, Sprechernotizen) – beide erst beim Herunterladen per dynamischem Import. Bilder: `worldPlanSvg()` =
   Draufsicht/Bauplan (Zahl = Ziegel, Pfeil = Figur), 3D über einen unsichtbaren `WorldRenderer` (`utils/material-images.ts`, freigestellt, Cache je
-  Welt). App-Seite `/teaching/material/<modul>?type=worksheet|solutions|slides` (Vorschau im Sandbox-iframe per `srcdoc`, **PDF = Druckdialog**,
+  Welt). **Bildzeilen** (vom User so gewünscht): Block `images.rows` (je Startwelt eine Zeile, `taskImageRows`), jede Zeile im Blocksatz –
+  Breite ∝ Seitenverhältnis ⇒ alle Rahmen gleich hoch und zusammen 100 % breit (HTML `--ar` als `flex-grow`/`aspect-ratio`, DOCX Spaltenbreiten), höchstens 62 mm hoch.
+  App-Seite `/teaching/material/<modul>?type=worksheet|solutions|slides` (Vorschau im Sandbox-iframe per `srcdoc`, **PDF = Druckdialog**,
   Einstellungen in `klonk:material`), Einstieg Modulseite (Karte „Unterrichtsmaterial“), Unterricht-Matrix (Drucker-Symbol), Menü eigener Module.
   Sichtbar wie Musterlösungen (nicht für Lernende einer Organisation). **Lizenz-Feature `customModules`** (vom User so festgelegt, dasselbe wie eigene Lernmodule):
   nur Oberfläche (`useLicense().can('customModules')`, Hinweis erst nach `loaded`), da alles im Browser entsteht – Modulseite zeigt die Karte mit Hinweis
