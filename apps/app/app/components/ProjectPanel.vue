@@ -2,7 +2,7 @@
 // Projekt-Explorer (Seitenleiste der IDE): Ordner/Browser-Projekte öffnen, Dateien anlegen, umbenennen, löschen, Welt wählen
 const { t } = useI18n()
 const {
-  proj, canFolders, canCreateProject, locations, dialogLocation, browserProjects, recent, openFolder, openRecent, openBrowserProject,
+  proj, canFolders, canBrowser, canCreateProject, locations, dialogLocation, browserProjects, recent, openFolder, openRecent, openBrowserProject,
   importZip, browserProjectItems, recentItems,
   dialog, dialogName, dialogLanguage, dialogTitle, openDialog, submitDialog, openFile, newItems, fileActions, fileContextItems, areaContextItems,
   tree, toggleFolder, folderActions, parentOf, dropTarget, onDragStart, onDragOver, onDrop,
@@ -54,6 +54,7 @@ const selectedWorld = computed({
         @click="openFolder"
       />
       <UButton
+        v-if="canBrowser"
         icon="i-lucide-file-archive"
         variant="outline"
         :label="t('project.importZip')"
@@ -65,6 +66,12 @@ const selectedWorld = computed({
         class="text-xs text-(--ui-text-muted)"
       >
         {{ t('project.foldersUnsupported') }}
+      </p>
+      <p
+        v-if="!canBrowser"
+        class="text-xs text-(--ui-text-muted)"
+      >
+        {{ t('project.storageUnavailable') }}
       </p>
 
       <div v-if="recent.length">

@@ -1,10 +1,12 @@
-import { MANIFEST, Project } from '~/utils/project-fs'
+import { createMemoryDirectory } from '~/utils/memory-fs'
+import { browserStorage, MANIFEST, Project } from '~/utils/project-fs'
 
 /**
  * Klonk Cloud: Projekt auf dem Server mit lokaler Kopie im Browser (OPFS `klonk-cloud/<id>`).
  * Gelesen und geschrieben wird immer lokal (geht auch offline); Änderungen landen in einer Warteschlange und werden
  * hochgeladen, Änderungen anderer Geräte/Personen per Revision abgeholt. Ändern zwei gleichzeitig dieselbe Datei,
  * gewinnt der Server – die eigene Fassung bleibt als Konfliktkopie erhalten.
+ * Ohne Browser-Speicher (z. B. privates Fenster in Firefox) liegt die Kopie nur im Arbeitsspeicher ⇒ nur online.
  */
 
 type Pending = 'put' | 'delete' | 'folder' | 'delete-folder'
@@ -255,8 +257,11 @@ export class CloudProject extends Project {
   }
 }
 
+/** Ersatz ohne Browser-Speicher: gilt, bis die Seite neu geladen wird (Wiederöffnen im selben Tab nutzt die Kopie weiter) */
+let memoryRoot: FileSystemDirectoryHandle | undefined
+
 async function cacheRoot() {
-  const root = await navigator.storage.getDirectory()
+  const root = await browserStorage() ?? (memoryRoot ??= createMemoryDirectory())
   return root.getDirectoryHandle('klonk-cloud', { create: true })
 }
 

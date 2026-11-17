@@ -205,7 +205,36 @@ export class Project {
 // Ordner auswählen, Browser-Projekte, zuletzt geöffnete Projekte
 
 export const supportsFolders = () => import.meta.client && 'showDirectoryPicker' in window
-export const supportsBrowserProjects = () => import.meta.client && !!navigator.storage?.getDirectory
+
+let storageRoot: Promise<FileSystemDirectoryHandle | null> | undefined
+/** Ergebnis von `browserStorage()` für die Oberfläche (`null` = noch nicht geprüft) */
+const storageUsable = ref<boolean | null>(null)
+
+/**
+ * Browser-Speicher (Origin Private File System) oder `null`, wo der Browser ihn nicht hergibt – z. B. im privaten
+ * Fenster von Firefox (SecurityError) oder auf Seiten ohne sichere Verbindung. Wird einmal geprüft und gemerkt.
+ */
+export function browserStorage() {
+  storageRoot ??= (async () => {
+    try {
+      return await navigator.storage.getDirectory()
+    }
+    catch {
+      return null
+    }
+  })().then((root) => {
+    storageUsable.value = !!root
+    return root
+  })
+  return storageRoot
+}
+
+/** Browser-Projekte möglich? Reaktiv; bis die Prüfung (`browserStorage()`) fertig ist, `true` */
+export function supportsBrowserProjects() {
+  if (!import.meta.client) return false
+  void browserStorage()
+  return storageUsable.value !== false
+}
 
 export async function pickFolder(): Promise<Project | null> {
   try {
@@ -241,7 +270,8 @@ export async function createFolderProject(name: string): Promise<Project | null>
 }
 
 async function browserRoot() {
-  const root = await navigator.storage.getDirectory()
+  const root = await browserStorage()
+  if (!root) throw new Error('storage_unavailable')
   return root.getDirectoryHandle('klonk-projects', { create: true })
 }
 

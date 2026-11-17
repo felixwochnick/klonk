@@ -146,3 +146,45 @@ test('Eigenes Cloud-Projekt auf zwei Geräten, lokales Projekt hochladen', async
   await laptop.context().close()
   await tablet.context().close()
 })
+
+/** Dateien und Ordner eines eigenen Cloud-Projekts auf dem Server */
+function serverPaths(page: Page, name: string) {
+  return page.evaluate(async (name) => {
+    const status = await fetch('/api/cloud').then(r => r.json()) as { projects: { id: string, name: string }[] }
+    const id = status.projects.find(p => p.name === name)!.id
+    const { changes } = await fetch(`/api/cloud/projects/${id}/changes?since=0`).then(r => r.json()) as { changes: { path: string, deleted: boolean }[] }
+    return changes.filter(c => !c.deleted).map(c => c.path)
+  }, name)
+}
+
+test('Ohne Browser-Speicher (privates Fenster): Cloud-Projekte und Gruppen trotzdem nutzbar', async ({ browser }) => {
+  test.setTimeout(120_000)
+  const context = await browser.newContext({ locale: 'de-DE', viewport: { width: 1400, height: 900 } })
+  // Wie Firefox im privaten Fenster: kein Origin Private File System
+  await context.addInitScript(() => {
+    StorageManager.prototype.getDirectory = () => Promise.reject(new DOMException('Security error when calling GetDirectory', 'SecurityError'))
+  })
+  const page = await context.newPage()
+  await loginWithPassword(page, `${APP_URL}/login`, 'mia@gym-muster.de', 'mia-geheim')
+  await gotoHydrated(page, `${APP_URL}/projects`)
+  await expect(page.getByTestId('storage-unavailable')).toBeVisible()
+  await expect(page.getByTestId('import-zip')).toHaveCount(0)
+  await page.getByTestId('explorer-new-project').click()
+  await expect(page.getByTestId('project-dialog-location-cloud')).toBeVisible()
+  await expect(page.getByTestId('project-dialog-location-browser')).toHaveCount(0)
+  await page.keyboard.press('Escape')
+
+  // Gemeinsamer Ordner der Gruppe (lokale Kopie im Arbeitsspeicher)
+  await page.getByTestId('cloud-group-7a').click()
+  await expect(page.getByTestId('explorer-project-name')).toHaveText('7a')
+  await expect(page.getByTestId('explorer-folder-Aufgabe 1')).toBeVisible()
+
+  // Eigenes Projekt: Änderungen landen in der Cloud
+  await page.getByTestId('cloud-project-Robo').click()
+  await expect(page.getByTestId('explorer-project-name')).toHaveText('Robo')
+  await expect(page.getByTestId('explorer-file-welt.klonkworld.json')).toBeVisible()
+  await newEntry(page, 'Klonk-Script', 'privat')
+  await expect(page.getByTestId('explorer-file-privat.klonk')).toBeVisible()
+  await expect.poll(() => serverPaths(page, 'Robo'), { timeout: 20_000 }).toContain('privat.klonk')
+  await context.close()
+})

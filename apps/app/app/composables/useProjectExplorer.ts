@@ -4,7 +4,7 @@ import type { SqlEngineName } from '@klonk/runtime'
 import { databaseSample, sqlSample } from '~/utils/sql-samples'
 import { convertKarolFile, KAROL_ACCEPT, type KarolHint, type KarolTarget } from '~/utils/karol-import'
 import {
-  createFolderProject, DATABASE_EXTENSIONS, deleteBrowserProject, downloadProjectZip, ensurePermission, forgetProject, importProjectZip, listBrowserProjects, pickFolder, recentProjects, renameBrowserProject,
+  browserStorage, createFolderProject, DATABASE_EXTENSIONS, deleteBrowserProject, downloadProjectZip, ensurePermission, forgetProject, importProjectZip, listBrowserProjects, pickFolder, recentProjects, renameBrowserProject,
   supportsBrowserProjects, supportsFolders, Project, type FileKind, type ProjectFile, type RecentProject,
 } from '~/utils/project-fs'
 
@@ -57,14 +57,14 @@ export function useProjectExplorer(options: { onOpenFile?: (file: ProjectFile) =
   const { files, folders } = proj
 
   const canFolders = ref(false)
-  const canBrowser = ref(false)
+  /** Browser-Projekte (und ZIP-Import) nur mit Browser-Speicher – im privaten Fenster von Firefox z. B. nicht */
+  const canBrowser = computed(() => supportsBrowserProjects())
   const browserProjects = ref<string[]>([])
   const recent = ref<RecentProject[]>([])
 
   async function loadLists() {
     canFolders.value = supportsFolders()
-    canBrowser.value = supportsBrowserProjects()
-    if (canBrowser.value) browserProjects.value = await listBrowserProjects().catch(() => [])
+    if (await browserStorage()) browserProjects.value = await listBrowserProjects().catch(() => [])
     recent.value = (await recentProjects()).filter(r => r.source === 'folder')
   }
   onMounted(loadLists)
