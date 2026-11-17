@@ -89,7 +89,12 @@
     "role_from_groups": "Die Rolle dieses Kontos kommt aus den Klonk-ID-Gruppen.",
     "learn_storage": "Dieses Modul darf nicht in der Klonk Cloud gespeichert werden.",
     "custom_module_too_large": "Das Lernmodul ist zu groß – verkleinere Welten oder Datenbanken.",
-    "custom_module_conflict": "Das Lernmodul wurde inzwischen von jemand anderem gespeichert."
+    "custom_module_conflict": "Das Lernmodul wurde inzwischen von jemand anderem gespeichert.",
+    "mcp_access_forbidden": "Diese Stufe des KI-Zugriffs ist für das Konto nicht freigeschaltet.",
+    "oauth_invalid_request": "Die Anfrage des Programms ist unvollständig oder ungültig.",
+    "oauth_unknown_client": "Das Programm ist bei Klonk nicht angemeldet. Verbinden Sie es bitte neu.",
+    "oauth_invalid_redirect": "Die Rücksprung-Adresse des Programms ist nicht angemeldet.",
+    "oauth_invalid_resource": "Der angefragte MCP-Server gehört nicht zu dieser Klonk-Installation."
   },
   "settings": {
     "title": "Einstellungen",
@@ -153,5 +158,59 @@
       "foerderschule": "Förderschule",
       "other": "Andere Schulform"
     }
+  },
+  "mcp": {
+    "title": "KI-Assistenten (MCP)",
+    "intro": "Über das Model Context Protocol (MCP) können KI-Assistenten wie Claude, ChatGPT oder GitHub Copilot Klonk in Ihrem Namen bedienen – zum Beispiel Klassen einrichten, Lernmodule freigeben oder Teams bilden. Sie sehen und dürfen dabei nur, was Ihr Konto darf.",
+    "docs": "Anleitung",
+    "notEnabled": "Für Ihr Konto ist der Zugriff für KI-Assistenten nicht freigeschaltet. Admins Ihrer Schule bzw. Organisation können ihn in der Verwaltung unter „Konten“ freischalten.",
+    "unlicensed": "Die Lizenz Ihrer Schule bzw. Organisation enthält den Zugriff für KI-Assistenten (MCP) nicht. Verbundene Assistenten sehen dann nur das Konto; Admins können die Lizenz erweitern.",
+    "yourAccess": "Ihre Stufe:",
+    "access": {
+      "none": "Kein Zugriff",
+      "read": "Nur lesen",
+      "write": "Lesen und ändern",
+      "full": "Voll (auch löschen)"
+    },
+    "accessHint": {
+      "read": "Klassen, Konten, Lernmodule und Lernstand ansehen.",
+      "write": "Zusätzlich anlegen und ändern: Klassen, Mitglieder, Freigaben, Teams.",
+      "full": "Zusätzlich löschen, Konten sperren und Passwörter vergeben."
+    },
+    "connectHint": "Tragen Sie eine dieser Adressen in Ihrem KI-Assistenten als MCP-Server bzw. Connector ein (Lern-App: Unterricht, Lernmodule, Teams – Verwaltung: Konten, Klassen, Organisation). Die Anmeldung läuft dann über Klonk.",
+    "servers": {
+      "app": "Lern-App",
+      "admin": "Verwaltung"
+    },
+    "copy": "Kopieren",
+    "copied": "Kopiert",
+    "connections": "Verbundene Assistenten und Tokens",
+    "noConnections": "Noch keine Verbindungen.",
+    "newToken": "Persönliches Token",
+    "lastUsed": "zuletzt genutzt {date}",
+    "neverUsed": "noch nicht genutzt",
+    "expires": "gültig bis {date}",
+    "revoke": "Widerrufen",
+    "confirmRevoke": "Zugang „{name}“ widerrufen? Der Assistent kann Klonk dann nicht mehr nutzen.",
+    "tokenName": "Name",
+    "tokenNamePlaceholder": "z. B. Claude Code auf dem Laptop",
+    "tokenAccess": "Stufe",
+    "tokenDays": "Gültigkeit",
+    "days": "{n} Tage",
+    "cancel": "Abbrechen",
+    "create": "Anlegen",
+    "createdTitle": "Token „{name}“ angelegt",
+    "createdHint": "Kopieren Sie das Token jetzt – es wird nur dieses eine Mal angezeigt. Behandeln Sie es wie ein Passwort.",
+    "cliHint": "Zum Beispiel in Claude Code:"
+  },
+  "oauth": {
+    "title": "Zugriff erlauben",
+    "request": "{client} möchte im Namen von {user} auf Klonk zugreifen.",
+    "chooseAccess": "Was darf der Assistent?",
+    "noAccess": "Kein Zugriff für KI-Assistenten",
+    "redirectTo": "Danach geht es zurück zu {target}.",
+    "revokeHint": "Sie können den Zugriff jederzeit in den Einstellungen widerrufen.",
+    "allow": "Erlauben",
+    "deny": "Ablehnen"
   }
 }

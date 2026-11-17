@@ -8,6 +8,8 @@ export default defineAppConfig({
     authServer: false as boolean,
     /** Pfad des Einrichtungsassistenten (nur admin) */
     setupRoute: '' as string,
+    /** MCP-Server dieser App (`/mcp`): `app` bzw. `admin`, leer = keiner */
+    mcp: '' as '' | 'app' | 'admin',
   },
 })
 
@@ -18,6 +20,7 @@ declare module '@nuxt/schema' {
       operatorLogin?: boolean
       authServer?: boolean
       setupRoute?: string
+      mcp?: '' | 'app' | 'admin'
     }
   }
 }

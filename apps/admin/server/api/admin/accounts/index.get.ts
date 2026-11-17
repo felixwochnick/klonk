@@ -12,6 +12,7 @@ export default defineEventHandler(async (event) => {
       email: users.email,
       platformRole: users.platformRole,
       disabled: users.disabled,
+      mcpAccess: users.mcpAccess,
       createdAt: users.createdAt,
       lastLoginAt: users.lastLoginAt,
       providers: sql<string[]>`coalesce(array_agg(distinct ${accounts.provider}) filter (where ${accounts.provider} is not null), '{}')`,

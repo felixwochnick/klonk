@@ -9,6 +9,7 @@ type UserRow = {
   disabled: boolean
   hasPassword: boolean
   mustChangePassword: boolean
+  mcpAccess: McpAccess
   lastLoginAt: string | null
 }
 
@@ -18,6 +19,7 @@ useSeoMeta({ title: () => t('admin.nav.users') })
 const toast = useToast()
 const apiError = useApiError()
 const { user, isPlatformAdmin } = useAuth()
+const { can } = useLicense()
 const isAdmin = computed(() => user.value?.role === 'admin' || isPlatformAdmin.value)
 
 // Plattform-Admins verwalten fremde Organisationen über ?organizationId=
@@ -55,9 +57,10 @@ function canReset(row: UserRow) {
 
 function actions(row: UserRow): DropdownMenuItem[][] {
   const groups: DropdownMenuItem[][] = []
+  const self = row.id === user.value?.id
   if (canReset(row))
     groups.push([{ label: t('admin.users.resetPassword'), icon: 'i-lucide-key-round', onSelect: () => openReset(row) }])
-  if (isAdmin.value && row.id !== user.value?.id) {
+  if (isAdmin.value && !self) {
     groups.push([
       { label: t('admin.users.edit'), icon: 'i-lucide-pencil', onSelect: () => openEdit(row) },
       {
@@ -66,9 +69,35 @@ function actions(row: UserRow): DropdownMenuItem[][] {
         onSelect: () => update(row, { disabled: !row.disabled }),
       },
     ])
-    groups.push([{ label: t('admin.users.delete'), icon: 'i-lucide-trash-2', color: 'error', onSelect: () => remove(row) }])
   }
+  // KI-Assistenten (MCP): Admins legen die Stufe je Konto fest, auch für sich selbst
+  if (isAdmin.value) groups.push([{ label: t('admin.users.mcp.action'), icon: 'i-lucide-bot', onSelect: () => openMcp(row) }])
+  if (isAdmin.value && !self) groups.push([{ label: t('admin.users.delete'), icon: 'i-lucide-trash-2', color: 'error', onSelect: () => remove(row) }])
   return groups
+}
+
+// KI-Zugriff (MCP)
+const mcpEditing = ref<UserRow | null>(null)
+const mcpAccess = ref<McpAccess>('none')
+const mcpItems = computed(() => MCP_ACCESS_LEVELS.map(value => ({ value, label: t(`admin.users.mcp.levels.${value}`), description: t(`admin.users.mcp.hints.${value}`) })))
+
+function openMcp(row: UserRow) {
+  mcpEditing.value = row
+  mcpAccess.value = row.mcpAccess
+}
+
+async function saveMcp() {
+  const row = mcpEditing.value
+  if (!row) return
+  try {
+    await $fetch(`/api/admin/users/${row.id}`, { method: 'PATCH', body: { mcpAccess: mcpAccess.value } })
+    toast.add({ title: t('admin.saved'), color: 'success' })
+    mcpEditing.value = null
+    await refresh()
+  }
+  catch (e) {
+    toast.add({ title: apiError(e), color: 'error' })
+  }
 }
 
 // Anlegen
@@ -211,6 +240,16 @@ async function remove(row: UserRow) {
             size="sm"
             class="ms-2"
           />
+          <UBadge
+            v-if="row.original.mcpAccess !== 'none'"
+            :label="t('admin.users.mcp.badge', { level: t(`admin.users.mcp.levels.${row.original.mcpAccess}`) })"
+            icon="i-lucide-bot"
+            color="info"
+            variant="subtle"
+            size="sm"
+            class="ms-2"
+            data-testid="user-mcp-badge"
+          />
         </template>
         <template #username-cell="{ row }">
           <span class="text-(--ui-text-muted)">{{ row.original.username }}@{{ organization?.domain }}</span>
@@ -340,6 +379,38 @@ async function remove(row: UserRow) {
             type="submit"
             form="edit-user"
             :label="t('admin.save')"
+          />
+        </template>
+      </UModal>
+
+      <UModal
+        :open="!!mcpEditing"
+        :title="t('admin.users.mcp.title')"
+        :description="mcpEditing ? t('admin.users.mcp.description', { name: mcpEditing.displayName }) : undefined"
+        @update:open="v => !v && (mcpEditing = null)"
+      >
+        <template #body>
+          <UAlert
+            v-if="!can('mcp')"
+            color="warning"
+            variant="subtle"
+            icon="i-lucide-badge-alert"
+            :title="t('admin.users.mcp.unlicensed')"
+            class="mb-4"
+            data-testid="user-mcp-unlicensed"
+          />
+          <URadioGroup
+            v-model="mcpAccess"
+            :items="mcpItems"
+            variant="card"
+            data-testid="user-mcp-access"
+          />
+        </template>
+        <template #footer>
+          <UButton
+            :label="t('admin.save')"
+            data-testid="user-mcp-save"
+            @click="saveMcp"
           />
         </template>
       </UModal>

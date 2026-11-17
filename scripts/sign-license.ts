@@ -1,7 +1,7 @@
 // Stellt ein Lizenz-Token aus – bis der Shop auf klonk.* das übernimmt.
 //
 //   node scripts/sign-license.ts --name "Gymnasium Musterstadt" --plan self-hosted \
-//     --features oidc,characters,models,libraries,ai --days 365 [--max-users 500] [--domains klonk.example] [--key <pem>] [--kid klonk-2026-2]
+//     --features oidc,characters,models,libraries,ai,mcp --days 365 [--max-users 500] [--domains klonk.example] [--key <pem>] [--kid klonk-2026-2]
 //
 // Selbsthost-Pläne: `self-hosted` (Standard: bis 1000 Konten) und `self-hosted-enterprise` (Standard: unbegrenzt).
 // --max-users überschreibt die Grenze des Plans, `--max-users unlimited` = unbegrenzt.

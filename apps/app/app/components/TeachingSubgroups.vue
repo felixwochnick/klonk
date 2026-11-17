@@ -1,8 +1,4 @@
 <script setup lang="ts">
-import { defaultStartWorld } from '@klonk/runtime/live'
-import { World } from '@klonk/world'
-import { KIND_EXTENSION } from '~/utils/project-fs'
-
 // Untergruppen (Teams) einer Klasse für die Leitung: anlegen (einzeln oder zufällig), Mitglieder, Art der Zusammenarbeit,
 // gemeinsames Projekt öffnen bzw. der gemeinsamen Welt zusehen
 const props = defineProps<{ groupId: string }>()
@@ -30,15 +26,10 @@ const languageItems = computed(() => PROGRAM_LANGUAGES.map(value => ({ value, la
 
 /** Startdateien des gemeinsamen Ordners: Projekt (klonk.json, Welt, Beispielprogramm) bzw. Startwelt mit vier Startplätzen */
 function starterFiles(mode: CollabMode, language: ProgramLanguage) {
-  const lang = locale.value === 'en' ? 'en' : 'de'
-  const world = `${t('project.defaultName.world')}${KIND_EXTENSION.world}`
-  if (mode === 'world') return [{ path: world, content: `${JSON.stringify(defaultStartWorld(), null, 2)}\n` }]
-  const program = language === 'java' ? 'src/Main.java' : `${t(`project.defaultName.${language}`)}${KIND_EXTENSION[language]}`
-  return [
-    { path: 'klonk.json', content: `${JSON.stringify({ language: projectLanguage(language) }, null, 2)}\n` },
-    { path: world, content: `${JSON.stringify(World.empty().toJSON(), null, 2)}\n` },
-    { path: program, content: programSample(language, lang) },
-  ]
+  return collabStarterFiles(mode, language, locale.value === 'en' ? 'en' : 'de', {
+    world: t('project.defaultName.world'),
+    program: t(`project.defaultName.${language}`),
+  })
 }
 
 // Dialog: neue Untergruppe bzw. bearbeiten

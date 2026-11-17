@@ -83,6 +83,19 @@ export default defineNuxtConfig({
     },
   },
 
+  routeRules: {
+    // Zustimmungsseite für KI-Assistenten nie einbetten (Clickjacking)
+    '/oauth/**': { headers: { 'x-frame-options': 'DENY', 'content-security-policy': 'frame-ancestors \'none\'' } },
+  },
+
+  // MCP (KI-Assistenten): OAuth-Metadaten unter /.well-known – explizit registriert, Punkt-Ordner werden nicht gescannt
+  serverHandlers: [
+    { route: '/.well-known/oauth-protected-resource', handler: fileURLToPath(new URL('./server/handlers/oauth-protected-resource.ts', import.meta.url)) },
+    { route: '/.well-known/oauth-protected-resource/**', handler: fileURLToPath(new URL('./server/handlers/oauth-protected-resource.ts', import.meta.url)) },
+    { route: '/.well-known/oauth-authorization-server', handler: fileURLToPath(new URL('./server/handlers/oauth-authorization-server.ts', import.meta.url)) },
+    { route: '/.well-known/oauth-authorization-server/**', handler: fileURLToPath(new URL('./server/handlers/oauth-authorization-server.ts', import.meta.url)) },
+  ],
+
   i18n: {
     // Ergänzt die Übersetzungen des UI-Layers um Auth-Texte
     locales: [

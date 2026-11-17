@@ -69,7 +69,26 @@
       "resetPasswordFor": "Neues Startpasswort für {name}",
       "passwordReset": "Passwort zurückgesetzt",
       "initialPassword": "Startpasswort",
-      "initialPasswordHelp": "Mindestens 8 Zeichen – muss bei der ersten Anmeldung geändert werden."
+      "initialPasswordHelp": "Mindestens 8 Zeichen – muss bei der ersten Anmeldung geändert werden.",
+      "mcp": {
+        "action": "KI-Zugriff (MCP) …",
+        "title": "KI-Zugriff (MCP)",
+        "description": "Was dürfen KI-Assistenten (Claude, ChatGPT …) im Namen von {name}? Gilt höchstens so weit, wie das Konto selbst darf.",
+        "badge": "KI: {level}",
+        "levels": {
+          "none": "Aus",
+          "read": "Nur lesen",
+          "write": "Lesen und ändern",
+          "full": "Voll"
+        },
+        "hints": {
+          "none": "Kein Zugriff; bestehende Verbindungen werden getrennt.",
+          "read": "Klassen, Konten, Lernmodule und Lernstand ansehen.",
+          "write": "Zusätzlich anlegen und ändern: Klassen, Mitglieder, Freigaben, Teams.",
+          "full": "Zusätzlich löschen, Konten sperren und Passwörter vergeben."
+        },
+        "unlicensed": "Die Lizenz enthält den Zugriff für KI-Assistenten (MCP) nicht – die Stufe wirkt erst mit einer passenden Lizenz."
+      }
     },
     "login": {
       "description": "Lege fest, wie sich die Mitglieder deiner Organisation anmelden. Mehrere Methoden können gleichzeitig aktiv sein.",
@@ -137,6 +156,7 @@
         "libraries": "Bibliotheken in Klonk-Script und TypeScript",
         "customModules": "Eigene Lernmodule und Unterrichtsmaterial",
         "ai": "KI-Assistent",
+        "mcp": "KI-Assistenten von außen (MCP)",
         "cloud": "Klonk Cloud (Projekte synchronisieren, Gruppenordner)"
       },
       "plans": {

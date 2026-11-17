@@ -396,6 +396,28 @@ node scripts/build-csharp.ts        # C#-Host bauen (.NET-SDK 10 nötig; Ausgabe
     (Rückstau wird schneller abgespielt). Zurücksetzen lädt die Startwelt neu, laufende Programme halten an.
   Tests: `packages/runtime/tests/live.test.ts`, RLS in `rls.test.ts`, E2E `e2e/teams.spec.ts` (eigene Lernende Ida/Ben, Klasse 8t, räumt auf),
   Doku `4.teaching/5.teamwork.md`.
+- **MCP-Server** (vom User gewünscht: KI-Assistenten unterstützen Lehrkräfte bei der Einrichtung, Zugriff je Konto einstellbar): app.* und admin.*
+  haben je `/mcp` (Streamable HTTP, **zustandslos, JSON-Antworten**, `@modelcontextprotocol/sdk` direkt – bewusst nicht `@nuxtjs/mcp-toolkit` wie Docus,
+  damit Anmeldung/OAuth in unserer Hand bleiben). Core: `server/utils/mcp-server.ts` (`defineMcpTool({ access, roles, platformAdmin, input, handler })`,
+  `handleMcpRequest`, `whoamiTool`; Fehler = Code + Text aus `errors.*` en), Werkzeuge in `apps/{app,admin}/server/mcp/tools.ts` (Route `server/routes/mcp.ts`,
+  `appConfig.klonk.mcp = 'app'|'admin'`) rufen **dieselben Funktionen wie die REST-API** (App: `learn.ts`/`subgroups.ts`, Verwaltung: `server/utils/directory.ts`)
+  ⇒ RLS gilt; Klassen/Module/Personen auch per Name bzw. Kürzel (`E4`). **Stufen** `users.mcp_access` = `none|read|write|full` (`MCP_ACCESS_LEVELS`,
+  `shared/utils/mcp.ts`; full = löschen, Konten anlegen, Passwörter): ändern nur Admins der Organisation bzw. Betreiber:innen (Trigger `guard_mcp_access`,
+  auch das eigene Konto), `none` ⇒ Trigger löscht alle Tokens; Werkzeuge mit `access` > Stufe werden gar nicht angeboten (Annotations read-only/destructive).
+  Wirksam = min(Zugang, Konto) bei jeder Anfrage. **Lizenz-Feature `mcp`** (vom User so festgelegt): `mcpLicensed`/`requireMcpLicense` (Org-, Privat- oder
+  Instanz-Lizenz) – neue Tokens und OAuth-Zustimmung nur mit Feature (402), MCP-Anfragen ohne Feature bekommen nur `get_account` (mit Hinweis `licensed: false`).
+  Lokaler Testmodus greift bei MCP-Clients nur mit Header `x-klonk-host: localhost` (Regel Host + Browser-Hostname bleibt). **Anmeldung** (`server/utils/mcp-auth.ts`, Tabelle `mcp_tokens`, nur SHA-256-Hashes): persönliche Tokens
+  `klonk_pat_…` (Einstellungen → `McpSettings.vue`, RLS: nur für sich, höchstens eigene Stufe, 30/90/365 Tage, gelten für beide Server) und **OAuth 2.1**
+  (DCR `/oauth/register`, Zustimmungsseite `pages/oauth/authorize.vue` im Core, `/oauth/token` mit PKCE S256 + rotierenden Refresh-Tokens, `iss` im
+  Rücksprung, RFC 8707 `resource` bindet an einen Server). Autorisierungsserver = auth.* (zentrale Anmeldung), sonst jede App (`isMcpAuthorizationServer`);
+  Metadaten `/.well-known/oauth-protected-resource[/mcp]` + `/.well-known/oauth-authorization-server` als `serverHandlers` (Punkt-Ordner scannt Nitro nicht).
+  `mcp_oauth_clients`/`mcp_oauth_codes` nur Server (RLS ohne Grants). Proxy-Gate lässt `/mcp`, `/.well-known/oauth-*`, `/oauth/token|register` durch.
+  Betreiber:innen leiten keine Klassen (`leads_group`) ⇒ Unterrichts-Werkzeuge nur Lehrkräfte/Admins (vom User so bestätigt – Support richtet
+  Schulen über die Verwaltung ein); Verwaltungs-Werkzeuge nehmen `organizationId`.
+  Beispielprogramme/Startdateien für Untergruppen liegen dafür in `apps/app/shared/utils/program-sample.ts` (`collabStarterFiles`).
+  **Falle Auto-Import:** Steht ein auto-importierter Bezeichner direkt vor `as` (`z.enum(MCP_GRANTS as [...])`), fügt unimport keinen Import ein ⇒
+  freier Bezeichner im Nitro-Bundle (ReferenceError bzw. auf oberster Ebene bricht das ganze Bundle ab) – solche Konstanten ausdrücklich importieren. Tests: RLS + `tests/mcp.test.ts`
+  (core), E2E `e2e/mcp.spec.ts` (Freischalten, Token, Werkzeuge, OAuth-Ablauf; nach learn.spec, räumt auf). Doku `5.administration/6.mcp.md`.
 - **Unterrichtsmaterial** (vom User gewünscht: Arbeitsblätter und Präsentationen zu den Lernmodulen, PDF + DOCX – er nutzt **Euro-Office**
   (OnlyOffice-Fork ⇒ OOXML) ⇒ DOCX/PPTX statt ODF): Paket `@klonk/material` = neutrales Modell (`MaterialBlock`, `MaterialDocument`, `Presentation`),
   Aufbau `buildWorksheet` (Arbeitsblatt bzw. `kind: 'solutions'`) und `buildPresentation` aus `LearnModule` + `MaterialContext` (Beschriftungen per
@@ -543,7 +565,7 @@ node scripts/build-csharp.ts        # C#-Host bauen (.NET-SDK 10 nötig; Ausgabe
 - Token = signiertes JWT (Ed25519) mit Plan, Ablauf, max. Nutzern, Feature-Flags; die App enthält nur den Public Key
   und prüft offline. Ausstellung/Abrechnung (Mollie) nur auf `klonk.*`.
 - **Kostenlos:** 1 Figur, nur Standard-3D-Modelle, max. 10 Nutzer in der DB, LDAP-Login, **keine Bibliotheken/Imports**
-  in Klonk-Script und TS.
+  in Klonk-Script und TS, kein MCP-Zugriff für KI-Assistenten (Feature `mcp`).
 - Verkauf: Tokens (Self-Hosting) und Abos (Privat, Firmen, Schulen); für Schulen auch Kauf auf Rechnung.
 - **Selbsthost-Pläne** (vom User festgelegt, Unterschied nur Plan + Grenze): `self-hosted` (bis 1000 Konten) und
   `self-hosted-enterprise` (> 1000, unbegrenzt oder vereinbart) – `SELF_HOSTED_PLANS`. Kontengrenze: Warnung ab 90 %,
@@ -609,3 +631,4 @@ node scripts/build-csharp.ts        # C#-Host bauen (.NET-SDK 10 nötig; Ausgabe
 15c. [x] Eigene Lernmodule der Lehrkräfte (Editor mit Welten, Datenbanken, Musterlösung und Probelauf; für alle Lehrkräfte der Schule sichtbar, Export/Import)
 16. [x] Untergruppen (Teams) einer Klasse: gemeinsames Projekt live bearbeiten (Yjs, Cursor, Blöcke je Stapel) oder gemeinsame Welt mit eigener Figur (Server führt Befehle aus)
 17. [x] Unterrichtsmaterial: Arbeitsblatt, Lösungsblatt und Präsentation zu jedem Lernmodul (Drucken/PDF, DOCX, PPTX für Euro-Office/LibreOffice/Word)
+18. [x] MCP-Server für App und Verwaltung (KI-Assistenten richten Unterricht/Organisation ein; Stufe je Konto, persönliche Tokens + OAuth 2.1)

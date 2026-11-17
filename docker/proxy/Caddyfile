@@ -45,8 +45,9 @@
 	handle /outpost.goauthentik.io/* {
 		reverse_proxy {$KLONK_GATE_URL}
 	}
-	# Webhooks (Mollie, Invoice Ninja) und Lizenz-API der Website bleiben erreichbar
-	@gated not path /outpost.goauthentik.io/* /api/webhooks/* /api/v1/*
+	# Webhooks (Mollie, Invoice Ninja) und Lizenz-API der Website bleiben erreichbar, ebenso die MCP-Server und
+	# OAuth-Endpunkte für KI-Assistenten (eigene Anmeldung per Token; die Zustimmungsseite /oauth/authorize bleibt gesperrt)
+	@gated not path /outpost.goauthentik.io/* /api/webhooks/* /api/v1/* /mcp /.well-known/oauth-* /oauth/token /oauth/register
 	forward_auth @gated {$KLONK_GATE_URL} {
 		uri /outpost.goauthentik.io/auth/caddy
 	}

@@ -4,7 +4,7 @@ import { drizzle } from 'drizzle-orm/postgres-js'
 import { migrate } from 'drizzle-orm/postgres-js/migrator'
 import postgres from 'postgres'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { aiCreditGrants, aiUsage, cloudAssignments, cloudFiles, cloudProjects, customLearnModules, groupLearnModules, groupMembers, groups, instanceSettings, organizationAiSettings, organizationAuthSettings, organizations, sessions, userLicenses, users } from '../server/database/schema'
+import { aiCreditGrants, aiUsage, cloudAssignments, cloudFiles, cloudProjects, customLearnModules, groupLearnModules, groupMembers, groups, instanceSettings, mcpOauthClients, mcpOauthCodes, mcpTokens, organizationAiSettings, organizationAuthSettings, organizations, sessions, userLicenses, users } from '../server/database/schema'
 import { createDb, runAsUser, type Db } from '../server/utils/db'
 
 // Integrationstest gegen eine echte Postgres-Instanz (pnpm db:up) in einer eigenen Test-Datenbank
@@ -470,5 +470,64 @@ describe('RLS: eigene Lernmodule', () => {
     expect(await visible('studentA')).toEqual([])
     // Das Modulprojekt gehört weiter den Lernenden
     expect(await as('studentA', tx => tx.select({ id: cloudProjects.id }).from(cloudProjects).where(eq(cloudProjects.id, ids.customProject!)))).toHaveLength(1)
+  })
+})
+
+describe('RLS: MCP-Zugang', () => {
+  const token = (userId: string, access: 'read' | 'write' | 'full', name = 'Token') => ({
+    userId,
+    kind: 'personal' as const,
+    name,
+    access,
+    tokenHash: `hash-${name}-${userId}-${access}`,
+    expiresAt: new Date(Date.now() + 86_400_000),
+  })
+
+  it('Stufe je Konto ändern nur Admins der Organisation (auch die eigene) und Betreiber:innen', async () => {
+    // Lehrkraft darf Lernende bearbeiten (Passwort), aber nicht deren KI-Zugriff – und nicht den eigenen
+    await expectDbError(runAsUser(db, ids.teacherA!, tx => tx.update(users).set({ mcpAccess: 'full' }).where(eq(users.id, ids.studentA!))), /mcp_access_forbidden/)
+    await expectDbError(runAsUser(db, ids.teacherA!, tx => tx.update(users).set({ mcpAccess: 'full' }).where(eq(users.id, ids.teacherA!))), /mcp_access_forbidden/)
+    await expectDbError(runAsUser(db, ids.private!, tx => tx.update(users).set({ mcpAccess: 'read' }).where(eq(users.id, ids.private!))), /mcp_access_forbidden/)
+
+    await runAsUser(db, ids.adminA!, tx => tx.update(users).set({ mcpAccess: 'write' }).where(eq(users.id, ids.teacherA!)))
+    await runAsUser(db, ids.adminA!, tx => tx.update(users).set({ mcpAccess: 'full' }).where(eq(users.id, ids.adminA!)))
+    // Fremde Organisation: Zeile nicht sichtbar ⇒ keine Änderung
+    const other = await runAsUser(db, ids.adminB!, tx => tx.update(users).set({ mcpAccess: 'full' }).where(eq(users.id, ids.teacherA!)).returning({ id: users.id }))
+    expect(other).toEqual([])
+    await runAsUser(db, ids.owner!, tx => tx.update(users).set({ mcpAccess: 'read' }).where(eq(users.id, ids.private!)))
+
+    const rows = await db.select({ id: users.id, access: users.mcpAccess }).from(users)
+    const accessOf = (id: string) => rows.find(r => r.id === id)?.access
+    expect([accessOf(ids.teacherA!), accessOf(ids.adminA!), accessOf(ids.private!), accessOf(ids.studentA!)]).toEqual(['write', 'full', 'read', 'none'])
+  })
+
+  it('Tokens: nur für sich selbst, höchstens die eigene Stufe, nur die eigenen sichtbar', async () => {
+    await runAsUser(db, ids.teacherA!, tx => tx.insert(mcpTokens).values(token(ids.teacherA!, 'write')))
+    await expectDbError(runAsUser(db, ids.teacherA!, tx => tx.insert(mcpTokens).values(token(ids.teacherA!, 'full'))), /row-level security/)
+    await expectDbError(runAsUser(db, ids.teacherA!, tx => tx.insert(mcpTokens).values(token(ids.studentA!, 'read'))), /row-level security/)
+    // Ohne freigeschaltete Stufe gar kein Token; OAuth-Verbindungen legt nur der Server an
+    await expectDbError(runAsUser(db, ids.studentA!, tx => tx.insert(mcpTokens).values(token(ids.studentA!, 'read'))), /row-level security/)
+    await expectDbError(runAsUser(db, ids.teacherA!, tx => tx.insert(mcpTokens).values({ ...token(ids.teacherA!, 'read', 'oauth'), kind: 'oauth' })), /row-level security/)
+
+    expect(await runAsUser(db, ids.teacherA!, tx => tx.select({ id: mcpTokens.id }).from(mcpTokens))).toHaveLength(1)
+    expect(await runAsUser(db, ids.adminA!, tx => tx.select({ id: mcpTokens.id }).from(mcpTokens))).toEqual([])
+    // Ändern (z. B. Stufe anheben) geht über RLS gar nicht
+    await expectDbError(runAsUser(db, ids.teacherA!, tx => tx.update(mcpTokens).set({ access: 'full' })), /permission denied/)
+    // Widerrufen nur eigene
+    expect(await runAsUser(db, ids.adminA!, tx => tx.delete(mcpTokens).returning({ id: mcpTokens.id }))).toEqual([])
+  })
+
+  it('Zugang entzogen ⇒ alle Tokens des Kontos werden getrennt', async () => {
+    await db.insert(mcpTokens).values(token(ids.teacherA!, 'read', 'zweites'))
+    expect(await db.select().from(mcpTokens).where(eq(mcpTokens.userId, ids.teacherA!))).toHaveLength(2)
+    await runAsUser(db, ids.adminA!, tx => tx.update(users).set({ mcpAccess: 'none' }).where(eq(users.id, ids.teacherA!)))
+    expect(await db.select().from(mcpTokens).where(eq(mcpTokens.userId, ids.teacherA!))).toEqual([])
+  })
+
+  it('OAuth-Programme und -Codes sind nur dem Server zugänglich', async () => {
+    await db.insert(mcpOauthClients).values({ id: 'client-test', name: 'Test', redirectUris: ['https://example.com/cb'] })
+    await db.insert(mcpOauthCodes).values({ codeHash: 'code', clientId: 'client-test', userId: ids.adminA!, redirectUri: 'https://example.com/cb', codeChallenge: 'x', access: 'read', expiresAt: new Date() })
+    await expectDbError(runAsUser(db, ids.adminA!, tx => tx.select().from(mcpOauthClients)), /permission denied/)
+    await expectDbError(runAsUser(db, ids.adminA!, tx => tx.select().from(mcpOauthCodes)), /permission denied/)
   })
 })
