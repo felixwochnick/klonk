@@ -17,7 +17,7 @@ const props = withDefaults(defineProps<{
 
 const source = defineModel<string>({ required: true })
 const target = defineModel<string | null>('target', { default: null })
-const emit = defineEmits<{ world: [data: WorldData] }>()
+const emit = defineEmits<{ world: [data: WorldData], run: [] }>()
 
 const { t } = useI18n()
 const databases = useDatabases()
@@ -54,6 +54,8 @@ async function run() {
   if (!selected || running.value) return
   const sql = editor.value?.selectedText() || source.value
   if (!sql.trim()) return
+  // Ausführen speichert die Abfrage (wie Programme)
+  emit('run')
   running.value = true
   error.value = null
   try {

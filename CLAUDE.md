@@ -251,7 +251,7 @@ node scripts/build-csharp.ts        # C#-Host bauen (.NET-SDK 10 nötig; Ausgabe
   beim Ziehen offen, erste Kategorie beim Start geöffnet – erneuter Klick auf die Kategorie schließt sie).
 - **Projekte** (`utils/project-fs.ts`, `useProject.ts`, `ProjectPanel.vue`): gleiche Klasse `Project` für echte Ordner
   (`showDirectoryPicker`, Chrome/Edge) und Browser-Projekte (OPFS `klonk-projects/<name>`, alle Browser; E2E testet über OPFS).
-  Zustand modulweit (Handles nicht serialisierbar), zuletzt geöffnete Ordner in IndexedDB, Autosave 400 ms. Dateiart aus der
+  Zustand modulweit (Handles nicht serialisierbar), zuletzt geöffnete Ordner in IndexedDB, Speichern siehe Tabs. Dateiart aus der
   Endung (`.blocks`, `.klonk`, `.js`, `.ts`, `.py`, `.java`, `.cs`, `.klonkworld.json`). Ohne Projekt nutzt die IDE weiter `useProgram()` (localStorage).
   Reka-`SelectItem` erlaubt keinen leeren Wert ⇒ Platzhalterwerte verwenden. Blockly-Kontextmenü global ⇒ vor Neu-Registrierung abmelden.
   Bedienlogik gemeinsam in `useProjectExplorer()` (Seitenleiste `ProjectPanel` + Vollbild-Explorer `pages/projects.vue`),
@@ -265,7 +265,9 @@ node scripts/build-csharp.ts        # C#-Host bauen (.NET-SDK 10 nötig; Ausgabe
   in `useProjectExplorer()`; Vollbild-Explorer navigiert per Pfadleiste, Suche durchsucht alles.
   IDE lädt die Projektwelt auch beim Mount (Projekt kann schon offen sein); `/world?load=1` lädt die gewählte Projektwelt.
 - **Tabs** (vom User so gewünscht, wie VS Code): `useProject()` hält offene Dateien als Puffer (`buffers`: Text + gespeicherter Stand,
-  Autosave je Datei), `tabs` + `currentPath` (aktiver Tab; nur Programme/SQL/Datenbanken, `opensInEditor`), gemerkt mit Design und Welt in
+  **kein Autosave** (vom User so festgelegt): gespeichert wird nur beim Ausführen (`saveAll`, auch SQL-Abfragen und vor der Lernansicht)
+  und mit Strg/Cmd+S (`savePath`, +Umschalt = alle); ungespeichert ⇒ Punkt im Tab statt ×, Status `unsaved`; Schließen von Tabs/Projekt fragt
+  (`confirmUnsaved`, `UnsavedChangesDialog`: Speichern/Nicht speichern/Abbrechen), `beforeunload` warnt; nur Designs im Kleiderschrank speichern sich selbst (400 ms)), `tabs` + `currentPath` (aktiver Tab; nur Programme/SQL/Datenbanken, `opensInEditor`), gemerkt mit Design und Welt in
   `klonk:project:<quelle>:<name>`. `EditorTabs.vue` (Schließen, Andere/Rechts/Alle, Mittelklick, Ziehen). `KlonkEditor` merkt Cursor/Scroll je
   Datei (`viewStates`), Modelle werden weiter beim Wechsel verworfen. **Programmieren** öffnet die zuletzt aktive Programmdatei.
   Vollbild-Code (`focus`) blendet Projekt und Welt aus, die Dateileiste lässt sich darin wieder einblenden (vom User so gewünscht).
@@ -531,7 +533,7 @@ node scripts/build-csharp.ts        # C#-Host bauen (.NET-SDK 10 nötig; Ausgabe
 6. [x] Klonk-Script: Lexer/Parser/Interpreter (Worker), Monaco-Sprache, Autocomplete, Hover, Live-Fehler, Debugger (Breakpoints, Einzelschritt, Pause, Variablen), de/en + Übersetzen
 7. [x] JS/TS-Ausführung im Worker mit Debugging (synchron via SharedArrayBuffer/Atomics, acorn-Instrumentierung, sucrase, Monaco-TS mit Roboter-API-.d.ts)
 8. [x] Blöcke (Blockly ⇒ Klonk-Script, Debugger am Block, Haltepunkte per Rechtsklick, de/en)
-9. [x] Lokales Dateisystem: Projektordner (File System Access API) + Browser-Projekte (OPFS), Explorer, Autosave, Welten, Bibliotheken
+9. [x] Lokales Dateisystem: Projektordner (File System Access API) + Browser-Projekte (OPFS), Explorer, Speichern (Strg+S/Ausführen), Welten, Bibliotheken
 10. [x] PWA (Logo, Favicon, Offline)
 11. [x] KI-Assistent (schuleigenes LLM / WebLLM, Tutor-Modus, Fehler erklären, Code übernehmen)
 12. [x] Weitere Sprachen: Python (Pyodide), Java (TeaVM), C# (Roslyn/.NET-WASM)

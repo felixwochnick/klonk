@@ -90,6 +90,7 @@ test('Gruppe mit gemeinsamem Ordner: Aufgabe verteilen, bearbeiten und abgeben',
   await student.locator('.monaco-editor .view-lines').click()
   await student.keyboard.press('Control+End')
   await student.keyboard.type('\n# Lösung von Mia')
+  await student.keyboard.press('Control+s')
   await toExplorer(student)
   await synced(student)
 

@@ -2,6 +2,7 @@ import { parseDesign, parseWorld, type RobotDesign, type WorldData } from '@klon
 import { KIND_EXTENSION, MANIFEST, fileKind, isValidName, openBrowserProject, rememberProject } from '~/utils/project-fs'
 import type { FileKind, Project, ProjectFile } from '~/utils/project-fs'
 import { CloudProject, openCloudProject, type CloudProjectMeta } from '~/utils/cloud-project'
+import UnsavedChangesDialog from '~/components/UnsavedChangesDialog.vue'
 
 // Zustand außerhalb von Komponenten: Datei-Handles sind nicht serialisierbar (kein useState)
 const project = shallowRef<Project | null>(null)
@@ -16,11 +17,36 @@ const tabs = ref<string[]>([])
 /** Im Kleiderschrank geöffnetes Design */
 const designPath = ref<string | null>(null)
 const worldPath = ref<string | null>(null)
-const status = ref<'saved' | 'saving' | 'error'>('saved')
+/** Laufende Schreibvorgänge und Fehler beim letzten Speichern */
+const writing = ref(0)
+const saveFailed = ref(false)
 const breakpointsByFile = ref<Record<string, number[]>>({})
 /** Inhalte geöffneter Dateien: `text` = im Editor, `saved` = zuletzt gespeichert */
 const buffers = ref<Record<string, { text: string, saved: string }>>({})
+/** Nur Designs (Kleiderschrank) speichern sich selbst – Programme erst beim Ausführen oder mit Strg+S */
 const saveTimers = new Map<string, ReturnType<typeof setTimeout>>()
+const autosaves = (path: string) => fileKind(path) === 'design'
+const isDirty = (path: string) => {
+  const buffer = buffers.value[path]
+  return !!buffer && buffer.text !== buffer.saved
+}
+/** Geöffnete Dateien mit ungespeicherten Änderungen */
+const unsaved = computed(() => Object.keys(buffers.value).filter(isDirty))
+const status = computed<'saved' | 'saving' | 'error' | 'unsaved'>(() => {
+  if (writing.value) return 'saving'
+  if (saveFailed.value) return 'error'
+  return unsaved.value.some(path => !autosaves(path)) ? 'unsaved' : 'saved'
+})
+
+// Seite verlassen mit Ungespeichertem ⇒ Rückfrage des Browsers
+if (import.meta.client) {
+  window.addEventListener('beforeunload', (event) => {
+    if (unsaved.value.length) event.preventDefault()
+  })
+}
+
+const createUnsavedDialog = (overlay: ReturnType<typeof useOverlay>) => overlay.create(UnsavedChangesDialog)
+let unsavedDialog: ReturnType<typeof createUnsavedDialog> | null = null
 
 /** Dateien, die keine importierbaren Programme sind */
 const NOT_IMPORTABLE = new Set<FileKind>(['world', 'design', 'other', 'blocks', 'database', 'sql'])
@@ -38,6 +64,7 @@ const LAST_FILE_KEY = (p: Project) => `klonk:project:${p.source}:${p instanceof 
 export function useProject() {
   const { t } = useI18n()
   const toast = useToast()
+  const overlay = useOverlay()
   const kind = computed<FileKind | null>(() => (currentPath.value ? fileKind(currentPath.value) : null))
   const content = computed(() => (currentPath.value ? buffers.value[currentPath.value]?.text ?? '' : ''))
   const designContent = computed(() => (designPath.value ? buffers.value[designPath.value]?.text ?? '' : ''))
@@ -53,8 +80,9 @@ export function useProject() {
     folders.value = scanned.folders
   }
 
+  /** Projekt öffnen; `false`, wenn das Wechseln wegen ungespeicherter Änderungen abgebrochen wurde */
   async function open(next: Project) {
-    await flush()
+    if (!await confirmUnsaved()) return false
     if (project.value instanceof CloudProject && project.value !== next) project.value.stop()
     project.value = next
     reset()
@@ -72,6 +100,7 @@ export function useProject() {
     const design = exists(last?.design) ? last.design : exists(last?.file) && fileKind(last.file) === 'design' ? last.file : null
     if (design) await selectDesign(design).catch(() => {})
     if (target) await select(target)
+    return true
   }
 
   function reset() {
@@ -82,7 +111,7 @@ export function useProject() {
     currentPath.value = null
     designPath.value = null
     breakpointsByFile.value = {}
-    status.value = 'saved'
+    saveFailed.value = false
   }
 
   /** Cloud-Projekt öffnen (lokale Kopie + Abgleich); Änderungen anderer laden die Dateiliste/offene Datei neu */
@@ -92,7 +121,7 @@ export function useProject() {
       cloud.onConflict = (path, copy) => toast.add({ title: t('cloud.conflict', { path, copy }), color: 'warning' })
       cloud.onRemoteChange = paths => void remoteChanged(cloud, paths)
     })
-    await open(next)
+    return open(next)
   }
 
   async function remoteChanged(cloud: CloudProject, paths: string[]) {
@@ -102,7 +131,7 @@ export function useProject() {
     // Offene Dateien nur neu laden, wenn hier nichts Ungespeichertes ist
     for (const path of paths) {
       const buffer = buffers.value[path]
-      if (!buffer || buffer.text !== buffer.saved || saveTimers.has(path)) continue
+      if (!buffer || isDirty(path) || saveTimers.has(path)) continue
       if (!files.value.some(f => f.path === path)) {
         forget(path)
         continue
@@ -116,8 +145,9 @@ export function useProject() {
   const readOnly = computed(() => project.value instanceof CloudProject && !project.value.writable.value)
   const sync = computed(() => (project.value instanceof CloudProject ? project.value.status.value : null))
 
-  async function close() {
-    await flush()
+  /** Projekt schließen; `false`, wenn abgebrochen (ungespeicherte Änderungen). `discard` = ohne Rückfrage (Projekt wird gelöscht) */
+  async function close(discard = false) {
+    if (!discard && !await confirmUnsaved()) return false
     if (project.value instanceof CloudProject) project.value.stop()
     project.value = null
     files.value = []
@@ -125,6 +155,7 @@ export function useProject() {
     language.value = null
     reset()
     worldPath.value = null
+    return true
   }
 
   /** Inhalt einer Datei in den Puffer laden (falls noch nicht offen) */
@@ -176,9 +207,9 @@ export function useProject() {
     rememberSelection()
   }
 
-  /** Tab schließen (wird vorher gespeichert) */
+  /** Tab schließen (bei ungespeicherten Änderungen mit Rückfrage) */
   async function closeTab(path: string) {
-    await flushPath(path)
+    if (!await confirmUnsaved([path])) return
     forget(path)
     rememberSelection()
   }
@@ -188,12 +219,10 @@ export function useProject() {
     const from = options.rightOf ? tabs.value.indexOf(options.rightOf) + 1 : 0
     const closing = tabs.value.slice(from).filter(p => p !== options.keep)
     if (options.keep && !tabs.value.includes(options.keep)) return
+    if (!await confirmUnsaved(closing)) return
     if (options.keep && currentPath.value !== options.keep) await select(options.keep)
     else if (options.rightOf && currentPath.value && closing.includes(currentPath.value)) await select(options.rightOf)
-    for (const path of closing) {
-      await flushPath(path)
-      forget(path)
-    }
+    for (const path of closing) forget(path)
     rememberSelection()
   }
 
@@ -212,7 +241,7 @@ export function useProject() {
     if (path) await load(path)
     designPath.value = path
     if (previous && previous !== currentPath.value && !tabs.value.includes(previous)) {
-      await flushPath(previous)
+      await savePath(previous)
       dropBuffer(previous)
     }
     rememberSelection()
@@ -240,7 +269,8 @@ export function useProject() {
   async function rename(from: string, to: string) {
     if (!project.value) return
     if (!to.split('/').every(isValidName)) throw new Error('invalid_name')
-    await flushPath(from)
+    // Ungespeichertes wandert mit dem Puffer mit – außer die Datei verlässt den Editor (z. B. umbenannt in ein Design)
+    if (autosaves(from) || !opensInEditor(to)) await savePath(from)
     await project.value.rename(from, to)
     movePaths(p => (p === from ? to : p))
     await refresh()
@@ -282,7 +312,7 @@ export function useProject() {
   async function renameFolder(from: string, to: string) {
     if (!project.value) return
     if (!to.split('/').every(isValidName)) throw new Error('invalid_name')
-    await flush()
+    await saveAutosaved()
     await project.value.renameFolder(from, to)
     movePaths(path => (path.startsWith(`${from}/`) ? `${to}${path.slice(from.length)}` : path))
     await refresh()
@@ -316,43 +346,73 @@ export function useProject() {
     if (!currentPath.value && first) await select(first.path)
   }
 
-  /** Inhalt einer offenen Datei ändern – wird kurz danach automatisch gespeichert */
+  /** Inhalt einer offenen Datei ändern – Designs speichern sich kurz danach selbst, alles andere bleibt ungespeichert */
   function updateFile(path: string, text: string) {
     const buffer = buffers.value[path]
     if (!project.value || !buffer) return
     buffer.text = text
-    if (text === buffer.saved || readOnly.value) return
-    status.value = 'saving'
+    if (!autosaves(path) || text === buffer.saved || readOnly.value) return
     clearTimeout(saveTimers.get(path))
-    saveTimers.set(path, setTimeout(() => void flushPath(path), 400))
+    saveTimers.set(path, setTimeout(() => void savePath(path), 400))
   }
 
   /** Aktive Datei der IDE bzw. Design im Kleiderschrank ändern */
   const update = (text: string) => currentPath.value && updateFile(currentPath.value, text)
   const updateDesign = (text: string) => designPath.value && updateFile(designPath.value, text)
 
-  async function flushPath(path: string) {
+  /** Eine offene Datei speichern (Strg+S); `false` bei Fehler */
+  async function savePath(path: string) {
     clearTimeout(saveTimers.get(path))
     saveTimers.delete(path)
     const buffer = buffers.value[path]
-    if (project.value && buffer && buffer.text !== buffer.saved && !readOnly.value) {
-      const text = buffer.text
-      try {
-        await project.value.write(path, text)
-        buffer.saved = text
-      }
-      catch {
-        status.value = 'error'
-        return
-      }
+    if (!project.value || !buffer || buffer.text === buffer.saved || readOnly.value) return true
+    const text = buffer.text
+    writing.value++
+    try {
+      await project.value.write(path, text)
+      buffer.saved = text
+      saveFailed.value = false
+      return true
     }
-    if (!saveTimers.size && status.value === 'saving') status.value = 'saved'
+    catch {
+      saveFailed.value = true
+      return false
+    }
+    finally {
+      writing.value--
+    }
   }
 
-  /** Alles Ungespeicherte sofort speichern */
-  async function flush() {
-    for (const path of Object.keys(buffers.value)) await flushPath(path)
-    if (!saveTimers.size && status.value !== 'error') status.value = 'saved'
+  /** Alle offenen Dateien speichern (vor dem Ausführen) */
+  async function saveAll() {
+    let ok = true
+    for (const path of unsaved.value) ok = await savePath(path) && ok
+    return ok
+  }
+
+  /** Nur ausstehende automatische Speicherungen (Designs) sofort ausführen */
+  async function saveAutosaved() {
+    for (const path of [...saveTimers.keys()]) await savePath(path)
+  }
+
+  /**
+   * Vor dem Schließen von Dateien bzw. des Projekts: bei ungespeicherten Änderungen nachfragen
+   * (Speichern / Nicht speichern / Abbrechen). `true` = weitermachen.
+   */
+  async function confirmUnsaved(paths?: string[]) {
+    await saveAutosaved()
+    const dirty = (paths ?? unsaved.value).filter(path => isDirty(path) && !readOnly.value)
+    if (!dirty.length) return true
+    unsavedDialog ??= createUnsavedDialog(overlay)
+    const choice = await unsavedDialog.open({ files: dirty }).result
+    if (choice === 'save') {
+      for (const path of dirty) if (!await savePath(path)) return false
+      return true
+    }
+    if (choice !== 'discard') return false
+    // Verwerfen: Puffer auf den gespeicherten Stand zurücksetzen
+    for (const path of dirty) buffers.value[path]!.text = buffers.value[path]!.saved
+    return true
   }
 
   async function readWorld(): Promise<WorldData | null> {
@@ -366,19 +426,21 @@ export function useProject() {
     await refresh()
   }
 
-  /** Bibliotheken: Klonk-Script-Dateien (`importiere`), JS/TS- und Python-Module, Java-Klassen und C#-Dateien */
+  /**
+   * Bibliotheken: Klonk-Script-Dateien (`importiere`), JS/TS- und Python-Module, Java-Klassen und C#-Dateien –
+   * offene Dateien mit dem Stand im Editor (auch ungespeichert, für die Prüfung beim Tippen)
+   */
   async function importableFiles(): Promise<Record<string, string>> {
     if (!project.value) return {}
-    await flush()
     const result: Record<string, string> = {}
-    for (const file of files.value.filter(f => !NOT_IMPORTABLE.has(f.kind))) result[file.path] = await project.value.read(file.path)
+    for (const file of files.value.filter(f => !NOT_IMPORTABLE.has(f.kind))) result[file.path] = buffers.value[file.path]?.text ?? await project.value.read(file.path)
     return result
   }
 
   /** Eigene Designs des Projekts: Dateiname ohne Endung ⇒ Design (ungültige Dateien werden übersprungen) */
   async function readDesigns(): Promise<Record<string, RobotDesign>> {
     if (!project.value) return {}
-    await flush()
+    await saveAutosaved()
     const result: Record<string, RobotDesign> = {}
     for (const file of designFiles.value) {
       try {
@@ -431,10 +493,14 @@ export function useProject() {
   })
 
   return {
-    project, files, folders, language, programFiles, designFiles, worldFiles, databaseFiles, currentPath, tabs, content, kind, worldPath, status, breakpoints, readOnly, sync,
+    project, files, folders, language, programFiles, designFiles, worldFiles, databaseFiles, currentPath, tabs, content, kind, worldPath, status, unsaved, breakpoints, readOnly, sync,
     designPath, designContent, selectDesign, updateDesign,
-    open, openCloud, close, select, closeTab, closeTabs, moveTab, create, rename, remove, setLanguage, createFolder, renameFolder, removeFolder, update, flush, refresh, readWorld, writeWorld, importableFiles, readDesigns, writeDesign, writeFile, selectWorld,
-    openBrowserProject: async (name: string, createIt = false) => open(await openBrowserProject(name, createIt)),
+    open, openCloud, close, select, closeTab, closeTabs, moveTab, create, rename, remove, setLanguage, createFolder, renameFolder, removeFolder, update, savePath, saveAll, confirmUnsaved, refresh, readWorld, writeWorld, importableFiles, readDesigns, writeDesign, writeFile, selectWorld,
+    openBrowserProject: async (name: string, createIt = false) => {
+      // Erst fragen, dann anlegen (sonst entstünde bei „Abbrechen“ trotzdem ein neues Projekt)
+      if (!await confirmUnsaved()) return false
+      return open(await openBrowserProject(name, createIt))
+    },
   }
 }
 

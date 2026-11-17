@@ -71,7 +71,7 @@ test('Neues Browser-Projekt mit Programm und Welt', async ({ page }) => {
   await expect(state(page)).toHaveAttribute('data-state', 'done', { timeout: 30_000 })
 })
 
-test('Dateien wechseln, automatisch speichern, Welt aus dem Projekt', async ({ page }) => {
+test('Dateien wechseln, speichern (Strg+S, Ausführen), Welt aus dem Projekt', async ({ page }) => {
   await openIde(page)
   await seedProject(page, 'Speichern', {
     'start.klonk': 'schritt\nausgabe(positionX)\n',
@@ -92,12 +92,42 @@ test('Dateien wechseln, automatisch speichern, Welt aus dem Projekt', async ({ p
   await expect(state(page)).toHaveAttribute('data-state', 'done', { timeout: 30_000 })
   await expect(page.getByTestId('output')).toHaveText('2')
 
-  // Bearbeiten wird automatisch gespeichert
+  // Bearbeiten speichert nicht automatisch: Punkt im Tab, erst Strg+S schreibt die Datei
   await page.locator('.view-lines').click()
   await page.keyboard.press('Control+End')
   await page.keyboard.type('// geändert')
+  await expect(page.getByTestId('save-status')).toHaveAttribute('data-status', 'unsaved')
+  await expect(page.getByTestId('editor-tab-unsaved-start.klonk')).toBeVisible()
+  await page.getByTestId('editor-tabs').screenshot({ path: 'test-results/unsaved-tab.png' })
+  await page.waitForTimeout(800)
+  expect(await readProjectFile(page, 'Speichern', 'start.klonk')).not.toContain('// geändert')
+  await page.keyboard.press('Control+s')
   await expect(page.getByTestId('save-status')).toHaveAttribute('data-status', 'saved', { timeout: 5_000 })
-  await expect.poll(() => readProjectFile(page, 'Speichern', 'start.klonk').catch(() => '')).toContain('// geändert')
+  await expect(page.getByTestId('editor-tab-unsaved-start.klonk')).toHaveCount(0)
+  expect(await readProjectFile(page, 'Speichern', 'start.klonk')).toContain('// geändert')
+
+  // Ausführen speichert ebenfalls
+  await page.keyboard.type('\nschritt\nausgabe(positionX)')
+  await expect(page.getByTestId('editor-tab-unsaved-start.klonk')).toBeVisible()
+  await page.getByTestId('run').click()
+  await expect(page.getByTestId('output')).toContainText('3', { timeout: 30_000 })
+  await expect(state(page)).toHaveAttribute('data-state', 'done', { timeout: 30_000 })
+  await expect(page.getByTestId('editor-tab-unsaved-start.klonk')).toHaveCount(0)
+  expect(await readProjectFile(page, 'Speichern', 'start.klonk')).toContain('// geändert\nschritt\nausgabe(positionX)')
+
+  // Tab mit Ungespeichertem schließen ⇒ Rückfrage; „Abbrechen“ behält, „Nicht speichern“ verwirft
+  await page.locator('.view-lines').click()
+  await page.keyboard.press('Control+End')
+  await page.keyboard.type('\n// verworfen')
+  await page.getByTestId('editor-tab-close-start.klonk').click()
+  await page.getByTestId('unsaved-cancel').click()
+  await expect(page.getByTestId('editor-tab-start.klonk')).toBeVisible()
+  await page.getByTestId('editor-tab-close-start.klonk').click()
+  await page.getByTestId('unsaved-discard').click()
+  await expect(page.getByTestId('editor-tab-start.klonk')).toHaveCount(0)
+  expect(await readProjectFile(page, 'Speichern', 'start.klonk')).not.toContain('verworfen')
+  await page.getByTestId('file-start.klonk').click()
+  await expect(page.locator('.view-lines')).not.toContainText('verworfen')
 
   // Andere Datei: Sprache folgt der Endung
   await page.getByTestId('file-zweites.js').click()

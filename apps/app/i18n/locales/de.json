@@ -163,7 +163,8 @@
       "closeOthers": "Andere schließen",
       "closeRight": "Rechts davon schließen",
       "closeAll": "Alle schließen",
-      "closeFile": "{name} schließen"
+      "closeFile": "{name} schließen",
+      "unsaved": "Nicht gespeichert"
     }
   },
   "script": {
@@ -335,7 +336,8 @@
     "status": {
       "saved": "Alle Änderungen gespeichert",
       "saving": "Speichert …",
-      "error": "Speichern fehlgeschlagen"
+      "error": "Speichern fehlgeschlagen",
+      "unsaved": "Ungespeicherte Änderungen (Strg+S)"
     },
     "loadWorld": "Welt aus Projekt laden",
     "saveWorld": "Welt ins Projekt speichern",
@@ -388,7 +390,15 @@
     "importZip": "ZIP importieren",
     "zipImported": "Projekt „{name}“ aus der ZIP-Datei übernommen",
     "forget": "Aus der Liste entfernen",
-    "foldersUnsupported": "Ordner auf dem Rechner öffnen nur Chrome, Edge und Opera (Brave: unter brave://flags „File System Access API“ einschalten). Sonst: Projekt als ZIP herunterladen und wieder importieren."
+    "foldersUnsupported": "Ordner auf dem Rechner öffnen nur Chrome, Edge und Opera (Brave: unter brave://flags „File System Access API“ einschalten). Sonst: Projekt als ZIP herunterladen und wieder importieren.",
+    "unsaved": {
+      "title": "Ungespeicherte Änderungen",
+      "one": "Änderungen an „{name}“ speichern?",
+      "many": "Änderungen an {count} Dateien speichern?",
+      "save": "Speichern",
+      "discard": "Nicht speichern",
+      "cancel": "Abbrechen"
+    }
   },
   "fullscreen": {
     "enter": "Vollbild",

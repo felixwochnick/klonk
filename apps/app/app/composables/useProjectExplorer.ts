@@ -76,7 +76,7 @@ export function useProjectExplorer(options: { onOpenFile?: (file: ProjectFile) =
 
   async function openFolder() {
     const picked = await pickFolder()
-    if (picked) await proj.open(picked).then(offerSetup, fail)
+    if (picked) await proj.open(picked).then(opened => opened && offerSetup(), fail)
   }
 
   /** Leerer Ordner ohne klonk.json ⇒ wie ein neues Projekt einrichten */
@@ -99,17 +99,17 @@ export function useProjectExplorer(options: { onOpenFile?: (file: ProjectFile) =
       toast.add({ title: t('project.errors.permission'), color: 'error' })
       return
     }
-    await proj.open(new Project(item.handle, item.source)).then(offerSetup, async (error) => {
+    await proj.open(new Project(item.handle, item.source)).then(opened => opened && offerSetup(), async (error) => {
       await forgetProject(item.source, item.name)
       fail(error)
     })
   }
 
-  const openBrowserProject = (name: string) => proj.openBrowserProject(name).then(offerSetup, fail)
+  const openBrowserProject = (name: string) => proj.openBrowserProject(name).then(opened => opened && offerSetup(), fail)
 
   async function removeBrowserProject(name: string) {
     if (!confirm(t('project.confirmDeleteProject', { name }))) return
-    if (proj.project.value?.source === 'browser' && proj.project.value.name === name) await proj.close()
+    if (proj.project.value?.source === 'browser' && proj.project.value.name === name) await proj.close(true)
     await deleteBrowserProject(name)
     await loadLists()
   }
@@ -128,16 +128,15 @@ export function useProjectExplorer(options: { onOpenFile?: (file: ProjectFile) =
       return
     }
     const open = proj.project.value?.source === 'browser' && proj.project.value.name === from
-    if (open) await proj.close()
+    if (open && !await proj.close()) return
     await renameBrowserProject(from, to)
     await loadLists()
     if (open) await proj.openBrowserProject(to)
   }
 
-  /** Geöffnetes Projekt als ZIP herunterladen (vorher speichern) */
+  /** Geöffnetes Projekt als ZIP herunterladen (Ungespeichertes vorher speichern oder verwerfen) */
   async function downloadZip() {
-    if (!proj.project.value) return
-    await proj.flush()
+    if (!proj.project.value || !await proj.confirmUnsaved()) return
     await downloadProjectZip(proj.project.value).catch(fail)
   }
 

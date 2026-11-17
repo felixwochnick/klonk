@@ -163,7 +163,8 @@
       "closeOthers": "Close others",
       "closeRight": "Close to the right",
       "closeAll": "Close all",
-      "closeFile": "Close {name}"
+      "closeFile": "Close {name}",
+      "unsaved": "Unsaved"
     }
   },
   "script": {
@@ -335,7 +336,8 @@
     "status": {
       "saved": "All changes saved",
       "saving": "Saving …",
-      "error": "Saving failed"
+      "error": "Saving failed",
+      "unsaved": "Unsaved changes (Ctrl+S)"
     },
     "loadWorld": "Load world from project",
     "saveWorld": "Save world to project",
@@ -388,7 +390,15 @@
     "importZip": "Import ZIP",
     "zipImported": "Project “{name}” imported from the ZIP file",
     "forget": "Remove from list",
-    "foldersUnsupported": "Only Chrome, Edge and Opera can open folders on your computer (Brave: enable “File System Access API” under brave://flags). Otherwise download the project as a ZIP and import it again."
+    "foldersUnsupported": "Only Chrome, Edge and Opera can open folders on your computer (Brave: enable “File System Access API” under brave://flags). Otherwise download the project as a ZIP and import it again.",
+    "unsaved": {
+      "title": "Unsaved changes",
+      "one": "Save changes to “{name}”?",
+      "many": "Save changes to {count} files?",
+      "save": "Save",
+      "discard": "Don't save",
+      "cancel": "Cancel"
+    }
   },
   "fullscreen": {
     "enter": "Full screen",

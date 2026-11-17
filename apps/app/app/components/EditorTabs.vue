@@ -2,8 +2,9 @@
 import type { DropdownMenuItem } from '@nuxt/ui'
 import { fileKind } from '~/utils/project-fs'
 
-// Offene Dateien der IDE als Tabs (wie in VS Code): Klick wählt, × bzw. Mittelklick schließt, Ziehen sortiert um
-const props = defineProps<{ tabs: string[], active: string | null }>()
+// Offene Dateien der IDE als Tabs (wie in VS Code): Klick wählt, × bzw. Mittelklick schließt, Ziehen sortiert um;
+// ungespeicherte Dateien zeigen statt × einen Punkt (× erscheint beim Zeigen)
+const props = withDefaults(defineProps<{ tabs: string[], active: string | null, unsaved?: string[] }>(), { unsaved: () => [] })
 const emit = defineEmits<{
   select: [path: string]
   close: [path: string]
@@ -19,7 +20,7 @@ const baseName = (path: string) => path.slice(path.lastIndexOf('/') + 1)
 const items = computed(() => props.tabs.map((path) => {
   const name = baseName(path)
   const twins = props.tabs.filter(p => baseName(p) === name).length > 1
-  return { path, name, folder: twins && path.includes('/') ? path.slice(0, path.lastIndexOf('/')) : '', kind: fileKind(path) }
+  return { path, name, folder: twins && path.includes('/') ? path.slice(0, path.lastIndexOf('/')) : '', kind: fileKind(path), dirty: props.unsaved.includes(path) }
 }))
 
 function menu(path: string): DropdownMenuItem[][] {
@@ -78,8 +79,9 @@ function onDrop(event: DragEvent, before: string | null) {
       <div
         role="tab"
         :aria-selected="item.path === active"
-        :title="item.path"
+        :title="item.dirty ? `${item.path} · ${t('editor.tabsMenu.unsaved')}` : item.path"
         :data-path="item.path"
+        :data-unsaved="item.dirty || undefined"
         :data-testid="`editor-tab-${item.path}`"
         draggable="true"
         class="group relative flex max-w-56 shrink-0 cursor-pointer items-center gap-1.5 border-r border-(--ui-border) py-1.5 ps-3 pe-1 text-sm select-none"
@@ -107,13 +109,23 @@ function onDrop(event: DragEvent, before: string | null) {
           variant="ghost"
           color="neutral"
           size="xs"
-          icon="i-lucide-x"
           class="shrink-0 p-0.5"
-          :class="item.path === active ? '' : 'opacity-0 group-hover:opacity-100 focus-visible:opacity-100'"
+          :class="item.path === active || item.dirty ? '' : 'opacity-0 group-hover:opacity-100 focus-visible:opacity-100'"
           :aria-label="t('editor.tabsMenu.closeFile', { name: item.name })"
           :data-testid="`editor-tab-close-${item.path}`"
           @click.stop="emit('close', item.path)"
-        />
+        >
+          <span
+            v-if="item.dirty"
+            class="m-1 size-2 rounded-full bg-current group-hover:hidden"
+            :data-testid="`editor-tab-unsaved-${item.path}`"
+          />
+          <UIcon
+            name="i-lucide-x"
+            class="size-4"
+            :class="item.dirty ? 'hidden group-hover:block' : ''"
+          />
+        </UButton>
       </div>
     </UContextMenu>
   </div>

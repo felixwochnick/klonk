@@ -155,6 +155,8 @@ async function run(pauseOnStart = false) {
   // Beim Ausführen die Welt zeigen – außer bei den Diagrammen (Struktogramm/Objektdiagramm laufen mit)
   if (rightTab.value !== 'diagrams') rightTab.value = 'world'
   resetWorld()
+  // Ausführen speichert alle offenen Dateien (sonst nur Strg+S)
+  if (inProject.value) await proj.saveAll()
   // Bibliotheken: Klonk-Script-/Python-Dateien des Projekts (nur mit Lizenz)
   // Projektdateien immer mitgeben: genutzt werden sie nur mit Lizenz, ohne erkennt der Runner den Grund für Fehler
   const files = inProject.value ? await proj.importableFiles() : {}
@@ -256,7 +258,14 @@ const translateItems = computed(() => [[
 
 // Tastenkürzel wie in üblichen IDEs
 function onKey(event: KeyboardEvent) {
-  if (event.key === 'F5') {
+  if ((event.ctrlKey || event.metaKey) && !event.altKey && event.key.toLowerCase() === 's') {
+    // Strg+S speichert die aktive Datei, Strg+Umschalt+S alle (nie den Speichern-Dialog des Browsers)
+    event.preventDefault()
+    if (!inProject.value) return
+    if (event.shiftKey) void proj.saveAll()
+    else if (proj.currentPath.value) void proj.savePath(proj.currentPath.value)
+  }
+  else if (event.key === 'F5') {
     event.preventDefault()
     if (isSql.value || isDatabase.value) void runSql()
     else if (event.shiftKey) stop()
@@ -269,6 +278,10 @@ function onKey(event: KeyboardEvent) {
   }
 }
 onMounted(() => window.addEventListener('keydown', onKey))
+// Lernansicht prüft die Aufgabe ⇒ dort den Stand aus dem Editor sehen
+onBeforeRouteLeave(async (to) => {
+  if (inProject.value && to.path.startsWith('/learn')) await proj.saveAll()
+})
 onBeforeUnmount(() => window.removeEventListener('keydown', onKey))
 
 const variables = computed(() => Object.entries(snapshot.value.variables))
@@ -583,6 +596,7 @@ const paneStyle = computed(() => ({
           v-if="inProject && proj.tabs.value.length"
           :tabs="proj.tabs.value"
           :active="proj.currentPath.value"
+          :unsaved="proj.unsaved.value"
           @select="path => proj.select(path)"
           @close="path => proj.closeTab(path)"
           @close-others="path => proj.closeTabs({ keep: path })"
@@ -606,6 +620,7 @@ const paneStyle = computed(() => ({
             :path="proj.currentPath.value"
             :read-only="proj.readOnly.value"
             @world="onSqlWorld"
+            @run="proj.saveAll()"
           />
         </ClientOnly>
         <div

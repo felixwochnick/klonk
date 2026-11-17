@@ -41,8 +41,7 @@ export function useCloud() {
 
   /** Geöffnetes lokales Projekt in die Cloud kopieren und die Cloud-Fassung öffnen */
   async function upload(name: string) {
-    if (!proj.project.value) return
-    await proj.flush()
+    if (!proj.project.value || !await proj.confirmUnsaved()) return
     const created = await uploadToCloud(proj.project.value, name)
     await refresh()
     await open({ id: created.id, name: created.name, kind: 'personal', writable: true })
@@ -52,7 +51,7 @@ export function useCloud() {
   async function remove(project: CloudProjectInfo) {
     if (!confirm(t('cloud.confirmDelete', { name: project.name }))) return
     try {
-      if (isOpen(project.id)) await proj.close()
+      if (isOpen(project.id)) await proj.close(true)
       await $fetch(`/api/cloud/projects/${project.id}` as string, { method: 'DELETE', headers: clientHostHeaders() })
       await forgetCloudCopy(project.id)
       await refresh()
