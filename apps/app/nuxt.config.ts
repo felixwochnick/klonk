@@ -64,6 +64,7 @@ export default defineNuxtConfig({
     '/projects': { ssr: false },
     '/settings': { ssr: false },
     '/designs': { ssr: false },
+    '/databases': { ssr: false },
     '/learn': { ssr: false },
     '/learn/**': { ssr: false },
     '/teaching': { ssr: false },
@@ -166,7 +167,7 @@ export default defineNuxtConfig({
       // Alle Lern-Seiten teilen sich dieselbe SPA-Shell
       additionalManifestEntries: [{ url: '/', revision: SHELL_REVISION }],
       navigateFallback: '/',
-      navigateFallbackAllowlist: [/^\/(world|projects|settings|designs)?\/?$/, /^\/learn(\/[\w-]+){0,2}\/?$/, /^\/teaching(\/[\w-]+){0,2}\/?$/],
+      navigateFallbackAllowlist: [/^\/(world|projects|settings|designs|databases)?\/?$/, /^\/learn(\/[\w-]+){0,2}\/?$/, /^\/teaching(\/[\w-]+){0,2}\/?$/],
       runtimeCaching: [
         // Symbole, die nicht im Client-Bundle stecken
         { urlPattern: /\/api\/_nuxt_icon\//, handler: 'StaleWhileRevalidate', options: { cacheName: 'icons' } },

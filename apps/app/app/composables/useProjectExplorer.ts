@@ -50,6 +50,7 @@ export function useProjectExplorer(options: { onOpenFile?: (file: ProjectFile) =
   const toast = useToast()
   const apiError = useApiError()
   const proj = useProject()
+  const route = useRoute()
   const cloud = useCloud()
   const databases = useDatabases()
   const { start } = useWorldEditor()
@@ -298,6 +299,10 @@ export function useProjectExplorer(options: { onOpenFile?: (file: ProjectFile) =
         const file = name.toLowerCase().endsWith(extension) ? name : `${name}${extension}`
         await proj.create(join(d.folder, file), d.kind, d.kind === 'database' ? databaseSample(lang) : sqlSample(lang))
         if (d.folder) expand(d.folder)
+        // SQL und Datenbanken bearbeitet die Seite Datenbanken
+        dialog.value = null
+        await showPage('/databases')
+        return
       }
       else if (d.mode === 'file') {
         const initial = d.kind === 'world'
@@ -349,7 +354,12 @@ export function useProjectExplorer(options: { onOpenFile?: (file: ProjectFile) =
     await proj.remove(file.path).catch(fail)
   }
 
-  /** Programm in der IDE öffnen, Design im Kleiderschrank bzw. Welt als Projektwelt wählen */
+  /** Seite wechseln, falls nötig (Datei gehört in eine andere Ansicht) */
+  async function showPage(path: string) {
+    if (route.path !== path) await navigateTo(path)
+  }
+
+  /** Programm in der IDE öffnen, SQL/Datenbank auf der Seite Datenbanken, Design im Kleiderschrank bzw. Welt als Projektwelt wählen */
   async function openFile(file: ProjectFile) {
     if (file.kind === 'other') return
     if (file.kind === 'world') proj.selectWorld(file.path)
@@ -358,7 +368,12 @@ export function useProjectExplorer(options: { onOpenFile?: (file: ProjectFile) =
       await navigateTo('/designs')
       return
     }
-    else await proj.select(file.path).catch(fail)
+    else {
+      await proj.select(file.path).catch(fail)
+      // Aus der jeweils anderen Ansicht heraus (IDE ⇄ Datenbanken) dorthin wechseln, wo die Datei offen ist
+      if (opensInDatabases(file.path)) return showPage('/databases')
+      if (route.path === '/databases') return showPage('/')
+    }
     options.onOpenFile?.(file)
   }
 
@@ -535,6 +550,7 @@ export function useProjectExplorer(options: { onOpenFile?: (file: ProjectFile) =
       try {
         const path = await databases.importSqlite(file, folder)
         if (folder) expand(folder)
+        if (path) await showPage('/databases')
         toast.add({ title: t('database.imported', { name: path ?? file.name }), color: 'success' })
       }
       catch {

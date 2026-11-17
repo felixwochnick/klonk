@@ -107,6 +107,7 @@
     "world": "Welt",
     "code": "Programmieren",
     "projects": "Projekte",
+    "databases": "Datenbanken",
     "wardrobe": "Kleiderschrank",
     "learn": "Lernen",
     "teaching": "Unterricht",
@@ -482,6 +483,11 @@
     "scriptIntro": "Schlüsselwörter:",
     "databases": "Datenbanken",
     "databasesHelp": "Projektdatenbank öffnen (Datei schule.sqlite.sql / schule.postgres.sql) oder Database.memory() – Platzhalter: SQLite ?, PostgreSQL $1."
+  },
+  "databases": {
+    "title": "Datenbanken",
+    "noProject": "Datenbanken und SQL-Abfragen gehören zu einem Projekt. Öffne links ein Projekt oder lege eins an.",
+    "noFile": "Öffne links eine Datenbank oder SQL-Abfrage – oder lege über „Neue Datei“ eine an."
   },
   "wardrobe": {
     "title": "Kleiderschrank",

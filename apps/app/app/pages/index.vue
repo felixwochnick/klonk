@@ -1,9 +1,7 @@
 <script setup lang="ts">
 import type { GeneratedProgram } from '~/utils/blocks/generator'
 import { translate } from '@klonk/klonk-script'
-import type { LearnModule } from '@klonk/learn'
 import { World, type WorldData } from '@klonk/world'
-import { databaseEngine } from '~/utils/project-fs'
 import { ProgramRunner, type RunLanguage, type RunnerSnapshot } from '@klonk/runtime'
 import RunnerWorker from '@klonk/runtime/worker?worker'
 
@@ -21,9 +19,6 @@ watch(inProject, (open) => {
 })
 
 const KIND_LANGUAGE = { blocks: 'blocks', klonk: 'klonk', javascript: 'javascript', typescript: 'typescript', python: 'python', java: 'java', csharp: 'csharp' } as const
-/** SQL-Abfrage (`.sql`) bzw. Datenbankdatei: eigene Ansichten, „Ausführen“ führt SQL aus */
-const isSql = computed(() => inProject.value && proj.kind.value === 'sql')
-const isDatabase = computed(() => inProject.value && proj.kind.value === 'database')
 const hasDocument = computed(() => !inProject.value || (!!proj.kind.value && proj.kind.value in KIND_LANGUAGE))
 
 // Dokument: Projektdatei oder (ohne Projekt) das im Browser gemerkte Programm
@@ -77,7 +72,7 @@ const lineToBlock = (line: number | null | undefined) => (line ? blocksProgram.v
 const runSource = computed(() => (isBlocks.value ? blocksProgram.value.code : source.value))
 const runBreakpoints = computed(() => (isBlocks.value ? blockBreakpointLines.value : breakpoints.value))
 const languageItems = computed(() => PROGRAM_LANGUAGES.map(l => ({ label: t(`editor.languages.${l}`), value: l })))
-const { start, loadData } = useWorldEditor()
+const { start } = useWorldEditor()
 const databases = useDatabases()
 const { can, maxCharacters } = useLicense()
 
@@ -135,7 +130,7 @@ const startData = () => projectWorld.value ?? start.value.toJSON()
 
 // Angezeigte Welt: Kopie der Startwelt, auf der das Programm läuft (bzw. die gemeinsame Welt einer Untergruppe)
 const world = shallowRef(new World(start.value.toJSON()))
-const shownWorld = computed(() => live.world.value ?? world.value)
+const displayedWorld = computed(() => live.world.value ?? world.value)
 const speed = ref(300)
 
 const snapshot = ref<RunnerSnapshot>({ state: 'idle', line: null, pausedRange: null, variables: {}, heap: null, output: [], error: null })
@@ -181,11 +176,15 @@ const errorLine = computed(() => (snapshot.value.state === 'error' ? snapshot.va
 
 function resetWorld() {
   world.value = new World(startData())
-  worldFromSql.value = false
+  shownWorld.value = null
 }
+// Welt nach einem Lauf für SQL-Abfragen auf der Seite Datenbanken merken
+const shownWorld = useShownWorld()
+watch(() => snapshot.value.state, (state) => {
+  if (state === 'done' || state === 'error') shownWorld.value = displayedWorld.value.toJSON()
+})
 
 async function run(pauseOnStart = false) {
-  if (isSql.value || isDatabase.value) return runSql()
   if (!runner) return
   // Gemeinsame Welt: läuft dort, wo sie gerade steht (kein Zurücksetzen), mit der eigenen Figur
   const liveSession = live.session.value
@@ -228,57 +227,6 @@ function stepOrStart() {
   else if (!running.value) run(true)
 }
 
-// SQL: Abfrage auf eine Projektdatenbank oder die Welt (Ziel je Datei gemerkt)
-const sqlView = useTemplateRef<{ run: () => Promise<void> }>('sqlView')
-function runSql() {
-  rightTab.value = 'world'
-  return sqlView.value?.run()
-}
-const sqlTargets = computed(() => [
-  ...proj.databaseFiles.value.map(f => ({ value: f.path, label: f.path, engine: databaseEngine(f.path) ?? 'sqlite' as const })),
-  { value: 'world:sqlite', label: t('database.worldTarget', { engine: t('database.engines.sqlite') }), engine: 'sqlite' as const },
-  { value: 'world:postgres', label: t('database.worldTarget', { engine: t('database.engines.postgres') }), engine: 'postgres' as const },
-])
-const sqlTargetKey = computed(() => `klonk:sql-target:${proj.currentPath.value}`)
-const sqlTarget = ref<string | null>(null)
-watch(sqlTargetKey, (key) => {
-  try {
-    sqlTarget.value = localStorage.getItem(key)
-  }
-  catch {
-    sqlTarget.value = null
-  }
-}, { immediate: true })
-watch(sqlTarget, (value) => {
-  try {
-    if (value) localStorage.setItem(sqlTargetKey.value, value)
-  }
-  catch {
-    // z. B. privater Modus
-  }
-})
-/** Welt per SQL geändert ⇒ anzeigen; auf Wunsch als Startwelt übernehmen */
-const worldFromSql = ref(false)
-function onSqlWorld(data: WorldData) {
-  world.value = new World(data)
-  worldFromSql.value = true
-}
-async function keepSqlWorld() {
-  const data = world.value.toJSON()
-  try {
-    if (inProject.value && proj.worldPath.value) {
-      await proj.writeWorld(proj.worldPath.value, data)
-      projectWorld.value = data
-    }
-    else if (!loadData(data)) return
-    worldFromSql.value = false
-    toast.add({ title: t('database.worldKept'), color: 'success' })
-  }
-  catch {
-    toast.add({ title: t('project.errors.generic'), color: 'error' })
-  }
-}
-
 function stop() {
   runner?.stop()
 }
@@ -313,8 +261,7 @@ function onKey(event: KeyboardEvent) {
   }
   else if (event.key === 'F5') {
     event.preventDefault()
-    if (isSql.value || isDatabase.value) void runSql()
-    else if (event.shiftKey) stop()
+    if (event.shiftKey) stop()
     else if (paused.value) runner?.resume()
     else if (!running.value) run()
   }
@@ -354,33 +301,6 @@ function toggleFocus() {
 // Rechts: 3D-Welt, Kurzreferenz der Sprache oder KI-Assistent (die Welt bleibt dabei geladen)
 const rightTab = ref<'world' | 'diagrams' | 'docs' | 'ai'>('world')
 
-// Datei aus einem Lernmodul (Aufgabenordner): Hinweis mit Link in die Lernansicht, wo geprüft wird
-const learnManifest = shallowRef<{ module: string, tasks: Record<string, string> } | null>(null)
-watch([proj.project, proj.files], async () => {
-  const text = inProject.value ? await proj.project.value!.read('klonk.json').catch(() => null) : null
-  try {
-    const learn = (JSON.parse(text ?? '') as { learn?: { module?: unknown, tasks?: Record<string, string> } }).learn
-    learnManifest.value = typeof learn?.module === 'string' ? { module: learn.module, tasks: learn.tasks ?? {} } : null
-  }
-  catch {
-    learnManifest.value = null
-  }
-}, { immediate: true })
-// Modul des Projekts (eigene Module der Schule kommen vom Server)
-const learnModule = shallowRef<LearnModule | null>(null)
-watch(() => learnManifest.value?.module, async (id) => {
-  const module = id ? await resolveModule(id).catch(() => null) : null
-  if (learnManifest.value?.module === id) learnModule.value = module
-}, { immediate: true })
-const learnTask = computed(() => {
-  const manifest = learnManifest.value
-  const path = proj.currentPath.value
-  if (!manifest || !path) return null
-  const module = learnModule.value?.id === manifest.module ? learnModule.value : null
-  const entry = Object.entries(manifest.tasks).find(([, program]) => program.includes('/') && path.startsWith(`${program.slice(0, program.lastIndexOf('/'))}/`))
-  const task = entry && module?.tasks.find(x => x.id === entry[0])
-  return module && task ? { module, task } : null
-})
 const ai = useAi()
 const rightTabs = computed(() => (ai.enabled.value ? ['world', 'diagrams', 'docs', 'ai'] as const : ['world', 'diagrams', 'docs'] as const))
 const TAB_ICONS = { world: 'i-lucide-boxes', diagrams: 'i-lucide-workflow', docs: 'i-lucide-book-open', ai: 'i-lucide-sparkles' }
@@ -396,7 +316,7 @@ async function revealFromDiagram(line: number, path?: string) {
 }
 function robotInfo(name: string) {
   try {
-    const character = shownWorld.value.findCharacter(name)
+    const character = displayedWorld.value.findCharacter(name)
     return { x: character.x + 1, y: character.z + 1, direction: character.direction }
   }
   catch {
@@ -487,7 +407,7 @@ const paneStyle = computed(() => ({
         v-if="!running"
         icon="i-lucide-play"
         :label="t('editor.run')"
-        :disabled="!hasDocument && !isSql && !isDatabase"
+        :disabled="!hasDocument"
         data-testid="run"
         @click="run()"
       />
@@ -605,26 +525,7 @@ const paneStyle = computed(() => ({
       </div>
     </div>
 
-    <div
-      v-if="learnTask"
-      class="flex flex-wrap items-center gap-2 border-b border-(--ui-border) bg-(--ui-bg-muted) px-3 py-1.5 text-sm"
-      data-testid="learn-task-hint"
-    >
-      <UIcon
-        name="i-lucide-graduation-cap"
-        class="shrink-0 text-(--ui-primary)"
-      />
-      <span>{{ t('learn.learnTaskHint', { task: learnTask.task.title[locale === 'en' ? 'en' : 'de'], module: learnTask.module.title[locale === 'en' ? 'en' : 'de'] }) }}</span>
-      <UButton
-        :to="`/learn/${learnTask.module.id}/${learnTask.task.id}`"
-        :label="t('learn.openInLearn')"
-        trailing-icon="i-lucide-arrow-right"
-        size="xs"
-        variant="soft"
-        class="ms-auto"
-        data-testid="learn-task-open"
-      />
-    </div>
+    <LearnTaskHint :path="proj.currentPath.value" />
 
     <div
       ref="panesRow"
@@ -706,27 +607,8 @@ const paneStyle = computed(() => ({
           @close-all="proj.closeTabs()"
           @move="(path, before) => proj.moveTab(path, before)"
         />
-        <ClientOnly v-if="isDatabase">
-          <DatabaseEditor
-            ref="sqlView"
-            :path="proj.currentPath.value!"
-          />
-        </ClientOnly>
-        <ClientOnly v-else-if="isSql">
-          <SqlConsole
-            ref="sqlView"
-            v-model="source"
-            v-model:target="sqlTarget"
-            :targets="sqlTargets"
-            :world="() => world.toJSON()"
-            :path="proj.currentPath.value"
-            :read-only="proj.readOnly.value"
-            @world="onSqlWorld"
-            @run="proj.saveAll()"
-          />
-        </ClientOnly>
         <div
-          v-else-if="!hasDocument"
+          v-if="!hasDocument"
           class="flex flex-1 items-center justify-center p-6 text-center text-(--ui-text-muted)"
           data-testid="no-document"
         >
@@ -937,7 +819,7 @@ const paneStyle = computed(() => ({
           <ClientOnly>
             <KlonkWorld
               ref="worldView"
-              :world="shownWorld"
+              :world="displayedWorld"
               :speed="speed"
               :parallel="live.active.value"
             />
@@ -952,20 +834,6 @@ const paneStyle = computed(() => ({
               :color="snapshot.state === 'error' ? 'error' : snapshot.state === 'done' ? 'success' : 'neutral'"
               variant="subtle"
               :label="t(`editor.state.${snapshot.state}`)"
-            />
-          </div>
-          <div
-            v-if="worldFromSql && !running"
-            class="absolute right-3 top-3 flex items-center gap-2 rounded-md bg-(--ui-bg)/90 px-2 py-1 text-xs shadow"
-            data-testid="sql-world-changed"
-          >
-            <span>{{ t('database.worldChanged') }}</span>
-            <UButton
-              size="xs"
-              icon="i-lucide-save"
-              :label="t('database.keepWorld')"
-              data-testid="sql-keep-world"
-              @click="keepSqlWorld"
             />
           </div>
         </div>
