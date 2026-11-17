@@ -1156,6 +1156,9 @@
     "openHint": "Create worksheets, solutions and presentations for this module",
     "back": "Back to the module",
     "noAccess": "Teachers, admins and private accounts can create teaching material.",
+    "licenseTitle": "Teaching material is part of the license",
+    "licenseHint": "Worksheets, solution sheets and presentations for the learning modules can only be created, printed and downloaded with a license. The learning modules themselves remain usable without a license.",
+    "licenseShort": "License required",
     "types": {
       "worksheet": "Worksheet",
       "solutions": "Solutions",

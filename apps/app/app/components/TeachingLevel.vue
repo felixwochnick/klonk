@@ -9,6 +9,9 @@ const toast = useToast()
 const apiError = useApiError()
 const teaching = useTeaching()
 const learn = useLearn()
+// Unterrichtsmaterial ist lizenzpflichtig (Feature `material`)
+const { can } = useLicense()
+const materialLicensed = computed(() => can('material'))
 const lang = computed(() => (locale.value === 'en' ? 'en' : 'de'))
 
 const { data: progress, refresh: refreshProgress } = useFetch<TeachingProgress>('/api/teaching/progress', {
@@ -203,8 +206,9 @@ const missingForAll = (moduleIds: string[]) => props.groups.some(g => moduleIds.
                     variant="ghost"
                     color="neutral"
                     class="ms-1 align-middle"
+                    :disabled="!materialLicensed"
                     :aria-label="t('material.open')"
-                    :title="t('material.openHint')"
+                    :title="materialLicensed ? t('material.openHint') : `${t('material.openHint')} – ${t('material.licenseShort')}`"
                     :data-testid="`teaching-material-${module.id}`"
                   />
                   <UBadge

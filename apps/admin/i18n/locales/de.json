@@ -136,6 +136,7 @@
         "models": "Zusätzliche 3D-Modelle",
         "libraries": "Bibliotheken in Klonk-Script und TypeScript",
         "customModules": "Eigene Lernmodule erstellen und bearbeiten",
+        "material": "Unterrichtsmaterial (Arbeitsblätter, Lösungen, Präsentationen)",
         "ai": "KI-Assistent",
         "cloud": "Klonk Cloud (Projekte synchronisieren, Gruppenordner)"
       },

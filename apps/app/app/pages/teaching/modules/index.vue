@@ -67,7 +67,7 @@ const remove = () => run(async () => {
 
 const menu = (module: CustomModuleSummary) => [[
   { label: t('teaching.custom.preview'), icon: 'i-lucide-eye', to: `/learn/${module.id}` },
-  { label: t('material.open'), icon: 'i-lucide-printer', to: `/teaching/material/${module.id}`, disabled: !module.tasks.length },
+  { label: t('material.open'), icon: 'i-lucide-printer', to: `/teaching/material/${module.id}`, disabled: !module.tasks.length || !can('material') },
   { label: t('teaching.custom.duplicate'), icon: 'i-lucide-copy', disabled: !licensed.value, onSelect: () => duplicate(module) },
   { label: t('teaching.custom.export'), icon: 'i-lucide-download', onSelect: () => download(module) },
 ], ...(module.editable ? [[{ label: t('teaching.custom.delete'), icon: 'i-lucide-trash-2', color: 'error' as const, onSelect: () => (deleting.value = module) }]] : [])]

@@ -405,7 +405,9 @@ node scripts/build-csharp.ts        # C#-Host bauen (.NET-SDK 10 nötig; Ausgabe
   Draufsicht/Bauplan (Zahl = Ziegel, Pfeil = Figur), 3D über einen unsichtbaren `WorldRenderer` (`utils/material-images.ts`, freigestellt, Cache je
   Welt). App-Seite `/teaching/material/<modul>?type=worksheet|solutions|slides` (Vorschau im Sandbox-iframe per `srcdoc`, **PDF = Druckdialog**,
   Einstellungen in `klonk:material`), Einstieg Modulseite (Karte „Unterrichtsmaterial“), Unterricht-Matrix (Drucker-Symbol), Menü eigener Module.
-  Sichtbar wie Musterlösungen (nicht für Lernende einer Organisation). Andere Dokumentsprache als die UI ⇒ `loadLocaleMessages(lang)` vorher.
+  Sichtbar wie Musterlösungen (nicht für Lernende einer Organisation). **Lizenz-Feature `material`** (vom User so festgelegt, wie eigene Lernmodule):
+  nur Oberfläche (`useLicense().can('material')`, Hinweis erst nach `loaded`), da alles im Browser entsteht – Modulseite zeigt die Karte mit Hinweis
+  und gesperrten Knöpfen, Matrix/Menü gesperrt; Lernmodule selbst bleiben frei. Andere Dokumentsprache als die UI ⇒ `loadLocaleMessages(lang)` vorher.
   Visuelle Prüfung der DOCX/PPTX: LibreOffice im Docker (`soffice --convert-to pdf`). E2E `e2e/material.spec.ts`, Doku `4.teaching/2.modules/4.material.md`.
 - **Robot-Karol-Import** (vom User so festgelegt: Programme ⇒ Klonk-Script oder Blöcke, Welten ⇒ Klonk-Welten, damit Lehrkräfte eigene Aufgaben
   weiterverwenden): `convertKarolProgram`/`decodeKarolFile` in `@klonk/klonk-script` (`src/karol.ts`, Latin-1, `*wiederhole`/`endewiederhole`,
