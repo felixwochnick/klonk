@@ -395,6 +395,25 @@ node scripts/build-csharp.ts        # C#-Host bauen (.NET-SDK 10 nötig; Ausgabe
     (Rückstau wird schneller abgespielt). Zurücksetzen lädt die Startwelt neu, laufende Programme halten an.
   Tests: `packages/runtime/tests/live.test.ts`, RLS in `rls.test.ts`, E2E `e2e/teams.spec.ts` (eigene Lernende Ida/Ben, Klasse 8t, räumt auf),
   Doku `4.teaching/5.teamwork.md`.
+- **MCP-Server** (vom User gewünscht: KI-Assistenten unterstützen Lehrkräfte bei der Einrichtung, Zugriff je Konto einstellbar): app.* und admin.*
+  haben je `/mcp` (Streamable HTTP, **zustandslos, JSON-Antworten**, `@modelcontextprotocol/sdk` direkt – bewusst nicht `@nuxtjs/mcp-toolkit` wie Docus,
+  damit Anmeldung/OAuth in unserer Hand bleiben). Core: `server/utils/mcp-server.ts` (`defineMcpTool({ access, roles, platformAdmin, input, handler })`,
+  `handleMcpRequest`, `whoamiTool`; Fehler = Code + Text aus `errors.*` en), Werkzeuge in `apps/{app,admin}/server/mcp/tools.ts` (Route `server/routes/mcp.ts`,
+  `appConfig.klonk.mcp = 'app'|'admin'`) rufen **dieselben Funktionen wie die REST-API** (App: `learn.ts`/`subgroups.ts`, Verwaltung: `server/utils/directory.ts`)
+  ⇒ RLS gilt; Klassen/Module/Personen auch per Name bzw. Kürzel (`E4`). **Stufen** `users.mcp_access` = `none|read|write|full` (`MCP_ACCESS_LEVELS`,
+  `shared/utils/mcp.ts`; full = löschen, Konten anlegen, Passwörter): ändern nur Admins der Organisation bzw. Betreiber:innen (Trigger `guard_mcp_access`,
+  auch das eigene Konto), `none` ⇒ Trigger löscht alle Tokens; Werkzeuge mit `access` > Stufe werden gar nicht angeboten (Annotations read-only/destructive).
+  Wirksam = min(Zugang, Konto) bei jeder Anfrage. **Anmeldung** (`server/utils/mcp-auth.ts`, Tabelle `mcp_tokens`, nur SHA-256-Hashes): persönliche Tokens
+  `klonk_pat_…` (Einstellungen → `McpSettings.vue`, RLS: nur für sich, höchstens eigene Stufe, 30/90/365 Tage, gelten für beide Server) und **OAuth 2.1**
+  (DCR `/oauth/register`, Zustimmungsseite `pages/oauth/authorize.vue` im Core, `/oauth/token` mit PKCE S256 + rotierenden Refresh-Tokens, `iss` im
+  Rücksprung, RFC 8707 `resource` bindet an einen Server). Autorisierungsserver = auth.* (zentrale Anmeldung), sonst jede App (`isMcpAuthorizationServer`);
+  Metadaten `/.well-known/oauth-protected-resource[/mcp]` + `/.well-known/oauth-authorization-server` als `serverHandlers` (Punkt-Ordner scannt Nitro nicht).
+  `mcp_oauth_clients`/`mcp_oauth_codes` nur Server (RLS ohne Grants). Proxy-Gate lässt `/mcp`, `/.well-known/oauth-*`, `/oauth/token|register` durch.
+  Betreiber:innen leiten keine Klassen (`leads_group`) ⇒ Unterrichts-Werkzeuge nur Lehrkräfte/Admins; Verwaltungs-Werkzeuge nehmen `organizationId`.
+  Beispielprogramme/Startdateien für Untergruppen liegen dafür in `apps/app/shared/utils/program-sample.ts` (`collabStarterFiles`).
+  **Falle Auto-Import:** Steht ein auto-importierter Bezeichner direkt vor `as` (`z.enum(MCP_GRANTS as [...])`), fügt unimport keinen Import ein ⇒
+  freier Bezeichner im Nitro-Bundle (ReferenceError bzw. auf oberster Ebene bricht das ganze Bundle ab) – solche Konstanten ausdrücklich importieren. Tests: RLS + `tests/mcp.test.ts`
+  (core), E2E `e2e/mcp.spec.ts` (Freischalten, Token, Werkzeuge, OAuth-Ablauf; nach learn.spec, räumt auf). Doku `5.administration/6.mcp.md`.
 - **Robot-Karol-Import** (vom User so festgelegt: Programme ⇒ Klonk-Script oder Blöcke, Welten ⇒ Klonk-Welten, damit Lehrkräfte eigene Aufgaben
   weiterverwenden): `convertKarolProgram`/`decodeKarolFile` in `@klonk/klonk-script` (`src/karol.ts`, Latin-1, `*wiederhole`/`endewiederhole`,
   nachprüfende Schleife ⇒ `wiederhole immer` + `abbrechen`, `Bedingung` ⇒ `funktion` mit `ergebnis`, Quader/Ton/Rucksack ⇒ Kommentar + Hinweis),
@@ -594,3 +613,4 @@ node scripts/build-csharp.ts        # C#-Host bauen (.NET-SDK 10 nötig; Ausgabe
 15b. [x] Modulreihen (32 Module, 128 Aufgaben): E1–E13 (Einstieg, Grundkurs, Funktionen, mehrere Figuren, Muster, Algorithmen), F1–F8 (Python/Java/JS/TS/C#: Objekte, Klassen, Vererbung, Rekursion), S1–S7 (SQL), A1–A4 (Programm + Datenbank)
 15c. [x] Eigene Lernmodule der Lehrkräfte (Editor mit Welten, Datenbanken, Musterlösung und Probelauf; für alle Lehrkräfte der Schule sichtbar, Export/Import)
 16. [x] Untergruppen (Teams) einer Klasse: gemeinsames Projekt live bearbeiten (Yjs, Cursor, Blöcke je Stapel) oder gemeinsame Welt mit eigener Figur (Server führt Befehle aus)
+17. [x] MCP-Server für App und Verwaltung (KI-Assistenten richten Unterricht/Organisation ein; Stufe je Konto, persönliche Tokens + OAuth 2.1)
