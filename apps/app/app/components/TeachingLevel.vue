@@ -196,6 +196,17 @@ const missingForAll = (moduleIds: string[]) => props.groups.some(g => moduleIds.
                   >
                     {{ [codeOf(module), module.title[lang]].filter(Boolean).join(' ') }}
                   </NuxtLink>
+                  <UButton
+                    :to="`/teaching/material/${module.id}`"
+                    icon="i-lucide-printer"
+                    size="xs"
+                    variant="ghost"
+                    color="neutral"
+                    class="ms-1 align-middle"
+                    :aria-label="t('material.open')"
+                    :title="t('material.openHint')"
+                    :data-testid="`teaching-material-${module.id}`"
+                  />
                   <UBadge
                     v-if="section.key === 'recommended'"
                     :label="t('teaching.curriculumBadge')"

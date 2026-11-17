@@ -91,6 +91,13 @@ useSeoMeta({ title: () => module.value?.title[lang.value] ?? t('learn.title') })
 // Hinweise für Lehrkräfte nur in der App (nicht in der öffentlichen Doku) und nur für Lehrkräfte, Admins, Betreiber
 const { user } = useAuth()
 const isTeacher = computed(() => !!user.value && (user.value.role !== 'member' || user.value.platformRole !== 'user'))
+// Unterrichtsmaterial (mit Musterlösungen) wie die Musterlösung: nicht für Lernende einer Organisation
+const canUseMaterial = computed(() => !user.value || !user.value.organizationId || isTeacher.value)
+const MATERIAL = [
+  { type: 'worksheet', icon: 'i-lucide-file-pen-line' },
+  { type: 'solutions', icon: 'i-lucide-file-check-2' },
+  { type: 'slides', icon: 'i-lucide-presentation' },
+] as const
 const STORAGE_ICON: Record<LearnStorage, string> = { cloud: 'i-lucide-cloud', browser: 'i-lucide-hard-drive', folder: 'i-lucide-folder' }
 </script>
 
@@ -262,6 +269,34 @@ const STORAGE_ICON: Record<LearnStorage, string> = { cloud: 'i-lucide-cloud', br
           <UIcon :name="STORAGE_ICON[storage]" />
           {{ t('learn.storedIn', { place: t(`learn.storage.${storage}.label`) }) }}
         </p>
+
+        <UCard
+          v-if="canUseMaterial && module.tasks.length"
+          class="mt-6"
+          :ui="{ body: 'p-4 sm:p-4' }"
+          data-testid="learn-material"
+        >
+          <h2 class="flex items-center gap-2 font-semibold">
+            <UIcon name="i-lucide-printer" />
+            {{ t('material.open') }}
+          </h2>
+          <p class="mb-3 mt-1 text-xs text-(--ui-text-muted)">
+            {{ t('material.openHint') }}
+          </p>
+          <div class="flex flex-col gap-1.5">
+            <UButton
+              v-for="item in MATERIAL"
+              :key="item.type"
+              :to="`/teaching/material/${module.id}?type=${item.type}`"
+              :icon="item.icon"
+              :label="t(`material.types.${item.type}`)"
+              variant="soft"
+              color="neutral"
+              size="sm"
+              :data-testid="`learn-material-${item.type}`"
+            />
+          </div>
+        </UCard>
       </aside>
     </div>
 

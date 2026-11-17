@@ -97,6 +97,9 @@ export default defineNuxtConfig({
         '@klonk/runtime > magic-string',
         '@klonk/runtime > java-parser',
         '@klonk/learn > zod',
+        // Unterrichtsmaterial: erst beim Herunterladen geladen (DOCX, PPTX)
+        '@klonk/material > docx',
+        '@klonk/material > pptxgenjs',
         '@klonk/diagrams > @dagrejs/dagre',
         '@klonk/diagrams > @lezer/common',
         '@klonk/diagrams > @lezer/java',

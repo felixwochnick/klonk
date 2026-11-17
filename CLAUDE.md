@@ -36,6 +36,7 @@ pnpm-Workspace (`pnpm-workspace.yaml`), Node ≥ 22.
 | `packages/klonk-script` | `@klonk/klonk-script` | **Klonk-Script**: Sprachtabellen de/en (`languages.ts` – neue Sprache = neue Spalte), Lexer, Parser (AST), async Interpreter mit Prüfpunkten, Übersetzen | – |
 | `packages/learn` | `@klonk/learn` | **Lernmodule**: Aufgaben als Daten (`src/modules/*.ts`, Welten als Textkarten `map()`), Prüfung (`compareOutcome`, `missingConstructs`) | – |
 | `packages/runtime` | `@klonk/runtime` | **Ausführung**: Worker (`@klonk/runtime/worker?worker`), sprachunabhängiges Protokoll (`protocol.ts`), `ProgramRunner` (Hauptthread, spielt Roboterbefehle auf der angezeigten Welt nach); JS/TS in `src/js/` | – |
+| `packages/material` | `@klonk/material` | **Unterrichtsmaterial**: Dokumentmodell, Arbeitsblatt/Lösungsblatt/Präsentation aus Lernmodulen, Draufsicht-SVG, Ausgabe HTML (Drucken/PDF), DOCX (`./docx`), PPTX (`./pptx`) | – |
 | `packages/diagrams` | `@klonk/diagrams` | **Diagramme**: Struktogramm, UML-Klassen-/Objektdiagramm, ER-Diagramm (Modell, Auswertung, Layout, SVG) | – |
 | `packages/core` | `@klonk/core` | **Nuxt-Layer für Server & Auth**: Drizzle-Schema, Migrationen, RLS, Sessions (nuxt-auth-utils), Login-API, `/login`, `/change-password`, `UserMenu` | – |
 
@@ -395,6 +396,17 @@ node scripts/build-csharp.ts        # C#-Host bauen (.NET-SDK 10 nötig; Ausgabe
     (Rückstau wird schneller abgespielt). Zurücksetzen lädt die Startwelt neu, laufende Programme halten an.
   Tests: `packages/runtime/tests/live.test.ts`, RLS in `rls.test.ts`, E2E `e2e/teams.spec.ts` (eigene Lernende Ida/Ben, Klasse 8t, räumt auf),
   Doku `4.teaching/5.teamwork.md`.
+- **Unterrichtsmaterial** (vom User gewünscht: Arbeitsblätter und Präsentationen zu den Lernmodulen, PDF + DOCX – er nutzt **Euro-Office**
+  (OnlyOffice-Fork ⇒ OOXML) ⇒ DOCX/PPTX statt ODF): Paket `@klonk/material` = neutrales Modell (`MaterialBlock`, `MaterialDocument`, `Presentation`),
+  Aufbau `buildWorksheet` (Arbeitsblatt bzw. `kind: 'solutions'`) und `buildPresentation` aus `LearnModule` + `MaterialContext` (Beschriftungen per
+  `t` aus der App-i18n `material.doc.*`, Ergebnisse der Musterlösung `expected` = Zielbilder/erwartete Ergebnisse, Aufgabendatenbanken `tables`),
+  Ausgabe `renderDocumentHtml`/`renderSlidesHtml` (alles maskiert, `@page` mit Seitenzahlen), `@klonk/material/docx` (docx, A4, Arial/Courier New)
+  und `@klonk/material/pptx` (pptxgenjs, 16:9, Sprechernotizen) – beide erst beim Herunterladen per dynamischem Import. Bilder: `worldPlanSvg()` =
+  Draufsicht/Bauplan (Zahl = Ziegel, Pfeil = Figur), 3D über einen unsichtbaren `WorldRenderer` (`utils/material-images.ts`, freigestellt, Cache je
+  Welt). App-Seite `/teaching/material/<modul>?type=worksheet|solutions|slides` (Vorschau im Sandbox-iframe per `srcdoc`, **PDF = Druckdialog**,
+  Einstellungen in `klonk:material`), Einstieg Modulseite (Karte „Unterrichtsmaterial“), Unterricht-Matrix (Drucker-Symbol), Menü eigener Module.
+  Sichtbar wie Musterlösungen (nicht für Lernende einer Organisation). Andere Dokumentsprache als die UI ⇒ `loadLocaleMessages(lang)` vorher.
+  Visuelle Prüfung der DOCX/PPTX: LibreOffice im Docker (`soffice --convert-to pdf`). E2E `e2e/material.spec.ts`, Doku `4.teaching/2.modules/4.material.md`.
 - **Robot-Karol-Import** (vom User so festgelegt: Programme ⇒ Klonk-Script oder Blöcke, Welten ⇒ Klonk-Welten, damit Lehrkräfte eigene Aufgaben
   weiterverwenden): `convertKarolProgram`/`decodeKarolFile` in `@klonk/klonk-script` (`src/karol.ts`, Latin-1, `*wiederhole`/`endewiederhole`,
   nachprüfende Schleife ⇒ `wiederhole immer` + `abbrechen`, `Bedingung` ⇒ `funktion` mit `ergebnis`, Quader/Ton/Rucksack ⇒ Kommentar + Hinweis),
@@ -594,3 +606,4 @@ node scripts/build-csharp.ts        # C#-Host bauen (.NET-SDK 10 nötig; Ausgabe
 15b. [x] Modulreihen (32 Module, 128 Aufgaben): E1–E13 (Einstieg, Grundkurs, Funktionen, mehrere Figuren, Muster, Algorithmen), F1–F8 (Python/Java/JS/TS/C#: Objekte, Klassen, Vererbung, Rekursion), S1–S7 (SQL), A1–A4 (Programm + Datenbank)
 15c. [x] Eigene Lernmodule der Lehrkräfte (Editor mit Welten, Datenbanken, Musterlösung und Probelauf; für alle Lehrkräfte der Schule sichtbar, Export/Import)
 16. [x] Untergruppen (Teams) einer Klasse: gemeinsames Projekt live bearbeiten (Yjs, Cursor, Blöcke je Stapel) oder gemeinsame Welt mit eigener Figur (Server führt Befehle aus)
+17. [x] Unterrichtsmaterial: Arbeitsblatt, Lösungsblatt und Präsentation zu jedem Lernmodul (Drucken/PDF, DOCX, PPTX für Euro-Office/LibreOffice/Word)
