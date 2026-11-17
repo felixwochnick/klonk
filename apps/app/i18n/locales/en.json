@@ -1188,6 +1188,14 @@
     "introBox": "Introduction with example",
     "hints": "Tips",
     "fields": "Fields for name, class and date",
+    "fillable": "Fill in digitally (input fields)",
+    "fillableHint": "Name, class, date and program become input fields – in the DOCX and in the PDF.",
+    "fillableHintDocx": "Name, class, date and program become input fields in the DOCX (fillable PDF only with the PDF service).",
+    "imageSize": "Picture size",
+    "imageSizes": {
+      "large": "Large",
+      "compact": "Compact (saves paper)"
+    },
     "teacher": "Notes for teachers",
     "solutionSlides": "Solution slides",
     "solutionPlacement": {
@@ -1202,6 +1210,11 @@
     "docx": "Download DOCX",
     "pptx": "Download PPTX",
     "editHint": "DOCX and PPTX can be edited in Euro-Office, OnlyOffice, LibreOffice and Microsoft Office.",
+    "printPdf": "Print",
+    "pdf": "Download PDF",
+    "pdfHint": "The PDF is created from the DOCX or PPTX file and looks exactly the same.",
+    "converting": "Creating PDF …",
+    "pdfFailed": "The PDF could not be created. The preview shows the browser’s print view instead.",
     "computing": "Running the sample solutions …",
     "rendering": "Creating pictures ({done} of {total}) …",
     "failed": "The material could not be created.",

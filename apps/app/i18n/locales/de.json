@@ -1188,6 +1188,14 @@
     "introBox": "Einführung mit Beispiel",
     "hints": "Tipps",
     "fields": "Felder für Name, Klasse und Datum",
+    "fillable": "Digital ausfüllbar (Eingabefelder)",
+    "fillableHint": "Name, Klasse, Datum und Programm werden Eingabefelder – im DOCX und in der PDF.",
+    "fillableHintDocx": "Name, Klasse, Datum und Programm werden Eingabefelder im DOCX (ausfüllbare PDF nur mit PDF-Dienst).",
+    "imageSize": "Bildgröße",
+    "imageSizes": {
+      "large": "Groß",
+      "compact": "Kompakt (spart Papier)"
+    },
     "teacher": "Hinweise für Lehrkräfte",
     "solutionSlides": "Lösungsfolien",
     "solutionPlacement": {
@@ -1202,6 +1210,11 @@
     "docx": "DOCX herunterladen",
     "pptx": "PPTX herunterladen",
     "editHint": "DOCX und PPTX lassen sich in Euro-Office, OnlyOffice, LibreOffice und Microsoft Office bearbeiten.",
+    "printPdf": "Drucken",
+    "pdf": "PDF herunterladen",
+    "pdfHint": "Die PDF entsteht aus der DOCX- bzw. PPTX-Datei und sieht genauso aus.",
+    "converting": "PDF wird erstellt …",
+    "pdfFailed": "Die PDF ließ sich nicht erstellen. Die Vorschau zeigt stattdessen die Druckansicht des Browsers.",
     "computing": "Musterlösungen werden ausgeführt …",
     "rendering": "Bilder werden erstellt ({done} von {total}) …",
     "failed": "Das Material ließ sich nicht erstellen.",

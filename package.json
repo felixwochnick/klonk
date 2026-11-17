@@ -22,6 +22,7 @@
     "dev:admin": "pnpm --filter @klonk/admin dev",
     "test:e2e": "playwright test",
     "sso:up": "docker compose -f docker/docker-compose.dev.yml --profile sso up -d",
+    "pdf:up": "docker compose -f docker/docker-compose.dev.yml --profile pdf up -d",
     "dev:auth": "pnpm --filter @klonk/auth dev",
     "stack:up": "scripts/local-stack.sh up",
     "stack:down": "scripts/local-stack.sh down",

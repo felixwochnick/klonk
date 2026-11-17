@@ -23,9 +23,10 @@ import {
 import { computeExpected, scenarioTables } from '~/utils/learn-check'
 import { resolveImages } from '~/utils/material-images'
 
-// Unterrichtsmaterial zu einem Lernmodul: Arbeitsblatt, Lösungsblatt und Präsentation – Vorschau, Drucken (PDF über den
-// Druckdialog) sowie DOCX/PPTX zum Weiterbearbeiten (Euro-Office, OnlyOffice, LibreOffice, Word). Alles entsteht im Browser,
-// daher prüft nur die Oberfläche das Lizenz-Feature `customModules` (wie eigene Lernmodule; wie Figurengrenze und Bibliotheken; Umgehen verbietet die ELv2).
+// Unterrichtsmaterial zu einem Lernmodul: Arbeitsblatt, Lösungsblatt und Präsentation – Vorschau, Drucken, PDF sowie DOCX/PPTX
+// zum Weiterbearbeiten (Euro-Office, OnlyOffice, LibreOffice, Word). DOCX/PPTX entstehen im Browser; mit PDF-Dienst (Gotenberg)
+// macht der Server daraus die PDF – Vorschau, Druck und PDF sind dann genau die Datei (samt Eingabefeldern). Ohne Dienst zeigt
+// die Vorschau die HTML-Fassung, PDF über den Druckdialog. Lizenz-Feature `customModules`: Oberfläche und PDF-Endpunkt.
 definePageMeta({ key: route => route.path })
 
 const { t, locale, locales, loadLocaleMessages } = useI18n()
@@ -93,6 +94,7 @@ watch([sheet, slides, school], () => {
 const codeTrack = computed(() => !!module && isCodeTrack(module))
 const docLangItems = computed(() => locales.value.filter(l => l.code === 'de' || l.code === 'en').map(l => ({ label: l.name ?? l.code, value: l.code as 'de' | 'en' })))
 const codeLanguageItems = computed(() => CODE_LANGUAGES.map(value => ({ label: t(`editor.languages.${value}`), value })))
+const imageSizeItems = computed(() => (['large', 'compact'] as const).map(value => ({ label: t(`material.imageSizes.${value}`), value })))
 const pictureItems = computed(() => (['both', 'world', 'plan', 'none'] as const)
   .filter(value => kind.value !== 'slides' || value !== 'both')
   .map(value => ({ label: t(`material.pictureStyles.${value}`), value })))
@@ -163,10 +165,27 @@ async function context(): Promise<MaterialContext> {
   }
 }
 
-// Vorschau: zuerst ohne Bilder, dann mit; neuere Anfragen verdrängen ältere
-type Generated = { content: MaterialDocument | Presentation, images: ImageMap }
+// Vorschau: zuerst ohne Bilder, dann mit, mit PDF-Dienst zuletzt die PDF aus der Datei; neuere Anfragen verdrängen ältere
+type Generated = { content: MaterialDocument | Presentation, images: ImageMap, office?: Blob, pdf?: Blob }
 const html = ref('')
-const state = ref<'computing' | 'rendering' | 'ready' | 'error'>('computing')
+const state = ref<'computing' | 'rendering' | 'converting' | 'ready' | 'error'>('computing')
+// PDF-Dienst vorhanden? (einmal je Seitenaufruf; ohne Dienst bleibt es bei der HTML-Fassung)
+let pdfCheck: Promise<boolean> | undefined
+const pdfService = ref(false)
+const pdfAvailable = () => (pdfCheck ??= $fetch<{ available: boolean }>('/api/material/pdf')
+  .then(result => (pdfService.value = result.available))
+  .catch(() => false))
+const pdfUrl = ref('')
+function showPdf(pdf: Blob | null) {
+  if (pdfUrl.value) URL.revokeObjectURL(pdfUrl.value)
+  pdfUrl.value = pdf ? URL.createObjectURL(pdf) : ''
+}
+const OFFICE_TYPES = { docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', pptx: 'application/vnd.openxmlformats-officedocument.presentationml.presentation' }
+const officeType = (content: MaterialDocument | Presentation) => (content.kind === 'slides' ? 'pptx' : 'docx')
+async function officeFile(content: MaterialDocument | Presentation, images: ImageMap): Promise<Blob> {
+  if (content.kind === 'slides') return (await import('@klonk/material/pptx')).renderPptx(content, images)
+  return (await import('@klonk/material/docx')).renderDocx(content, images)
+}
 const progress = reactive({ done: 0, total: 0 })
 let current: Generated | null = null
 let generation = 0
@@ -196,11 +215,38 @@ async function generate() {
     if (run !== generation) return
     current = { content, images }
     html.value = render(content, images)
+    if (await pdfAvailable()) {
+      state.value = 'converting'
+      const done = await convert(current, run)
+      if (run !== generation) return
+      if (!done) showPdf(null)
+    }
     state.value = 'ready'
   }
   catch (error) {
     console.error(error)
     if (run === generation) state.value = 'error'
+  }
+}
+/** DOCX/PPTX ⇒ PDF über den Server; bei Fehlern bleibt die HTML-Vorschau (Hinweis einmal je Fehlerserie) */
+let pdfWarned = false
+async function convert(target: Generated, run: number) {
+  try {
+    const type = officeType(target.content)
+    const office = await officeFile(target.content, target.images)
+    const pdf = await $fetch<Blob>('/api/material/pdf', { method: 'POST', query: { type }, body: office, headers: { 'content-type': OFFICE_TYPES[type] }, responseType: 'blob' })
+    if (run !== generation) return true
+    target.office = office
+    target.pdf = pdf
+    showPdf(pdf)
+    pdfWarned = false
+    return true
+  }
+  catch (error) {
+    console.error(error)
+    if (run === generation && !pdfWarned) toast.add({ title: t('material.pdfFailed'), color: 'warning' })
+    pdfWarned = true
+    return false
   }
 }
 let timer: ReturnType<typeof setTimeout> | undefined
@@ -212,20 +258,25 @@ onMounted(generate)
 onBeforeUnmount(() => {
   clearTimeout(timer)
   generation++
+  showPdf(null)
 })
 
 const status = computed(() => {
   if (state.value === 'computing') return t('material.computing')
   if (state.value === 'rendering') return t('material.rendering', { done: progress.done, total: progress.total })
+  if (state.value === 'converting') return t('material.converting')
   if (state.value === 'error') return t('material.failed')
   return ''
 })
 
 // Ausgabe
 const frame = ref<HTMLIFrameElement>()
+const pdfFrame = ref<HTMLIFrameElement>()
+/** Druckt die PDF (Betrachter des Browsers im iframe) bzw. ohne PDF-Dienst die HTML-Fassung */
 function print() {
-  frame.value?.contentWindow?.focus()
-  frame.value?.contentWindow?.print()
+  const target = pdfUrl.value ? pdfFrame.value : frame.value
+  target?.contentWindow?.focus()
+  target?.contentWindow?.print()
 }
 const downloading = ref(false)
 const fileName = (extension: string) => {
@@ -238,18 +289,12 @@ function save(blob: Blob, name: string) {
   link.click()
   setTimeout(() => URL.revokeObjectURL(url), 1000)
 }
+/** DOCX/PPTX – mit PDF-Dienst genau die Datei, aus der die PDF entstand */
 async function download() {
   if (!current) return
   downloading.value = true
   try {
-    if (current.content.kind === 'slides') {
-      const { renderPptx } = await import('@klonk/material/pptx')
-      save(await renderPptx(current.content, current.images), fileName('pptx'))
-    }
-    else {
-      const { renderDocx } = await import('@klonk/material/docx')
-      save(await renderDocx(current.content, current.images), fileName('docx'))
-    }
+    save(current.office ?? await officeFile(current.content, current.images), fileName(officeType(current.content)))
   }
   catch (error) {
     console.error(error)
@@ -258,6 +303,9 @@ async function download() {
   finally {
     downloading.value = false
   }
+}
+function downloadPdf() {
+  if (current?.pdf) save(current.pdf, fileName('pdf'))
 }
 </script>
 
@@ -350,11 +398,21 @@ async function download() {
         <div class="flex flex-col gap-2">
           <UButton
             icon="i-lucide-printer"
-            :label="t('material.print')"
+            :label="pdfUrl ? t('material.printPdf') : t('material.print')"
             :disabled="state !== 'ready'"
             block
             data-testid="material-print"
             @click="print"
+          />
+          <UButton
+            v-if="pdfUrl"
+            icon="i-lucide-file-down"
+            :label="t('material.pdf')"
+            :disabled="state !== 'ready'"
+            variant="outline"
+            block
+            data-testid="material-pdf"
+            @click="downloadPdf"
           />
           <UButton
             :icon="kind === 'slides' ? 'i-lucide-presentation' : 'i-lucide-file-text'"
@@ -367,7 +425,7 @@ async function download() {
             @click="download"
           />
           <p class="text-xs text-(--ui-text-muted)">
-            {{ t('material.printHint') }} {{ t('material.editHint') }}
+            {{ pdfService ? t('material.pdfHint') : t('material.printHint') }} {{ t('material.editHint') }}
           </p>
         </div>
 
@@ -413,6 +471,15 @@ async function download() {
                 data-testid="material-pictures"
               />
             </UFormField>
+            <UFormField :label="t('material.imageSize')">
+              <USelect
+                v-model="sheet.imageSize"
+                :items="imageSizeItems"
+                :disabled="sheet.pictures === 'none'"
+                class="w-full"
+                data-testid="material-image-size"
+              />
+            </UFormField>
             <UCheckbox
               v-model="sheet.goal"
               :label="kind === 'solutions' ? t('material.goalSolutions') : t('material.goal')"
@@ -439,6 +506,12 @@ async function download() {
               <UCheckbox
                 v-model="sheet.fields"
                 :label="t('material.fields')"
+              />
+              <UCheckbox
+                v-model="sheet.fillable"
+                :label="t('material.fillable')"
+                :description="pdfService ? t('material.fillableHint') : t('material.fillableHintDocx')"
+                data-testid="material-fillable"
               />
             </template>
             <UCheckbox
@@ -516,14 +589,24 @@ async function download() {
             :data-state="state"
           >
             <UIcon
-              v-if="state === 'computing' || state === 'rendering'"
+              v-if="state === 'computing' || state === 'rendering' || state === 'converting'"
               name="i-lucide-loader-circle"
               class="animate-spin"
             />
             {{ status }}
           </span>
         </div>
+        <!-- PDF aus dem DOCX/PPTX im Betrachter des Browsers (eigene Datei, daher ohne Sandbox – die blockiert den Betrachter) -->
         <iframe
+          v-if="pdfUrl"
+          ref="pdfFrame"
+          :src="pdfUrl"
+          :title="t('material.preview')"
+          class="min-h-0 w-full flex-1 bg-[#e5e7eb]"
+          data-testid="material-pdf-preview"
+        />
+        <iframe
+          v-show="!pdfUrl"
           ref="frame"
           :srcdoc="html"
           :title="t('material.preview')"
