@@ -128,6 +128,8 @@ export class WorldRenderer {
   private dirty = true
   private resizeObserver: ResizeObserver
   private raycaster = new THREE.Raycaster()
+  /** Kamera von Hand gedreht/gezoomt ⇒ bei Größenänderungen nicht mehr neu ausrichten */
+  private cameraMoved = false
 
   /** Namensschilder über den Figuren (aus z. B. in der Design-Vorschau) */
   showNames = true
@@ -145,6 +147,7 @@ export class WorldRenderer {
     this.controls = new OrbitControls(this.camera, this.renderer.domElement)
     this.controls.enableDamping = true
     this.controls.addEventListener('change', () => this.invalidate())
+    this.controls.addEventListener('start', () => (this.cameraMoved = true))
     this.controls.maxPolarAngle = Math.PI / 2 - 0.05
 
     this.scene.add(new THREE.HemisphereLight(0xFFFFFF, 0x8D8D8D, 2.2))
@@ -187,7 +190,9 @@ export class WorldRenderer {
     if (!this.world) return
     const { width, depth } = this.world
     const center = new THREE.Vector3(width / 2 - 0.5, 0, depth / 2 - 0.5)
-    const distance = Math.max(width, depth) * 0.95 + 3
+    // Hochkant (z. B. schmale Spalte neben dem SQL-Editor, Handy): weiter weg, damit die Welt in die Breite passt
+    const distance = (Math.max(width, depth) * 0.95 + 3) * Math.max(1, 1.1 / this.camera.aspect)
+    this.cameraMoved = false
     this.camera.position.set(center.x - distance * 0.35, distance * 0.8, center.z + distance * 0.9)
     this.controls.target.copy(center)
     this.controls.update()
@@ -256,8 +261,11 @@ export class WorldRenderer {
     const { clientWidth: w, clientHeight: h } = this.container
     if (!w || !h) return
     this.renderer.setSize(w, h)
+    const before = this.camera.aspect
     this.camera.aspect = w / h
     this.camera.updateProjectionMatrix()
+    // Abstand hängt vom Seitenverhältnis ab – solange niemand die Kamera bewegt hat, neu ausrichten
+    if (this.world && !this.cameraMoved && Math.abs(before - this.camera.aspect) > 0.01) this.resetCamera()
     this.invalidate()
   }
 

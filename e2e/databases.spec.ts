@@ -42,7 +42,10 @@ async function newDatabase(page: Page, item: string, name: string) {
   await page.getByRole('menuitem', { name: item }).click()
   await page.getByTestId('project-dialog-name').fill(name)
   await page.getByTestId('project-dialog-submit').click()
+  // Datenbanken öffnen sich auf der eigenen Seite (ohne Programm-Werkzeugleiste)
+  await expect(page).toHaveURL(/\/databases$/)
   await expect(page.getByTestId('database-editor')).toBeVisible()
+  await expect(page.getByTestId('run')).toHaveCount(0)
 }
 
 test.beforeEach(async ({ page }) => {
@@ -89,7 +92,10 @@ test('SQLite: Datenbank anlegen, abfragen, Welt per SQL ändern, aus Python nutz
   await page.getByTestId('file-welt.sql').click()
   await page.getByTestId('sql-target').click()
   await page.getByRole('option', { name: 'Welt (SQLite)' }).click()
-  await page.getByTestId('run').click()
+  await expect(page.getByTestId('sql-world')).toBeVisible()
+  await expect(page.getByTestId('editor-tabs')).toContainText('schule.sqlite.sql')
+  await expect(page.getByTestId('editor-tabs')).toContainText('welt.sql')
+  await page.getByTestId('sql-run').click()
   await expect(page.getByTestId('sql-result').last()).toContainText('blau')
   await expect(page.getByTestId('sql-world-changed')).toBeVisible()
   await page.getByTestId('sql-keep-world').click()
@@ -105,8 +111,10 @@ test('SQLite: Datenbank anlegen, abfragen, Welt per SQL ändern, aus Python nutz
   await page.getByTestId('sql-run').click()
   await expect(page.getByTestId('sql-error')).toContainText('CHECK')
 
-  // Python greift auf dieselbe Datenbank zu; die Änderung landet in der Datei
+  // Python greift auf dieselbe Datenbank zu; die Änderung landet in der Datei (Programm ⇒ zurück in die IDE, ohne SQL-Tabs)
   await page.getByTestId('file-main.py').click()
+  await expect(page).toHaveURL(/\/$/)
+  await expect(page.getByTestId('editor-tabs')).not.toContainText('welt.sql')
   await page.getByTestId('run').click()
   await expect(page.getByTestId('run-state')).toHaveAttribute('data-state', 'done', { timeout: 90_000 })
   await expect(page.getByTestId('output')).toHaveText('Mia\nBen\n3')
@@ -123,6 +131,39 @@ test('SQLite: Datenbank anlegen, abfragen, Welt per SQL ändern, aus Python nutz
   await chooser.setFiles({ name: 'kopie.db', mimeType: 'application/vnd.sqlite3', buffer: bytes })
   await expect(page.getByTestId('file-kopie.sqlite.sql')).toBeVisible()
   expect(await readFile(page, 'Datenbanken', 'kopie.sqlite.sql')).toContain('\'Tom\'')
+})
+
+test('Seite Datenbanken: Welt nach dem Programmlauf abfragen, F5, Zurücksetzen', async ({ page }) => {
+  await openProject(page, 'Weltabfrage', {
+    'klonk.json': '{ "language": "javascript" }',
+    'welt.klonkworld.json': JSON.stringify(WORLD),
+    'main.js': 'import { Klonk } from \'klonk\'\nconst klonk = new Klonk()\nklonk.step()\nklonk.step()\n',
+    'frage.sql': 'SELECT x * 10 + y AS feld FROM figuren;\n',
+  })
+  // Programm in der IDE ausführen ⇒ die Seite Datenbanken sieht die Welt danach
+  await expect(page.getByTestId('editor-tabs')).toContainText('main.js')
+  await page.getByTestId('run').click()
+  await expect(page.getByTestId('run-state')).toHaveAttribute('data-state', 'done', { timeout: 60_000 })
+  await page.getByTestId('file-frage.sql').click()
+  await expect(page).toHaveURL(/\/databases$/)
+  await expect(page.getByTestId('editor-tabs')).not.toContainText('main.js')
+  await page.getByTestId('sql-target').click()
+  await page.getByRole('option', { name: 'Welt (SQLite)' }).click()
+  await expect(page.getByTestId('sql-world')).toBeVisible()
+  await page.keyboard.press('F5')
+  await expect(page.getByTestId('sql-result').last()).toContainText('13')
+  // Zurücksetzen ⇒ Startwelt
+  await page.getByTestId('sql-world-reset').click()
+  await page.keyboard.press('F5')
+  await expect(page.getByTestId('sql-result').last()).toContainText('11')
+  // Über die Navigation zurück in die IDE: dort ist weiter das Programm offen
+  await page.getByRole('link', { name: 'Programmieren' }).click()
+  await expect(page).toHaveURL(/\/$/)
+  await expect(page.getByTestId('editor-tabs')).toContainText('main.js')
+  await expect(page.getByTestId('editor-tabs')).not.toContainText('frage.sql')
+  // Seite direkt aufrufen (ohne offenes Projekt): Hinweis statt Editor
+  await gotoHydrated(page, `${APP_URL}/databases`)
+  await expect(page.getByTestId('databases-empty')).toContainText('gehören zu einem Projekt')
 })
 
 test('PostgreSQL (PGlite): Datenbank anlegen und aus JavaScript nutzen', async ({ page }) => {

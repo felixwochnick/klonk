@@ -10,6 +10,7 @@ const { user } = useAuth()
 const nav = computed(() => [
   { label: t('nav.projects'), icon: 'i-lucide-folder-tree', to: '/projects' },
   { label: t('nav.code'), icon: 'i-lucide-code', to: '/', exact: true },
+  { label: t('nav.databases'), icon: 'i-lucide-database', to: '/databases' },
   { label: t('nav.learn'), icon: 'i-lucide-graduation-cap', to: '/learn' },
   ...(user.value?.organizationId && user.value.role !== 'member'
     ? [{ label: user.value.organizationType === 'company' ? t('nav.training') : t('nav.teaching'), icon: 'i-lucide-school', to: '/teaching' }]

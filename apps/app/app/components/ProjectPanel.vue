@@ -7,7 +7,10 @@ const {
   dialog, dialogName, dialogLanguage, dialogTitle, openDialog, submitDialog, openFile, newItems, fileActions, fileContextItems, areaContextItems,
   tree, toggleFolder, folderActions, parentOf, dropTarget, onDragStart, onDragOver, onDrop,
 } = useProjectExplorer()
-const { project, currentPath, worldPath, status } = proj
+const { project, worldPath, status } = proj
+// Hervorgehoben: aktive Datei der jeweiligen Seite (IDE bzw. Datenbanken)
+const route = useRoute()
+const currentPath = computed(() => (route.path === '/databases' ? proj.dbPath.value : proj.currentPath.value))
 
 // Leere Werte erlaubt die Select-Komponente nicht – eigener Wert für „Welt aus dem Welt-Editor“
 const EDITOR_WORLD = '__editor__'

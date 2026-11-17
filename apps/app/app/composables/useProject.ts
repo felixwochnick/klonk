@@ -10,10 +10,13 @@ const files = ref<ProjectFile[]>([])
 const folders = ref<string[]>([])
 /** Sprache des Projekts aus klonk.json (`null` = gemischt, z. B. ältere Projekte oder fremde Ordner) */
 const language = ref<ProgramLanguage | null>(null)
-/** Aktive Datei der IDE (Programm, SQL, Datenbank) – Designs öffnet immer der Kleiderschrank (`designPath`) */
+/** Aktive Programmdatei der IDE – Designs öffnet immer der Kleiderschrank (`designPath`), SQL/Datenbanken die Seite Datenbanken (`dbPath`) */
 const currentPath = ref<string | null>(null)
 /** Offene Dateien der IDE (Tabs), in Reihenfolge */
 const tabs = ref<string[]>([])
+/** Aktive Datei und Tabs der Seite Datenbanken (Abfragen `.sql`, Datenbanken `*.sqlite.sql`/`*.postgres.sql`) */
+const dbPath = ref<string | null>(null)
+const dbTabs = ref<string[]>([])
 /** Im Kleiderschrank geöffnetes Design */
 const designPath = ref<string | null>(null)
 const worldPath = ref<string | null>(null)
@@ -52,8 +55,14 @@ let unsavedDialog: ReturnType<typeof createUnsavedDialog> | null = null
 const NOT_IMPORTABLE = new Set<FileKind>(['world', 'design', 'other', 'blocks', 'database', 'sql'])
 
 /** Dateiarten, die die IDE als Tab öffnet */
-const EDITOR_KINDS = new Set<FileKind>(['blocks', 'klonk', 'javascript', 'typescript', 'python', 'java', 'csharp', 'sql', 'database'])
+const EDITOR_KINDS = new Set<FileKind>(['blocks', 'klonk', 'javascript', 'typescript', 'python', 'java', 'csharp'])
 export const opensInEditor = (path: string) => EDITOR_KINDS.has(fileKind(path))
+/** Dateiarten der Seite Datenbanken (eigene Tabs) */
+export const opensInDatabases = (path: string) => fileKind(path) === 'sql' || fileKind(path) === 'database'
+/** Tab-Gruppe einer Datei: IDE oder Datenbanken */
+const tabGroup = (path: string) => (opensInDatabases(path) ? { tabs: dbTabs, active: dbPath } : { tabs, active: currentPath })
+/** Datei ist irgendwo geöffnet (Tab, Kleiderschrank) ⇒ Puffer behalten */
+const isOpen = (path: string) => path === currentPath.value || path === dbPath.value || path === designPath.value || tabs.value.includes(path) || dbTabs.value.includes(path)
 
 const LAST_FILE_KEY = (p: Project) => `klonk:project:${p.source}:${p instanceof CloudProject ? p.meta.id : p.name}`
 
@@ -67,9 +76,12 @@ export function useProject() {
   const overlay = useOverlay()
   const kind = computed<FileKind | null>(() => (currentPath.value ? fileKind(currentPath.value) : null))
   const content = computed(() => (currentPath.value ? buffers.value[currentPath.value]?.text ?? '' : ''))
+  const dbKind = computed<FileKind | null>(() => (dbPath.value ? fileKind(dbPath.value) : null))
+  const dbContent = computed(() => (dbPath.value ? buffers.value[dbPath.value]?.text ?? '' : ''))
   const designContent = computed(() => (designPath.value ? buffers.value[designPath.value]?.text ?? '' : ''))
-  const programFiles = computed(() => files.value.filter(f => f.kind !== 'world' && f.kind !== 'design' && f.kind !== 'other' && f.kind !== 'database'))
+  const programFiles = computed(() => files.value.filter(f => opensInEditor(f.path)))
   const databaseFiles = computed(() => files.value.filter(f => f.kind === 'database'))
+  const sqlFiles = computed(() => files.value.filter(f => f.kind === 'sql'))
   const designFiles = computed(() => files.value.filter(f => f.kind === 'design'))
   const worldFiles = computed(() => files.value.filter(f => f.kind === 'world'))
 
@@ -92,13 +104,17 @@ export function useProject() {
 
     const last = safeStorage(() => JSON.parse(localStorage.getItem(LAST_FILE_KEY(next)) ?? 'null')) as Remembered | null
     const exists = (path: unknown): path is string => typeof path === 'string' && files.value.some(f => f.path === path)
-    // Zuletzt offene Tabs; ältere Einträge kannten nur eine Datei (ggf. ein Design ⇒ Kleiderschrank)
-    tabs.value = [...new Set([...(Array.isArray(last?.tabs) ? last.tabs : []), last?.file])].filter(p => exists(p) && opensInEditor(p)) as string[]
-    const first = programFiles.value.find(f => opensInEditor(f.path))?.path ?? null
+    // Zuletzt offene Tabs; ältere Einträge kannten nur eine Datei (ggf. ein Design ⇒ Kleiderschrank) und SQL in den IDE-Tabs
+    const remembered = [...new Set([...(Array.isArray(last?.tabs) ? last.tabs : []), last?.file, ...(Array.isArray(last?.dbTabs) ? last.dbTabs : []), last?.dbFile])].filter(exists)
+    tabs.value = remembered.filter(opensInEditor)
+    dbTabs.value = remembered.filter(opensInDatabases)
+    const first = programFiles.value[0]?.path ?? null
     const target = exists(last?.file) && opensInEditor(last.file) ? last.file : tabs.value[0] ?? first
+    const dbTarget = exists(last?.dbFile) && opensInDatabases(last.dbFile) ? last.dbFile : dbTabs.value[0] ?? null
     worldPath.value = exists(last?.world) ? last.world : worldFiles.value[0]?.path ?? null
     const design = exists(last?.design) ? last.design : exists(last?.file) && fileKind(last.file) === 'design' ? last.file : null
     if (design) await selectDesign(design).catch(() => {})
+    if (dbTarget) await select(dbTarget)
     if (target) await select(target)
     return true
   }
@@ -109,6 +125,8 @@ export function useProject() {
     buffers.value = {}
     tabs.value = []
     currentPath.value = null
+    dbTabs.value = []
+    dbPath.value = null
     designPath.value = null
     breakpointsByFile.value = {}
     saveFailed.value = false
@@ -174,32 +192,36 @@ export function useProject() {
   function forget(path: string) {
     clearTimeout(saveTimers.get(path))
     saveTimers.delete(path)
-    const index = tabs.value.indexOf(path)
-    if (index >= 0) tabs.value = tabs.value.filter(p => p !== path)
-    if (currentPath.value === path) currentPath.value = tabs.value[Math.min(index, tabs.value.length - 1)] ?? null
+    const group = tabGroup(path)
+    const index = group.tabs.value.indexOf(path)
+    if (index >= 0) group.tabs.value = group.tabs.value.filter(p => p !== path)
+    if (group.active.value === path) group.active.value = group.tabs.value[Math.min(index, group.tabs.value.length - 1)] ?? null
     if (designPath.value === path) designPath.value = null
-    if (path !== currentPath.value && path !== designPath.value) dropBuffer(path)
+    if (!isOpen(path)) dropBuffer(path)
     // Nächster Tab ist evtl. noch nicht geladen
-    if (currentPath.value && !buffers.value[currentPath.value]) {
-      const next = currentPath.value
-      currentPath.value = null
+    if (group.active.value && !buffers.value[group.active.value]) {
+      const next = group.active.value
+      group.active.value = null
       void select(next)
     }
   }
 
   /**
-   * Datei in der IDE öffnen (neuer Tab neben dem aktiven bzw. vorhandenen Tab wählen). Designs öffnet der Kleiderschrank,
-   * Welten sind keine Dokumente der IDE.
+   * Datei öffnen (neuer Tab neben dem aktiven bzw. vorhandenen Tab wählen): Programme in der IDE, SQL/Datenbanken auf der
+   * Seite Datenbanken, Designs im Kleiderschrank. Welten sind keine Dokumente.
    */
   async function select(path: string) {
-    if (!project.value || path === currentPath.value) return
+    if (!project.value) return
     if (fileKind(path) === 'design') return selectDesign(path)
+    const group = tabGroup(path)
+    if (path === group.active.value) return
     await load(path)
-    if (!tabs.value.includes(path)) {
-      const at = currentPath.value ? tabs.value.indexOf(currentPath.value) + 1 : tabs.value.length
-      tabs.value = [...tabs.value.slice(0, at), path, ...tabs.value.slice(at)]
+    if (!group.tabs.value.includes(path)) {
+      const list = group.tabs.value
+      const at = group.active.value ? list.indexOf(group.active.value) + 1 : list.length
+      group.tabs.value = [...list.slice(0, at), path, ...list.slice(at)]
     }
-    currentPath.value = path
+    group.active.value = path
     // Programm in einem Ordner mit eigener Welt (z. B. Aufgabe eines Lernmoduls) ⇒ diese Welt laden
     const folder = path.includes('/') ? path.slice(0, path.lastIndexOf('/')) : null
     const local = folder ? worldFiles.value.filter(f => f.path.startsWith(`${folder}/`) && !f.path.slice(folder.length + 1).includes('/')) : []
@@ -214,23 +236,26 @@ export function useProject() {
     rememberSelection()
   }
 
-  /** Mehrere Tabs schließen: alle, alle außer `keep` bzw. alle rechts von `rightOf` */
-  async function closeTabs(options: { keep?: string, rightOf?: string } = {}) {
-    const from = options.rightOf ? tabs.value.indexOf(options.rightOf) + 1 : 0
-    const closing = tabs.value.slice(from).filter(p => p !== options.keep)
-    if (options.keep && !tabs.value.includes(options.keep)) return
+  /** Mehrere Tabs schließen: alle, alle außer `keep` bzw. alle rechts von `rightOf` (`databases` = Tabs der Seite Datenbanken) */
+  async function closeTabs(options: { keep?: string, rightOf?: string, databases?: boolean } = {}) {
+    const group = options.databases ? { tabs: dbTabs, active: dbPath } : { tabs, active: currentPath }
+    const from = options.rightOf ? group.tabs.value.indexOf(options.rightOf) + 1 : 0
+    const closing = group.tabs.value.slice(from).filter(p => p !== options.keep)
+    if (options.keep && !group.tabs.value.includes(options.keep)) return
     if (!await confirmUnsaved(closing)) return
-    if (options.keep && currentPath.value !== options.keep) await select(options.keep)
-    else if (options.rightOf && currentPath.value && closing.includes(currentPath.value)) await select(options.rightOf)
+    const active = group.active.value
+    if (options.keep && active !== options.keep) await select(options.keep)
+    else if (options.rightOf && active && closing.includes(active)) await select(options.rightOf)
     for (const path of closing) forget(path)
     rememberSelection()
   }
 
   /** Tab verschieben (Ziehen in der Tab-Leiste) */
   function moveTab(path: string, before: string | null) {
-    const rest = tabs.value.filter(p => p !== path)
+    const group = tabGroup(path)
+    const rest = group.tabs.value.filter(p => p !== path)
     const at = before ? rest.indexOf(before) : rest.length
-    tabs.value = [...rest.slice(0, at < 0 ? rest.length : at), path, ...rest.slice(at < 0 ? rest.length : at)]
+    group.tabs.value = [...rest.slice(0, at < 0 ? rest.length : at), path, ...rest.slice(at < 0 ? rest.length : at)]
     rememberSelection()
   }
 
@@ -240,7 +265,7 @@ export function useProject() {
     const previous = designPath.value
     if (path) await load(path)
     designPath.value = path
-    if (previous && previous !== currentPath.value && !tabs.value.includes(previous)) {
+    if (previous && !isOpen(previous)) {
       await savePath(previous)
       dropBuffer(previous)
     }
@@ -269,16 +294,16 @@ export function useProject() {
   async function rename(from: string, to: string) {
     if (!project.value) return
     if (!to.split('/').every(isValidName)) throw new Error('invalid_name')
-    // Ungespeichertes wandert mit dem Puffer mit – außer die Datei verlässt den Editor (z. B. umbenannt in ein Design)
-    if (autosaves(from) || !opensInEditor(to)) await savePath(from)
+    // Ungespeichertes wandert mit dem Puffer mit – außer die Datei wechselt die Ansicht (z. B. umbenannt in ein Design)
+    const sameView = (opensInEditor(from) && opensInEditor(to)) || (opensInDatabases(from) && opensInDatabases(to))
+    if (autosaves(from) || !sameView) await savePath(from)
     await project.value.rename(from, to)
+    // Tab bleibt nur in derselben Ansicht offen
+    if (!sameView && (tabs.value.includes(from) || dbTabs.value.includes(from))) forget(from)
     movePaths(p => (p === from ? to : p))
     await refresh()
-    // Umbenannt in ein Design (bzw. aus einem Design) ⇒ dort öffnen, wo es hingehört
-    if (tabs.value.includes(to) && !opensInEditor(to)) {
-      forget(to)
-      if (fileKind(to) === 'design') await selectDesign(to)
-    }
+    // Umbenannt in ein Design ⇒ im Kleiderschrank öffnen
+    if (!sameView && fileKind(to) === 'design') await selectDesign(to)
     rememberSelection()
   }
 
@@ -289,6 +314,8 @@ export function useProject() {
     breakpointsByFile.value = Object.fromEntries(Object.entries(breakpointsByFile.value).map(([path, lines]) => [moved(path), lines]))
     tabs.value = tabs.value.map(moved)
     currentPath.value = map(currentPath.value)
+    dbTabs.value = dbTabs.value.map(moved)
+    dbPath.value = map(dbPath.value)
     designPath.value = map(designPath.value)
     worldPath.value = map(worldPath.value)
   }
@@ -323,7 +350,7 @@ export function useProject() {
     if (!project.value) return
     await project.value.removeFolder(path)
     const inside = (p: string | null) => !!p && p.startsWith(`${path}/`)
-    for (const open of Object.keys(buffers.value).concat(tabs.value).filter(inside)) forget(open)
+    for (const open of [...new Set([...Object.keys(buffers.value), ...tabs.value, ...dbTabs.value])].filter(inside)) forget(open)
     if (inside(worldPath.value)) worldPath.value = null
     await refresh()
     await selectFallback()
@@ -342,7 +369,7 @@ export function useProject() {
 
   /** Keine Datei mehr offen ⇒ erstes Programm öffnen */
   async function selectFallback() {
-    const first = programFiles.value.find(f => opensInEditor(f.path))
+    const first = programFiles.value[0]
     if (!currentPath.value && first) await select(first.path)
   }
 
@@ -356,8 +383,9 @@ export function useProject() {
     saveTimers.set(path, setTimeout(() => void savePath(path), 400))
   }
 
-  /** Aktive Datei der IDE bzw. Design im Kleiderschrank ändern */
+  /** Aktive Datei der IDE, der Seite Datenbanken bzw. Design im Kleiderschrank ändern */
   const update = (text: string) => currentPath.value && updateFile(currentPath.value, text)
+  const updateDb = (text: string) => dbPath.value && updateFile(dbPath.value, text)
   const updateDesign = (text: string) => designPath.value && updateFile(designPath.value, text)
 
   /** Eine offene Datei speichern (Strg+S); `false` bei Fehler */
@@ -481,7 +509,7 @@ export function useProject() {
   function rememberSelection() {
     if (!project.value) return
     const p = project.value
-    const remembered: Remembered = { file: currentPath.value, tabs: tabs.value, design: designPath.value, world: worldPath.value }
+    const remembered: Remembered = { file: currentPath.value, tabs: tabs.value, dbFile: dbPath.value, dbTabs: dbTabs.value, design: designPath.value, world: worldPath.value }
     safeStorage(() => localStorage.setItem(LAST_FILE_KEY(p), JSON.stringify(remembered)))
   }
 
@@ -493,8 +521,9 @@ export function useProject() {
   })
 
   return {
-    project, files, folders, language, programFiles, designFiles, worldFiles, databaseFiles, currentPath, tabs, content, kind, worldPath, status, unsaved, breakpoints, readOnly, sync,
+    project, files, folders, language, programFiles, designFiles, worldFiles, databaseFiles, sqlFiles, currentPath, tabs, content, kind, worldPath, status, unsaved, breakpoints, readOnly, sync,
     designPath, designContent, selectDesign, updateDesign,
+    dbPath, dbTabs, dbKind, dbContent, updateDb,
     open, openCloud, close, select, closeTab, closeTabs, moveTab, create, rename, remove, setLanguage, createFolder, renameFolder, removeFolder, update, savePath, saveAll, confirmUnsaved, refresh, readWorld, writeWorld, importableFiles, readDesigns, writeDesign, writeFile, selectWorld,
     openBrowserProject: async (name: string, createIt = false) => {
       // Erst fragen, dann anlegen (sonst entstünde bei „Abbrechen“ trotzdem ein neues Projekt)
@@ -505,7 +534,7 @@ export function useProject() {
 }
 
 /** Im Browser gemerkte Auswahl je Projekt */
-type Remembered = { file?: string | null, tabs?: string[], design?: string | null, world?: string | null }
+type Remembered = { file?: string | null, tabs?: string[], dbFile?: string | null, dbTabs?: string[], design?: string | null, world?: string | null }
 
 async function readManifest(project: Project): Promise<ProgramLanguage | null> {
   try {
