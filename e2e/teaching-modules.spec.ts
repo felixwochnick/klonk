@@ -5,9 +5,9 @@ import { canSignLicense, signLicense } from './license'
 import { changePassword, gotoHydrated, loginWithPassword } from './utils'
 
 // Eigene Lernmodule (Lizenz-Feature `customModules`): Lena erstellt ein Modul (Welten aus Dateien, Musterlösung mit
-// Probelauf), Kai sieht es nur lesend und arbeitet mit einer Kopie weiter, Lena gibt es für ihre Klasse frei, Mia löst es,
+// Probelauf), Kolja sieht es nur lesend und arbeitet mit einer Kopie weiter, Lena gibt es für ihre Klasse frei, Mila löst es,
 // Lena sieht den Lernstand; ohne Lizenz bleibt das Modul nutzbar, aber nicht bearbeitbar. Braucht die Schule und Lena aus
-// admin-accounts.spec.ts, legt eigene Konten und eine Gruppe an, räumt auf und hinterlässt die Lizenz aus admin-license.spec.ts.
+// admin-accounts.spec.ts, legt eigene Konten (Namen eindeutig über alle Specs) und eine Gruppe an, räumt auf und hinterlässt die Lizenz aus admin-license.spec.ts.
 test.use({ locale: 'de-DE', viewport: { width: 1400, height: 900 } })
 
 const TEACHER = ['lena@gym-muster.de', 'lena-geheim'] as const
@@ -67,10 +67,10 @@ function worldFile(name: string, mark: number) {
 test('Eigene Lernmodule: erstellen, für Kolleg:innen sichtbar, freigeben, lösen', async ({ browser }) => {
   test.setTimeout(420_000)
   test.skip(!canSignLicense, 'Kein Signierschlüssel für diese Testumgebung')
-  // Zweite Lehrkraft, Schülerin und Lenas Klasse 8b mit Mia
+  // Zweite Lehrkraft, Schülerin und Lenas Klasse 8b mit Mila
   const admin = await device(browser, ADMIN_URL, ['admin@gym-muster.de', 'admin-passwort'])
-  const kai = await api<{ id: string }>(admin, `${ADMIN_URL}/api/admin/users`, 'POST', { username: 'kai', displayName: 'Kai Kollege', role: 'teacher', password: 'start-kai' })
-  const mia = await api<{ id: string }>(admin, `${ADMIN_URL}/api/admin/users`, 'POST', { username: 'mia', displayName: 'Mia Lernt', role: 'member', password: 'start-mia' })
+  const kai = await api<{ id: string }>(admin, `${ADMIN_URL}/api/admin/users`, 'POST', { username: 'kolja', displayName: 'Kolja Kollege', role: 'teacher', password: 'start-kolja' })
+  const mia = await api<{ id: string }>(admin, `${ADMIN_URL}/api/admin/users`, 'POST', { username: 'mila', displayName: 'Mila Lernt', role: 'member', password: 'start-mila' })
   expect([kai.status, mia.status]).toEqual([200, 200])
   const teacherAdmin = await device(browser, ADMIN_URL, TEACHER)
   const group = (await api<{ id: string }>(teacherAdmin, `${ADMIN_URL}/api/admin/groups`, 'POST', { name: '8b' })).body.id
@@ -133,8 +133,8 @@ test('Eigene Lernmodule: erstellen, für Kolleg:innen sichtbar, freigeben, löse
   expect(saved.tasks[0]!.solution).toContain('markieren(rot)')
   const taskId = saved.tasks[0]!.id
 
-  // Kai sieht das Modul seiner Kollegin, darf es aber nur ansehen – mit einer Kopie arbeitet er weiter
-  const kaiPage = await device(browser, APP_URL, ['kai@gym-muster.de', 'start-kai'], 'kai-geheim')
+  // Kolja sieht das Modul seiner Kollegin, darf es aber nur ansehen – mit einer Kopie arbeitet er weiter
+  const kaiPage = await device(browser, APP_URL, ['kolja@gym-muster.de', 'start-kolja'], 'kolja-geheim')
   await gotoHydrated(kaiPage, `${APP_URL}/teaching/modules`)
   const card = kaiPage.getByTestId('custom-list-others').getByTestId('custom-card-Schulhof-Rallye')
   await expect(card).toContainText('Erstellt von Lena Lehrkraft')
@@ -157,8 +157,8 @@ test('Eigene Lernmodule: erstellen, für Kolleg:innen sichtbar, freigeben, löse
   await expect(kaiPage.getByTestId('custom-list-mine')).toContainText('Du hast noch kein eigenes Lernmodul erstellt.')
   await kaiPage.context().close()
 
-  // Mia sieht es erst nach der Freigabe in der Matrix der Unterrichtsseite
-  const miaPage = await device(browser, APP_URL, ['mia@gym-muster.de', 'start-mia'], 'mia-geheim')
+  // Mila sieht es erst nach der Freigabe in der Matrix der Unterrichtsseite
+  const miaPage = await device(browser, APP_URL, ['mila@gym-muster.de', 'start-mila'], 'mila-geheim')
   expect((await api<{ custom: unknown[] }>(miaPage, '/api/learn')).body.custom).toEqual([])
   expect((await api(miaPage, `/api/learn/custom/${id}`)).status).toBe(404)
   expect((await api(miaPage, `/api/learn/modules/${id}/start`, 'POST', { lang: 'de' })).status).toBe(404)
@@ -201,7 +201,7 @@ test('Eigene Lernmodule: erstellen, für Kolleg:innen sichtbar, freigeben, löse
   // Lena sieht den Lernstand ihrer Klasse
   await gotoHydrated(lena, `${APP_URL}/teaching/groups/${group}`)
   await expect(lena.getByTestId('learn-enable-section-school')).toContainText('Schulhof-Rallye')
-  await expect(lena.getByTestId(`learn-cell-mia-${id}`)).toHaveText('1/1')
+  await expect(lena.getByTestId(`learn-cell-mila-${id}`)).toHaveText('1/1')
 
   // Ohne Lizenz bleibt das Modul nutzbar (ansehen, lösen), aber nicht bearbeitbar
   await license(false)
@@ -213,7 +213,7 @@ test('Eigene Lernmodule: erstellen, für Kolleg:innen sichtbar, freigeben, löse
   expect((await api<{ custom: { id: string }[] }>(miaPage, '/api/learn')).body.custom.map(m => m.id)).toEqual([id])
   expect((await api(miaPage, `/api/learn/custom/${id}`)).status).toBe(200)
 
-  // Löschen (auch ohne Lizenz): Modul verschwindet aus der Freigabe, Mias Projekt bleibt
+  // Löschen (auch ohne Lizenz): Modul verschwindet aus der Freigabe, Milas Projekt bleibt
   await gotoHydrated(lena, `${APP_URL}/teaching/modules`)
   await lena.getByTestId('custom-list-mine').getByTestId('custom-card-Schulhof-Rallye').getByTestId('custom-card-menu').click()
   await lena.getByRole('menuitem', { name: 'Löschen' }).click()
