@@ -103,6 +103,7 @@
     "world": "World",
     "code": "Code",
     "projects": "Projects",
+    "databases": "Databases",
     "wardrobe": "Wardrobe",
     "learn": "Learn",
     "teaching": "Teaching",
@@ -478,6 +479,11 @@
     "scriptIntro": "Keywords:",
     "databases": "Databases",
     "databasesHelp": "Open a project database (file school.sqlite.sql / school.postgres.sql) or Database.memory() – placeholders: SQLite ?, PostgreSQL $1."
+  },
+  "databases": {
+    "title": "Databases",
+    "noProject": "Databases and SQL queries belong to a project. Open or create a project on the left.",
+    "noFile": "Open a database or SQL query on the left – or create one via “New file”."
   },
   "wardrobe": {
     "title": "Wardrobe",

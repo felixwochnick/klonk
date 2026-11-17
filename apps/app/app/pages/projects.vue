@@ -11,10 +11,10 @@ const {
   dialog, dialogName, dialogLanguage, dialogTitle, openDialog, submitDialog, openFile, newItemsIn, fileActions, fileContextItems, areaContextItems, kindLabel,
   folders, folderActions, parentOf, baseName, dropTarget, onDragStart, onDragOver, onDrop,
 } = useProjectExplorer({
-  // Programme öffnen sich in der IDE (Designs im Kleiderschrank), Welten werden nur als Projektwelt gewählt
+  // Programme öffnen sich in der IDE (SQL/Datenbanken und Designs wechseln selbst die Seite), Welten werden nur als Projektwelt gewählt
   onOpenFile: file => file.kind !== 'world' && navigateTo('/'),
 })
-const { project, files, currentPath, tabs, worldPath, status } = proj
+const { project, files, currentPath, dbPath, tabs, dbTabs, worldPath, status } = proj
 
 // Ordner-Navigation: Kacheln zeigen den aktuellen Ordner; die Suche durchsucht das ganze Projekt
 const folder = ref('')
@@ -392,7 +392,7 @@ const syncLabel = computed(() => (proj.sync.value ? t(`cloud.sync.${proj.sync.va
                     <button
                       type="button"
                       class="flex h-full w-full flex-col items-center gap-2 rounded-lg border bg-(--ui-bg) p-4 text-center transition hover:border-(--ui-primary) hover:shadow-sm disabled:cursor-default disabled:opacity-60 disabled:hover:border-(--ui-border) disabled:hover:shadow-none"
-                      :class="file.path === currentPath || file.path === worldPath ? 'border-(--ui-primary) ring-1 ring-(--ui-primary)' : 'border-(--ui-border)'"
+                      :class="file.path === currentPath || file.path === dbPath || file.path === worldPath ? 'border-(--ui-primary) ring-1 ring-(--ui-primary)' : 'border-(--ui-border)'"
                       :disabled="file.kind === 'other'"
                       :data-testid="`explorer-file-${file.path}`"
                       @click="openFile(file)"
@@ -413,7 +413,7 @@ const syncLabel = computed(() => (proj.sync.value ? t(`cloud.sync.${proj.sync.va
                         size="sm"
                       />
                       <UBadge
-                        v-else-if="tabs.includes(file.path)"
+                        v-else-if="tabs.includes(file.path) || dbTabs.includes(file.path)"
                         :label="t('project.openInIde')"
                         variant="subtle"
                         size="sm"

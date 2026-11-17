@@ -295,7 +295,7 @@ node scripts/build-csharp.ts        # C#-Host bauen (.NET-SDK 10 nötig; Ausgabe
 - **Monaco-Modelle:** eines je Sprache mit Dateiendung (`file:///__klonk/<n>/program.ts`, im Projekt `file:///<pfad>`) – der TS-Dienst erkennt TS/JS an der Endung.
 - **Code in voller Breite** (`focus`, vom User so gewünscht – kein Browser-Vollbild): Projekt/Welt aus, Ausgabe kompakt unter dem Editor.
   Rechts Tabs **Welt | Doku** (`LanguageDocs.vue`: Kurzreferenz je Sprache aus den Tabellen, Link `public.docsUrl`); Ausführen zeigt die Welt.
-- **Navigation:** Projekte · Programmieren · Lernen (`/learn`) · Unterricht (`/teaching`, nur Lehrkräfte/Admins einer Organisation, in Unternehmen „Ausbildung“) · Kleiderschrank (`/designs`, Designs des Projekts) · Welt.
+- **Navigation:** Projekte · Programmieren · Datenbanken (`/databases`) · Lernen (`/learn`) · Unterricht (`/teaching`, nur Lehrkräfte/Admins einer Organisation, in Unternehmen „Ausbildung“) · Kleiderschrank (`/designs`, Designs des Projekts) · Welt.
 - **Lernmodule** (vom User so festgelegt: Aufgabenmodus in der App, thematisch gegliedert, zuerst Grundkurs Klonk-Script; **Speicherung in der
   Klonk Cloud, Freigabe je Gruppe, Lernstand für die Gruppenleitung**; **Speicherort wählbar: Cloud, Browser, Ordner** – Admins erlauben je
   Organisation (`organizations.learn_storage`, Verwaltung → Organisation), die Gruppenleitung schränkt je Gruppe ein (`groups.learn_storage`, `null` = Vorgabe),
@@ -386,7 +386,8 @@ node scripts/build-csharp.ts        # C#-Host bauen (.NET-SDK 10 nötig; Ausgabe
 - **3D:** `apps/app/app/utils/world-renderer.ts` rendert nur bei Bedarf (`invalidate()`) – Dauer-Rendern blockierte
   Monacos Hintergrund-Tokenizer (Leerlaufzeit) und kostet Akku.
 - **3D (Details):** `apps/app/app/utils/world-renderer.ts` (three.js, InstancedMesh, animiert `WorldEvent`s aus `@klonk/world`),
-  Komponente `KlonkWorld` nur in `<ClientOnly>` (`.client.vue` + Template-Ref funktionierte nicht).
+  Komponente `KlonkWorld` nur in `<ClientOnly>` (`.client.vue` + Template-Ref funktionierte nicht). Kameraabstand hängt vom Seitenverhältnis ab
+  (hochkant weiter weg, `resetCamera`); bei Größenänderungen richtet sie sich neu aus, bis jemand sie dreht/zoomt (`cameraMoved`).
 - **PWA** (`@vite-pwa/nuxt`, nur `apps/app`): Logo/Favicon/Icons aus `assets/brand/*.svg` per `node scripts/gen-icons.ts`
   (rsvg-convert + ImageMagick ⇒ `packages/ui/public`, `apps/app/public/icons`, `apps/docs/public`). Workbox precacht alle
   Assets (Monaco, Modelle, Blockly-Medien, Schriften) + die SPA-Shell `/`; `/`, `/world`, `/projects` laufen mit `ssr: false`
@@ -439,7 +440,10 @@ node scripts/build-csharp.ts        # C#-Host bauen (.NET-SDK 10 nötig; Ausgabe
   **Datenbank-Worker** (`@klonk/runtime/db-worker?worker`, Client `DatabaseClient`/`DatabaseSession` in `db/client.ts`). Projektdatenbanken sind
   **SQL-Text**: `name.sqlite.sql` / `name.postgres.sql` (Dateiart `database`), `.sql` = Abfrage (Dateiart `sql`); `useDatabases()` lädt sie bei Bedarf,
   sichert nach Änderungen per Dump (600 ms, `proj.writeFile`, an das Projekt der Sitzung gebunden) und vergisst umbenannte/gelöschte Dateien.
-  IDE: `DatabaseEditor` (Tabellen + Konsole), `SqlConsole` (Ziel: Projektdatenbank oder `world:sqlite|postgres`, Strg+Enter, Vorschläge über `sqlSchemas` in `utils/monaco.ts`).
+  **Eigene Seite `/databases`** (vom User so festgelegt: keine zwei „Ausführen“-Knöpfe in der IDE): `.sql`/Datenbankdateien öffnen sich nur dort, mit
+  eigener Tab-Gruppe (`useProject().dbTabs`/`dbPath`, `select()` sortiert nach Dateiart ein, `opensInDatabases`); Explorer wechselt die Seite je Dateiart
+  (`openFile`/`showPage`). Abfragen auf die Welt zeigen sie daneben; Welt nach dem letzten IDE-Lauf über `useShownWorld()`.
+  Ansichten: `DatabaseEditor` (Tabellen + Konsole), `SqlConsole` (Ziel: Projektdatenbank oder `world:sqlite|postgres`, Strg+Enter, Vorschläge über `sqlSchemas` in `utils/monaco.ts`).
   **Welt als Datenbank** (`db/world.ts`): Tabellen in UI-Sprache (`welt`, `figuren`, `ziegel(x, y, ebene, farbe)`, `marken`, `quader` bzw. englisch), 1-basiert,
   Werte lokalisiert, CHECK-Bedingungen; Änderungen ⇒ `sqlToWorld` (`WorldTableError`-Codes ⇒ `database.worldErrors.*`), „Als Startwelt speichern“.
   **Programme** (JS/TS/Python/Java/C#, nicht Klonk-Script/Blöcke): `Database.open(name)` / `Database.memory(engine)`, `query`, `queryOne`, `execute`, `tables`;
