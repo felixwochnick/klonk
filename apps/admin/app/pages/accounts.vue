@@ -13,6 +13,7 @@ type AccountRow = {
   lastLoginAt: string | null
   providers: string[]
   plan: string | null
+  mcpAccess: McpAccess
 }
 
 const { t, d } = useI18n()
@@ -52,9 +53,25 @@ const providerIcons: Record<string, string> = {
 /** Klonk-ID-Konten bekommen ihre Rolle aus den Gruppen beim Login */
 const fromGroups = (row: AccountRow) => row.providers.includes('platform')
 
+/** KI-Zugriff (MCP) als Untermenü – auch für das eigene Konto (Betreiber:innen unterstützen Schulen damit) */
+function mcpMenu(row: AccountRow): DropdownMenuItem {
+  return {
+    label: t('admin.users.mcp.action'),
+    icon: 'i-lucide-bot',
+    children: MCP_ACCESS_LEVELS.map(level => ({
+      label: t(`admin.users.mcp.levels.${level}`),
+      type: 'checkbox' as const,
+      checked: row.mcpAccess === level,
+      onSelect: () => update(row, { mcpAccess: level }),
+    })),
+  }
+}
+
 function actions(row: AccountRow): DropdownMenuItem[][] {
-  if (row.id === user.value?.id) return []
+  const mayEdit = isOwner.value || row.platformRole !== 'owner' || row.id === user.value?.id
+  if (row.id === user.value?.id) return [[mcpMenu(row)]]
   const groups: DropdownMenuItem[][] = []
+  if (mayEdit) groups.push([mcpMenu(row)])
   if (isOwner.value && !fromGroups(row)) {
     groups.push((['user', 'developer', 'owner'] as const)
       .filter(role => role !== row.platformRole)
@@ -74,7 +91,7 @@ function actions(row: AccountRow): DropdownMenuItem[][] {
   return groups
 }
 
-async function update(row: AccountRow, body: { platformRole?: PlatformRole, disabled?: boolean }) {
+async function update(row: AccountRow, body: { platformRole?: PlatformRole, disabled?: boolean, mcpAccess?: McpAccess }) {
   try {
     await $fetch(`/api/admin/accounts/${row.id}`, { method: 'PATCH', body })
     toast.add({ title: t('admin.saved'), color: 'success' })
@@ -119,6 +136,15 @@ async function update(row: AccountRow, body: { platformRole?: PlatformRole, disa
               v-if="row.original.disabled"
               :label="t('admin.users.disabled')"
               color="error"
+              variant="subtle"
+              size="sm"
+              class="ms-2"
+            />
+            <UBadge
+              v-if="row.original.mcpAccess !== 'none'"
+              :label="t('admin.users.mcp.badge', { level: t(`admin.users.mcp.levels.${row.original.mcpAccess}`) })"
+              icon="i-lucide-bot"
+              color="info"
               variant="subtle"
               size="sm"
               class="ms-2"

@@ -9,5 +9,7 @@ useSeoMeta({ title: () => t('settings.title') })
       {{ t('settings.title') }}
     </h1>
     <SettingsForm />
+    <USeparator class="my-8" />
+    <McpSettings />
   </UContainer>
 </template>

@@ -89,7 +89,12 @@
     "role_from_groups": "This account’s role comes from the Klonk ID groups.",
     "learn_storage": "This module may not be saved in the Klonk Cloud.",
     "custom_module_too_large": "The learning module is too large – make worlds or databases smaller.",
-    "custom_module_conflict": "Someone else has saved the learning module in the meantime."
+    "custom_module_conflict": "Someone else has saved the learning module in the meantime.",
+    "mcp_access_forbidden": "This level of AI access is not enabled for the account.",
+    "oauth_invalid_request": "The request of the program is incomplete or invalid.",
+    "oauth_unknown_client": "The program is not registered with Klonk. Please connect it again.",
+    "oauth_invalid_redirect": "The return address of the program is not registered.",
+    "oauth_invalid_resource": "The requested MCP server does not belong to this Klonk installation."
   },
   "settings": {
     "title": "Settings",
@@ -153,5 +158,58 @@
       "foerderschule": "Special needs school (Förderschule)",
       "other": "Other school type"
     }
+  },
+  "mcp": {
+    "title": "AI assistants (MCP)",
+    "intro": "With the Model Context Protocol (MCP), AI assistants such as Claude, ChatGPT or GitHub Copilot can use Klonk on your behalf – for example set up classes, release learning modules or form teams. They only see and do what your account may.",
+    "docs": "Guide",
+    "notEnabled": "Access for AI assistants is not enabled for your account. Admins of your school or organization can enable it in the administration under “Accounts”.",
+    "yourAccess": "Your level:",
+    "access": {
+      "none": "No access",
+      "read": "Read only",
+      "write": "Read and change",
+      "full": "Full (incl. delete)"
+    },
+    "accessHint": {
+      "read": "View classes, accounts, learning modules and progress.",
+      "write": "Also create and change: classes, members, releases, teams.",
+      "full": "Also delete, lock accounts and set passwords."
+    },
+    "connectHint": "Add one of these addresses as an MCP server or connector in your AI assistant (learning app: teaching, learning modules, teams – administration: accounts, classes, organization). You then sign in through Klonk.",
+    "servers": {
+      "app": "Learning app",
+      "admin": "Administration"
+    },
+    "copy": "Copy",
+    "copied": "Copied",
+    "connections": "Connected assistants and tokens",
+    "noConnections": "No connections yet.",
+    "newToken": "Personal token",
+    "lastUsed": "last used {date}",
+    "neverUsed": "not used yet",
+    "expires": "valid until {date}",
+    "revoke": "Revoke",
+    "confirmRevoke": "Revoke access “{name}”? The assistant can no longer use Klonk.",
+    "tokenName": "Name",
+    "tokenNamePlaceholder": "e.g. Claude Code on my laptop",
+    "tokenAccess": "Level",
+    "tokenDays": "Valid for",
+    "days": "{n} days",
+    "cancel": "Cancel",
+    "create": "Create",
+    "createdTitle": "Token “{name}” created",
+    "createdHint": "Copy the token now – it is shown only this once. Treat it like a password.",
+    "cliHint": "For example in Claude Code:"
+  },
+  "oauth": {
+    "title": "Allow access",
+    "request": "{client} wants to access Klonk on behalf of {user}.",
+    "chooseAccess": "What may the assistant do?",
+    "noAccess": "No access for AI assistants",
+    "redirectTo": "Afterwards you return to {target}.",
+    "revokeHint": "You can revoke access in the settings at any time.",
+    "allow": "Allow",
+    "deny": "Deny"
   }
 }

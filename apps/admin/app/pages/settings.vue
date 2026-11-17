@@ -15,6 +15,8 @@ useSeoMeta({ title: () => t('settings.title') })
 
     <template #body>
       <SettingsForm />
+      <USeparator class="my-8" />
+      <McpSettings />
     </template>
   </UDashboardPanel>
 </template>

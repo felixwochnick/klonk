@@ -2,7 +2,8 @@ import { and, eq, isNull } from 'drizzle-orm'
 import { z } from 'zod'
 
 /**
- * Privatkonto bearbeiten: sperren/freigeben (Betreiber:innen) und Betreiberrolle vergeben (nur Besitzer:innen).
+ * Privatkonto bearbeiten: sperren/freigeben (Betreiber:innen), KI-Zugriff (MCP, auch das eigene Konto) und Betreiberrolle
+ * vergeben (nur Besitzer:innen).
  * So werden auch Google-/Microsoft-Konten zu Betreiber:innen. Klonk-ID-Konten folgen ihren Gruppen.
  */
 export default defineEventHandler(async (event) => {
@@ -11,9 +12,10 @@ export default defineEventHandler(async (event) => {
   const input = await readValidated(event, z.object({
     platformRole: z.enum(['user', 'developer', 'owner']).optional(),
     disabled: z.boolean().optional(),
+    mcpAccess: z.enum(MCP_ACCESS_LEVELS).optional(),
   }))
 
-  if (id === user.id) throw createError({ statusCode: 400, message: 'cannot_change_self' })
+  if (id === user.id && (input.platformRole || input.disabled !== undefined)) throw createError({ statusCode: 400, message: 'cannot_change_self' })
   if (input.platformRole && user.platformRole !== 'owner')
     throw createError({ statusCode: 403, message: 'owner_only' })
 
@@ -23,7 +25,7 @@ export default defineEventHandler(async (event) => {
       .where(and(eq(users.id, id), isNull(users.organizationId)))
     if (!target) throw createError({ statusCode: 404, message: 'not_found' })
     // Besitzer:innen sperren nur Besitzer:innen
-    if (target.platformRole === 'owner' && user.platformRole !== 'owner')
+    if (target.platformRole === 'owner' && user.platformRole !== 'owner' && id !== user.id)
       throw createError({ statusCode: 403, message: 'owner_only' })
 
     if (input.platformRole) {

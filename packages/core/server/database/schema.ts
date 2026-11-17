@@ -12,6 +12,12 @@ export const memberRole = pgEnum('member_role', ['member', 'teacher', 'admin'])
 /** Plattformweite Rolle: `owner`/`developer` = Betreiber (Login via Authentik bzw. Instanz-Einrichtung) */
 export const platformRole = pgEnum('platform_role', ['user', 'developer', 'owner'])
 
+/**
+ * Zugriff über MCP (KI-Assistenten wie Claude oder ChatGPT steuern Klonk im Namen des Kontos): `none` = aus, `read` = nur lesen,
+ * `write` = lesen und ändern, `full` = zusätzlich löschen und Passwörter vergeben. Legt die Verwaltung je Konto fest.
+ */
+export const mcpAccess = pgEnum('mcp_access', ['none', 'read', 'write', 'full'])
+
 export const organizations = pgTable('organizations', {
   id: uuid().primaryKey().defaultRandom(),
   type: organizationType().notNull(),
@@ -82,6 +88,8 @@ export const users = pgTable('users', {
   passwordHash: text(),
   mustChangePassword: boolean().notNull().default(false),
   disabled: boolean().notNull().default(false),
+  /** Höchste Stufe für MCP-Zugänge (Tokens, verbundene KI-Assistenten) – ändern nur Admins der Organisation bzw. Betreiber */
+  mcpAccess: mcpAccess().notNull().default('none'),
   createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
   lastLoginAt: timestamp({ withTimezone: true }),
 }, t => [
@@ -112,6 +120,52 @@ export const sessions = pgTable('sessions', {
 }, t => [
   index('sessions_user_idx').on(t.userId),
 ])
+
+/**
+ * MCP-Zugänge eines Kontos: persönliche Zugriffstokens (`personal`) und über OAuth verbundene KI-Assistenten (`oauth`).
+ * Gespeichert werden nur SHA-256-Hashes. Wirksam ist immer die niedrigere Stufe aus Zugang und Konto (`users.mcp_access`).
+ */
+export const mcpTokens = pgTable('mcp_tokens', {
+  id: uuid().primaryKey().defaultRandom(),
+  userId: uuid().notNull().references(() => users.id, { onDelete: 'cascade' }),
+  kind: text({ enum: ['personal', 'oauth'] }).notNull(),
+  /** Name des Tokens bzw. des verbundenen Programms */
+  name: text().notNull(),
+  clientId: text().references((): AnyPgColumn => mcpOauthClients.id, { onDelete: 'cascade' }),
+  access: mcpAccess().notNull(),
+  tokenHash: text().notNull().unique(),
+  /** Ablauf des Zugriffstokens (OAuth: kurz, wird per Refresh-Token erneuert) */
+  tokenExpiresAt: timestamp({ withTimezone: true }),
+  refreshHash: text().unique(),
+  /** Ablauf des ganzen Zugangs (persönlich: gewählte Laufzeit, OAuth: Refresh-Token) */
+  expiresAt: timestamp({ withTimezone: true }).notNull(),
+  /** RFC 8707: MCP-Server, für den der Zugang ausgestellt wurde (`null` = alle dieser Instanz) */
+  resource: text(),
+  lastUsedAt: timestamp({ withTimezone: true }),
+  createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+}, t => [index('mcp_tokens_user_idx').on(t.userId), check('mcp_tokens_access_check', sql`${t.access} <> 'none'`)])
+
+/** Per Dynamic Client Registration (RFC 7591) angemeldete MCP-Programme – schreibt nur der Server */
+export const mcpOauthClients = pgTable('mcp_oauth_clients', {
+  id: text().primaryKey(),
+  name: text().notNull(),
+  redirectUris: text().array().notNull(),
+  /** Nur bei `client_secret_post`/`client_secret_basic` (sonst öffentliches Programm mit PKCE) */
+  secretHash: text(),
+  createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+})
+
+/** Autorisierungscodes (einmalig, 10 Minuten gültig) – schreibt nur der Server */
+export const mcpOauthCodes = pgTable('mcp_oauth_codes', {
+  codeHash: text().primaryKey(),
+  clientId: text().notNull().references(() => mcpOauthClients.id, { onDelete: 'cascade' }),
+  userId: uuid().notNull().references(() => users.id, { onDelete: 'cascade' }),
+  redirectUri: text().notNull(),
+  codeChallenge: text().notNull(),
+  access: mcpAccess().notNull(),
+  resource: text(),
+  expiresAt: timestamp({ withTimezone: true }).notNull(),
+})
 
 /** Einstellungen der gesamten Instanz (z. B. `license` = Lizenz-Token des Selbsthosters) – nur Plattform-Admins */
 export const instanceSettings = pgTable('instance_settings', {

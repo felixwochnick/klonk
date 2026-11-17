@@ -160,6 +160,14 @@ export async function learnStatus(user: SessionUser, event: H3Event): Promise<Le
   })
 }
 
+/** Alle Module, die das Konto sehen darf: eingebaute und eigene (MCP: Katalog, Kürzel und Titel auflösen) */
+export function visibleLearnModules(user: SessionUser) {
+  return withUserDb(user.id, async (tx) => {
+    const custom = await customRows(tx)
+    return { modules: [...LEARN_MODULES, ...custom.map(asModule)], custom: custom.map(row => summaryOf(user, row)) }
+  })
+}
+
 /**
  * Modul in der Cloud starten: eigenes Cloud-Projekt anlegen (oder das schon begonnene liefern); lokal legt der Browser es an.
  * `language` = gewünschte Sprache der Programme (sonst die erste erlaubte).

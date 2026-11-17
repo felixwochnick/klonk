@@ -4,5 +4,7 @@ export default defineAppConfig({
     socialLogin: true,
     operatorLogin: true,
     setupRoute: '/setup',
+    // MCP-Server unter /mcp (Konten, Gruppen, Organisation)
+    mcp: 'admin',
   },
 })

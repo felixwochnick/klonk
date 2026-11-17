@@ -4,7 +4,12 @@ import { z } from 'zod'
 /** Zielorganisation: eigene Organisation, Plattform-Admins dürfen per `?organizationId=` wechseln */
 export async function resolveOrganizationId(event: H3Event, user: SessionUser, isPlatformAdmin: boolean) {
   const { organizationId } = await getValidatedQuery(event, z.object({ organizationId: z.uuid().optional() }).parse)
-  const id = (isPlatformAdmin && organizationId) || user.organizationId
+  return organizationIdFor(user, isPlatformAdmin, organizationId)
+}
+
+/** Eigene Organisation bzw. (nur Plattform-Admins) die gewünschte */
+export function organizationIdFor(user: SessionUser, isPlatformAdmin: boolean, requested?: string | null) {
+  const id = (isPlatformAdmin && requested) || user.organizationId
   if (!id) throw createError({ statusCode: 400, message: 'organization_required' })
   return id
 }

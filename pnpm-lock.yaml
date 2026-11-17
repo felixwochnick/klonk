@@ -373,6 +373,9 @@ importers:
 
   packages/core:
     dependencies:
+      '@modelcontextprotocol/sdk':
+        specifier: ^1.32.2
+        version: 1.32.2(supports-color@10.2.2)(zod@4.6.7)
       '@nuxt/ui':
         specifier: ^4.12.0
         version: 4.12.0(63c68b53e28fc53955d36d35ff4236b5)

@@ -69,7 +69,25 @@
       "resetPasswordFor": "New initial password for {name}",
       "passwordReset": "Password reset",
       "initialPassword": "Initial password",
-      "initialPasswordHelp": "At least 8 characters – must be changed on first sign-in."
+      "initialPasswordHelp": "At least 8 characters – must be changed on first sign-in.",
+      "mcp": {
+        "action": "AI access (MCP) …",
+        "title": "AI access (MCP)",
+        "description": "What may AI assistants (Claude, ChatGPT …) do on behalf of {name}? Never more than the account itself may do.",
+        "badge": "AI: {level}",
+        "levels": {
+          "none": "Off",
+          "read": "Read only",
+          "write": "Read and change",
+          "full": "Full"
+        },
+        "hints": {
+          "none": "No access; existing connections are disconnected.",
+          "read": "View classes, accounts, learning modules and progress.",
+          "write": "Also create and change: classes, members, releases, teams.",
+          "full": "Also delete, lock accounts and set passwords."
+        }
+      }
     },
     "login": {
       "description": "Choose how members of your organization sign in. Several methods can be active at the same time.",

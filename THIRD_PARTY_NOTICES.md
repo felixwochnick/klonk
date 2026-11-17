@@ -61,6 +61,7 @@ Their licenses apply unchanged; the license texts are included with the packages
 | openid-client | 6.8 | MIT | https://github.com/panva/openid-client |
 | jose | 6.2 | MIT | https://github.com/panva/jose |
 | ldapts | 9.2 | MIT | https://github.com/ldapts/ldapts |
+| MCP TypeScript SDK (@modelcontextprotocol/sdk, MCP-Server / MCP servers) | 1.32 | MIT | https://github.com/modelcontextprotocol/typescript-sdk |
 | Docus (Docs) | 5.15 | MIT | https://github.com/nuxt-content/docus |
 | better-sqlite3 (Docs) | 13.0 | MIT | https://github.com/WiseLibs/better-sqlite3 |
 | Caddy (Proxy-Image) | 2 | Apache-2.0 | https://github.com/caddyserver/caddy |
