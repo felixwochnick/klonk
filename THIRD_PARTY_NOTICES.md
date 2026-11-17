@@ -40,6 +40,11 @@ Their licenses apply unchanged; the license texts are included with the packages
 | pg_dump (@electric-sql/pglite-tools) | 0.4.10 | Apache-2.0 (PostgreSQL: PostgreSQL License) | https://github.com/electric-sql/pglite |
 | Lezer (@lezer/common, @lezer/java, @lezer/javascript, @lezer/python – Diagramme / diagrams) | 1.x | MIT | https://github.com/lezer-parser |
 | dagre (@dagrejs/dagre, Diagramm-Layout / diagram layout) | 3.1.2 | MIT | https://github.com/dagrejs/dagre |
+| docx (Arbeitsblätter als DOCX / worksheets as DOCX) | 9.15.4 | MIT | https://github.com/dolanmiu/docx |
+| nanoid (in docx) | 6.0 | MIT | https://github.com/ai/nanoid |
+| PptxGenJS (Präsentationen als PPTX / presentations as PPTX) | 4.0.1 | MIT | https://github.com/gitbrent/PptxGenJS |
+| JSZip (in PptxGenJS) | 3.10 | MIT (dual MIT/GPL-3.0, verwendet unter MIT / used under MIT) | https://github.com/Stuk/jszip |
+| pako (in JSZip) | 1.0 | MIT AND Zlib | https://github.com/nodeca/pako |
 | WebLLM (@mlc-ai/web-llm, KI im Browser / AI in the browser) | 0.2.87 | Apache-2.0 | https://github.com/mlc-ai/web-llm |
 | Workbox (über @vite-pwa/nuxt) | 7 | MIT | https://github.com/GoogleChrome/workbox |
 | Lucide Icons | – | ISC | https://github.com/lucide-icons/lucide |
