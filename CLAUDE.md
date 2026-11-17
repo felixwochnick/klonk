@@ -409,7 +409,8 @@ node scripts/build-csharp.ts        # C#-Host bauen (.NET-SDK 10 nötig; Ausgabe
   Rücksprung, RFC 8707 `resource` bindet an einen Server). Autorisierungsserver = auth.* (zentrale Anmeldung), sonst jede App (`isMcpAuthorizationServer`);
   Metadaten `/.well-known/oauth-protected-resource[/mcp]` + `/.well-known/oauth-authorization-server` als `serverHandlers` (Punkt-Ordner scannt Nitro nicht).
   `mcp_oauth_clients`/`mcp_oauth_codes` nur Server (RLS ohne Grants). Proxy-Gate lässt `/mcp`, `/.well-known/oauth-*`, `/oauth/token|register` durch.
-  Betreiber:innen leiten keine Klassen (`leads_group`) ⇒ Unterrichts-Werkzeuge nur Lehrkräfte/Admins; Verwaltungs-Werkzeuge nehmen `organizationId`.
+  Betreiber:innen leiten keine Klassen (`leads_group`) ⇒ Unterrichts-Werkzeuge nur Lehrkräfte/Admins (vom User so bestätigt – Support richtet
+  Schulen über die Verwaltung ein); Verwaltungs-Werkzeuge nehmen `organizationId`.
   Beispielprogramme/Startdateien für Untergruppen liegen dafür in `apps/app/shared/utils/program-sample.ts` (`collabStarterFiles`).
   **Falle Auto-Import:** Steht ein auto-importierter Bezeichner direkt vor `as` (`z.enum(MCP_GRANTS as [...])`), fügt unimport keinen Import ein ⇒
   freier Bezeichner im Nitro-Bundle (ReferenceError bzw. auf oberster Ebene bricht das ganze Bundle ab) – solche Konstanten ausdrücklich importieren. Tests: RLS + `tests/mcp.test.ts`
