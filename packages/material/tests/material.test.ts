@@ -18,7 +18,7 @@ import {
   type MaterialContext,
 } from '../src'
 import { renderDocxBytes } from '../src/docx'
-import { renderPptxBytes } from '../src/pptx'
+import { fixParagraphProperties, renderPptxBytes } from '../src/pptx'
 
 // Beschriftungen wie in der App: Schlüssel + Parameter (reicht, um Inhalte wiederzufinden)
 const t: MaterialContext['t'] = (key, params) => (params ? `${key}(${Object.values(params).join(',')})` : key)
@@ -148,6 +148,40 @@ describe('Dateien', () => {
     const sheet = buildWorksheet(module, DEFAULT_WORKSHEET, context)
     const xml = strFromU8(unzipSync(await renderDocxBytes(sheet, fakeImages(sheet)))['word/document.xml']!)
     expect(xml).toContain('Ada')
+  })
+
+  it('DOCX mit Eingabefeldern für Name/Klasse/Datum und Programm', async () => {
+    const module = findModule('building')!
+    const plain = buildWorksheet(module, DEFAULT_WORKSHEET, ctx('de', module))
+    expect(strFromU8(unzipSync(await renderDocxBytes(plain, fakeImages(plain)))['word/document.xml']!)).not.toContain('<w:sdt>')
+    const sheet = buildWorksheet(module, { ...DEFAULT_WORKSHEET, fillable: true }, ctx('de', module))
+    const xml = strFromU8(unzipSync(await renderDocxBytes(sheet, fakeImages(sheet)))['word/document.xml']!)
+    // 3 Felder im Kopf + ein mehrzeiliges je Aufgabe, Platzhalter aus normalen Leerzeichen (NBSP ergäbe kein PDF-Feld)
+    expect(xml.match(/<w:sdt>/g)).toHaveLength(3 + module.tasks.length)
+    expect(xml.match(/<w:text w:multiLine="1"\/>/g)).toHaveLength(module.tasks.length)
+    expect(xml).not.toContain('\u00a0')
+    expect(renderDocumentHtml(sheet, fakeImages(sheet))).toContain('class="lines code fill"')
+  })
+
+  it('Bildgröße kompakt begrenzt die Bildzeilen', () => {
+    const module = findModule('building')!
+    const sheet = buildWorksheet(module, { ...DEFAULT_WORKSHEET, imageSize: 'compact' }, ctx('de', module))
+    expect(flat(sheet.blocks).find(b => b.type === 'images')).toMatchObject({ maxHeight: 45 })
+    expect(renderDocumentHtml(sheet, fakeImages(sheet))).toContain('style="--max-h: 45mm"')
+  })
+
+  it('PPTX: Aufzählungspunkt mit Code bleibt ein Absatz', async () => {
+    const xml = fixParagraphProperties('<a:p><a:pPr marL="1"><a:buChar char="•"/></a:pPr><a:r><a:t>Mit </a:t></a:r><a:pPr indent="0"><a:buNone/></a:pPr><a:r><a:t>code</a:t></a:r></a:p>')
+    expect(xml).toBe('<a:p><a:pPr marL="1"><a:buChar char="•"/></a:pPr><a:r><a:t>Mit </a:t></a:r><a:r><a:t>code</a:t></a:r></a:p>')
+    const module = findModule('building')!
+    const deck = buildPresentation(module, DEFAULT_SLIDES, ctx('de', module))
+    const files = unzipSync(await renderPptxBytes(deck, fakeImages(deck)))
+    const slides = Object.keys(files).filter(name => /^ppt\/slides\/slide\d+\.xml$/.test(name)).map(name => strFromU8(files[name]!))
+    for (const slide of slides) {
+      for (const paragraph of slide.match(/<a:p>[\s\S]*?<\/a:p>/g) ?? []) expect(paragraph.match(/<a:pPr\b/g)?.length ?? 0).toBeLessThanOrEqual(1)
+    }
+    // Lernziel „Mit `hinlegen` und `aufheben` …“ steht in einem Absatz
+    expect(slides.join('')).toMatch(/<a:t>Mit <\/a:t><\/a:r><a:r>(?:(?!<\/a:p>).)*<a:t>hinlegen<\/a:t>/)
   })
 
   it('PPTX mit einer Folie je Eintrag und Sprechernotizen', async () => {

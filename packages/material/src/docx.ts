@@ -1,6 +1,7 @@
 import {
   AlignmentType,
   BorderStyle,
+  BuilderElement,
   Document,
   Footer,
   Header,
@@ -20,6 +21,7 @@ import {
   TextRun,
   VerticalAlign,
   WidthType,
+  type XmlComponent,
 } from 'docx'
 import { imageRatio, type ImageMap, type Line, type MaterialBlock, type MaterialDocument, type MaterialImage } from './model'
 
@@ -97,22 +99,52 @@ function boxTable(children: (Paragraph | Table)[], options: { fill?: string, bor
 
 const spacer = (after = 120) => paragraph({ spacing: { before: 0, after }, children: [] })
 
-/** Bildzeilen wie in der HTML-Ausgabe (Twips): Lücke zwischen den Rahmen, Innenabstand, Reserve für die Rahmenlinie, höchstens 62 mm hoch */
+/** Breite eines Leerzeichens in pt: Arial/Liberation Sans 0,278 em, Courier New/Liberation Mono 0,6 em */
+const spaceWidth = (sizeHalfPoints: number, mono: boolean) => (sizeHalfPoints / 2) * (mono ? 0.6 : 0.278)
+/** Zeile aus normalen Leerzeichen, die `twips` breit ist (etwas schmaler, damit sie nicht umbricht) */
+const blankLine = (twips: number, sizeHalfPoints: number, mono = false) => ' '.repeat(Math.max(4, Math.floor((twips / 20) / spaceWidth(sizeHalfPoints, mono) * 0.92)))
+
+let fieldId = 0
+const element = (name: string, attributes: Record<string, string> = {}, children: XmlComponent[] = []) =>
+  new BuilderElement({ name, attributes: Object.fromEntries(Object.entries(attributes).map(([key, value]) => [key, { key, value }])), children })
+
+/**
+ * Eingabefeld (Inhaltssteuerelement „Nur Text“): in Word, Euro-Office und LibreOffice ausfüllbar; der PDF-Dienst (LibreOffice)
+ * macht daraus ein Formularfeld so groß wie der Platzhalter. Platzhalter daher aus normalen Leerzeichen in voller Breite –
+ * nur geschützte Leerzeichen (NBSP) ergäben gar kein PDF-Feld (getestet mit LibreOffice 25.2/26.8).
+ */
+function textField(name: string, lines: string[], run: { size: number, font?: string }): TextRun {
+  const content = lines.flatMap((text, i) => [...(i ? [new TextRun({ break: 1, size: run.size, font: run.font })] : []), new TextRun({ text, size: run.size, font: run.font })])
+  const control = element('w:sdt', {}, [
+    element('w:sdtPr', {}, [
+      element('w:alias', { 'w:val': name }),
+      element('w:tag', { 'w:val': name }),
+      element('w:id', { 'w:val': String(++fieldId) }),
+      element('w:showingPlcHdr'),
+      element('w:text', lines.length > 1 ? { 'w:multiLine': '1' } : {}),
+    ]),
+    element('w:sdtContent', {}, content),
+  ])
+  // Steht wie ein Textlauf im Absatz (die Typen von `docx` kennen Inhaltssteuerelemente nicht)
+  return control as unknown as TextRun
+}
+
+/** Bildzeilen wie in der HTML-Ausgabe (Twips): Lücke zwischen den Rahmen, Innenabstand, Reserve für die Rahmenlinie */
 const IMAGE_GAP = 150
 const IMAGE_PAD = 45
 const IMAGE_BORDER = 30
-const IMAGE_MAX_HEIGHT = Math.round(62 / 25.4 * 1440)
+const mmToTwips = (mm: number) => Math.round(mm / 25.4 * 1440)
 const FRAME = thin('D1D5DB')
 
 /**
  * Eine Bildzeile im Blocksatz: Spaltenbreite je Bild ∝ Seitenverhältnis ⇒ alle Rahmen gleich hoch und zusammen so breit wie
  * die Seite. Zu hohe Zeilen werden gleichmäßig gekappt (Rahmen bleiben voll breit, Bild mittig). Lücken = leere Spalten.
  */
-function imageRow(row: MaterialImage[], images: ImageMap, width: number, note?: string): Table {
+function imageRow(row: MaterialImage[], images: ImageMap, width: number, maxHeight: number, note?: string): Table {
   const ratios = row.map(image => imageRatio(image, images))
   const sum = ratios.reduce((a, b) => a + b, 0)
   const inner = width - (row.length - 1) * IMAGE_GAP - row.length * (2 * IMAGE_PAD + IMAGE_BORDER)
-  const height = Math.min(inner / sum, IMAGE_MAX_HEIGHT)
+  const height = Math.min(inner / sum, maxHeight)
   const cells = ratios.map(ratio => Math.floor(ratio * inner / sum) + 2 * IMAGE_PAD + IMAGE_BORDER)
   const columns = cells.flatMap((cell, i) => (i ? [IMAGE_GAP, cell] : [cell]))
   const noBorders = { top: NONE, bottom: NONE, left: NONE, right: NONE }
@@ -175,7 +207,7 @@ function imagesTable(block: Extract<MaterialBlock, { type: 'images' }>, images: 
   // Zwischen zwei Tabellen ein Absatz – sonst verschmilzt Word sie zu einer
   const last = block.rows.length - 1
   return [
-    ...block.rows.flatMap((row, i) => [...(i ? [spacer(60)] : []), imageRow(row, images, width, i === last ? block.note : undefined)]),
+    ...block.rows.flatMap((row, i) => [...(i ? [spacer(60)] : []), imageRow(row, images, width, mmToTwips(block.maxHeight ?? 62), i === last ? block.note : undefined)]),
     spacer(120),
   ]
 }
@@ -218,7 +250,15 @@ function writingLines(block: Extract<MaterialBlock, { type: 'lines' }>, width: n
   const children: Paragraph[] = []
   if (block.before) children.push(...codeParagraphs(block.before, '374151'))
   const indent = block.indent ? block.indent * 115 : 0
-  for (let i = 0; i < block.count; i++) {
+  if (block.fillable) {
+    // Ein mehrzeiliges Eingabefeld in Höhe der Linien (Schrift wie Code); Kasteninnenbreite = Breite − Zellränder
+    children.push(paragraph({
+      spacing: { before: 0, after: 0, line: 500, lineRule: 'exact' },
+      indent: { left: indent },
+      children: [textField(block.label ?? 'answer', Array.from({ length: block.count }, () => blankLine(width - 360 - indent, 19, true)), { size: 19, font: MONO })],
+    }))
+  }
+  for (let i = 0; i < (block.fillable ? 0 : block.count); i++) {
     children.push(paragraph({
       spacing: { before: 0, after: 0, line: 500, lineRule: 'exact' },
       indent: { left: indent },
@@ -301,7 +341,14 @@ function blocksToDocx(blocks: MaterialBlock[], images: ImageMap, width = CONTENT
               width: { size: columns[i] ?? columns[0]!, type: WidthType.DXA },
               margins: { left: 0, right: 200 },
               borders: { top: NONE, left: NONE, right: NONE, bottom: { style: BorderStyle.SINGLE, size: 6, color: INK } },
-              children: [paragraph({ spacing: { before: 200, after: 20 }, children: [new TextRun({ text: `${label}:`, size: 20 })] })],
+              children: [paragraph({
+                spacing: { before: 200, after: 20 },
+                children: [
+                  new TextRun({ text: `${label}:`, size: 20 }),
+                  // Rest der Zelle als Eingabefeld (Beschriftung grob mit 0,55 em je Zeichen geschätzt)
+                  ...(block.fillable ? [new TextRun({ text: ' ', size: 20 }), textField(label, [blankLine((columns[i] ?? columns[0]!) - 200 - (label.length + 2) * 110, 20)], { size: 20 })] : []),
+                ],
+              })],
             })),
           })],
         }), spacer(200))

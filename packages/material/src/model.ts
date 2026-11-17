@@ -27,20 +27,20 @@ export type MaterialBlock
     | { type: 'paragraph', lines: Line[], muted?: boolean }
     | { type: 'list', items: Line[], check?: boolean }
     | { type: 'code', code: string }
-    /** Bildzeilen: Bilder einer Zeile sind gleich hoch und füllen zusammen die ganze Breite */
-    | { type: 'images', rows: MaterialImage[][], note?: string }
+    /** Bildzeilen: Bilder einer Zeile sind gleich hoch und füllen zusammen die ganze Breite; `maxHeight` in mm (Standard 62) */
+    | { type: 'images', rows: MaterialImage[][], note?: string, maxHeight?: number }
     | { type: 'table', table: MaterialTable }
     /**
      * Platz zum Schreiben: `count` Linien; `code` = Programm (Kasten mit Zeilennummern), optional zwischen vorgegebenem
      * Anfang und Ende (Startvorlage der Programmiersprache, z. B. Java-Klasse). `label` steht darüber und bleibt mit dem
-     * Kasten auf einer Seite.
+     * Kasten auf einer Seite. `fillable` = digital ausfüllbar (DOCX-Eingabefeld bzw. PDF-Formularfeld statt Linien).
      */
-    | { type: 'lines', count: number, label?: string, code?: boolean, before?: string, after?: string, indent?: number }
+    | { type: 'lines', count: number, label?: string, code?: boolean, before?: string, after?: string, indent?: number, fillable?: boolean }
     | { type: 'box', tone: 'info' | 'hint' | 'solution' | 'teacher', title: string, blocks: MaterialBlock[] }
     /** Bleibt auf einer Seite, solange es auf eine passt (eine Aufgabe von der Überschrift bis zum Schreibkasten) */
     | { type: 'keep', blocks: MaterialBlock[] }
     /** Felder zum Ausfüllen (Name, Klasse, Datum) */
-    | { type: 'fields', labels: string[] }
+    | { type: 'fields', labels: string[], fillable?: boolean }
     | { type: 'pageBreak' }
 
 export type MaterialKind = 'worksheet' | 'solutions' | 'slides'

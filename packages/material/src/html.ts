@@ -46,7 +46,7 @@ function lines(block: Extract<MaterialBlock, { type: 'lines' }>) {
   const pad = block.indent ? ` style="padding-left: ${block.indent}ch"` : ''
   const empty = Array.from({ length: block.count }, (_, i) => `<div class="write"${pad}><span class="no">${i + 1}</span></div>`).join('')
   const label = block.label ? `<p class="answer-label"><strong>${escape(block.label)}</strong></p>` : ''
-  return `<div class="answer">${label}<div class="lines${block.code ? ' code' : ''}">${block.before ? given(block.before) : ''}${empty}${block.after ? given(block.after) : ''}</div></div>`
+  return `<div class="answer">${label}<div class="lines${block.code ? ' code' : ''}${block.fillable ? ' fill' : ''}">${block.before ? given(block.before) : ''}${empty}${block.after ? given(block.after) : ''}</div></div>`
 }
 
 export function renderBlocks(blocks: MaterialBlock[], images: ImageMap): string {
@@ -56,7 +56,7 @@ export function renderBlocks(blocks: MaterialBlock[], images: ImageMap): string 
       case 'paragraph': return `<p${block.muted ? ' class="muted"' : ''}>${block.lines.map(line).join('<br>')}</p>`
       case 'list': return `<ul${block.check ? ' class="check"' : ''}>${block.items.map(item => `<li>${line(item)}</li>`).join('')}</ul>`
       case 'code': return `<pre>${escape(block.code)}</pre>`
-      case 'images': return `<div class="images">${block.rows.map(row => `<div class="row">${row.map(image => figure(image, images)).join('')}</div>`).join('')}</div>${block.note ? `<p class="note">${escape(block.note)}</p>` : ''}`
+      case 'images': return `<div class="images"${block.maxHeight ? ` style="--max-h: ${block.maxHeight}mm"` : ''}>${block.rows.map(row => `<div class="row">${row.map(image => figure(image, images)).join('')}</div>`).join('')}</div>${block.note ? `<p class="note">${escape(block.note)}</p>` : ''}`
       case 'table': return table(block)
       case 'lines': return lines(block)
       case 'box': return `<aside class="box ${block.tone}"><p class="box-title">${escape(block.title)}</p>${renderBlocks(block.blocks, images)}</aside>`
@@ -109,7 +109,7 @@ ul.check li::before { content: '☐'; margin-right: 0.5em; }
 .images .row { display: flex; gap: 10px; break-inside: avoid; }
 .images .row + .row { margin-top: 8px; }
 .images figure { margin: 0; text-align: center; flex: var(--ar) 1 0%; min-width: 0; }
-.images img, .images .missing { display: block; width: 100%; aspect-ratio: var(--ar); max-height: 62mm; padding: 3px; object-fit: contain; border: 1px solid var(--line); border-radius: 6px; background: #fff; }
+.images img, .images .missing { display: block; width: 100%; aspect-ratio: var(--ar); max-height: var(--max-h, 62mm); padding: 3px; object-fit: contain; border: 1px solid var(--line); border-radius: 6px; background: #fff; }
 .images .missing { background: repeating-linear-gradient(45deg, #f3f4f6 0 8px, #fff 8px 16px); }
 figcaption { font-size: 8.5pt; color: var(--muted); margin-top: 2px; }
 .table { margin: 8px 0; break-inside: avoid; }
@@ -123,6 +123,9 @@ tr.more td { color: var(--muted); font-style: italic; }
 .lines { border: 1px solid #9ca3af; border-radius: 6px; padding: 4px 10px 6px; margin: 4px 0 10px; break-inside: avoid; font-size: 10pt; }
 .lines .given { color: #374151; white-space: pre; line-height: 1.5; }
 .lines .write { position: relative; height: 9mm; border-bottom: 1px dotted #9ca3af; }
+/* Digital ausfüllbar: ein Eingabefeld statt Linien (wie im DOCX bzw. in der PDF aus dem DOCX) */
+.lines.fill .write { border-bottom-color: transparent; }
+.lines.fill .no { display: none; }
 .lines .no { position: absolute; left: -2px; bottom: 1px; font-size: 7pt; color: #9ca3af; font-family: Arial, sans-serif; }
 /* Aufgabe nicht über zwei Seiten verteilen (ist sie länger als eine Seite, bricht der Browser trotzdem um) */
 .keep { break-inside: avoid; }
