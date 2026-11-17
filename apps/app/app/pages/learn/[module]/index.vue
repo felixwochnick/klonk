@@ -1,14 +1,25 @@
 <script setup lang="ts">
-import { findModule, isCodeLanguage, moduleCode, TRACK_LANGUAGES, type CodeLanguage, type LearnStorage } from '@klonk/learn'
+import { codeOf, findModule, isCodeLanguage, moduleCode, TRACK_LANGUAGES, type CodeLanguage, type LearnStorage } from '@klonk/learn'
+
+// Eigene Module lädt die Seite beim Aufbau ⇒ bei anderem Modul neu aufbauen
+definePageMeta({ key: route => route.path })
 
 const { t, locale } = useI18n()
 const route = useRoute()
 const learn = useLearn()
 const lang = computed(() => (locale.value === 'en' ? 'en' : 'de'))
 
-const module = computed(() => findModule(String(route.params.module)))
+const loaded = await learn.resolve(String(route.params.module))
+const module = computed(() => loaded)
 // Vorausgesetzte Module (auch aus anderen Reihen)
 const prerequisites = computed(() => (module.value?.prerequisites ?? []).map(id => findModule(id)).filter(m => !!m))
+// Eigene Module der Schule: Autor:in, Bearbeiten für Autor:in und Admins
+const custom = computed(() => learn.custom.value.find(m => m.id === module.value?.id) ?? null)
+const heading = computed(() => {
+  if (!module.value) return ''
+  const code = codeOf(module.value)
+  return `${code ? t('learn.moduleCode', { code }) : t('learn.custom.badge')} · ${t(`learn.tracks.${module.value.track}.title`)}`
+})
 
 // Reihen F und A: Beispiele in der zuletzt gewählten bzw. erlaubten Programmiersprache
 const PREFERRED_KEY = 'klonk:learn-language'
@@ -108,11 +119,27 @@ const STORAGE_ICON: Record<LearnStorage, string> = { cloud: 'i-lucide-cloud', br
     >
       <article class="max-w-3xl">
         <p class="text-xs font-semibold uppercase tracking-wide text-(--ui-text-muted)">
-          {{ t('learn.moduleCode', { code: moduleCode(module.id) }) }} · {{ t(`learn.tracks.${module.track}.title`) }}
+          {{ heading }}
         </p>
         <h1 class="mt-1 text-2xl font-bold">
           {{ module.title[lang] }}
         </h1>
+        <div
+          v-if="custom && isTeacher"
+          class="mt-2 flex flex-wrap items-center gap-2 text-sm text-(--ui-text-muted)"
+          data-testid="learn-custom-author"
+        >
+          <span v-if="custom.author">{{ t('learn.custom.by', { name: custom.author }) }}</span>
+          <UButton
+            v-if="custom.editable"
+            :to="`/teaching/modules/${custom.id}`"
+            icon="i-lucide-pencil"
+            :label="t('learn.custom.edit')"
+            size="xs"
+            variant="soft"
+            data-testid="learn-custom-edit"
+          />
+        </div>
         <p
           v-if="prerequisites.length"
           class="mt-2 flex flex-wrap items-center gap-1 text-sm text-(--ui-text-muted)"

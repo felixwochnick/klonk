@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { GeneratedProgram } from '~/utils/blocks/generator'
-import { codeSolution, collectTables, compareOutcome, findModule, isCodeLanguage, LEARN_MANIFEST, moduleCode, parseManifest, scenarioCount, serializeManifest, starterSource, taskFile, taskFolderFiles, TRACK_LANGUAGES, type CheckFailure, type LearnLanguage, type LearnManifest, type Outcome } from '@klonk/learn'
+import { codeOf, codeSolution, collectTables, compareOutcome, isCodeLanguage, LEARN_MANIFEST, parseManifest, scenarioCount, serializeManifest, starterSource, taskFile, taskFolderFiles, TRACK_LANGUAGES, type CheckFailure, type LearnLanguage, type LearnManifest, type Outcome } from '@klonk/learn'
 import { World } from '@klonk/world'
 import { ProgramRunner, type RunError, type RunLanguage, type RunnerSnapshot, type SqlResult } from '@klonk/runtime'
 import RunnerWorker from '@klonk/runtime/worker?worker'
@@ -19,7 +19,8 @@ const { maxCharacters } = useLicense()
 const apiError = useApiError()
 const lang = computed(() => (locale.value === 'en' ? 'en' : 'de'))
 
-const module = findModule(String(route.params.module))
+// Eingebaute Module sofort, eigene der Schule vom Server
+const module = await learn.resolve(String(route.params.module))
 const task = module?.tasks.find(x => x.id === String(route.params.task))
 const taskIndex = module && task ? module.tasks.indexOf(task) : -1
 const track = module?.track ?? 'basics'
@@ -76,7 +77,7 @@ async function ensureTaskFolder() {
     await project.remove(taskFile(manifest, task.id, language))
   }
   manifest.tasks[task.id] = entry.program
-  await project.write(LEARN_MANIFEST, serializeManifest(manifest))
+  await project.write(LEARN_MANIFEST, serializeManifest(manifest, track))
 }
 
 async function loadProgram() {
@@ -130,7 +131,7 @@ async function save() {
   }
   if (program.language !== saved.language) {
     manifest.languages[task.id] = program.language
-    await project.write(LEARN_MANIFEST, serializeManifest(manifest))
+    await project.write(LEARN_MANIFEST, serializeManifest(manifest, track))
   }
   saved = { language: program.language, sources: { ...program.sources } }
 }
@@ -149,7 +150,7 @@ onBeforeUnmount(() => {
 async function markSolved() {
   if (!project || isReadOnly(project) || !manifest || !module || !task) return
   manifest.solved[task.id] ??= new Date().toISOString()
-  await project.write(LEARN_MANIFEST, serializeManifest(manifest))
+  await project.write(LEARN_MANIFEST, serializeManifest(manifest, track))
   solvedHere.value = true
   learn.markSolved(module.id, task.id)
 }
@@ -452,7 +453,7 @@ const textLanguage = computed(() => (isCodeLanguage(language.value) ? language.v
         icon="i-lucide-arrow-left"
         variant="ghost"
         color="neutral"
-        :label="foreign ? t('learn.backToProgress') : `${moduleCode(module.id)} · ${module.title[lang]}`"
+        :label="foreign ? t('learn.backToProgress') : [codeOf(module), module.title[lang]].filter(Boolean).join(' · ')"
         class="max-w-64"
       />
       <UButton

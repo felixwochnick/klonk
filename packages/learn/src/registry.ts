@@ -65,5 +65,8 @@ export function moduleCode(id: string) {
   return `${TRACK_CODES[module.track]}${trackModules(module.track).indexOf(module) + 1}`
 }
 
+/** Kürzel eines Moduls: eingebaute aus der Reihe, eigene wie von der Lehrkraft gewählt (auch leer) */
+export const codeOf = (module: { id: string, code?: string }) => module.code ?? moduleCode(module.id)
+
 /** Modul-IDs in Kursreihenfolge (Reihen nacheinander) */
 export const moduleOrder = () => LEARN_TRACKS.flatMap(track => trackModules(track).map(m => m.id))

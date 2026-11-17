@@ -4,7 +4,7 @@ import { drizzle } from 'drizzle-orm/postgres-js'
 import { migrate } from 'drizzle-orm/postgres-js/migrator'
 import postgres from 'postgres'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { aiCreditGrants, aiUsage, cloudAssignments, cloudFiles, cloudProjects, groupLearnModules, groupMembers, groups, instanceSettings, organizationAiSettings, organizationAuthSettings, organizations, sessions, userLicenses, users } from '../server/database/schema'
+import { aiCreditGrants, aiUsage, cloudAssignments, cloudFiles, cloudProjects, customLearnModules, groupLearnModules, groupMembers, groups, instanceSettings, organizationAiSettings, organizationAuthSettings, organizations, sessions, userLicenses, users } from '../server/database/schema'
 import { createDb, runAsUser, type Db } from '../server/utils/db'
 
 // Integrationstest gegen eine echte Postgres-Instanz (pnpm db:up) in einer eigenen Test-Datenbank
@@ -356,5 +356,76 @@ describe('RLS: Lernmodule', () => {
     // Normale Änderungen (z. B. Revision beim Schreiben) gehen weiter
     await as('studentA', tx => tx.update(cloudProjects).set({ name: 'Tagebuch 2' }).where(eq(cloudProjects.id, own!.id)))
     await as('studentA', tx => tx.update(cloudProjects).set({ name: 'Lernmodul' }).where(eq(cloudProjects.id, ids.learnProject!)))
+  })
+})
+
+describe('RLS: eigene Lernmodule', () => {
+  const as = <T>(who: string, fn: Parameters<typeof runAsUser<T>>[2]) => runAsUser(db, ids[who]!, fn)
+  const data = { version: 1, lang: 'de', track: 'basics', title: 'Schulhof', tasks: [] }
+  const create = (who: string, values: Partial<typeof customLearnModules.$inferInsert> = {}) => as(who, tx => tx.insert(customLearnModules)
+    .values({ organizationId: ids.orgA!, createdBy: ids[who]!, data, ...values }).returning({ id: customLearnModules.id }))
+  const visible = (who: string) => as(who, tx => tx.select({ id: customLearnModules.id }).from(customLearnModules)).then(r => r.map(m => m.id))
+  const rename = (who: string, title: string) => as(who, tx => tx.update(customLearnModules).set({ data: { ...data, title }, updatedBy: ids[who]! })
+    .where(eq(customLearnModules.id, ids.custom!)).returning({ id: customLearnModules.id }))
+
+  it('Lehrkräfte legen Module an, alle Lehrkräfte und Admins der Organisation sehen sie', async () => {
+    const [teacher2] = await db.insert(users).values({ organizationId: ids.orgA!, username: 'teacher2', displayName: 'Lehrkraft A2', role: 'teacher' }).returning()
+    ids.teacher2A = teacher2!.id
+    const [module] = await create('teacherA')
+    expect(module!.id).toMatch(/^custom-[0-9a-f-]{36}$/)
+    ids.custom = module!.id
+
+    // Nur Lehrkräfte/Admins, nur für die eigene Organisation, nur im eigenen Namen, ID vergibt die Datenbank
+    await expectDbError(create('studentA'), /row-level security/)
+    await expectDbError(create('private', { organizationId: ids.orgA! }), /row-level security/)
+    await expectDbError(create('adminB'), /row-level security/)
+    await expectDbError(create('teacherA', { organizationId: ids.orgB! }), /row-level security/)
+    await expectDbError(create('teacherA', { createdBy: ids.teacher2A! }), /row-level security/)
+    const [chosen] = await create('teacherA', { id: 'custom-eigene' })
+    expect(chosen!.id).not.toBe('custom-eigene')
+    await db.delete(customLearnModules).where(eq(customLearnModules.id, chosen!.id))
+
+    expect(await visible('teacher2A')).toEqual([ids.custom])
+    expect(await visible('adminA')).toEqual([ids.custom])
+    for (const who of ['studentA', 'adminB', 'private', 'owner']) expect(await visible(who), who).toEqual([])
+  })
+
+  it('ändern und löschen nur Autor:in und Admins der Organisation', async () => {
+    expect(await rename('teacher2A', 'Fremd')).toEqual([])
+    expect(await rename('studentA', 'Fremd')).toEqual([])
+    expect(await rename('teacherA', 'Unser Schulhof')).toEqual([{ id: ids.custom }])
+    expect(await rename('adminA', 'Unser Schulhof (Admin)')).toEqual([{ id: ids.custom }])
+    // Organisation und Autor:in bleiben fest
+    await expectDbError(as('teacherA', tx => tx.update(customLearnModules).set({ organizationId: ids.orgB! }).where(eq(customLearnModules.id, ids.custom!))), /permission denied/)
+    await expectDbError(as('teacherA', tx => tx.update(customLearnModules).set({ createdBy: ids.teacher2A! }).where(eq(customLearnModules.id, ids.custom!))), /permission denied/)
+    expect(await as('teacher2A', tx => tx.delete(customLearnModules).where(eq(customLearnModules.id, ids.custom!)).returning())).toEqual([])
+  })
+
+  it('Freigabe nur in Gruppen der Organisation; Lernende sehen und starten freigegebene Module', async () => {
+    const startModule = (who: string) => as(who, tx => tx.insert(cloudProjects).values({ ownerId: ids[who]!, name: 'Schulhof', learnModule: ids.custom! }).returning())
+    await expectDbError(startModule('studentA'), /row-level security/)
+    // Fremde Organisation kann das Modul weder sehen noch in ihren Gruppen freigeben, auch nicht starten
+    const [groupB] = await as('adminB', tx => tx.insert(groups).values({ organizationId: ids.orgB!, name: 'Azubis' }).returning())
+    await expectDbError(as('adminB', tx => tx.insert(groupLearnModules).values({ groupId: groupB!.id, moduleId: ids.custom! })), /row-level security/)
+    await expectDbError(startModule('adminB'), /row-level security/)
+    await expectDbError(startModule('private'), /row-level security/)
+
+    await as('teacherA', tx => tx.insert(groupLearnModules).values({ groupId: ids.group!, moduleId: ids.custom!, enabledBy: ids.teacherA! }))
+    expect(await visible('studentA')).toEqual([ids.custom])
+    expect(await visible('outsider')).toEqual([])
+    const [project] = await startModule('studentA')
+    await startModule('teacher2A')
+    await as('studentA', tx => tx.insert(cloudFiles).values({ projectId: project!.id, path: 'klonk.json', content: '{}', revision: 1 }))
+    // Gruppenleitung liest den Lernstand
+    expect(await as('teacherA', tx => tx.select({ path: cloudFiles.path }).from(cloudFiles).where(eq(cloudFiles.projectId, project!.id)))).toEqual([{ path: 'klonk.json' }])
+    ids.customProject = project!.id
+  })
+
+  it('gelöschte Module verschwinden aus allen Freigaben', async () => {
+    expect(await as('teacherA', tx => tx.delete(customLearnModules).where(eq(customLearnModules.id, ids.custom!)).returning({ id: customLearnModules.id }))).toEqual([{ id: ids.custom }])
+    expect(await db.select().from(groupLearnModules).where(eq(groupLearnModules.moduleId, ids.custom!))).toEqual([])
+    expect(await visible('studentA')).toEqual([])
+    // Das Modulprojekt gehört weiter den Lernenden
+    expect(await as('studentA', tx => tx.select({ id: cloudProjects.id }).from(cloudProjects).where(eq(cloudProjects.id, ids.customProject!)))).toHaveLength(1)
   })
 })

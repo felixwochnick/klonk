@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { LEARN_MODULES, moduleCode, type TeachingGroup, type TeachingProgress } from '@klonk/learn'
+import { codeOf, LEARN_MODULES, summaryInfo, type LearnModuleInfo, type TeachingGroup, type TeachingProgress } from '@klonk/learn'
 
 // Klassen einer Jahrgangsstufe (bzw. Zusatzkurse, nicht zugeordnete Gruppen) mit Freigabe-Matrix Module × Klassen:
 // laut Lehrplan empfohlene Module zuerst, je Zelle Freigabe und Anteil gelöster Aufgaben
@@ -19,15 +19,28 @@ const { data: progress, refresh: refreshProgress } = useFetch<TeachingProgress>(
 })
 
 const recommended = computed(() => teaching.recommended(props.level))
-// Empfohlene zuerst; ohne Empfehlung alle in Kursreihenfolge (Reihen E, F, S, A)
+// Empfohlene zuerst, dann eigene Module der Schule (passend zur Stufe zuerst), dann alle übrigen in Kursreihenfolge (E, F, S, A)
 const available = LEARN_MODULES.filter(m => m.tasks.length)
 const recommendedRows = computed(() => available.filter(m => recommended.value.includes(m.id)))
 const otherRows = computed(() => available.filter(m => !recommended.value.includes(m.id)))
+const fitsLevel = (moduleId: string) => !!learn.custom.value.find(m => m.id === moduleId)?.levels.includes(props.level)
+const schoolRows = computed(() => learn.custom.value
+  .filter(m => m.tasks.length && (m.ready || props.groups.some(g => g.modules.includes(m.id))))
+  .sort((a, b) => Number(b.levels.includes(props.level)) - Number(a.levels.includes(props.level)))
+  .map(summaryInfo))
+type Section = { key: 'recommended' | 'school' | 'other', rows: LearnModuleInfo[], title: string | null }
+const sections = computed<Section[]>(() => [
+  { key: 'recommended' as const, rows: recommendedRows.value, title: null },
+  { key: 'school' as const, rows: schoolRows.value, title: t('teaching.schoolModules') },
+  { key: 'other' as const, rows: otherRows.value, title: recommendedRows.value.length || schoolRows.value.length ? t('teaching.otherModules') : null },
+].filter(section => section.rows.length))
+/** Unfertige eigene Module lassen sich nicht neu freigeben (nur zurücknehmen) */
+const blocked = (group: TeachingGroup, moduleId: string) => !released(group, moduleId) && !!learn.custom.value.find(m => m.id === moduleId && !m.ready)
 
 const released = (group: TeachingGroup, moduleId: string) => group.modules.includes(moduleId)
 /** Anteil gelöster Aufgaben aller Lernenden der Klasse (Prozent) */
 function share(group: TeachingGroup, moduleId: string) {
-  const total = (LEARN_MODULES.find(m => m.id === moduleId)?.tasks.length ?? 0) * group.members
+  const total = (learn.info(moduleId)?.tasks.length ?? 0) * group.members
   const solved = progress.value[group.id]?.[moduleId]?.solved ?? 0
   return total ? Math.round(solved / total * 100) : 0
 }
@@ -155,22 +168,23 @@ const missingForAll = (moduleIds: string[]) => props.groups.some(g => moduleIds.
           </thead>
           <tbody>
             <template
-              v-for="(rows, index) in [recommendedRows, otherRows]"
-              :key="index"
+              v-for="section in sections"
+              :key="section.key"
             >
               <tr
-                v-if="index === 1 && recommendedRows.length && otherRows.length"
+                v-if="section.title"
                 class="border-t border-(--ui-border) bg-(--ui-bg-elevated)/50"
+                :data-testid="`teaching-section-${section.key}`"
               >
                 <td
                   :colspan="groups.length + 2"
                   class="px-3 py-1.5 text-xs font-semibold tracking-wide text-(--ui-text-muted) uppercase"
                 >
-                  {{ t('teaching.otherModules') }}
+                  {{ section.title }}
                 </td>
               </tr>
               <tr
-                v-for="module in rows"
+                v-for="module in section.rows"
                 :key="module.id"
                 class="border-t border-(--ui-border)"
                 :data-testid="`teaching-row-${module.id}`"
@@ -180,11 +194,19 @@ const missingForAll = (moduleIds: string[]) => props.groups.some(g => moduleIds.
                     :to="`/learn/${module.id}`"
                     class="font-medium hover:underline"
                   >
-                    {{ moduleCode(module.id) }} {{ module.title[lang] }}
+                    {{ [codeOf(module), module.title[lang]].filter(Boolean).join(' ') }}
                   </NuxtLink>
                   <UBadge
-                    v-if="index === 0"
+                    v-if="section.key === 'recommended'"
                     :label="t('teaching.curriculumBadge')"
+                    color="primary"
+                    variant="subtle"
+                    size="sm"
+                    class="ms-2"
+                  />
+                  <UBadge
+                    v-else-if="section.key === 'school' && fitsLevel(module.id)"
+                    :label="t('teaching.levelBadge')"
                     color="primary"
                     variant="subtle"
                     size="sm"
@@ -199,7 +221,7 @@ const missingForAll = (moduleIds: string[]) => props.groups.some(g => moduleIds.
                   <div class="flex flex-col items-center gap-1">
                     <UCheckbox
                       :model-value="released(group, module.id)"
-                      :disabled="saving"
+                      :disabled="saving || blocked(group, module.id)"
                       :aria-label="t('teaching.releaseFor', { module: module.title[lang], group: group.name })"
                       :data-testid="`teaching-cell-${group.name}-${module.id}`"
                       @update:model-value="on => toggle(group, module.id, !!on)"
@@ -216,7 +238,7 @@ const missingForAll = (moduleIds: string[]) => props.groups.some(g => moduleIds.
                   class="px-3 py-2 text-end"
                 >
                   <UButton
-                    v-if="missingForAll([module.id])"
+                    v-if="missingForAll([module.id]) && !groups.some(g => blocked(g, module.id))"
                     size="xs"
                     variant="ghost"
                     :label="t('teaching.releaseAll')"

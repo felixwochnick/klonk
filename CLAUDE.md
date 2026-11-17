@@ -350,6 +350,20 @@ node scripts/build-csharp.ts        # C#-Host bauen (.NET-SDK 10 nötig; Ausgabe
   dass jede `docs`-Seite in de/en existiert. Server `teachingOverview`/`teachingProgress` in `apps/app/server/utils/learn.ts` (`/api/teaching`,
   `/api/teaching/progress?level=`), Client `useTeaching()`; Freigaben weiter über `PUT /api/learn/groups/:id/modules`. Namen von Bundesländern/Schulformen
   liegen in der Core-i18n (`school.states|forms|countries`). E2E `e2e/teaching.spec.ts` (nach learn.spec, nutzt 9c/Tom, räumt auf).
+- **Eigene Lernmodule** (vom User gewünscht: Lehrkräfte erstellen Module, **für alle Lehrkräfte der Schule sichtbar**): Tabelle
+  `custom_learn_modules` (JSON nach `customModuleSchema` in `@klonk/learn` `src/custom.ts`, ID `custom-<uuid>` vergibt ein Trigger) – steht wie
+  eingebaute IDs in `group_learn_modules`/`cloud_projects.learn_module`, daher laufen Freigabe, Modulprojekte und Lernstand unverändert. RLS (Migration 0020):
+  lesen Lehrkräfte/Admins der Organisation (`is_org_staff`) und Lernende mit Freigabe (`klonk.learn_module_released`), ändern/löschen Autor:in + Admins
+  (`can_edit_custom_module`, UPDATE nur auf `data`/`updated_*`), Freigabe nur in Gruppen derselben Organisation (Policy `group_learn_modules_write`),
+  `can_start_learn_module` unterscheidet `custom-%`; Löschen entfernt Freigaben per Trigger, Projekte der Lernenden bleiben. Texte nur in einer Sprache
+  (`lang`, `customModule()` füllt de = en; Klonk-Script-Lösung per `translate`), `code` = frei gewähltes Kürzel (`codeOf()`), `levels` = passende Stufen.
+  F/A-Lösungen in mind. einer Sprache (`CodeSolutions` ist partiell, `referenceSolution()` = JavaScript bzw. erste vorhandene); eigene E-Lösungen laufen
+  wie Lernenden-Programme im Worker mit Zeitlimit (`computeExpected`, Cache-Schlüssel mit `revision`). Server: `customRows`/`modulesById` in
+  `apps/app/server/utils/learn.ts`, API `/api/learn/custom[/:id]` (PUT mit `base` ⇒ `custom_module_conflict`), `LearnStatus.custom` = Zusammenfassungen
+  (`LearnModuleInfo` für Übersichten, ganze Module per `useLearn().resolve()`/`resolveModule()`, offline in localStorage). App: Unterricht →
+  **Eigene Lernmodule** (`/teaching/modules`, Export/Import `.klonkmodule.json`), Editor `/teaching/modules/<id>` (Komponenten `learn-editor/*`,
+  ausdrückliches Speichern, `customModuleProblems()` ⇒ erst vollständige Module freigebbar; Welten mit `useWorldEditor({ persist: false })`).
+  E2E `e2e/teaching-modules.spec.ts`, Doku `4.teaching/2.modules/3.custom.md`.
 - **Robot-Karol-Import** (vom User so festgelegt: Programme ⇒ Klonk-Script oder Blöcke, Welten ⇒ Klonk-Welten, damit Lehrkräfte eigene Aufgaben
   weiterverwenden): `convertKarolProgram`/`decodeKarolFile` in `@klonk/klonk-script` (`src/karol.ts`, Latin-1, `*wiederhole`/`endewiederhole`,
   nachprüfende Schleife ⇒ `wiederhole immer` + `abbrechen`, `Bedingung` ⇒ `funktion` mit `ergebnis`, Quader/Ton/Rucksack ⇒ Kommentar + Hinweis),
@@ -543,3 +557,4 @@ node scripts/build-csharp.ts        # C#-Host bauen (.NET-SDK 10 nötig; Ausgabe
 15. [x] Diagramme: Struktogramm, Klassen- und Objektdiagramm aus dem Code, ER-Diagramm aus der Datenbank
 15. [x] Lernmodule: Einstieg E1–E3 (Welten aus 3×3-Platten, druckbar) + Grundkurs Klonk-Script (automatische Prüfung, Cloud-Projekt je Modul, Freigabe je Gruppe, Lernstand)
 15b. [x] Modulreihen (32 Module, 128 Aufgaben): E1–E13 (Einstieg, Grundkurs, Funktionen, mehrere Figuren, Muster, Algorithmen), F1–F8 (Python/Java/JS/TS/C#: Objekte, Klassen, Vererbung, Rekursion), S1–S7 (SQL), A1–A4 (Programm + Datenbank)
+15c. [x] Eigene Lernmodule der Lehrkräfte (Editor mit Welten, Datenbanken, Musterlösung und Probelauf; für alle Lehrkräfte der Schule sichtbar, Export/Import)

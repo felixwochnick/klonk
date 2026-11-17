@@ -6,14 +6,16 @@ const STORAGE_KEY = 'klonk:world'
 
 /**
  * Zustand des Welt-Editors: Startwelt (bearbeiten) und eine Kopie zum Ausprobieren der Befehle.
- * Die Startwelt wird im Browser gespeichert; Dateien lassen sich als JSON laden und speichern.
+ * Die Startwelt wird im Browser gespeichert (`persist: false` ⇒ nicht, z. B. Welten eigener Lernmodule; `onChange`
+ * meldet dann jede Änderung); Dateien lassen sich als JSON laden und speichern.
  */
-export function useWorldEditor() {
+export function useWorldEditor(options: { persist?: boolean, onChange?: (world: World) => void } = {}) {
   const { t } = useI18n()
   const toast = useToast()
   const { maxCharacters } = useLicense()
+  const persist = options.persist ?? true
 
-  const start = shallowRef(load() ?? World.empty())
+  const start = shallowRef((persist ? load() : null) ?? World.empty())
   const run = shallowRef<World | null>(null)
   const mode = ref<'edit' | 'play'>('edit')
   const world = computed(() => (mode.value === 'play' && run.value) ? run.value : start.value)
@@ -33,7 +35,7 @@ export function useWorldEditor() {
     unsubscribe?.()
     unsubscribe = w.on(() => {
       version.value++
-      if (w === start.value) save(w)
+      if (w === start.value) changed(w)
     })
     version.value++
   }, { immediate: true })
@@ -47,6 +49,11 @@ export function useWorldEditor() {
     catch {
       return null
     }
+  }
+
+  function changed(w: World) {
+    if (persist) save(w)
+    options.onChange?.(w)
   }
 
   function save(w: World) {
@@ -63,7 +70,7 @@ export function useWorldEditor() {
     run.value = null
     mode.value = 'edit'
     selectedCharacter.value = w.getCharacters()[0]?.id ?? ''
-    save(w)
+    changed(w)
   }
 
   /** Fehler der Welt übersetzt anzeigen */
@@ -206,8 +213,13 @@ export function useWorldEditor() {
     })
   }
 
+  /** Welt anzeigen, ohne Lizenzgrenze zu prüfen (z. B. Welt eines Lernmoduls mit mehreren Figuren) */
+  function show(data: WorldData) {
+    setStart(new World(data))
+  }
+
   return {
-    loadData,
+    loadData, show,
     world, start, mode, tool, brickColor, markColor, characterModel, characterDesign, selectedCharacter, status, characters, maxCharacters,
     applyTool, newWorld, exportJson, importJson, play, edit, resetRun, command, renameCharacter,
     BRICK_COLORS, MARK_COLORS, CHARACTER_MODELS,

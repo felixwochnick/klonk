@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { GeneratedProgram } from '~/utils/blocks/generator'
 import { translate } from '@klonk/klonk-script'
-import { findModule } from '@klonk/learn'
+import type { LearnModule } from '@klonk/learn'
 import { World, type WorldData } from '@klonk/world'
 import { databaseEngine } from '~/utils/project-fs'
 import { ProgramRunner, type RunLanguage, type RunnerSnapshot } from '@klonk/runtime'
@@ -320,11 +320,17 @@ watch([proj.project, proj.files], async () => {
     learnManifest.value = null
   }
 }, { immediate: true })
+// Modul des Projekts (eigene Module der Schule kommen vom Server)
+const learnModule = shallowRef<LearnModule | null>(null)
+watch(() => learnManifest.value?.module, async (id) => {
+  const module = id ? await resolveModule(id).catch(() => null) : null
+  if (learnManifest.value?.module === id) learnModule.value = module
+}, { immediate: true })
 const learnTask = computed(() => {
   const manifest = learnManifest.value
   const path = proj.currentPath.value
   if (!manifest || !path) return null
-  const module = findModule(manifest.module)
+  const module = learnModule.value?.id === manifest.module ? learnModule.value : null
   const entry = Object.entries(manifest.tasks).find(([, program]) => program.includes('/') && path.startsWith(`${program.slice(0, program.lastIndexOf('/'))}/`))
   const task = entry && module?.tasks.find(x => x.id === entry[0])
   return module && task ? { module, task } : null

@@ -14,7 +14,8 @@
   "dependencies": {
     "@klonk/diagrams": "workspace:*",
     "@klonk/klonk-script": "workspace:*",
-    "@klonk/world": "workspace:*"
+    "@klonk/world": "workspace:*",
+    "zod": "^4.6.7"
   },
   "devDependencies": {
     "@nuxt/eslint-config": "^1.17.0",

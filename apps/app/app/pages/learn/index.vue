@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { LEARN_TRACKS, moduleCode, TRACK_CODES } from '@klonk/learn'
+import { codeOf, isCustomModuleId, LEARN_TRACKS, TRACK_CODES, type LearnModuleInfo } from '@klonk/learn'
 
 const { t, locale } = useI18n()
 useSeoMeta({ title: () => t('learn.title') })
@@ -7,8 +7,20 @@ useSeoMeta({ title: () => t('learn.title') })
 const learn = useLearn()
 const lang = computed(() => (locale.value === 'en' ? 'en' : 'de'))
 const status = computed(() => learn.status.value)
-// Module nach Reihen (E, F, S, A) – nur Reihen mit startbaren Modulen
-const tracks = computed(() => LEARN_TRACKS.map(track => ({ track, code: TRACK_CODES[track], modules: learn.modules.value.filter(m => m.track === track) })).filter(g => g.modules.length))
+// Module nach Reihen (E, F, S, A) – nur Reihen mit startbaren Modulen; eigene Module der Schule zuerst und für sich
+const builtin = computed(() => learn.modules.value.filter(m => !isCustomModuleId(m.id)))
+// Lehrkräfte sehen unfertige Module der Kolleg:innen nur unter Unterricht → Eigene Lernmodule
+const school = computed(() => learn.modules.value.filter((m) => {
+  const custom = learn.custom.value.find(c => c.id === m.id)
+  return !!custom && (status.value?.restricted || custom.ready || custom.mine)
+}))
+const tracks = computed(() => LEARN_TRACKS.map(track => ({ track, code: TRACK_CODES[track], modules: builtin.value.filter(m => m.track === track) })).filter(g => g.modules.length))
+const sections = computed(() => [
+  ...(school.value.length ? [{ key: 'school', badge: null, title: t('learn.custom.title'), description: t('learn.custom.description'), modules: school.value }] : []),
+  ...tracks.value.map(g => ({ key: g.track, badge: g.code, title: t(`learn.tracks.${g.track}.title`), description: t(`learn.tracks.${g.track}.description`), modules: g.modules })),
+])
+/** „Modul E1“ bzw. bei eigenen Modulen das Kürzel der Lehrkraft (ohne: „Eigenes Modul“) */
+const moduleLabel = (module: LearnModuleInfo) => (codeOf(module) ? t('learn.moduleCode', { code: codeOf(module) }) : t('learn.custom.badge'))
 // Module freigegeben, aber kein erlaubter Speicherort nutzbar (z. B. nur Cloud ohne Abo)
 const noStorage = computed(() => !!learn.modules.value.length && learn.modules.value.every(m => !learn.canStart(m.id)))
 </script>
@@ -81,23 +93,30 @@ const noStorage = computed(() => !!learn.modules.value.length && learn.modules.v
           data-testid="learn-modules"
         >
           <section
-            v-for="group in tracks"
-            :key="group.track"
-            :data-testid="`learn-track-${group.track}`"
+            v-for="group in sections"
+            :key="group.key"
+            :data-testid="`learn-track-${group.key}`"
           >
             <div class="mb-3 flex items-start gap-3">
               <UBadge
-                :label="group.code"
+                v-if="group.badge"
+                :label="group.badge"
                 size="lg"
                 variant="soft"
                 class="font-mono"
               />
+              <UBadge
+                v-else
+                icon="i-lucide-school"
+                size="lg"
+                variant="soft"
+              />
               <div>
                 <h3 class="font-semibold">
-                  {{ t(`learn.tracks.${group.track}.title`) }}
+                  {{ group.title }}
                 </h3>
                 <p class="text-sm text-(--ui-text-muted)">
-                  {{ t(`learn.tracks.${group.track}.description`) }}
+                  {{ group.description }}
                 </p>
               </div>
             </div>
@@ -110,7 +129,7 @@ const noStorage = computed(() => !!learn.modules.value.length && learn.modules.v
                 <div class="flex items-start justify-between gap-3">
                   <div>
                     <p class="text-xs font-semibold uppercase tracking-wide text-(--ui-text-muted)">
-                      {{ t('learn.moduleCode', { code: moduleCode(module.id) }) }}
+                      {{ moduleLabel(module) }}
                     </p>
                     <h2 class="mt-1 font-semibold">
                       {{ module.title[lang] }}

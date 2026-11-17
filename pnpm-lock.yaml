@@ -475,6 +475,9 @@ importers:
       '@klonk/world':
         specifier: workspace:*
         version: link:../world
+      zod:
+        specifier: ^4.6.7
+        version: 4.6.7
     devDependencies:
       '@nuxt/eslint-config':
         specifier: ^1.17.0

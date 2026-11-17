@@ -134,6 +134,20 @@
       "when": 1794851269297,
       "tag": "0018_learn_track_languages",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1794911077334,
+      "tag": "0019_custom_learn_modules",
+      "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1794911077789,
+      "tag": "0020_custom_learn_modules_rls",
+      "breakpoints": true
     }
   ]
 }

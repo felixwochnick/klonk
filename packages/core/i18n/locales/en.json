@@ -87,7 +87,9 @@
     "cannot_change_self": "You cannot change your own account here.",
     "owner_only": "Only owners can do this.",
     "role_from_groups": "This account’s role comes from the Klonk ID groups.",
-    "learn_storage": "This module may not be saved in the Klonk Cloud."
+    "learn_storage": "This module may not be saved in the Klonk Cloud.",
+    "custom_module_too_large": "The learning module is too large – make worlds or databases smaller.",
+    "custom_module_conflict": "Someone else has saved the learning module in the meantime."
   },
   "settings": {
     "title": "Settings",

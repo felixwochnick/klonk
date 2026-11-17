@@ -265,3 +265,18 @@ export const groupLearnModules = pgTable('group_learn_modules', {
   enabledBy: uuid().references(() => users.id, { onDelete: 'set null' }),
   createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
 }, t => [primaryKey({ columns: [t.groupId, t.moduleId] }), check('group_learn_modules_languages_check', sql`${t.languages} IN ('both', 'blocks', 'klonk', 'python', 'java', 'javascript', 'typescript', 'csharp', 'sql')`)])
+
+/**
+ * Eigene Lernmodule der Lehrkräfte (JSON nach `customModuleSchema` aus @klonk/learn). Die ID `custom-<uuid>` steht wie die
+ * eingebauten Modul-IDs in `group_learn_modules` und `cloud_projects.learn_module`. Lesen: Lehrkräfte und Admins der
+ * Organisation sowie Lernende, in deren Gruppe das Modul freigegeben ist; ändern und löschen: Autor:in und Admins.
+ */
+export const customLearnModules = pgTable('custom_learn_modules', {
+  id: text().primaryKey().default(sql`('custom-' || gen_random_uuid()::text)`),
+  organizationId: uuid().notNull().references(() => organizations.id, { onDelete: 'cascade' }),
+  createdBy: uuid().references(() => users.id, { onDelete: 'set null' }),
+  updatedBy: uuid().references(() => users.id, { onDelete: 'set null' }),
+  data: jsonb().notNull(),
+  createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+}, t => [index('custom_learn_modules_organization_idx').on(t.organizationId), check('custom_learn_modules_id_check', sql`${t.id} LIKE 'custom-%'`)])

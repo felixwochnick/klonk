@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { languageChoices, LEARN_MODULES, LEARN_STORAGES, LEARN_TRACKS, moduleCode, TRACK_CODES, type LearnGroupProgress, type LearnLanguageChoice, type LearnModuleProgress, type LearnTrack, type LearnStorage, type LearnTaskState } from '@klonk/learn'
+import { codeOf, languageChoices, LEARN_MODULES, LEARN_STORAGES, LEARN_TRACKS, summaryInfo, TRACK_CODES, type LearnGroupProgress, type LearnLanguageChoice, type LearnModuleInfo, type LearnModuleProgress, type LearnTrack, type LearnStorage, type LearnTaskState } from '@klonk/learn'
 
 const { t, locale, d } = useI18n()
 const route = useRoute()
@@ -24,9 +24,15 @@ onMounted(() => {
 onBeforeUnmount(() => clearInterval(timer))
 
 const available = LEARN_MODULES.filter(m => m.tasks.length)
-// Freigabe nach Reihen (E, F, S, A)
-const tracks = LEARN_TRACKS.map(track => ({ track, code: TRACK_CODES[track], modules: available.filter(m => m.track === track) })).filter(g => g.modules.length)
-const enabledModules = computed(() => LEARN_MODULES.filter(m => data.value?.modules.includes(m.id)))
+// Freigabe: eigene Module der Schule (fertige bzw. schon freigegebene), dann nach Reihen (E, F, S, A)
+const school = computed(() => learn.custom.value.filter(m => m.tasks.length && (m.ready || data.value?.modules.includes(m.id))).map(summaryInfo))
+const tracks = computed(() => [
+  ...(school.value.length ? [{ key: 'school', label: t('teaching.schoolModules'), modules: school.value }] : []),
+  ...LEARN_TRACKS.map(track => ({ key: track, label: `${TRACK_CODES[track]} · ${t(`learn.tracks.${track}.title`)}`, modules: available.filter(m => m.track === track) as LearnModuleInfo[] })),
+].filter(g => g.modules.length))
+const enabledModules = computed(() => (data.value?.modules ?? []).map(id => learn.info(id)).filter((m): m is LearnModuleInfo => !!m))
+/** „E4 Erste Schritte“, eigene Module mit ihrem Kürzel */
+const label = (module: LearnModuleInfo) => [codeOf(module), module.title[lang.value]].filter(Boolean).join(' ')
 const members = computed(() => data.value?.members ?? [])
 
 // Zurück zur Jahrgangsstufe der Gruppe (ohne Stufe: Unterricht); Lehrplan-Empfehlung der Stufe
@@ -80,7 +86,7 @@ async function save(modules: { id: string, languages: LearnLanguageChoice }[], s
 // Lernstand
 const progressOf = (member: LearnGroupProgress['members'][number], moduleId: string): LearnModuleProgress | null => member.modules[moduleId] ?? null
 const solvedIn = (member: LearnGroupProgress['members'][number], moduleId: string) => progressOf(member, moduleId)?.solved.length ?? 0
-const taskCount = (moduleId: string) => LEARN_MODULES.find(m => m.id === moduleId)?.tasks.length ?? 0
+const taskCount = (moduleId: string) => learn.info(moduleId)?.tasks.length ?? 0
 
 function taskState(member: LearnGroupProgress['members'][number], moduleId: string, taskId: string): LearnTaskState {
   const progress = progressOf(member, moduleId)
@@ -107,7 +113,7 @@ const selected = ref<string | null>(null)
 watch(enabledModules, (list) => {
   if (!list.some(m => m.id === selected.value)) selected.value = list[0]?.id ?? null
 }, { immediate: true })
-const selectedModule = computed(() => LEARN_MODULES.find(m => m.id === selected.value) ?? null)
+const selectedModule = computed(() => (selected.value ? learn.info(selected.value) : null))
 
 const STATE_ICON: Record<LearnTaskState, string> = { solved: 'i-lucide-circle-check', started: 'i-lucide-circle-dot', open: 'i-lucide-circle' }
 const STATE_CLASS: Record<LearnTaskState, string> = { solved: 'text-(--ui-success)', started: 'text-(--ui-warning)', open: 'text-(--ui-text-dimmed)' }
@@ -174,10 +180,11 @@ function viewLink(member: LearnGroupProgress['members'][number], moduleId: strin
         >
           <div
             v-for="group in tracks"
-            :key="group.track"
+            :key="group.key"
+            :data-testid="`learn-enable-section-${group.key}`"
           >
             <p class="mb-2 text-xs font-semibold tracking-wide text-(--ui-text-muted) uppercase">
-              {{ group.code }} · {{ t(`learn.tracks.${group.track}.title`) }}
+              {{ group.label }}
             </p>
             <div class="grid gap-x-6 gap-y-3 md:grid-cols-2">
               <div
@@ -189,7 +196,7 @@ function viewLink(member: LearnGroupProgress['members'][number], moduleId: strin
                   <USwitch
                     :model-value="data.modules.includes(module.id)"
                     :disabled="saving"
-                    :label="`${moduleCode(module.id)} ${module.title[lang]}`"
+                    :label="label(module)"
                     :data-testid="`learn-enable-${module.id}`"
                     @update:model-value="on => toggle(module.id, !!on)"
                   />
@@ -299,7 +306,7 @@ function viewLink(member: LearnGroupProgress['members'][number], moduleId: strin
                     :class="selected === module.id ? 'text-(--ui-primary)' : ''"
                     @click="selected = module.id"
                   >
-                    {{ moduleCode(module.id) }} {{ module.title[lang] }}
+                    {{ label(module) }}
                   </button>
                 </th>
                 <th class="px-3 py-2 font-semibold">
@@ -363,7 +370,7 @@ function viewLink(member: LearnGroupProgress['members'][number], moduleId: strin
         <template v-if="selectedModule">
           <div class="mb-3 flex flex-wrap items-center justify-between gap-3">
             <h2 class="text-lg font-semibold">
-              {{ moduleCode(selectedModule.id) }} {{ selectedModule.title[lang] }}
+              {{ label(selectedModule) }}
             </h2>
             <div class="flex flex-wrap gap-3 text-xs text-(--ui-text-muted)">
               <span

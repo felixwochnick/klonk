@@ -1,4 +1,4 @@
-import { collectTables, compareOutcome, databaseSql, expectedOutcomes, isCodeLanguage, LEARN_EXTENSIONS, localize, missingCodeConstructs, missingConstructs, missingSqlConstructs, scenarioCount, sqlOutcome, type CheckFailure, type Construct, type LearnLanguage, type LearnModule, type LearnSqlSession, type LearnTask, type Outcome } from '@klonk/learn'
+import { collectTables, compareOutcome, databaseSql, expectedOutcomes, isCodeLanguage, isCustomModuleId, LEARN_EXTENSIONS, localize, missingCodeConstructs, missingConstructs, missingSqlConstructs, referenceSolution, scenarioCount, sqlOutcome, type CheckFailure, type Construct, type LearnLanguage, type LearnModule, type LearnSqlSession, type LearnTask, type Outcome } from '@klonk/learn'
 import { DatabaseClient, ProgramRunner, SqlError, WorldSqlError, type DatabaseSession, type DbRequest, type DbResponse, type RunError, type RunLanguage, type SqlResult, type SqlTable } from '@klonk/runtime'
 import RunnerWorker from '@klonk/runtime/worker?worker'
 import DbWorker from '@klonk/runtime/db-worker?worker'
@@ -168,26 +168,40 @@ const runLanguage = (language: LearnLanguage): RunLanguage => (language === 'blo
 
 const expectedCache = new Map<string, Promise<Outcome[]>>()
 
+/** Warum sich der Zielzustand nicht berechnen ließ (Fehler der Musterlösung – vor allem beim Erstellen eigener Module) */
+export class ExpectedError extends Error {
+  constructor(public scenario: number, public error: RunError | null, public timeout = false) {
+    super('learn_expected')
+  }
+}
+
 /**
  * Zielzustände: Ergebnis der Musterlösung in jeder Startsituation – Reihe E über den Interpreter, F/A über die
- * JavaScript-Lösung im Worker, S über die SQL-Lösung der UI-Sprache (je Aufgabe und Sprache einmal berechnet)
+ * Referenzlösung (JavaScript bzw. bei eigenen Modulen die erste vorhandene Sprache) im Worker, S über die SQL-Lösung
+ * der UI-Sprache (je Aufgabe, Stand des Moduls und Sprache einmal berechnet). Fehler ⇒ `ExpectedError`.
  */
 export function computeExpected(module: LearnModule, task: LearnTask, options: HeadlessOptions): Promise<Outcome[]> {
-  const key = `${module.id}/${task.id}/${options.lang}`
+  const key = `${module.id}@${module.revision ?? ''}/${task.id}/${options.lang}`
   let cached = expectedCache.get(key)
   if (!cached) {
     cached = (async () => {
-      if (module.track === 'basics') return expectedOutcomes(task)
+      // Eingebaute Lösungen der Reihe E sind geprüft ⇒ direkt im Interpreter; eigene laufen wie Programme der Lernenden im
+      // Worker mit Zeitlimit (eine Endlosschleife in der Musterlösung hielte sonst die Seite an)
+      if (module.track === 'basics' && !isCustomModuleId(module.id)) return expectedOutcomes(task)
+      const reference: { language: RunLanguage, source: string } | null = module.track === 'basics'
+        ? { language: 'klonk', source: task.solution?.de ?? '' }
+        : referenceSolution(task.solutions)
       const outcomes: Outcome[] = []
       for (let i = 0; i < scenarioCount(task); i++) {
         if (module.track === 'sql') {
-          const run = await runSqlTask(task, task.solution![options.lang], i, options.lang)
-          if ('error' in run) throw new Error(`learn_expected: ${run.error.params.message ?? run.error.code}`)
+          const run = await runSqlTask(task, task.solution?.[options.lang] ?? '', i, options.lang)
+          if ('error' in run) throw new ExpectedError(i, run.error)
           outcomes.push(run.outcome)
         }
         else {
-          const run = await runHeadless(task, 'javascript', task.solutions!.javascript, i, { ...options, maxCharacters: Infinity })
-          if (!('outcome' in run)) throw new Error('learn_expected')
+          if (!reference) throw new ExpectedError(i, null)
+          const run = await runHeadless(task, reference.language, reference.source, i, { ...options, maxCharacters: Infinity })
+          if (!('outcome' in run)) throw new ExpectedError(i, 'error' in run ? run.error : null, 'timeout' in run)
           outcomes.push(run.outcome)
         }
       }

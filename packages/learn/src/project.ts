@@ -1,5 +1,6 @@
 import { databaseSql } from './check'
-import { findModule, moduleCode } from './registry'
+import type { CustomModuleSummary } from './custom'
+import { codeOf, findModule } from './registry'
 import { CODE_LANGUAGES, localize, type CodeLanguage, type LearnModule, type LearnTask, type LearnTrack } from './types'
 
 /**
@@ -74,10 +75,9 @@ export function parseManifest(text: string | null | undefined, moduleId: string)
 
 /**
  * `klonk.json` des Modulprojekts mit Lernstand. Reihe E ist ein Projekt der Art Klonk-Script & Blöcke, die übrigen sind
- * gemischt (Sprache je Aufgabe wählbar).
+ * gemischt (Sprache je Aufgabe wählbar). Eigene Module kennt das Paket nicht ⇒ Reihe mitgeben.
  */
-export function serializeManifest(manifest: LearnManifest) {
-  const track = findModule(manifest.module)?.track ?? 'basics'
+export function serializeManifest(manifest: LearnManifest, track: LearnTrack = findModule(manifest.module)?.track ?? 'basics') {
   return `${JSON.stringify({ ...(track === 'basics' ? { language: 'klonk' } : {}), learn: manifest }, null, 2)}\n`
 }
 
@@ -92,9 +92,10 @@ const LABELS = {
 /** Name ohne Zeichen, die in Cloud-Pfaden nicht erlaubt sind (`:` u. a.) */
 const safeName = (text: string) => text.replace(/:\s*/g, ' – ').replace(/[\\/*?"<>|]/g, '').trim()
 
-/** Name des Cloud-Projekts, z. B. „Lernmodul E4 – Erste Schritte – Anweisungen“ */
+/** Name des Cloud-Projekts, z. B. „Lernmodul E4 – Erste Schritte – Anweisungen“ (eigene Module ohne Kürzel: „Lernmodul – …“) */
 export function learnProjectName(module: LearnModule, lang: 'de' | 'en') {
-  return `${LABELS[lang].module} ${moduleCode(module.id)} – ${safeName(module.title[lang])}`
+  const code = safeName(codeOf(module))
+  return `${LABELS[lang].module}${code ? ` ${code}` : ''} – ${safeName(module.title[lang])}`
 }
 
 /** Name des Programms im Aufgabenordner (ohne Endung) – in Java zugleich der Klassenname */
@@ -171,7 +172,7 @@ export function moduleProjectFiles(module: LearnModule, lang: 'de' | 'en', langu
     folders.push(entry.folder)
     files.push(...entry.files)
   })
-  return { folders, files: [{ path: LEARN_MANIFEST, content: serializeManifest(manifest) }, ...files] }
+  return { folders, files: [{ path: LEARN_MANIFEST, content: serializeManifest(manifest, module.track) }, ...files] }
 }
 
 /** Stand einer Aufgabe in der Übersicht für Lehrkräfte */
@@ -201,6 +202,8 @@ export type LearnStatus = {
   projects: Record<string, LearnModuleProgress>
   /** Gruppen, deren Lernstand das Konto sehen und deren Module es freigeben darf */
   groups: { id: string, name: string, modules: string[], members: number }[]
+  /** Eigene Module der Organisation: Lehrkräfte/Admins alle, Lernende die in ihren Gruppen freigegebenen */
+  custom: CustomModuleSummary[]
 }
 
 /** GET /api/learn/groups/:id – Lernstand einer Gruppe */

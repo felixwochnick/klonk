@@ -12,11 +12,12 @@ describe('Lernmodule F und A', { timeout: 900_000 }, () => {
   for (const module of [...trackModules('advanced'), ...trackModules('apps')]) {
     for (const task of module.tasks) {
       it(`${module.id}/${task.id}`, async () => {
-        expect(task.solutions, 'Musterlösungen').toBeDefined()
+        // Eingebaute Module haben Lösungen in allen Sprachen (TypeScript darf fehlen ⇒ JavaScript)
+        expect(Object.keys(task.solutions ?? {}), 'Musterlösungen').toEqual(expect.arrayContaining(['python', 'java', 'javascript', 'csharp']))
         const scenarios = scenarioCount(task)
         const expected: Outcome[] = []
         for (let i = 0; i < scenarios; i++) {
-          const run = await runCode(task, 'javascript', task.solutions!.javascript, i)
+          const run = await runCode(task, 'javascript', task.solutions!.javascript!, i)
           if ('error' in run) throw new Error(`JavaScript, Welt ${i + 1}: ${JSON.stringify(run.error)}`)
           expected.push(run.outcome)
         }

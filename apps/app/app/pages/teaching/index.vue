@@ -20,20 +20,29 @@ const missingSchoolForm = computed(() => !!teaching.school.value && !teaching.st
 
 <template>
   <UContainer class="py-8">
-    <div class="mb-6 max-w-3xl">
-      <h1 class="text-2xl font-bold">
-        {{ title }}
-      </h1>
-      <p
-        v-if="teaching.schoolLabel.value"
-        class="mt-1 text-sm text-(--ui-text-muted)"
-        data-testid="teaching-school"
-      >
-        {{ teaching.schoolLabel.value }}
-      </p>
-      <p class="mt-2 text-(--ui-text-muted)">
-        {{ t('teaching.intro') }}
-      </p>
+    <div class="mb-6 flex flex-wrap items-end justify-between gap-4">
+      <div class="max-w-3xl">
+        <h1 class="text-2xl font-bold">
+          {{ title }}
+        </h1>
+        <p
+          v-if="teaching.schoolLabel.value"
+          class="mt-1 text-sm text-(--ui-text-muted)"
+          data-testid="teaching-school"
+        >
+          {{ teaching.schoolLabel.value }}
+        </p>
+        <p class="mt-2 text-(--ui-text-muted)">
+          {{ t('teaching.intro') }}
+        </p>
+      </div>
+      <UButton
+        to="/teaching/modules"
+        icon="i-lucide-pencil-ruler"
+        :label="t('teaching.custom.title')"
+        variant="outline"
+        data-testid="teaching-custom-modules"
+      />
     </div>
 
     <div

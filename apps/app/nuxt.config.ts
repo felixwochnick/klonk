@@ -93,7 +93,7 @@ export default defineNuxtConfig({
         '@klonk/runtime > acorn',
         '@klonk/runtime > magic-string',
         '@klonk/runtime > java-parser',
-        '@klonk/klonk-script > zod',
+        '@klonk/learn > zod',
         '@klonk/diagrams > @dagrejs/dagre',
         '@klonk/diagrams > @lezer/common',
         '@klonk/diagrams > @lezer/java',

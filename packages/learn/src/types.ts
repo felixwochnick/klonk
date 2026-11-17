@@ -20,13 +20,24 @@ export type CodeLanguage = typeof CODE_LANGUAGES[number]
 export const isCodeLanguage = (value: string): value is CodeLanguage => (CODE_LANGUAGES as readonly string[]).includes(value)
 
 /**
- * Musterlösungen je Programmiersprache (TypeScript fehlt ⇒ wie JavaScript); JavaScript liefert den Zielzustand.
+ * Musterlösungen je Programmiersprache (TypeScript fehlt ⇒ wie JavaScript); die Referenzlösung liefert den Zielzustand.
+ * Eingebaute Module haben Python, Java, JavaScript und C#, eigene Module der Lehrkräfte mindestens eine Sprache.
  * Java-Lösungen heißen `public class Program` – in der deutschen Oberfläche wie die Datei `Programm.java`.
  */
-export type CodeSolutions = { python: string, java: string, javascript: string, typescript?: string, csharp: string }
+export type CodeSolutions = Partial<Record<CodeLanguage, string>>
+
+/** Lösung, aus der der Zielzustand entsteht: JavaScript, sonst die erste vorhandene Sprache */
+export function referenceSolution(solutions: CodeSolutions | undefined): { language: CodeLanguage, source: string } | null {
+  const language = (['javascript', ...CODE_LANGUAGES] as CodeLanguage[]).find(l => solutions?.[l]?.trim())
+  return language ? { language, source: solutions![language]! } : null
+}
+
+/** Musterlösung in der gewählten Sprache (fehlt sie: JavaScript bzw. die Referenzlösung) */
 export function codeSolution(solutions: CodeSolutions, language: CodeLanguage, lang: 'de' | 'en' = 'en') {
-  const source = solutions[language] ?? solutions.javascript
-  return language === 'java' && lang === 'de' ? source.replace(/\bclass Program\b/, 'class Programm') : source
+  const [shown, source] = solutions[language]?.trim()
+    ? [language, solutions[language]!]
+    : solutions.javascript?.trim() ? ['javascript', solutions.javascript] : [referenceSolution(solutions)?.language, referenceSolution(solutions)?.source ?? '']
+  return shown === 'java' && lang === 'de' ? source.replace(/\bclass Program\b/, 'class Programm') : source
 }
 
 /**
@@ -98,9 +109,13 @@ export type LearnTask = {
 }
 
 export type LearnModule = {
-  /** Eindeutig, Teil der URL */
+  /** Eindeutig, Teil der URL (eigene Module der Lehrkräfte: `custom-<uuid>`) */
   id: string
   track: LearnTrack
+  /** Kürzel eigener Module (frei gewählt, darf fehlen) – eingebaute Module bekommen es aus der Reihe (`moduleCode`) */
+  code?: string
+  /** Stand eigener Module (Zeitpunkt der letzten Änderung) – Zielzustände werden je Stand neu berechnet */
+  revision?: string
   /** Einstieg (Grundschule, Förderschule): Welten aus ganzen 3×3-Platten – lassen sich ausdrucken bzw. nachbauen */
   printable?: boolean
   title: Text

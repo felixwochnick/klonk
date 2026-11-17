@@ -1,4 +1,4 @@
-import { LEARN_MODULES, learnProjectName, moduleProjectFiles, parseManifest, LEARN_MANIFEST, TRACK_LANGUAGES, type LearnLanguage, type LearnModule, type LearnStatus, type LearnStorage } from '@klonk/learn'
+import { customModule, findModule, isCustomModuleId, LEARN_MODULES, learnProjectName, moduleProjectFiles, parseCustomModule, parseManifest, LEARN_MANIFEST, summaryInfo, TRACK_LANGUAGES, type CustomModuleEntry, type LearnLanguage, type LearnModule, type LearnModuleInfo, type LearnStatus, type LearnStorage } from '@klonk/learn'
 import { CloudProject, openCloudProject, type CloudProjectMeta } from '~/utils/cloud-project'
 import { createFolderProject, ensurePermission, listBrowserProjects, loadHandle, openBrowserProject, Project, storeHandle, supportsBrowserProjects, supportsFolders } from '~/utils/project-fs'
 
@@ -42,8 +42,14 @@ export function useLearn() {
   }
   const handleKey = (moduleId: string) => `learn:${user.value?.id ?? 'anonymous'}:${moduleId}`
 
-  /** Module, die das Konto starten darf (in Kursreihenfolge, nur mit Aufgaben) */
-  const modules = computed(() => LEARN_MODULES.filter(m => m.tasks.length && status.value?.modules.includes(m.id)))
+  /** Eigene Module der Organisation (Lehrkräfte alle, Lernende die freigegebenen) als Einträge für Übersichten */
+  const custom = computed(() => status.value?.custom ?? [])
+  const customInfos = computed(() => custom.value.map(summaryInfo))
+  /** Modul für Übersichten (eingebaut oder eigenes) */
+  const info = (id: string): LearnModuleInfo | null => findModule(id) ?? customInfos.value.find(m => m.id === id) ?? null
+
+  /** Module, die das Konto starten darf (eingebaute in Kursreihenfolge, danach eigene; nur mit Aufgaben) */
+  const modules = computed<LearnModuleInfo[]>(() => [...LEARN_MODULES, ...customInfos.value].filter(m => m.tasks.length && status.value?.modules.includes(m.id)))
 
   /** Erlaubte Speicherorte beim Start; `supported` = dieser Browser kann es */
   function storages(moduleId: string): { value: LearnStorage, supported: boolean }[] {
@@ -64,7 +70,7 @@ export function useLearn() {
     return local ? { projectId: '', updatedAt: local.updatedAt, solved: local.solved, started: [] as string[] } : null
   }
   const isSolved = (moduleId: string, taskId: string) => !!progress(moduleId)?.solved.includes(taskId)
-  const solvedCount = (module: LearnModule) => module.tasks.filter(t => isSolved(module.id, t.id)).length
+  const solvedCount = (module: LearnModuleInfo) => module.tasks.filter(t => isSolved(module.id, t.id)).length
 
   /** Gelöst merken (lokal dauerhaft, Cloud bis die Übersicht neu geladen ist) */
   function markSolved(moduleId: string, taskId: string) {
@@ -79,13 +85,13 @@ export function useLearn() {
   }
 
   /** Erste ungelöste Aufgabe des Moduls (sonst die erste) */
-  function nextTaskId(module: LearnModule) {
+  function nextTaskId(module: LearnModuleInfo) {
     return (module.tasks.find(t => !isSolved(module.id, t.id)) ?? module.tasks[0]!).id
   }
 
   /** Aufgabe nach dieser – auch ins nächste startbare Modul */
   function following(moduleId: string, taskId: string): { module: string, task: string } | null {
-    const module = findModuleById(moduleId)
+    const module = info(moduleId)
     if (!module) return null
     const t = module.tasks.findIndex(x => x.id === taskId)
     if (module.tasks[t + 1]) return { module: moduleId, task: module.tasks[t + 1]!.id }
@@ -126,7 +132,7 @@ export function useLearn() {
    * kommen (Ordnerauswahl) – daher dort vor jedem anderen `await`.
    */
   async function start(moduleId: string, lang: 'de' | 'en', storage: LearnStorage) {
-    const module = LEARN_MODULES.find(m => m.id === moduleId)
+    const module = await resolve(moduleId)
     if (!module) throw new Error('learn_not_found')
     const language = startLanguage(module)
     if (storage === 'cloud') {
@@ -214,7 +220,60 @@ export function useLearn() {
     return open({ id: projectId, name, kind: 'personal', writable: false })
   }
 
-  return { status, refresh, loading, modules, storages, storageOf, canStart, progress, isSolved, solvedCount, markSolved, nextTaskId, following, start, openOwn, openForeign }
+  /** Ganzes Modul laden (eigene: neu, wenn die Übersicht einen neueren Stand kennt) */
+  const resolve = (id: string) => resolveModule(id, custom.value.find(m => m.id === id)?.updatedAt)
+
+  return { status, refresh, loading, modules, custom, info, resolve, storages, storageOf, canStart, progress, isSolved, solvedCount, markSolved, nextTaskId, following, start, openOwn, openForeign }
 }
 
-const findModuleById = (id: string) => LEARN_MODULES.find(m => m.id === id)
+// Eigene Module: einmal je Stand vom Server laden, zusätzlich im Browser gemerkt (offline weiter lernen)
+const customCache = new Map<string, Promise<CustomModuleEntry | null>>()
+const offlineKey = (id: string) => `klonk:learn-custom:${id}`
+
+/** Stand eines eigenen Moduls merken (nach dem Laden bzw. Speichern im Editor); `null` ⇒ vergessen (gelöscht) */
+export function rememberCustomModule(id: string, entry: CustomModuleEntry | null) {
+  if (entry) customCache.set(id, Promise.resolve(entry))
+  else customCache.delete(id)
+  try {
+    if (entry) localStorage.setItem(offlineKey(id), JSON.stringify(entry))
+    else localStorage.removeItem(offlineKey(id))
+  }
+  catch {
+    // Speicher voll/privater Modus – online geht es trotzdem
+  }
+}
+
+/** Ganzes eigenes Modul (`fresh` ⇒ neu laden) – nicht (mehr) sichtbar ⇒ `null` */
+export function fetchCustomModule(id: string, fresh = false): Promise<CustomModuleEntry | null> {
+  let cached = customCache.get(id)
+  if (!cached || fresh) {
+    cached = $fetch<CustomModuleEntry>(`/api/learn/custom/${id}` as string, { headers: clientHostHeaders() }).then((entry) => {
+      rememberCustomModule(id, entry)
+      return entry
+    }, (error: { statusCode?: number }) => {
+      customCache.delete(id)
+      if (error?.statusCode === 404 || error?.statusCode === 403) {
+        rememberCustomModule(id, null)
+        return null
+      }
+      // Offline: zuletzt geladener Stand
+      try {
+        const entry = JSON.parse(localStorage.getItem(offlineKey(id)) ?? 'null') as CustomModuleEntry | null
+        return entry && parseCustomModule(entry.data) ? entry : null
+      }
+      catch {
+        return null
+      }
+    })
+    customCache.set(id, cached)
+  }
+  return cached
+}
+
+/** Modul zu einer ID: eingebaute sofort, eigene vom Server (`revision` = bekannter Stand ⇒ älteren Zwischenspeicher verwerfen) */
+export async function resolveModule(id: string, revision?: string): Promise<LearnModule | null> {
+  if (!isCustomModuleId(id)) return findModule(id) ?? null
+  let entry = await fetchCustomModule(id)
+  if (entry && revision && entry.updatedAt !== revision) entry = await fetchCustomModule(id, true)
+  return entry ? customModule(entry.id, entry.data, entry.updatedAt) : null
+}
