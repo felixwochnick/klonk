@@ -14,6 +14,7 @@ import {
   taskImages,
   worldPlanSvg,
   type ImageMap,
+  type MaterialBlock,
   type MaterialContext,
 } from '../src'
 import { renderDocxBytes } from '../src/docx'
@@ -29,6 +30,8 @@ const ctx = (lang: 'de' | 'en', module: LearnModule): MaterialContext => ({
 })
 // 1×1-PNG für alle Bilder
 const PNG = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=='
+/** Bausteine ohne Verschachtelung durch `keep` (Aufgaben) */
+const flat = (blocks: MaterialBlock[]): MaterialBlock[] => blocks.flatMap(b => (b.type === 'keep' ? flat(b.blocks) : [b]))
 const fakeImages = (content: Parameters<typeof collectImages>[0]): ImageMap =>
   Object.fromEntries(collectImages(content).map(image => [image.id, { src: PNG, png: PNG, width: 400, height: 300 }]))
 
@@ -64,13 +67,15 @@ describe('Aufbau aus allen Lernmodulen', () => {
     for (const lang of ['de', 'en'] as const) {
       it(`${module.id} (${lang})`, () => {
         const sheet = buildWorksheet(module, DEFAULT_WORKSHEET, ctx(lang, module))
-        const headings = sheet.blocks.filter(b => b.type === 'heading')
+        const headings = flat(sheet.blocks).filter(b => b.type === 'heading')
         expect(headings).toHaveLength(module.tasks.length)
-        expect(sheet.blocks.filter(b => b.type === 'lines')).toHaveLength(module.tasks.length)
+        expect(flat(sheet.blocks).filter(b => b.type === 'lines')).toHaveLength(module.tasks.length)
+        // Jede Aufgabe bleibt als Ganzes zusammen
+        expect(sheet.blocks.filter(b => b.type === 'keep')).toHaveLength(module.tasks.length)
 
         const solutions = buildWorksheet(module, { ...DEFAULT_WORKSHEET, kind: 'solutions' }, ctx(lang, module))
-        expect(solutions.blocks.some(b => b.type === 'lines')).toBe(false)
-        expect(solutions.blocks.filter(b => b.type === 'box' && b.tone === 'solution')).toHaveLength(module.tasks.length)
+        expect(flat(solutions.blocks).some(b => b.type === 'lines')).toBe(false)
+        expect(flat(solutions.blocks).filter(b => b.type === 'box' && b.tone === 'solution')).toHaveLength(module.tasks.length)
 
         const deck = buildPresentation(module, DEFAULT_SLIDES, ctx(lang, module))
         // Titel, Lernziele, Einführung, je Aufgabe eine Folie, Abschnitt + Lösungen, Zusammenfassung
@@ -86,7 +91,7 @@ describe('Aufbau aus allen Lernmodulen', () => {
   it('Programmiersprachen: Startvorlage um die Schreiblinien, Lösung in der gewählten Sprache', () => {
     const module = findModule('code-start')!
     const sheet = buildWorksheet(module, DEFAULT_WORKSHEET, ctx('de', module))
-    const lines = sheet.blocks.find(b => b.type === 'lines')
+    const lines = flat(sheet.blocks).find(b => b.type === 'lines')
     expect(lines).toMatchObject({ code: true, indent: 8 })
     expect(lines && 'before' in lines && lines.before).toContain('public class Programm')
     const solutions = buildWorksheet(module, { ...DEFAULT_WORKSHEET, kind: 'solutions' }, ctx('de', module))

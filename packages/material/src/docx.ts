@@ -7,6 +7,7 @@ import {
   HeadingLevel,
   HeightRule,
   ImageRun,
+  type IParagraphOptions,
   Packer,
   PageNumber,
   Paragraph,
@@ -45,6 +46,14 @@ const NONE = { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' }
 const NO_BORDERS = { top: NONE, bottom: NONE, left: NONE, right: NONE, insideHorizontal: NONE, insideVertical: NONE }
 const thin = (color = '9CA3AF') => ({ style: BorderStyle.SINGLE, size: 4, color })
 
+/**
+ * Seitenumbruch: Solange `blocksToDocx` einen `keep`-Baustein (eine Aufgabe) baut, bekommen alle Absätze – auch die in
+ * Tabellenzellen – „Nicht vom nächsten Absatz trennen“. Word, LibreOffice und Euro-Office halten die Aufgabe dann auf einer
+ * Seite, solange sie auf eine passt. Der Aufbau läuft synchron, daher reicht ein Merker im Modul.
+ */
+let keeping = false
+const paragraph = (options: IParagraphOptions) => new Paragraph(keeping ? { ...options, keepNext: true } : options)
+
 function runs(line: Line, size?: number, color?: string): TextRun[] {
   return line.map((part) => {
     if (part.kind === 'code') return new TextRun({ text: part.value, font: MONO, size, color, shading: { type: ShadingType.CLEAR, color: 'auto', fill: 'F3F4F6' } })
@@ -53,7 +62,7 @@ function runs(line: Line, size?: number, color?: string): TextRun[] {
 }
 
 function codeParagraphs(code: string, color = INK): Paragraph[] {
-  return code.split('\n').map(text => new Paragraph({
+  return code.split('\n').map(text => paragraph({
     spacing: { before: 0, after: 0, line: 260 },
     children: [new TextRun({ text: text || ' ', font: MONO, size: 19, color })],
   }))
@@ -86,7 +95,7 @@ function boxTable(children: (Paragraph | Table)[], options: { fill?: string, bor
   })
 }
 
-const spacer = (after = 120) => new Paragraph({ spacing: { before: 0, after }, children: [] })
+const spacer = (after = 120) => paragraph({ spacing: { before: 0, after }, children: [] })
 
 /** Bildzeilen wie in der HTML-Ausgabe (Twips): Lücke zwischen den Rahmen, Innenabstand, Reserve für die Rahmenlinie, höchstens 62 mm hoch */
 const IMAGE_GAP = 150
@@ -99,7 +108,7 @@ const FRAME = thin('D1D5DB')
  * Eine Bildzeile im Blocksatz: Spaltenbreite je Bild ∝ Seitenverhältnis ⇒ alle Rahmen gleich hoch und zusammen so breit wie
  * die Seite. Zu hohe Zeilen werden gleichmäßig gekappt (Rahmen bleiben voll breit, Bild mittig). Lücken = leere Spalten.
  */
-function imageRow(row: MaterialImage[], images: ImageMap, width: number): Table {
+function imageRow(row: MaterialImage[], images: ImageMap, width: number, note?: string): Table {
   const ratios = row.map(image => imageRatio(image, images))
   const sum = ratios.reduce((a, b) => a + b, 0)
   const inner = width - (row.length - 1) * IMAGE_GAP - row.length * (2 * IMAGE_PAD + IMAGE_BORDER)
@@ -107,7 +116,7 @@ function imageRow(row: MaterialImage[], images: ImageMap, width: number): Table 
   const cells = ratios.map(ratio => Math.floor(ratio * inner / sum) + 2 * IMAGE_PAD + IMAGE_BORDER)
   const columns = cells.flatMap((cell, i) => (i ? [IMAGE_GAP, cell] : [cell]))
   const noBorders = { top: NONE, bottom: NONE, left: NONE, right: NONE }
-  const gap = () => new TableCell({ width: { size: IMAGE_GAP, type: WidthType.DXA }, borders: noBorders, children: [new Paragraph({ children: [] })] })
+  const gap = () => new TableCell({ width: { size: IMAGE_GAP, type: WidthType.DXA }, borders: noBorders, children: [paragraph({ children: [] })] })
   const between = <T>(list: T[]) => list.flatMap((item, i) => (i ? [gap(), item] : [item]))
 
   const pictures = row.map((image, i) => {
@@ -117,7 +126,7 @@ function imageRow(row: MaterialImage[], images: ImageMap, width: number): Table 
       verticalAlign: VerticalAlign.CENTER,
       margins: { top: IMAGE_PAD, bottom: IMAGE_PAD, left: IMAGE_PAD, right: IMAGE_PAD },
       borders: { top: FRAME, bottom: FRAME, left: FRAME, right: FRAME },
-      children: [new Paragraph({
+      children: [paragraph({
         alignment: AlignmentType.CENTER,
         spacing: { before: 0, after: 0 },
         keepNext: true,
@@ -136,7 +145,7 @@ function imageRow(row: MaterialImage[], images: ImageMap, width: number): Table 
   const captions = row.map((image, i) => new TableCell({
     width: { size: cells[i]!, type: WidthType.DXA },
     borders: noBorders,
-    children: [new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 40, after: 40 }, children: [new TextRun({ text: image.caption ?? '', size: 17, color: MUTED })] })],
+    children: [paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 40, after: 40 }, children: [new TextRun({ text: image.caption ?? '', size: 17, color: MUTED })] })],
   }))
   return new Table({
     width: { size: width, type: WidthType.DXA },
@@ -146,16 +155,29 @@ function imageRow(row: MaterialImage[], images: ImageMap, width: number): Table 
     rows: [
       new TableRow({ cantSplit: true, height: { value: Math.ceil(height) + 2 * IMAGE_PAD, rule: HeightRule.ATLEAST }, children: between(pictures) }),
       new TableRow({ cantSplit: true, children: between(captions) }),
+      // Legende als Zeile der Tabelle – bleibt so auch bei einem Umbruch bei den Bildern
+      ...(note
+        ? [new TableRow({
+            cantSplit: true,
+            children: [new TableCell({
+              columnSpan: columns.length,
+              width: { size: width, type: WidthType.DXA },
+              borders: noBorders,
+              children: [paragraph({ spacing: { before: 0, after: 0 }, children: [new TextRun({ text: note, size: 17, color: MUTED, italics: true })] })],
+            })],
+          })]
+        : []),
     ],
   })
 }
 
 function imagesTable(block: Extract<MaterialBlock, { type: 'images' }>, images: ImageMap, width: number): (Paragraph | Table)[] {
   // Zwischen zwei Tabellen ein Absatz – sonst verschmilzt Word sie zu einer
-  const result: (Paragraph | Table)[] = block.rows.flatMap((row, i) => (i ? [spacer(60), imageRow(row, images, width)] : [imageRow(row, images, width)]))
-  if (block.note) result.push(new Paragraph({ spacing: { before: 40, after: 120 }, children: [new TextRun({ text: block.note, size: 17, color: MUTED, italics: true })] }))
-  else result.push(spacer(120))
-  return result
+  const last = block.rows.length - 1
+  return [
+    ...block.rows.flatMap((row, i) => [...(i ? [spacer(60)] : []), imageRow(row, images, width, i === last ? block.note : undefined)]),
+    spacer(120),
+  ]
 }
 
 function dataTable(block: Extract<MaterialBlock, { type: 'table' }>, width: number): (Paragraph | Table)[] {
@@ -168,7 +190,7 @@ function dataTable(block: Extract<MaterialBlock, { type: 'table' }>, width: numb
     width: { size: column, type: WidthType.DXA },
     shading: header ? { type: ShadingType.CLEAR, color: 'auto', fill: 'E5E7EB' } : undefined,
     margins: { top: 30, bottom: 30, left: 80, right: 80 },
-    children: [new Paragraph({ spacing: { before: 0, after: 0 }, children: [new TextRun({ text, bold: header, size: 18 })] })],
+    children: [paragraph({ spacing: { before: 0, after: 0 }, children: [new TextRun({ text, bold: header, size: 18 })] })],
   })
   const tableRows = [
     new TableRow({ tableHeader: true, children: columns.map(c => cell(c, true)) }),
@@ -179,13 +201,13 @@ function dataTable(block: Extract<MaterialBlock, { type: 'table' }>, width: numb
       children: [new TableCell({
         columnSpan: n,
         width: { size: total, type: WidthType.DXA },
-        children: [new Paragraph({ children: [new TextRun({ text: `… +${more}`, italics: true, color: MUTED, size: 18 })] })],
+        children: [paragraph({ children: [new TextRun({ text: `… +${more}`, italics: true, color: MUTED, size: 18 })] })],
       })],
     }))
   }
   const borders = { top: thin(), bottom: thin(), left: thin(), right: thin(), insideHorizontal: thin(), insideVertical: thin() }
   return [
-    ...(caption ? [new Paragraph({ keepNext: true, spacing: { before: 120, after: 40 }, children: [new TextRun({ text: caption, bold: true, size: 19 })] })] : []),
+    ...(caption ? [paragraph({ keepNext: true, spacing: { before: 120, after: 40 }, children: [new TextRun({ text: caption, bold: true, size: 19 })] })] : []),
     new Table({ width: { size: total, type: WidthType.DXA }, columnWidths: columns.map(() => column), layout: TableLayoutType.FIXED, borders, rows: tableRows }),
     spacer(),
   ]
@@ -197,7 +219,7 @@ function writingLines(block: Extract<MaterialBlock, { type: 'lines' }>, width: n
   if (block.before) children.push(...codeParagraphs(block.before, '374151'))
   const indent = block.indent ? block.indent * 115 : 0
   for (let i = 0; i < block.count; i++) {
-    children.push(new Paragraph({
+    children.push(paragraph({
       spacing: { before: 0, after: 0, line: 500, lineRule: 'exact' },
       indent: { left: indent },
       border: { bottom: { style: BorderStyle.DOTTED, size: 4, color: '9CA3AF', space: 1 } },
@@ -205,7 +227,7 @@ function writingLines(block: Extract<MaterialBlock, { type: 'lines' }>, width: n
     }))
   }
   if (block.after) children.push(...codeParagraphs(block.after, '374151'))
-  const label = block.label ? [new Paragraph({ keepNext: true, keepLines: true, spacing: { before: 120, after: 60 }, children: [new TextRun({ text: block.label, bold: true })] })] : []
+  const label = block.label ? [paragraph({ keepNext: true, keepLines: true, spacing: { before: 120, after: 60 }, children: [new TextRun({ text: block.label, bold: true })] })] : []
   return [...label, boxTable(children, { border: '9CA3AF', width, cantSplit: true }), spacer(160)]
 }
 
@@ -214,14 +236,14 @@ function blocksToDocx(blocks: MaterialBlock[], images: ImageMap, width = CONTENT
   for (const block of blocks) {
     switch (block.type) {
       case 'heading':
-        out.push(new Paragraph({
+        out.push(paragraph({
           heading: block.level === 1 ? HeadingLevel.HEADING_1 : block.level === 2 ? HeadingLevel.HEADING_2 : HeadingLevel.HEADING_3,
           keepNext: true,
           children: [new TextRun({ text: block.text })],
         }))
         break
       case 'paragraph':
-        out.push(new Paragraph({
+        out.push(paragraph({
           spacing: { after: 100 },
           children: block.lines.flatMap((line, i) => [...(i ? [new TextRun({ break: 1 })] : []), ...runs(line, block.muted ? 18 : undefined, block.muted ? MUTED : undefined)]),
         }))
@@ -229,8 +251,8 @@ function blocksToDocx(blocks: MaterialBlock[], images: ImageMap, width = CONTENT
       case 'list':
         for (const item of block.items) {
           out.push(block.check
-            ? new Paragraph({ spacing: { after: 60 }, indent: { left: 360, hanging: 360 }, children: [new TextRun({ text: '☐\t' }), ...runs(item)] })
-            : new Paragraph({ spacing: { after: 60 }, bullet: { level: 0 }, children: runs(item) }))
+            ? paragraph({ spacing: { after: 60 }, indent: { left: 360, hanging: 360 }, children: [new TextRun({ text: '☐\t' }), ...runs(item)] })
+            : paragraph({ spacing: { after: 60 }, bullet: { level: 0 }, children: runs(item) }))
         }
         break
       case 'code':
@@ -249,9 +271,22 @@ function blocksToDocx(blocks: MaterialBlock[], images: ImageMap, width = CONTENT
         const tone = TONES[block.tone]
         const inner = width - 400
         out.push(boxTable([
-          new Paragraph({ keepNext: true, spacing: { after: 80 }, children: [new TextRun({ text: block.title, bold: true })] }),
+          paragraph({ keepNext: true, spacing: { after: 80 }, children: [new TextRun({ text: block.title, bold: true })] }),
           ...blocksToDocx(block.blocks, images, inner),
         ], { fill: tone.fill, border: 'D1D5DB', left: tone.border, width }), spacer(140))
+        break
+      }
+      case 'keep': {
+        const outer = keeping
+        keeping = true
+        try {
+          out.push(...blocksToDocx(block.blocks, images, width))
+        }
+        finally {
+          keeping = outer
+        }
+        // Schluss der Kette: winziger Absatz ohne „nicht trennen“, sonst hinge die nächste Aufgabe mit daran
+        if (!outer) out.push(new Paragraph({ spacing: { before: 0, after: 0, line: 20, lineRule: 'exact' }, children: [] }))
         break
       }
       case 'fields': {
@@ -266,14 +301,14 @@ function blocksToDocx(blocks: MaterialBlock[], images: ImageMap, width = CONTENT
               width: { size: columns[i] ?? columns[0]!, type: WidthType.DXA },
               margins: { left: 0, right: 200 },
               borders: { top: NONE, left: NONE, right: NONE, bottom: { style: BorderStyle.SINGLE, size: 6, color: INK } },
-              children: [new Paragraph({ spacing: { before: 200, after: 20 }, children: [new TextRun({ text: `${label}:`, size: 20 })] })],
+              children: [paragraph({ spacing: { before: 200, after: 20 }, children: [new TextRun({ text: `${label}:`, size: 20 })] })],
             })),
           })],
         }), spacer(200))
         break
       }
       case 'pageBreak':
-        out.push(new Paragraph({ pageBreakBefore: true, children: [] }))
+        out.push(paragraph({ pageBreakBefore: true, children: [] }))
         break
     }
   }

@@ -110,7 +110,7 @@ export function buildWorksheet(module: LearnModule, options: WorksheetOptions, c
     blocks.push({ type: 'box', tone: 'info', title: t('intro'), blocks: intro })
   }
   for (const task of selectedTasks(module, options.tasks)) {
-    blocks.push(...taskBlocks(module, task, module.tasks.indexOf(task) + 1, ctx, options))
+    blocks.push({ type: 'keep', blocks: taskBlocks(module, task, module.tasks.indexOf(task) + 1, ctx, options) })
   }
   const label = solutions ? t('solutions') : t('worksheet')
   return {

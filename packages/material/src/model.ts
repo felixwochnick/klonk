@@ -37,6 +37,8 @@ export type MaterialBlock
      */
     | { type: 'lines', count: number, label?: string, code?: boolean, before?: string, after?: string, indent?: number }
     | { type: 'box', tone: 'info' | 'hint' | 'solution' | 'teacher', title: string, blocks: MaterialBlock[] }
+    /** Bleibt auf einer Seite, solange es auf eine passt (eine Aufgabe von der Überschrift bis zum Schreibkasten) */
+    | { type: 'keep', blocks: MaterialBlock[] }
     /** Felder zum Ausfüllen (Name, Klasse, Datum) */
     | { type: 'fields', labels: string[] }
     | { type: 'pageBreak' }
@@ -91,7 +93,7 @@ export function collectImages(content: MaterialDocument | Presentation): Materia
   const walk = (blocks: MaterialBlock[]) => {
     for (const block of blocks) {
       if (block.type === 'images') for (const image of block.rows.flat()) found.set(image.id, image)
-      else if (block.type === 'box') walk(block.blocks)
+      else if (block.type === 'box' || block.type === 'keep') walk(block.blocks)
     }
   }
   if (content.kind === 'slides') {

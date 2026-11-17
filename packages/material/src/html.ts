@@ -60,6 +60,7 @@ export function renderBlocks(blocks: MaterialBlock[], images: ImageMap): string 
       case 'table': return table(block)
       case 'lines': return lines(block)
       case 'box': return `<aside class="box ${block.tone}"><p class="box-title">${escape(block.title)}</p>${renderBlocks(block.blocks, images)}</aside>`
+      case 'keep': return `<section class="keep">${renderBlocks(block.blocks, images)}</section>`
       case 'fields': return `<div class="fields">${block.labels.map(label => `<div><span>${escape(label)}:</span><i></i></div>`).join('')}</div>`
       case 'pageBreak': return '<div class="page-break"></div>'
     }
@@ -123,6 +124,8 @@ tr.more td { color: var(--muted); font-style: italic; }
 .lines .given { color: #374151; white-space: pre; line-height: 1.5; }
 .lines .write { position: relative; height: 9mm; border-bottom: 1px dotted #9ca3af; }
 .lines .no { position: absolute; left: -2px; bottom: 1px; font-size: 7pt; color: #9ca3af; font-family: Arial, sans-serif; }
+/* Aufgabe nicht über zwei Seiten verteilen (ist sie länger als eine Seite, bricht der Browser trotzdem um) */
+.keep { break-inside: avoid; }
 .page-break { break-after: page; }
 @media print {
   body { background: none; }

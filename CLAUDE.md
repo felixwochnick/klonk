@@ -427,6 +427,8 @@ node scripts/build-csharp.ts        # C#-Host bauen (.NET-SDK 10 nötig; Ausgabe
   Draufsicht/Bauplan (Zahl = Ziegel, Pfeil = Figur), 3D über einen unsichtbaren `WorldRenderer` (`utils/material-images.ts`, freigestellt, Cache je
   Welt). **Bildzeilen** (vom User so gewünscht): Block `images.rows` (je Startwelt eine Zeile, `taskImageRows`), jede Zeile im Blocksatz –
   Breite ∝ Seitenverhältnis ⇒ alle Rahmen gleich hoch und zusammen 100 % breit (HTML `--ar` als `flex-grow`/`aspect-ratio`, DOCX Spaltenbreiten), höchstens 62 mm hoch.
+  **Seitenumbruch:** jede Aufgabe ist ein Baustein `keep` (bleibt auf einer Seite, solange sie passt): HTML `break-inside: avoid`, DOCX „nicht vom nächsten
+  trennen“ an allen Absätzen (auch in Zellen, Helfer `paragraph()` + Merker `keeping`) mit einem Schlussabsatz ohne – geprüft mit LibreOffice; Legende als Zeile der Bildtabelle.
   App-Seite `/teaching/material/<modul>?type=worksheet|solutions|slides` (Vorschau im Sandbox-iframe per `srcdoc`, **PDF = Druckdialog**,
   Einstellungen in `klonk:material`), Einstieg Modulseite (Karte „Unterrichtsmaterial“), Unterricht-Matrix (Drucker-Symbol), Menü eigener Module.
   Sichtbar wie Musterlösungen (nicht für Lernende einer Organisation). **Lizenz-Feature `customModules`** (vom User so festgelegt, dasselbe wie eigene Lernmodule):
