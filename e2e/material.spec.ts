@@ -2,10 +2,12 @@ import { readFileSync } from 'node:fs'
 import { expect, test, type Browser, type Page } from '@playwright/test'
 import { strFromU8, unzipSync } from 'fflate'
 import { ADMIN_URL, APP_URL } from '../playwright.config'
+import { canSignLicense, signLicense } from './license'
 import { changePassword, gotoHydrated, loginWithPassword, waitForPage } from './utils'
 
 // Unterrichtsmaterial zu Lernmodulen: Lena (Lehrkraft aus admin-accounts.spec.ts) erstellt Arbeitsblatt, Lösungsblatt und
 // Präsentation zu E2 – Vorschau mit 3D-Bildern und Bauplänen, Drucken, DOCX/PPTX; eine Schülerin bekommt kein Material.
+// Lizenz-Feature `customModules` (wie eigene Lernmodule): ohne gesperrt; am Ende gilt wieder die Lizenz aus admin-license.spec.ts.
 test.use({ locale: 'de-DE', viewport: { width: 1400, height: 900 } })
 
 async function device(browser: Browser, baseUrl: string, [identifier, password]: readonly [string, string], newPassword?: string) {
@@ -23,6 +25,9 @@ function api<T = unknown>(page: Page, url: string, method = 'GET', body?: unknow
   }, { url, method, body }) as Promise<{ status: number, body: T }>
 }
 
+/** Funktionen der Instanz-Lizenz aus admin-license.spec.ts */
+const FEATURES = ['oidc', 'characters', 'models', 'libraries', 'ai']
+
 const ready = (page: Page) => expect(page.getByTestId('material-status')).toHaveAttribute('data-state', 'ready', { timeout: 120_000 })
 
 async function download(page: Page, testId: string) {
@@ -31,12 +36,31 @@ async function download(page: Page, testId: string) {
 }
 
 test('Unterrichtsmaterial: Arbeitsblatt, Lösungen und Präsentation', async ({ browser }) => {
-  test.setTimeout(300_000)
+  test.setTimeout(420_000)
+  test.skip(!canSignLicense, 'Kein Signierschlüssel für diese Testumgebung')
+  const admin = await device(browser, ADMIN_URL, ['admin@gym-muster.de', 'admin-passwort'])
   const lena = await device(browser, APP_URL, ['lena@gym-muster.de', 'lena-geheim'])
+  // Instanz-Lizenz setzen; die App merkt sich die Lizenz bis zu 60 s
+  const license = async (licensed: boolean) => {
+    const token = await signLicense({ name: 'Gymnasium Musterstadt', maxUsers: 100, features: licensed ? [...FEATURES, 'customModules'] : FEATURES })
+    expect((await api(admin, `${ADMIN_URL}/api/admin/license/instance`, 'PUT', { token })).status).toBe(200)
+    await expect.poll(async () => (await api<{ features: string[] }>(lena, '/api/license')).body.features.includes('customModules'), { timeout: 75_000, intervals: [2000] }).toBe(licensed)
+  }
+
+  // Ohne Lizenz-Feature: Karte mit Hinweis und gesperrten Knöpfen, die Seite zeigt nur den Hinweis
+  await license(false)
+  await gotoHydrated(lena, `${APP_URL}/learn/building`)
+  await expect(lena.getByTestId('learn-material-license')).toBeVisible()
+  await expect(lena.getByTestId('learn-material-worksheet')).toBeDisabled()
+  await gotoHydrated(lena, `${APP_URL}/teaching/material/building`)
+  await expect(lena.getByTestId('material-license')).toBeVisible()
+  await expect(lena.getByTestId('material-preview')).toHaveCount(0)
 
   // Einstieg über die Modulseite
+  await license(true)
   await gotoHydrated(lena, `${APP_URL}/learn/building`)
   await expect(lena.getByTestId('learn-material')).toBeVisible()
+  await expect(lena.getByTestId('learn-material-license')).toHaveCount(0)
   await lena.getByTestId('learn-material-worksheet').click()
   await waitForPage(lena, url => url.pathname === '/teaching/material/building')
   await expect(lena.getByTestId('material-title')).toHaveText('E2 Bauen nach Bauplan')
@@ -105,10 +129,8 @@ test('Unterrichtsmaterial: Arbeitsblatt, Lösungen und Präsentation', async ({ 
   await lena.getByRole('option', { name: 'Java', exact: true }).click()
   await ready(lena)
   await expect(preview.locator('.box.solution pre').first()).toContainText('klonk.turnLeft();')
-  await lena.context().close()
 
-  // Lernende einer Schule bekommen kein Material (es enthält Musterlösungen)
-  const admin = await device(browser, ADMIN_URL, ['admin@gym-muster.de', 'admin-passwort'])
+  // Lernende einer Schule bekommen kein Material (es enthält Musterlösungen) – auch mit Lizenz
   const pupil = await api<{ id: string }>(admin, `${ADMIN_URL}/api/admin/users`, 'POST', { username: 'marla', displayName: 'Marla Material', role: 'member', password: 'start-marla' })
   expect(pupil.status).toBe(200)
   const marla = await device(browser, APP_URL, ['marla@gym-muster.de', 'start-marla'], 'marla-geheim')
@@ -120,5 +142,9 @@ test('Unterrichtsmaterial: Arbeitsblatt, Lösungen und Präsentation', async ({ 
   await expect(marla.getByTestId('material-preview')).toHaveCount(0)
   await marla.context().close()
   expect((await api(admin, `${ADMIN_URL}/api/admin/users/${pupil.body.id}`, 'DELETE')).status).toBe(200)
+
+  // Lizenz aus admin-license.spec.ts wiederherstellen
+  await license(false)
+  await lena.context().close()
   await admin.context().close()
 })

@@ -93,6 +93,9 @@ const { user } = useAuth()
 const isTeacher = computed(() => !!user.value && (user.value.role !== 'member' || user.value.platformRole !== 'user'))
 // Unterrichtsmaterial (mit Musterlösungen) wie die Musterlösung: nicht für Lernende einer Organisation
 const canUseMaterial = computed(() => !user.value || !user.value.organizationId || isTeacher.value)
+// Lizenz-Feature `customModules` (wie eigene Lernmodule): ohne Lizenz bleibt die Karte sichtbar (Hinweis), die Knöpfe sind gesperrt
+const { can } = useLicense()
+const materialLicensed = computed(() => can('customModules'))
 const MATERIAL = [
   { type: 'worksheet', icon: 'i-lucide-file-pen-line' },
   { type: 'solutions', icon: 'i-lucide-file-check-2' },
@@ -283,6 +286,14 @@ const STORAGE_ICON: Record<LearnStorage, string> = { cloud: 'i-lucide-cloud', br
           <p class="mb-3 mt-1 text-xs text-(--ui-text-muted)">
             {{ t('material.openHint') }}
           </p>
+          <p
+            v-if="!materialLicensed"
+            class="mb-3 flex items-center gap-1.5 text-xs text-(--ui-warning)"
+            data-testid="learn-material-license"
+          >
+            <UIcon name="i-lucide-badge-check" />
+            {{ t('material.licenseShort') }}
+          </p>
           <div class="flex flex-col gap-1.5">
             <UButton
               v-for="item in MATERIAL"
@@ -290,6 +301,7 @@ const STORAGE_ICON: Record<LearnStorage, string> = { cloud: 'i-lucide-cloud', br
               :to="`/teaching/material/${module.id}?type=${item.type}`"
               :icon="item.icon"
               :label="t(`material.types.${item.type}`)"
+              :disabled="!materialLicensed"
               variant="soft"
               color="neutral"
               size="sm"

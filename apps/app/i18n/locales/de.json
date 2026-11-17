@@ -1156,6 +1156,9 @@
     "openHint": "Arbeitsblätter, Lösungen und Präsentationen zu diesem Modul erstellen",
     "back": "Zum Modul",
     "noAccess": "Unterrichtsmaterial erstellen können Lehrkräfte, Admins und Privatkonten.",
+    "licenseTitle": "Unterrichtsmaterial gehört zur Lizenz",
+    "licenseHint": "Arbeitsblätter, Lösungsblätter und Präsentationen zu den Lernmodulen lassen sich nur mit Lizenz erstellen, drucken und herunterladen. Die Lernmodule selbst bleiben ohne Lizenz nutzbar.",
+    "licenseShort": "Nur mit Lizenz",
     "types": {
       "worksheet": "Arbeitsblatt",
       "solutions": "Lösungen",

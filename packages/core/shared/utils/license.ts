@@ -11,7 +11,10 @@ export const LICENSE_FEATURES = [
   'models',
   /** Bibliotheken/Importe in Klonk-Script und TypeScript */
   'libraries',
-  /** Eigene Lernmodule erstellen und bearbeiten (vorhandene bleiben ohne Lizenz nutzbar: ansehen, freigeben, lösen, löschen) */
+  /**
+   * Eigene Lernmodule erstellen und bearbeiten (vorhandene bleiben ohne Lizenz nutzbar: ansehen, freigeben, lösen, löschen)
+   * sowie Unterrichtsmaterial zu den Lernmodulen (Arbeitsblatt, Lösungsblatt, Präsentation – Drucken/PDF, DOCX, PPTX)
+   */
   'customModules',
   /** KI-Assistent */
   'ai',

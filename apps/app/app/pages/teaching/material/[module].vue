@@ -24,7 +24,8 @@ import { computeExpected, scenarioTables } from '~/utils/learn-check'
 import { resolveImages } from '~/utils/material-images'
 
 // Unterrichtsmaterial zu einem Lernmodul: Arbeitsblatt, Lösungsblatt und Präsentation – Vorschau, Drucken (PDF über den
-// Druckdialog) sowie DOCX/PPTX zum Weiterbearbeiten (Euro-Office, OnlyOffice, LibreOffice, Word). Alles entsteht im Browser.
+// Druckdialog) sowie DOCX/PPTX zum Weiterbearbeiten (Euro-Office, OnlyOffice, LibreOffice, Word). Alles entsteht im Browser,
+// daher prüft nur die Oberfläche das Lizenz-Feature `customModules` (wie eigene Lernmodule; wie Figurengrenze und Bibliotheken; Umgehen verbietet die ELv2).
 definePageMeta({ key: route => route.path })
 
 const { t, locale, locales, loadLocaleMessages } = useI18n()
@@ -32,12 +33,14 @@ const route = useRoute()
 const router = useRouter()
 const learn = useLearn()
 const { user } = useAuth()
-const { maxCharacters } = useLicense()
+const { maxCharacters, can, loaded } = useLicense()
 const toast = useToast()
 
 const module = await learn.resolve(String(route.params.module))
 // Wie Musterlösung und Hinweise für Lehrkräfte: nicht für Lernende einer Organisation
 const allowed = computed(() => !user.value || !user.value.organizationId || user.value.role !== 'member' || user.value.platformRole !== 'user')
+// Lizenzpflichtig wie eigene Lernmodule; der Hinweis erscheint erst, wenn die Lizenz vom Server geladen ist
+const licensed = computed(() => can('customModules'))
 useSeoMeta({ title: () => (module ? `${t('material.title')} · ${moduleLabel(module, locale.value === 'en' ? 'en' : 'de')}` : t('material.title')) })
 
 const KINDS: MaterialKind[] = ['worksheet', 'solutions', 'slides']
@@ -171,7 +174,7 @@ const render = (content: MaterialDocument | Presentation, images: ImageMap) =>
   content.kind === 'slides' ? renderSlidesHtml(content, images) : renderDocumentHtml(content, images)
 
 async function generate() {
-  if (!module || !allowed.value) return
+  if (!module || !allowed.value || !licensed.value) return
   const run = ++generation
   current = null
   state.value = 'computing'
@@ -201,7 +204,7 @@ async function generate() {
   }
 }
 let timer: ReturnType<typeof setTimeout> | undefined
-watch([kind, docLang, codeLanguage, taskIds, sheet, slides, school], () => {
+watch([kind, docLang, codeLanguage, taskIds, sheet, slides, school, licensed], () => {
   clearTimeout(timer)
   timer = setTimeout(generate, 250)
 }, { deep: true })
@@ -261,7 +264,7 @@ async function download() {
 <template>
   <div class="flex flex-col lg:h-[calc(100dvh-var(--ui-header-height))]">
     <UContainer
-      v-if="!module || !allowed"
+      v-if="!module || !allowed || !licensed"
       class="py-8"
     >
       <UButton
@@ -273,11 +276,21 @@ async function download() {
         class="mb-4"
       />
       <UAlert
+        v-if="!module || !allowed"
         color="warning"
         variant="subtle"
         :icon="module ? 'i-lucide-lock' : 'i-lucide-search-x'"
         :title="module ? t('material.noAccess') : t('learn.notFound')"
         data-testid="material-denied"
+      />
+      <UAlert
+        v-else-if="loaded"
+        color="warning"
+        variant="subtle"
+        icon="i-lucide-badge-check"
+        :title="t('material.licenseTitle')"
+        :description="t('material.licenseHint')"
+        data-testid="material-license"
       />
     </UContainer>
 

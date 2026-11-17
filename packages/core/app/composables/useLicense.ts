@@ -2,7 +2,7 @@ const CACHE_KEY = 'klonk:license'
 
 /** Wirksame Lizenz des angemeldeten Kontos (Funktionen, Grenzen) */
 export function useLicense() {
-  const { data, refresh, error } = useFetch<LicenseInfo>('/api/license', {
+  const { data, refresh, error, status } = useFetch<LicenseInfo>('/api/license', {
     key: 'license',
     headers: clientHostHeaders(),
     // Offline (PWA) gilt die zuletzt geladene Lizenz weiter – die Server-APIs prüfen ohnehin selbst
@@ -23,7 +23,10 @@ export function useLicense() {
   /** Lokaler Testmodus (localhost/*.localhost): alles frei */
   const isLocal = computed(() => data.value?.plan === 'local')
 
-  return { license: data, refresh, can, maxCharacters, isLocal }
+  /** Lizenz vom Server geladen (vorher gilt die zuletzt gemerkte bzw. die kostenlose) – gegen kurz aufblitzende Lizenzhinweise */
+  const loaded = computed(() => status.value === 'success' || status.value === 'error')
+
+  return { license: data, refresh, can, maxCharacters, isLocal, loaded }
 }
 
 function cachedLicense(): LicenseInfo | undefined {
