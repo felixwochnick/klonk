@@ -1,0 +1,30 @@
+{
+  "name": "@klonk/material",
+  "private": true,
+  "license": "Elastic-2.0",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./docx": "./src/docx.ts",
+    "./pptx": "./src/pptx.ts"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@klonk/learn": "workspace:*",
+    "@klonk/world": "workspace:*",
+    "docx": "9.15.4",
+    "pptxgenjs": "4.0.1"
+  },
+  "devDependencies": {
+    "@nuxt/eslint-config": "^1.17.0",
+    "@types/node": "^26.6.6",
+    "eslint": "^10.14.0",
+    "fflate": "0.8.3",
+    "typescript": "^5.9.3",
+    "vitest": "^5.0.5"
+  }
+}

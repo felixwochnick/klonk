@@ -18,6 +18,7 @@
     "@klonk/diagrams": "workspace:*",
     "@klonk/klonk-script": "workspace:*",
     "@klonk/learn": "workspace:*",
+    "@klonk/material": "workspace:*",
     "@klonk/runtime": "workspace:*",
     "@klonk/ui": "workspace:*",
     "@klonk/world": "workspace:*",
