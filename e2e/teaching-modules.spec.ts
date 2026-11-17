@@ -1,14 +1,18 @@
 import { writeFileSync } from 'node:fs'
 import { expect, test, type Browser, type Page } from '@playwright/test'
 import { ADMIN_URL, APP_URL } from '../playwright.config'
+import { canSignLicense, signLicense } from './license'
 import { changePassword, gotoHydrated, loginWithPassword } from './utils'
 
-// Eigene Lernmodule: Lena erstellt ein Modul (Welten aus Dateien, Musterlösung mit Probelauf), Kai sieht es nur lesend und
-// arbeitet mit einer Kopie weiter, Lena gibt es für ihre Klasse frei, Mia löst es, Lena sieht den Lernstand. Braucht die
-// Schule und Lena aus admin-accounts.spec.ts, legt eigene Konten und eine Gruppe an und räumt auf.
+// Eigene Lernmodule (Lizenz-Feature `customModules`): Lena erstellt ein Modul (Welten aus Dateien, Musterlösung mit
+// Probelauf), Kai sieht es nur lesend und arbeitet mit einer Kopie weiter, Lena gibt es für ihre Klasse frei, Mia löst es,
+// Lena sieht den Lernstand; ohne Lizenz bleibt das Modul nutzbar, aber nicht bearbeitbar. Braucht die Schule und Lena aus
+// admin-accounts.spec.ts, legt eigene Konten und eine Gruppe an, räumt auf und hinterlässt die Lizenz aus admin-license.spec.ts.
 test.use({ locale: 'de-DE', viewport: { width: 1400, height: 900 } })
 
 const TEACHER = ['lena@gym-muster.de', 'lena-geheim'] as const
+/** Funktionen der Instanz-Lizenz aus admin-license.spec.ts */
+const FEATURES = ['oidc', 'characters', 'models', 'libraries', 'ai']
 
 async function device(browser: Browser, baseUrl: string, [identifier, password]: readonly [string, string], newPassword?: string) {
   const context = await browser.newContext({ locale: 'de-DE', viewport: { width: 1400, height: 900 } })
@@ -61,7 +65,8 @@ function worldFile(name: string, mark: number) {
 }
 
 test('Eigene Lernmodule: erstellen, für Kolleg:innen sichtbar, freigeben, lösen', async ({ browser }) => {
-  test.setTimeout(240_000)
+  test.setTimeout(420_000)
+  test.skip(!canSignLicense, 'Kein Signierschlüssel für diese Testumgebung')
   // Zweite Lehrkraft, Schülerin und Lenas Klasse 8b mit Mia
   const admin = await device(browser, ADMIN_URL, ['admin@gym-muster.de', 'admin-passwort'])
   const kai = await api<{ id: string }>(admin, `${ADMIN_URL}/api/admin/users`, 'POST', { username: 'kai', displayName: 'Kai Kollege', role: 'teacher', password: 'start-kai' })
@@ -72,11 +77,26 @@ test('Eigene Lernmodule: erstellen, für Kolleg:innen sichtbar, freigeben, löse
   expect((await api(teacherAdmin, `${ADMIN_URL}/api/admin/groups/${group}/members`, 'PUT', { userIds: [mia.body.id], role: 'member' })).status).toBe(200)
   await teacherAdmin.context().close()
 
-  // Lena legt unter Unterricht ein neues Modul an
+  // Instanz-Lizenz setzen; die App merkt sich die Lizenz bis zu 60 s
+  const license = async (custom: boolean) => {
+    const token = await signLicense({ name: 'Gymnasium Musterstadt', maxUsers: 100, features: custom ? [...FEATURES, 'customModules'] : FEATURES })
+    expect((await api(admin, `${ADMIN_URL}/api/admin/license/instance`, 'PUT', { token })).status).toBe(200)
+    await expect.poll(async () => (await api<{ features: string[] }>(lena, '/api/license')).body.features.includes('customModules'), { timeout: 75_000, intervals: [2000] }).toBe(custom)
+  }
+
+  // Ohne Lizenz-Feature: Hinweis, Anlegen gesperrt – auch auf dem Server
   const lena = await device(browser, APP_URL, TEACHER)
   await gotoHydrated(lena, `${APP_URL}/teaching`)
   await lena.getByTestId('teaching-custom-modules').click()
   await expect(lena.getByRole('heading', { level: 1 })).toHaveText('Eigene Lernmodule')
+  await expect(lena.getByTestId('custom-license')).toBeVisible()
+  await expect(lena.getByTestId('custom-new')).toBeDisabled()
+  expect((await api(lena, '/api/learn/custom', 'POST', { data: { version: 1, lang: 'de', track: 'basics', title: 'Ohne Lizenz' } })).status).toBe(402)
+
+  // Mit Lizenz legt Lena unter Unterricht ein neues Modul an
+  await license(true)
+  await gotoHydrated(lena, `${APP_URL}/teaching/modules`)
+  await expect(lena.getByTestId('custom-license')).toHaveCount(0)
   await lena.getByTestId('custom-new').click()
   await lena.getByTestId('custom-new-title').fill('Schulhof-Rallye')
   await lena.getByTestId('custom-new-create').click()
@@ -183,7 +203,17 @@ test('Eigene Lernmodule: erstellen, für Kolleg:innen sichtbar, freigeben, löse
   await expect(lena.getByTestId('learn-enable-section-school')).toContainText('Schulhof-Rallye')
   await expect(lena.getByTestId(`learn-cell-mia-${id}`)).toHaveText('1/1')
 
-  // Löschen: Modul verschwindet aus der Freigabe, Mias Projekt bleibt
+  // Ohne Lizenz bleibt das Modul nutzbar (ansehen, lösen), aber nicht bearbeitbar
+  await license(false)
+  await gotoHydrated(lena, `${APP_URL}/teaching/modules/${id}`)
+  await expect(lena.getByTestId('custom-license')).toBeVisible()
+  await expect(lena.getByTestId('custom-save')).toHaveCount(0)
+  await lena.screenshot({ path: 'test-results/custom-module-license.png' })
+  expect((await api(lena, `/api/learn/custom/${id}`, 'PUT', { data: saved })).status).toBe(402)
+  expect((await api<{ custom: { id: string }[] }>(miaPage, '/api/learn')).body.custom.map(m => m.id)).toEqual([id])
+  expect((await api(miaPage, `/api/learn/custom/${id}`)).status).toBe(200)
+
+  // Löschen (auch ohne Lizenz): Modul verschwindet aus der Freigabe, Mias Projekt bleibt
   await gotoHydrated(lena, `${APP_URL}/teaching/modules`)
   await lena.getByTestId('custom-list-mine').getByTestId('custom-card-Schulhof-Rallye').getByTestId('custom-card-menu').click()
   await lena.getByRole('menuitem', { name: 'Löschen' }).click()

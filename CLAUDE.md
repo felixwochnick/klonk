@@ -350,7 +350,9 @@ node scripts/build-csharp.ts        # C#-Host bauen (.NET-SDK 10 nötig; Ausgabe
   dass jede `docs`-Seite in de/en existiert. Server `teachingOverview`/`teachingProgress` in `apps/app/server/utils/learn.ts` (`/api/teaching`,
   `/api/teaching/progress?level=`), Client `useTeaching()`; Freigaben weiter über `PUT /api/learn/groups/:id/modules`. Namen von Bundesländern/Schulformen
   liegen in der Core-i18n (`school.states|forms|countries`). E2E `e2e/teaching.spec.ts` (nach learn.spec, nutzt 9c/Tom, räumt auf).
-- **Eigene Lernmodule** (vom User gewünscht: Lehrkräfte erstellen Module, **für alle Lehrkräfte der Schule sichtbar**): Tabelle
+- **Eigene Lernmodule** (vom User gewünscht: Lehrkräfte erstellen Module, **für alle Lehrkräfte der Schule sichtbar**; **Lizenz-Feature
+  `customModules`** (vom User so festgelegt): Erstellen/Speichern prüft `requireFeature` (`requireAuthoring`), ohne Lizenz bleiben Ansehen,
+  Freigeben, Lösen, Exportieren und Löschen – UI `useLicense().can('customModules')`, Editor dann nur lesend): Tabelle
   `custom_learn_modules` (JSON nach `customModuleSchema` in `@klonk/learn` `src/custom.ts`, ID `custom-<uuid>` vergibt ein Trigger) – steht wie
   eingebaute IDs in `group_learn_modules`/`cloud_projects.learn_module`, daher laufen Freigabe, Modulprojekte und Lernstand unverändert. RLS (Migration 0020):
   lesen Lehrkräfte/Admins der Organisation (`is_org_staff`) und Lernende mit Freigabe (`klonk.learn_module_released`), ändern/löschen Autor:in + Admins

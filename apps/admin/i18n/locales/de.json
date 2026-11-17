@@ -135,6 +135,7 @@
         "characters": "Alle Figuren",
         "models": "Zusätzliche 3D-Modelle",
         "libraries": "Bibliotheken in Klonk-Script und TypeScript",
+        "customModules": "Eigene Lernmodule erstellen und bearbeiten",
         "ai": "KI-Assistent",
         "cloud": "Klonk Cloud (Projekte synchronisieren, Gruppenordner)"
       },

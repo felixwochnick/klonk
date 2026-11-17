@@ -908,6 +908,8 @@
       "title": "Eigene Lernmodule",
       "intro": "Erstelle Lernmodule mit eigenen Aufgaben, Welten und Musterlösungen. Alle Lehrkräfte deiner Schule sehen sie und können sie für ihre Klassen freigeben; bearbeiten können sie nur du und die Admins – alle anderen arbeiten mit einer Kopie weiter.",
       "staffOnly": "Eigene Lernmodule erstellen Lehrkräfte und Admins einer Schule bzw. eines Betriebs.",
+      "licenseTitle": "Eigene Lernmodule gehören zur Lizenz",
+      "licenseHint": "Ohne Lizenz kannst du vorhandene Module ansehen, freigeben, exportieren und löschen; Lernende bearbeiten sie weiter. Neue Module erstellen, bearbeiten, duplizieren und importieren geht nur mit Lizenz.",
       "new": "Neues Lernmodul",
       "newHint": "Titel und Reihe – Aufgaben, Welten und Lösungen ergänzt du danach im Editor.",
       "create": "Erstellen",

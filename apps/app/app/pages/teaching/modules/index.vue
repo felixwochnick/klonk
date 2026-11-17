@@ -10,7 +10,10 @@ const learn = useLearn()
 const custom = useCustomModules()
 const teaching = useTeaching()
 const { user } = useAuth()
+const { can } = useLicense()
 useSeoMeta({ title: () => t('teaching.custom.title') })
+/** Erstellen, Bearbeiten, Duplizieren und Importieren brauchen die Lizenz – vorhandene Module bleiben nutzbar */
+const licensed = computed(() => can('customModules'))
 
 const lang = computed<'de' | 'en'>(() => (locale.value === 'en' ? 'en' : 'de'))
 const staff = computed(() => !!user.value?.organizationId && user.value.role !== 'member')
@@ -64,7 +67,7 @@ const remove = () => run(async () => {
 
 const menu = (module: CustomModuleSummary) => [[
   { label: t('teaching.custom.preview'), icon: 'i-lucide-eye', to: `/learn/${module.id}` },
-  { label: t('teaching.custom.duplicate'), icon: 'i-lucide-copy', onSelect: () => duplicate(module) },
+  { label: t('teaching.custom.duplicate'), icon: 'i-lucide-copy', disabled: !licensed.value, onSelect: () => duplicate(module) },
   { label: t('teaching.custom.export'), icon: 'i-lucide-download', onSelect: () => download(module) },
 ], ...(module.editable ? [[{ label: t('teaching.custom.delete'), icon: 'i-lucide-trash-2', color: 'error' as const, onSelect: () => (deleting.value = module) }]] : [])]
 const levels = (module: CustomModuleSummary) => module.levels.map(l => teaching.levelTitle(l)).join(', ')
@@ -99,11 +102,13 @@ const levels = (module: CustomModuleSummary) => module.levels.map(l => teaching.
           color="neutral"
           :label="t('teaching.custom.import')"
           :loading="busy"
+          :disabled="!licensed"
           @click="fileInput?.click()"
         />
         <UButton
           icon="i-lucide-plus"
           :label="t('teaching.custom.new')"
+          :disabled="!licensed"
           data-testid="custom-new"
           @click="createOpen = true"
         />
@@ -140,6 +145,15 @@ const levels = (module: CustomModuleSummary) => module.levels.map(l => teaching.
       v-else
       class="space-y-8"
     >
+      <UAlert
+        v-if="!licensed"
+        color="warning"
+        variant="subtle"
+        icon="i-lucide-badge-check"
+        :title="t('teaching.custom.licenseTitle')"
+        :description="t('teaching.custom.licenseHint')"
+        data-testid="custom-license"
+      />
       <section
         v-for="list in [{ key: 'mine', title: t('teaching.custom.mine'), modules: mine }, { key: 'others', title: t('teaching.custom.others'), modules: others }]"
         :key="list.key"
@@ -215,8 +229,8 @@ const levels = (module: CustomModuleSummary) => module.levels.map(l => teaching.
             <template #footer>
               <UButton
                 :to="`/teaching/modules/${module.id}`"
-                :icon="module.editable ? 'i-lucide-pencil' : 'i-lucide-eye'"
-                :label="module.editable ? t('teaching.custom.edit') : t('teaching.custom.view')"
+                :icon="module.editable && licensed ? 'i-lucide-pencil' : 'i-lucide-eye'"
+                :label="module.editable && licensed ? t('teaching.custom.edit') : t('teaching.custom.view')"
                 variant="soft"
                 block
                 data-testid="custom-card-open"

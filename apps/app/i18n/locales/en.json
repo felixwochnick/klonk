@@ -908,6 +908,8 @@
       "title": "Own learning modules",
       "intro": "Create learning modules with your own tasks, worlds and model solutions. All teachers at your school see them and can enable them for their classes; only you and the admins can edit them – everyone else continues with a copy.",
       "staffOnly": "Teachers and admins of a school or company create their own learning modules.",
+      "licenseTitle": "Own learning modules are part of the license",
+      "licenseHint": "Without a license you can view, enable, export and delete existing modules; learners keep working on them. Creating, editing, duplicating and importing modules requires a license.",
       "new": "New learning module",
       "newHint": "Title and track – add tasks, worlds and solutions in the editor afterwards.",
       "create": "Create",

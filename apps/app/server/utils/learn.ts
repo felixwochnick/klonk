@@ -328,6 +328,13 @@ function requireStaff(user: SessionUser) {
   return user.organizationId
 }
 
+/** Erstellen und Bearbeiten brauchen das Lizenz-Feature (gehostet: Lizenz der Organisation) */
+async function requireAuthoring(user: SessionUser, event: H3Event) {
+  const organizationId = requireStaff(user)
+  await requireFeature(organizationId, 'customModules', event)
+  return organizationId
+}
+
 async function customEntry(tx: Tx, user: SessionUser, id: string): Promise<CustomModuleEntry> {
   const [row] = await customRows(tx, [id])
   if (!row) throw createError({ statusCode: 404, message: 'learn_not_found' })
@@ -339,8 +346,8 @@ export function getCustomModule(user: SessionUser, id: string) {
   return withUserDb(user.id, tx => customEntry(tx, user, id))
 }
 
-export async function createCustomModule(user: SessionUser, data: unknown) {
-  const organizationId = requireStaff(user)
+export async function createCustomModule(user: SessionUser, data: unknown, event: H3Event) {
+  const organizationId = await requireAuthoring(user, event)
   const parsed = validCustomData(data)
   return withUserDb(user.id, async (tx) => {
     const [row] = await tx.insert(customLearnModules).values({ organizationId, createdBy: user.id, updatedBy: user.id, data: parsed })
@@ -353,8 +360,8 @@ export async function createCustomModule(user: SessionUser, data: unknown) {
  * Speichern (Autor:in, Admins). `base` = Stand, auf dem die Änderung beruht – hat inzwischen jemand anderes gespeichert,
  * schlägt es fehl (`custom_module_conflict`), statt fremde Änderungen zu überschreiben.
  */
-export async function updateCustomModule(user: SessionUser, id: string, data: unknown, base?: string) {
-  requireStaff(user)
+export async function updateCustomModule(user: SessionUser, id: string, data: unknown, base: string | undefined, event: H3Event) {
+  await requireAuthoring(user, event)
   const parsed = validCustomData(data)
   return withUserDb(user.id, async (tx) => {
     const current = await customEntry(tx, user, id)
@@ -367,7 +374,7 @@ export async function updateCustomModule(user: SessionUser, id: string, data: un
   })
 }
 
-/** Löschen (Autor:in, Admins) – Freigaben entfernt die Datenbank, Modulprojekte der Lernenden bleiben */
+/** Löschen (Autor:in, Admins; auch ohne Lizenz) – Freigaben entfernt die Datenbank, Modulprojekte der Lernenden bleiben */
 export async function deleteCustomModule(user: SessionUser, id: string) {
   requireStaff(user)
   return withUserDb(user.id, async (tx) => {

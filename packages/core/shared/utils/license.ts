@@ -11,6 +11,8 @@ export const LICENSE_FEATURES = [
   'models',
   /** Bibliotheken/Importe in Klonk-Script und TypeScript */
   'libraries',
+  /** Eigene Lernmodule erstellen und bearbeiten (vorhandene bleiben ohne Lizenz nutzbar: ansehen, freigeben, lösen, löschen) */
+  'customModules',
   /** KI-Assistent */
   'ai',
   /** Klonk Cloud auf der gehosteten Plattform (Projekte synchronisieren, Gruppenordner) – selbst gehostet immer frei */

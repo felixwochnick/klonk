@@ -10,6 +10,7 @@ const route = useRoute()
 const toast = useToast()
 const apiError = useApiError()
 const custom = useCustomModules()
+const { can } = useLicense()
 const id = String(route.params.id)
 
 const entry = shallowRef<CustomModuleEntry | null>(null)
@@ -36,7 +37,9 @@ async function load() {
 onMounted(load)
 useSeoMeta({ title: () => draft.value?.title || t('teaching.custom.title') })
 
-const readOnly = computed(() => !entry.value?.editable)
+/** Bearbeiten: Autor:in bzw. Admins und Lizenz-Feature (ohne Lizenz bleiben Ansehen und Löschen) */
+const licensed = computed(() => can('customModules'))
+const readOnly = computed(() => !entry.value?.editable || !licensed.value)
 const dirty = computed(() => !!draft.value && JSON.stringify(draft.value) !== saved.value)
 const problems = computed(() => (draft.value ? customModuleProblems(draft.value) : []))
 const taskProblems = (index: number) => problems.value.filter(p => p.task === index)
@@ -135,9 +138,9 @@ async function remove() {
 }
 const menu = computed(() => [[
   { label: t('teaching.custom.preview'), icon: 'i-lucide-eye', to: `/learn/${id}`, disabled: dirty.value },
-  { label: t('teaching.custom.duplicate'), icon: 'i-lucide-copy', onSelect: duplicate },
+  { label: t('teaching.custom.duplicate'), icon: 'i-lucide-copy', disabled: !licensed.value, onSelect: duplicate },
   { label: t('teaching.custom.export'), icon: 'i-lucide-download', onSelect: () => draft.value && custom.download(draft.value) },
-], ...(readOnly.value ? [] : [[{ label: t('teaching.custom.delete'), icon: 'i-lucide-trash-2', color: 'error' as const, onSelect: () => (deleteOpen.value = true) }]])])
+], ...(!entry.value?.editable ? [] : [[{ label: t('teaching.custom.delete'), icon: 'i-lucide-trash-2', color: 'error' as const, onSelect: () => (deleteOpen.value = true) }]])])
 </script>
 
 <template>
@@ -217,7 +220,17 @@ const menu = computed(() => [[
       </div>
 
       <UAlert
-        v-if="readOnly"
+        v-if="!licensed"
+        color="warning"
+        variant="subtle"
+        icon="i-lucide-badge-check"
+        :title="t('teaching.custom.licenseTitle')"
+        :description="t('teaching.custom.licenseHint')"
+        class="mb-4"
+        data-testid="custom-license"
+      />
+      <UAlert
+        v-else-if="readOnly"
         color="info"
         variant="subtle"
         icon="i-lucide-lock"
