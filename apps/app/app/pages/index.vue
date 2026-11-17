@@ -81,6 +81,41 @@ const { start, loadData } = useWorldEditor()
 const databases = useDatabases()
 const { can, maxCharacters } = useLicense()
 
+// Untergruppen: gemeinsame Welt (alle Figuren in einer Welt) und gemeinsames Projekt (live zusammen bearbeiten)
+const live = useLiveWorld()
+const liveProject = useLiveProject()
+const cloud = useCloud()
+const liveWorldGroups = computed(() => (cloud.status.value?.groups ?? []).filter(g => g.collabMode === 'world'))
+const groupLabel = (group: CloudGroupInfo) => (group.parentName ? `${group.name} (${group.parentName})` : group.name)
+const liveWorldItems = computed(() => [liveWorldGroups.value.map(group => ({
+  label: groupLabel(group),
+  icon: 'i-lucide-earth',
+  onSelect: () => joinLiveWorld(group),
+}))])
+function joinLiveWorld(group: CloudGroupInfo) {
+  runner?.stop()
+  live.join({ id: group.id, name: groupLabel(group) })
+  rightTab.value = 'world'
+}
+function leaveLiveWorld() {
+  runner?.stop()
+  live.leave()
+  resetWorld()
+}
+function resetLiveWorld() {
+  if (confirm(t('live.world.confirmReset'))) live.reset()
+}
+// Jemand setzt die gemeinsame Welt zurück ⇒ eigenes Programm passt nicht mehr dazu
+live.onReset((by) => {
+  if (running.value) runner?.stop()
+  toast.add({ title: by ? t('live.world.resetBy', { name: by.name }) : t('live.world.resetDone'), icon: 'i-lucide-rotate-ccw', color: 'info' })
+})
+/** Für Tests und Hilfsmittel: Figuren der gemeinsamen Welt (die Welt selbst ist nicht reaktiv) */
+const liveFigures = computed(() => {
+  void live.version.value
+  return JSON.stringify(live.world.value?.getCharacters().map(c => [c.id, c.x, c.z, c.direction]) ?? [])
+})
+
 // Startwelt: aus dem Projekt (falls gewählt) oder die im Welt-Editor gemerkte
 const projectWorld = shallowRef<WorldData | null>(null)
 async function loadProjectWorld() {
@@ -98,8 +133,9 @@ watch([proj.worldPath, proj.project], loadProjectWorld)
 onMounted(() => proj.project.value && loadProjectWorld())
 const startData = () => projectWorld.value ?? start.value.toJSON()
 
-// Angezeigte Welt: Kopie der Startwelt, auf der das Programm läuft
+// Angezeigte Welt: Kopie der Startwelt, auf der das Programm läuft (bzw. die gemeinsame Welt einer Untergruppe)
 const world = shallowRef(new World(start.value.toJSON()))
+const shownWorld = computed(() => live.world.value ?? world.value)
 const speed = ref(300)
 
 const snapshot = ref<RunnerSnapshot>({ state: 'idle', line: null, pausedRange: null, variables: {}, heap: null, output: [], error: null })
@@ -151,10 +187,17 @@ function resetWorld() {
 async function run(pauseOnStart = false) {
   if (isSql.value || isDatabase.value) return runSql()
   if (!runner) return
+  // Gemeinsame Welt: läuft dort, wo sie gerade steht (kein Zurücksetzen), mit der eigenen Figur
+  const liveSession = live.session.value
+  const liveWorld = live.world.value
+  if (liveSession && (!liveWorld || live.spectator.value || !live.figure.value)) {
+    toast.add({ title: t(live.status.value === 'online' ? 'live.world.spectatorRun' : 'live.world.notConnected'), color: 'warning' })
+    return
+  }
   databases.beginRun()
   // Beim Ausführen die Welt zeigen – außer bei den Diagrammen (Struktogramm/Objektdiagramm laufen mit)
   if (rightTab.value !== 'diagrams') rightTab.value = 'world'
-  resetWorld()
+  if (!liveSession) resetWorld()
   // Ausführen speichert alle offenen Dateien (sonst nur Strg+S)
   if (inProject.value) await proj.saveAll()
   // Bibliotheken: Klonk-Script-/Python-Dateien des Projekts (nur mit Lizenz)
@@ -162,7 +205,9 @@ async function run(pauseOnStart = false) {
   const files = inProject.value ? await proj.importableFiles() : {}
   // Eigene Designs für erstelle/Klonk.create nur mit Lizenz
   const designs = inProject.value && can('models') ? await proj.readDesigns() : {}
-  runner.run(world.value, {
+  runner.run(liveSession ? liveWorld! : world.value, {
+    characterId: liveSession ? live.figure.value! : undefined,
+    live: liveSession?.runHost(),
     // Ohne Lizenz keine eigenen Designs (auch nicht als JSON im Programm)
     designs: can('models') ? designs : undefined,
     saveDesigns: inProject.value && can('models'),
@@ -241,6 +286,7 @@ function stop() {
 function reset() {
   runner?.stop()
   snapshot.value = { state: 'idle', line: null, pausedRange: null, variables: {}, heap: null, output: [], error: null }
+  // Die gemeinsame Welt setzt nur „Gemeinsame Welt zurücksetzen“ zurück (für alle)
   resetWorld()
 }
 
@@ -350,7 +396,7 @@ async function revealFromDiagram(line: number, path?: string) {
 }
 function robotInfo(name: string) {
   try {
-    const character = world.value.findCharacter(name)
+    const character = shownWorld.value.findCharacter(name)
     return { x: character.x + 1, y: character.z + 1, direction: character.direction }
   }
   catch {
@@ -532,6 +578,19 @@ const paneStyle = computed(() => ({
           :label="t('editor.editWorld')"
           to="/world"
         />
+        <UDropdownMenu
+          v-if="liveWorldGroups.length && !live.active.value"
+          :items="liveWorldItems"
+        >
+          <UButton
+            icon="i-lucide-earth"
+            variant="ghost"
+            color="neutral"
+            :label="t('live.world.join')"
+            :disabled="running"
+            data-testid="live-world-join"
+          />
+        </UDropdownMenu>
         <UTooltip :text="focus ? t('editor.focusExit') : t('editor.focus')">
           <UButton
             :icon="focus ? 'i-lucide-columns-2' : 'i-lucide-rectangle-horizontal'"
@@ -598,11 +657,48 @@ const paneStyle = computed(() => ({
         data-testid="code-pane"
       >
         <!-- Offene Dateien des Projekts -->
+        <div
+          v-if="liveProject.session.value"
+          class="flex flex-wrap items-center gap-2 border-b border-(--ui-border) px-3 py-1 text-xs"
+          data-testid="live-project-bar"
+          :data-status="liveProject.status.value"
+        >
+          <UIcon
+            name="i-lucide-users-round"
+            class="text-(--ui-primary)"
+          />
+          <span class="font-semibold">{{ t('live.project.title') }}</span>
+          <UBadge
+            v-if="liveProject.status.value !== 'online'"
+            color="warning"
+            variant="subtle"
+            size="sm"
+            :label="t(`live.status.${liveProject.status.value ?? 'connecting'}`)"
+          />
+          <span
+            v-for="peer in liveProject.peers.value"
+            :key="peer.clientId"
+            class="inline-flex items-center gap-1 rounded-full border border-(--ui-border) px-2 py-0.5"
+            :title="peer.path ? t('live.project.inFile', { path: peer.path }) : undefined"
+            :data-testid="`live-peer-${peer.user.name}`"
+          >
+            <span
+              class="size-2 rounded-full"
+              :style="{ background: peer.user.color }"
+            />
+            {{ peer.user.name }}
+          </span>
+          <span
+            v-if="liveProject.status.value === 'online' && !liveProject.peers.value.length"
+            class="text-(--ui-text-dimmed)"
+          >{{ t('live.project.alone') }}</span>
+        </div>
         <EditorTabs
           v-if="inProject && proj.tabs.value.length"
           :tabs="proj.tabs.value"
           :active="proj.currentPath.value"
           :unsaved="proj.unsaved.value"
+          :presence="liveProject.presence.value"
           @select="path => proj.select(path)"
           @close="path => proj.closeTab(path)"
           @close-others="path => proj.closeTabs({ keep: path })"
@@ -640,6 +736,7 @@ const paneStyle = computed(() => ({
           <div class="relative min-h-0 flex-1">
             <KlonkBlocks
               v-model="source"
+              :live="liveProject.session.value && proj.currentPath.value ? { session: liveProject.session.value, path: proj.currentPath.value } : null"
               :read-only="running || proj.readOnly.value"
               :active-block="running ? lineToBlock(snapshot.line) : null"
               :error-block="snapshot.state === 'error' ? lineToBlock(snapshot.error?.range?.line) : null"
@@ -682,6 +779,7 @@ const paneStyle = computed(() => ({
               :error-message="errorMessage"
               :files="checkFiles"
               :path="inProject ? proj.currentPath.value : null"
+              :live="liveProject.session.value"
             />
           </div>
         </ClientOnly>
@@ -775,14 +873,73 @@ const paneStyle = computed(() => ({
           />
         </div>
         <div
+          v-if="live.active.value"
+          v-show="rightTab === 'world'"
+          class="flex flex-wrap items-center gap-2 border-b border-(--ui-border) px-3 py-1.5 text-xs"
+          data-testid="live-world-bar"
+          :data-status="live.status.value"
+          :data-figure="live.figure.value"
+          :data-figures="liveFigures"
+        >
+          <UIcon
+            name="i-lucide-earth"
+            class="text-(--ui-primary)"
+          />
+          <span class="font-semibold">{{ t('live.world.title', { name: live.target.value?.name }) }}</span>
+          <UBadge
+            v-if="live.status.value !== 'online'"
+            color="warning"
+            variant="subtle"
+            size="sm"
+            :label="t(`live.status.${live.status.value ?? 'connecting'}`)"
+          />
+          <span v-else-if="live.figure.value">{{ t('live.world.you', { name: live.figure.value }) }}</span>
+          <span v-else>{{ t('live.world.watching') }}</span>
+          <span
+            v-for="player in live.players.value.filter(p => !p.spectator)"
+            :key="player.userId"
+            class="inline-flex items-center gap-1 rounded-full border border-(--ui-border) px-2 py-0.5"
+            :class="player.online ? '' : 'opacity-50'"
+            :title="player.online ? player.name : t('live.world.offline', { name: player.name })"
+            :data-testid="`live-player-${player.figure ?? player.name}`"
+          >
+            <span
+              class="size-2 rounded-full"
+              :style="{ background: player.color }"
+            />
+            {{ player.figure ?? player.name }}
+          </span>
+          <div class="ms-auto flex gap-1">
+            <UButton
+              size="xs"
+              variant="ghost"
+              color="neutral"
+              icon="i-lucide-rotate-ccw"
+              :label="t('live.world.reset')"
+              data-testid="live-world-reset"
+              @click="resetLiveWorld"
+            />
+            <UButton
+              size="xs"
+              variant="ghost"
+              color="neutral"
+              icon="i-lucide-log-out"
+              :label="t('live.world.leave')"
+              data-testid="live-world-leave"
+              @click="leaveLiveWorld"
+            />
+          </div>
+        </div>
+        <div
           v-show="rightTab === 'world'"
           class="relative min-h-64 flex-1 bg-(--ui-bg-muted)"
         >
           <ClientOnly>
             <KlonkWorld
               ref="worldView"
-              :world="world"
+              :world="shownWorld"
               :speed="speed"
+              :parallel="live.active.value"
             />
           </ClientOnly>
           <div

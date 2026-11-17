@@ -21,6 +21,15 @@ export function parseDesign(data: unknown): RobotDesign {
   return result.data as RobotDesign
 }
 
+export const characterSchema = z.object({
+  id: z.string().min(1).max(64),
+  model: z.enum(CHARACTER_MODELS),
+  design: designSchema.optional(),
+  x: coordinate,
+  z: coordinate,
+  direction: z.enum(DIRECTIONS),
+})
+
 export const worldSchema = z.object({
   version: z.literal(1),
   size: z.object({
@@ -36,14 +45,7 @@ export const worldSchema = z.object({
     mark: z.enum(MARK_COLORS).nullable().optional(),
     block: z.boolean().optional(),
   })).max(64 * 64),
-  characters: z.array(z.object({
-    id: z.string().min(1).max(64),
-    model: z.enum(CHARACTER_MODELS),
-    design: designSchema.optional(),
-    x: coordinate,
-    z: coordinate,
-    direction: z.enum(DIRECTIONS),
-  })).max(32),
+  characters: z.array(characterSchema).max(32),
 })
 
 /** Prüft Weltdaten (z. B. aus Dateien) und liefert eine typisierte Kopie */

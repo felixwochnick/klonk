@@ -41,6 +41,9 @@ Their licenses apply unchanged; the license texts are included with the packages
 | Lezer (@lezer/common, @lezer/java, @lezer/javascript, @lezer/python – Diagramme / diagrams) | 1.x | MIT | https://github.com/lezer-parser |
 | dagre (@dagrejs/dagre, Diagramm-Layout / diagram layout) | 3.1.2 | MIT | https://github.com/dagrejs/dagre |
 | WebLLM (@mlc-ai/web-llm, KI im Browser / AI in the browser) | 0.2.87 | Apache-2.0 | https://github.com/mlc-ai/web-llm |
+| Yjs (gemeinsames Projekt / shared project, auch Server / also server) | 13.6.33 | MIT | https://github.com/yjs/yjs |
+| y-protocols (Abgleich und Anwesenheit / sync and awareness, auch Server / also server) | 1.0.7 | MIT | https://github.com/yjs/y-protocols |
+| lib0 (über Yjs / via Yjs) | 0.2.119 | MIT | https://github.com/dmonad/lib0 |
 | Workbox (über @vite-pwa/nuxt) | 7 | MIT | https://github.com/GoogleChrome/workbox |
 | Lucide Icons | – | ISC | https://github.com/lucide-icons/lucide |
 | Simple Icons | – | CC0-1.0 | https://github.com/simple-icons/simple-icons |
@@ -51,6 +54,7 @@ Their licenses apply unchanged; the license texts are included with the packages
 | Komponente / component | Version | Lizenz / license | Quelle / source |
 |---|---|---|---|
 | Nitro / h3 | – | MIT | https://github.com/nitrojs/nitro |
+| crossws (WebSockets über Nitro / via Nitro) | 0.3 | MIT | https://github.com/h3js/crossws |
 | nuxt-auth-utils | 0.6 | MIT | https://github.com/atinux/nuxt-auth-utils |
 | drizzle-orm | 0.45 | Apache-2.0 | https://github.com/drizzle-team/drizzle-orm |
 | postgres (postgres.js) | 4.0 | Unlicense | https://github.com/porsager/postgres |

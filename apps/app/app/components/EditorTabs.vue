@@ -4,7 +4,8 @@ import { fileKind } from '~/utils/project-fs'
 
 // Offene Dateien der IDE als Tabs (wie in VS Code): Klick wählt, × bzw. Mittelklick schließt, Ziehen sortiert um;
 // ungespeicherte Dateien zeigen statt × einen Punkt (× erscheint beim Zeigen)
-const props = withDefaults(defineProps<{ tabs: string[], active: string | null, unsaved?: string[] }>(), { unsaved: () => [] })
+// `presence`: gemeinsames Projekt – wer gerade welche Datei offen hat (Farbpunkte)
+const props = withDefaults(defineProps<{ tabs: string[], active: string | null, unsaved?: string[], presence?: Record<string, { user: { name: string, color: string } }[]> }>(), { unsaved: () => [], presence: () => ({}) })
 const emit = defineEmits<{
   select: [path: string]
   close: [path: string]
@@ -105,6 +106,19 @@ function onDrop(event: DragEvent, before: string | null) {
           v-if="item.folder"
           class="truncate text-xs text-(--ui-text-dimmed)"
         >{{ item.folder }}</span>
+        <span
+          v-if="presence[item.path]?.length"
+          class="flex shrink-0 -space-x-1"
+          :title="presence[item.path]!.map(p => p.user.name).join(', ')"
+          :data-testid="`editor-tab-presence-${item.path}`"
+        >
+          <span
+            v-for="peer in presence[item.path]!.slice(0, 3)"
+            :key="peer.user.name"
+            class="size-2 rounded-full ring-1 ring-(--ui-bg)"
+            :style="{ background: peer.user.color }"
+          />
+        </span>
         <UButton
           variant="ghost"
           color="neutral"

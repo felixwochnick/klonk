@@ -1,6 +1,6 @@
 import type { RobotCommand, SourceRange } from '@klonk/klonk-script'
 import { assetUrl } from '../assets'
-import { World } from '@klonk/world'
+import { createWorld } from '../live/live-world'
 import type { PyodideInterface } from 'pyodide'
 import type { HeapSnapshot } from '../heap'
 import type { FromWorker, ToWorker } from '../protocol'
@@ -71,7 +71,7 @@ export async function runPython(
   }
 
   try {
-    const world = new World(message.world)
+    const world = createWorld(message, post)
     const api = createApi({
       world,
       command: (command: RobotCommand) => post({ type: 'command', command }),

@@ -73,6 +73,8 @@ export default defineNuxtConfig({
   compatibilityDate: '2026-10-01',
 
   nitro: {
+    // Zusammenarbeit in Untergruppen (gemeinsames Projekt, gemeinsame Welt) über WebSockets: server/routes/_live.ts
+    experimental: { websocket: true },
     publicAssets: [
       { dir: PYODIDE_DIR, baseURL: ASSETS.pyodide, maxAge: 60 * 60 * 24 * 365 },
       { dir: TEAVM_DIR, baseURL: ASSETS.teavm, maxAge: 60 * 60 * 24 * 365 },
@@ -105,6 +107,12 @@ export default defineNuxtConfig({
         'blockly/blocks',
         'blockly/msg/de',
         'blockly/msg/en',
+        // Zusammenarbeit (gemeinsames Projekt)
+        'yjs',
+        'y-protocols/sync',
+        'y-protocols/awareness',
+        'lib0/encoding',
+        'lib0/decoding',
       ],
       // Wasm-Dateien laden diese Pakete relativ zu ihrem Modul (import.meta.url) – nicht vorbündeln
       exclude: ['@sqlite.org/sqlite-wasm', '@electric-sql/pglite', '@electric-sql/pglite-tools'],

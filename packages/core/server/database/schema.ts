@@ -198,8 +198,24 @@ export const groups = pgTable('groups', {
   learnStorage: text().array(),
   /** Einordnung: Jahrgangsstufe (`'5'` …), `'courses'` = Zusatzkurse, `null` = nicht zugeordnet */
   level: text(),
+  /**
+   * Untergruppe (Team) einer Klasse: die Gruppe, aus deren Mitgliedern sie besteht (nur eine Ebene). Die Leitung der Klasse
+   * verwaltet ihre Untergruppen, ohne selbst Mitglied zu sein.
+   */
+  parentId: uuid().references((): AnyPgColumn => groups.id, { onDelete: 'cascade' }),
+  /**
+   * Zusammenarbeit einer Untergruppe: `project` = ein gemeinsames Projekt, live gemeinsam bearbeitet;
+   * `world` = jede:r eigenes Projekt, alle steuern ihre Figur in einer gemeinsamen Welt. `null` bei eigenständigen Gruppen.
+   */
+  collabMode: text({ enum: ['project', 'world'] }),
   createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
-}, t => [uniqueIndex('groups_organization_name_idx').on(t.organizationId, t.name)])
+}, t => [
+  // Namen eindeutig je Organisation (Klassen) bzw. je Klasse (Untergruppen)
+  uniqueIndex('groups_organization_name_idx').on(t.organizationId, t.name).where(sql`${t.parentId} IS NULL`),
+  uniqueIndex('groups_parent_name_idx').on(t.parentId, t.name).where(sql`${t.parentId} IS NOT NULL`),
+  // Modus genau bei Untergruppen (Vergleich statt AND/OR: eine CHECK-Bedingung mit NULL-Ergebnis gälte als erfüllt)
+  check('groups_collab_mode_check', sql`(${t.parentId} IS NULL) = (${t.collabMode} IS NULL) AND coalesce(${t.collabMode} IN ('project', 'world'), true)`),
+])
 
 export const groupMembers = pgTable('group_members', {
   groupId: uuid().notNull().references(() => groups.id, { onDelete: 'cascade' }),

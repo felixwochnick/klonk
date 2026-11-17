@@ -46,6 +46,14 @@ const sourceIcon = computed(() => (project.value?.source === 'cloud'
   ? cloud.current.value?.meta.kind === 'group' ? 'i-lucide-users-round' : 'i-lucide-cloud'
   : project.value?.source === 'folder' ? 'i-lucide-folder-open' : 'i-lucide-hard-drive'))
 const syncLabel = computed(() => (proj.sync.value ? t(`cloud.sync.${proj.sync.value}`) : null))
+
+// Untergruppen: „Team 1 (7a)“; gemeinsame Welt direkt in der IDE betreten
+const live = useLiveWorld()
+const groupLabel = (group: CloudGroupInfo) => (group.parentName ? `${group.name} (${group.parentName})` : group.name)
+function joinWorld(group: CloudGroupInfo) {
+  live.join({ id: group.id, name: groupLabel(group) })
+  return navigateTo('/')
+}
 </script>
 
 <template>
@@ -159,20 +167,38 @@ const syncLabel = computed(() => (proj.sync.value ? t(`cloud.sync.${proj.sync.va
             <p class="mt-3 mb-1 text-xs font-semibold text-(--ui-text-muted)">
               {{ t('cloud.groups') }}
             </p>
-            <UButton
+            <div
               v-for="group in cloudStatus.groups"
               :key="group.id"
-              :variant="cloud.isOpen(group.projectId) ? 'soft' : 'ghost'"
-              :color="cloud.isOpen(group.projectId) ? 'primary' : 'neutral'"
-              icon="i-lucide-users-round"
-              :label="group.name"
-              :title="group.name"
-              block
-              class="justify-start"
-              :ui="{ label: 'truncate' }"
-              :data-testid="`cloud-group-${group.name}`"
-              @click="cloud.openGroup(group)"
-            />
+              class="flex items-center gap-1"
+            >
+              <UButton
+                :variant="cloud.isOpen(group.projectId) ? 'soft' : 'ghost'"
+                :color="cloud.isOpen(group.projectId) ? 'primary' : 'neutral'"
+                :icon="group.collabMode === 'world' ? 'i-lucide-earth' : 'i-lucide-users-round'"
+                :label="groupLabel(group)"
+                :title="group.collabMode ? `${groupLabel(group)} · ${t(`live.modes.${group.collabMode}.label`)}` : group.name"
+                block
+                class="min-w-0 flex-1 justify-start"
+                :ui="{ label: 'truncate' }"
+                :data-testid="`cloud-group-${group.name}`"
+                @click="cloud.openGroup(group)"
+              />
+              <UTooltip
+                v-if="group.collabMode === 'world'"
+                :text="t('live.world.join')"
+              >
+                <UButton
+                  icon="i-lucide-log-in"
+                  variant="ghost"
+                  color="neutral"
+                  size="sm"
+                  :aria-label="t('live.world.joinGroup', { name: groupLabel(group) })"
+                  :data-testid="`cloud-group-join-${group.name}`"
+                  @click="joinWorld(group)"
+                />
+              </UTooltip>
+            </div>
           </template>
           <p
             class="mt-2 text-xs text-(--ui-text-dimmed)"

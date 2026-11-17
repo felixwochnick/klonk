@@ -265,6 +265,9 @@ function viewLink(member: LearnGroupProgress['members'][number], moduleId: strin
         </div>
       </UCard>
 
+      <!-- Untergruppen (Teams): gemeinsames Projekt oder gemeinsame Welt -->
+      <TeachingSubgroups :group-id="groupId" />
+
       <UAlert
         v-if="!members.length"
         color="info"

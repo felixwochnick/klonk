@@ -1,4 +1,4 @@
-import { and, eq, inArray } from 'drizzle-orm'
+import { and, eq, inArray, isNull } from 'drizzle-orm'
 import { z } from 'zod'
 
 type ImportStatus = 'created' | 'username_taken' | 'user_limit_reached' | 'failed'
@@ -31,7 +31,7 @@ export default defineEventHandler(async (event) => {
       const [org] = await tx.select({ schoolForm: schema.organizations.schoolForm }).from(schema.organizations)
         .where(eq(schema.organizations.id, organizationId))
       const rows = await tx.select({ id: schema.groups.id, name: schema.groups.name }).from(schema.groups)
-        .where(and(eq(schema.groups.organizationId, organizationId), inArray(schema.groups.name, names)))
+        .where(and(eq(schema.groups.organizationId, organizationId), isNull(schema.groups.parentId), inArray(schema.groups.name, names)))
       for (const row of rows) groupIds.set(row.name, row.id)
       if (!input.createGroups) return
       const levels = schoolLevels(org?.schoolForm)

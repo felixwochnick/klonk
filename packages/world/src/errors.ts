@@ -20,6 +20,11 @@ export type WorldErrorCode
     | 'design_license'
     | 'character_limit'
     | 'invalid_world'
+    /** Gemeinsame Welt: fremde Figur steuern, Verbindung weg, Welt zurückgesetzt */
+    | 'live_not_owner'
+    | 'live_disconnected'
+    | 'live_reset'
+    | 'live_invalid'
 
 export class WorldError extends Error {
   constructor(

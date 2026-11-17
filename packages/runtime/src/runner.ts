@@ -1,9 +1,25 @@
 import type { RobotCommand, SourceRange, Value } from '@klonk/klonk-script'
-import type { World, RobotDesign } from '@klonk/world'
+import type { World, RobotDesign, WorldData } from '@klonk/world'
 import { CONTROL, createSharedState, views, writeBreakpoints } from './js/shared'
 import { createDbBuffer, writeDbResponse } from './db/channel'
+import { applyCommand } from './commands'
+import { createLiveBuffer, pushLiveInbox, writeLiveResponse, type LiveInboxEvent, type LiveResponse } from './live/channel'
 import type { DbRequest, DbResponse, FromWorker, RunError, RunLanguage, ToWorker } from './protocol'
 import type { HeapSnapshot } from './heap'
+
+export { applyCommand, parseRobotCommand } from './commands'
+
+/**
+ * Gemeinsame Welt (Untergruppe): Der Server führt die Befehle aus. `execute` meldet einen Befehl der eigenen Figur und
+ * liefert die Antwort des Servers; `subscribe` meldet jede bestätigte Änderung (alle Figuren, Server-Reihenfolge) –
+ * für den eigenen Befehl, bevor `execute` antwortet.
+ */
+export type LiveRunHost = {
+  execute: (command: RobotCommand) => Promise<LiveResponse>
+  subscribe: (listener: (event: LiveInboxEvent) => void) => () => void
+  /** Aktueller Stand der Welt (falls der Eingang des Workers überläuft) */
+  snapshot: () => WorldData
+}
 
 export type RunnerState = 'idle' | 'running' | 'paused' | 'done' | 'error' | 'stopped'
 
@@ -33,6 +49,8 @@ export type RunOptions = {
   designs?: Record<string, RobotDesign>
   saveDesigns?: boolean
   maxCharacters?: number
+  /** Gemeinsame Welt: `characterId` ist die eigene Figur; die angezeigte Welt folgt dem Server, nicht dem Worker */
+  live?: LiveRunHost
 }
 
 /**
@@ -47,6 +65,9 @@ export class ProgramRunner {
 
   /** Antworten der Datenbanken für den blockierten Worker */
   private database?: SharedArrayBuffer
+
+  /** Gemeinsame Welt: Abgleich mit dem Server */
+  private live?: { host: LiveRunHost, buffer: SharedArrayBuffer, unsubscribe: () => void }
 
   /** Programm speichert ein Design (`saveDesign`) – der Aufrufer schreibt es ins Projekt */
   onSaveDesign?: (name: string, design: RobotDesign) => void
@@ -70,15 +91,20 @@ export class ProgramRunner {
     const js = options.language !== 'klonk'
     this.shared = undefined
     this.database = undefined
+    if ((js || options.live) && (typeof SharedArrayBuffer === 'undefined' || !globalThis.crossOriginIsolated)) {
+      this.update({ state: 'error', error: { code: 'isolation_required', params: {} } })
+      return
+    }
     if (js) {
-      if (typeof SharedArrayBuffer === 'undefined' || !globalThis.crossOriginIsolated) {
-        this.update({ state: 'error', error: { code: 'isolation_required', params: {} } })
-        return
-      }
       this.shared = createSharedState()
       writeBreakpoints(this.shared, options.breakpoints ?? [])
       Atomics.store(views(this.shared).control, CONTROL.DELAY, options.delay ?? 300)
       this.database = createDbBuffer()
+    }
+    if (options.live) {
+      const buffer = createLiveBuffer()
+      const host = options.live
+      this.live = { host, buffer, unsubscribe: host.subscribe(event => pushLiveInbox(buffer, event, host.snapshot)) }
     }
 
     const worker = this.createWorker()
@@ -106,7 +132,7 @@ export class ProgramRunner {
       designs: options.designs,
       saveDesigns: options.saveDesigns,
       maxCharacters: Number.isFinite(options.maxCharacters) ? options.maxCharacters : undefined,
-    }, this.shared, this.database)
+    }, this.shared, this.database, this.live?.buffer)
   }
 
   pause() {
@@ -158,7 +184,11 @@ export class ProgramRunner {
         this.update({ line: message.line })
         break
       case 'command':
-        applyCommand(world, message.command)
+        // Gemeinsame Welt: die Anzeige folgt dem Server (der Befehl ist dort schon bestätigt)
+        if (!this.live) applyCommand(world, message.command)
+        break
+      case 'live':
+        void this.answerLive(message.command)
         break
       case 'output':
         this.update({ output: [...this.snapshot.output, message.text] })
@@ -201,39 +231,39 @@ export class ProgramRunner {
     if (this.worker === worker && this.database === buffer) writeDbResponse(buffer, response)
   }
 
-  private post(message: ToWorker, shared?: SharedArrayBuffer, database?: SharedArrayBuffer) {
+  /** Gemeinsame Welt: Befehl der eigenen Figur vom Server bestätigen lassen – nur, solange derselbe Lauf wartet */
+  private async answerLive(command: RobotCommand) {
+    const live = this.live
+    if (!live) return
+    let response: LiveResponse
+    try {
+      response = await live.host.execute(command)
+    }
+    catch {
+      response = { ok: false, code: 'live_disconnected', params: {} }
+    }
+    if (this.live === live) writeLiveResponse(live.buffer, response)
+  }
+
+  private post(message: ToWorker, shared?: SharedArrayBuffer, database?: SharedArrayBuffer, live?: SharedArrayBuffer) {
     // Reaktive Proxys (z. B. aus Vue) lassen sich nicht an Worker senden – als einfache Daten kopieren
     const plain = JSON.parse(JSON.stringify(message)) as ToWorker
     if (shared && plain.type === 'run') plain.shared = shared
     if (database && plain.type === 'run') plain.database = database
+    if (live && plain.type === 'run') plain.live = live
     this.worker?.postMessage(plain)
   }
 
   private terminate() {
     this.worker?.terminate()
     this.worker = undefined
+    this.live?.unsubscribe()
+    this.live = undefined
   }
 
   private update(patch: Partial<RunnerSnapshot>) {
     this.snapshot = { ...this.snapshot, ...patch }
     this.onChange(this.snapshot)
-  }
-}
-
-/** Befehl aus dem Worker auf der angezeigten Welt nachspielen */
-export function applyCommand(world: World, command: RobotCommand) {
-  switch (command.name) {
-    case 'placeBrick':
-      world.placeBrick(command.id, command.color)
-      break
-    case 'setMark':
-      world.setMark(command.id, command.color)
-      break
-    case 'createCharacter':
-      world.addCharacter(command.character)
-      break
-    default:
-      world[command.name](command.id)
   }
 }
 

@@ -1,5 +1,5 @@
 import type { RobotCommand, SourceRange } from '@klonk/klonk-script'
-import { World } from '@klonk/world'
+import { createWorld } from '../live/live-world'
 import type { FromWorker, ToWorker } from '../protocol'
 import { jsHeap } from '../heap'
 import { ApiError, createApi, createDatabaseClass, createKlonkClass, display } from './api'
@@ -58,7 +58,7 @@ export function runJavaScript(message: Extract<ToWorker, { type: 'run' }>, post:
     const toScript = (path: string, text: string) => transformModule(/\.ts$/.test(path) || (path === main && message.language === 'typescript') ? stripTypes(text) : text)
     const code = instrument(toScript(main, message.source))
 
-    const world = new World(message.world)
+    const world = createWorld(message, post)
     const api = createApi({
       world,
       command: (command: RobotCommand) => post({ type: 'command', command }),

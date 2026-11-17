@@ -56,6 +56,7 @@ type CharacterView = {
 }
 
 type Animation = { duration: number, update: (t: number) => void, done?: () => void }
+type Lane = { queue: Animation[], current?: { animation: Animation, start: number, duration: number } }
 
 let modelsPromise: Promise<Models> | undefined
 
@@ -121,8 +122,11 @@ export class WorldRenderer {
   private marks?: THREE.InstancedMesh
   private characters = new Map<string, CharacterView>()
   private hover: THREE.Mesh
-  private queue: Animation[] = []
-  private current?: { animation: Animation, start: number }
+  /**
+   * Warteschlangen der Animationen: sonst eine für alles (Befehle eines Programms nacheinander), in der gemeinsamen
+   * Welt (`parallel`) eine je Figur – die Figuren mehrerer Personen bewegen sich gleichzeitig.
+   */
+  private lanes = new Map<string, Lane>()
   private frame = 0
   /** Nur bei Bedarf rendern (Animation, Kamera, Änderungen) – spart Leistung und lässt dem Browser Leerlaufzeit */
   private dirty = true
@@ -131,6 +135,8 @@ export class WorldRenderer {
 
   /** Namensschilder über den Figuren (aus z. B. in der Design-Vorschau) */
   showNames = true
+  /** Figuren unabhängig voneinander animieren (gemeinsame Welt); staut es sich, laufen die Animationen schneller */
+  parallel = false
   /** Dunkles Farbschema (Namensschilder) */
   dark = false
 
@@ -177,8 +183,7 @@ export class WorldRenderer {
     this.unsubscribe?.()
     this.world = world
     this.unsubscribe = world.on(event => this.onEvent(event))
-    this.queue = []
-    this.current = undefined
+    this.lanes.clear()
     this.rebuild()
     this.resetCamera()
   }
@@ -238,7 +243,8 @@ export class WorldRenderer {
 
   /** Läuft gerade noch eine Animation? */
   get busy() {
-    return !!this.current || this.queue.length > 0
+    for (const lane of this.lanes.values()) if (lane.current || lane.queue.length) return true
+    return false
   }
 
   dispose() {
@@ -278,28 +284,42 @@ export class WorldRenderer {
   }
 
   private tick(now: number) {
-    if (!this.current) {
-      const next = this.queue.shift()
-      if (!next) {
-        this.tickIdle(now)
-        return
-      }
-      this.stopIdle()
-      this.current = { animation: next, start: now }
+    if (!this.busy) {
+      this.tickIdle(now)
+      return
     }
-    const { animation, start } = this.current
-    const t = animation.duration > 0 ? Math.min(1, (now - start) / animation.duration) : 1
+    for (const lane of [...this.lanes.values()]) this.tickLane(lane, now)
+  }
+
+  private tickLane(lane: Lane, now: number) {
+    if (!lane.current) {
+      const next = lane.queue.shift()
+      if (!next) return
+      this.stopIdle()
+      // Gemeinsame Welt: Rückstau aufholen (die anderen warten nicht auf die Animation)
+      const catchUp = this.parallel && lane.queue.length > 1 ? 2 / (lane.queue.length + 1) : 1
+      lane.current = { animation: next, start: now, duration: next.duration * catchUp }
+    }
+    const { animation, start, duration } = lane.current
+    const t = duration > 0 ? Math.min(1, (now - start) / duration) : 1
     animation.update(t)
     if (t >= 1) {
       animation.done?.()
-      this.current = undefined
+      lane.current = undefined
       // Restliche Sofort-Animationen im selben Frame abarbeiten
-      if (this.queue[0]?.duration === 0) this.tick(now)
+      if (lane.queue[0]?.duration === 0) this.tickLane(lane, now)
     }
   }
 
-  private enqueue(animation: Animation) {
-    this.queue.push(animation)
+  /** Animation anhängen – in der gemeinsamen Welt in die Warteschlange der Figur `lane` */
+  private enqueue(animation: Animation, lane = '') {
+    const key = this.parallel ? lane : ''
+    let entry = this.lanes.get(key)
+    if (!entry) {
+      entry = { queue: [] }
+      this.lanes.set(key, entry)
+    }
+    entry.queue.push(animation)
   }
 
   /** Oberkante eines Feldes (Boden + Ziegel bzw. Quader) */
@@ -471,7 +491,7 @@ export class WorldRenderer {
         const view = this.characters.get(id)
         if (view) this.relax(view)
       },
-    })
+    }, id)
   }
 
   /** Figur jubeln lassen (z. B. wenn eine Aufgabe gelöst ist) */
@@ -546,7 +566,7 @@ export class WorldRenderer {
             this.pose(view, climb ? 'Climb' : 'Walk', t)
           },
           done: () => this.relax(view),
-        })
+        }, event.id)
         break
       }
       case 'turn': {
@@ -566,7 +586,7 @@ export class WorldRenderer {
             this.pose(view, 'Turn', t)
           },
           done: () => this.relax(view),
-        })
+        }, event.id)
         break
       }
       case 'brick-placed':
@@ -598,14 +618,14 @@ export class WorldRenderer {
             this.relax(by)
             apply()
           },
-        })
+        }, event.by)
         break
       }
       case 'block-set':
         this.enqueueWorldUpdate(duration * 0.4)
         break
       case 'character-added':
-        this.enqueue({ duration: 0, update: () => this.addCharacterView(event.character) })
+        this.enqueue({ duration: 0, update: () => this.addCharacterView(event.character) }, event.character.id)
         // Neue Figuren winken kurz
         if (duration > 0) this.enqueueClip(event.character.id, 'Wave', duration * 1.6)
         break
@@ -618,11 +638,10 @@ export class WorldRenderer {
             if (view && this.idle?.view === view) this.idle = undefined
             this.characters.delete(event.id)
           },
-        })
+        }, event.id)
         break
       case 'reset':
-        this.queue = []
-        this.current = undefined
+        this.lanes.clear()
         this.rebuild()
         break
     }

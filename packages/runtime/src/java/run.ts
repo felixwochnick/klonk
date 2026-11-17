@@ -1,6 +1,6 @@
 import type { RobotCommand, SourceRange, Value } from '@klonk/klonk-script'
 import { assetUrl } from '../assets'
-import { World } from '@klonk/world'
+import { createWorld } from '../live/live-world'
 import type { HeapSnapshot } from '../heap'
 import type { FromWorker, RunError, ToWorker } from '../protocol'
 import { ApiError, createApi } from '../js/api'
@@ -128,7 +128,7 @@ export async function runJava(
     if (duration > 0) Atomics.wait(control, CONTROL.SLEEP, 0, duration)
   }
 
-  const world = new World(message.world)
+  const world = createWorld(message, post)
   const api = createApi({
     world,
     command: (command: RobotCommand) => post({ type: 'command', command }),

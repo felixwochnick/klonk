@@ -45,6 +45,21 @@ if (import.meta.client) {
   })
 }
 
+/** Gemeinsames Projekt (Untergruppe): nach dem Speichern bzw. nach Änderungen an Dateien/Ordnern Bescheid geben */
+const saveListeners = new Set<(path: string) => void>()
+const fileListeners = new Set<(removed: string[]) => void>()
+export function onProjectSaved(listener: (path: string) => void) {
+  saveListeners.add(listener)
+  return () => saveListeners.delete(listener)
+}
+export function onProjectFilesChanged(listener: (removed: string[]) => void) {
+  fileListeners.add(listener)
+  return () => fileListeners.delete(listener)
+}
+const filesChanged = (removed: string[] = []) => {
+  for (const listener of fileListeners) listener(removed)
+}
+
 const createUnsavedDialog = (overlay: ReturnType<typeof useOverlay>) => overlay.create(UnsavedChangesDialog)
 let unsavedDialog: ReturnType<typeof createUnsavedDialog> | null = null
 
@@ -131,12 +146,17 @@ export function useProject() {
     // Offene Dateien nur neu laden, wenn hier nichts Ungespeichertes ist
     for (const path of paths) {
       const buffer = buffers.value[path]
-      if (!buffer || isDirty(path) || saveTimers.has(path)) continue
+      if (!buffer || saveTimers.has(path)) continue
       if (!files.value.some(f => f.path === path)) {
-        forget(path)
+        if (!isDirty(path)) forget(path)
         continue
       }
       const text = await cloud.read(path)
+      // Gemeinsames Projekt: jemand anderes hat genau diesen Stand gespeichert ⇒ hier auch gespeichert
+      if (isDirty(path)) {
+        if (buffer.text === text) buffer.saved = text
+        continue
+      }
       buffers.value[path] = { text, saved: text }
     }
   }
@@ -257,6 +277,7 @@ export function useProject() {
     if (await project.value.exists(path)) throw new Error('exists')
     await project.value.write(path, initial)
     await refresh()
+    filesChanged()
     if (targetKind === 'world') {
       worldPath.value ??= path
       rememberSelection()
@@ -274,6 +295,7 @@ export function useProject() {
     await project.value.rename(from, to)
     movePaths(p => (p === from ? to : p))
     await refresh()
+    filesChanged([from])
     // Umbenannt in ein Design (bzw. aus einem Design) ⇒ dort öffnen, wo es hingehört
     if (tabs.value.includes(to) && !opensInEditor(to)) {
       forget(to)
@@ -306,6 +328,7 @@ export function useProject() {
     if (!path.split('/').every(isValidName)) throw new Error('invalid_name')
     await project.value.createFolder(path)
     await refresh()
+    filesChanged()
   }
 
   /** Ordner umbenennen/verschieben – geöffnete Datei, Projektwelt und Haltepunkte ziehen mit */
@@ -316,6 +339,7 @@ export function useProject() {
     await project.value.renameFolder(from, to)
     movePaths(path => (path.startsWith(`${from}/`) ? `${to}${path.slice(from.length)}` : path))
     await refresh()
+    filesChanged([from])
     rememberSelection()
   }
 
@@ -326,6 +350,7 @@ export function useProject() {
     for (const open of Object.keys(buffers.value).concat(tabs.value).filter(inside)) forget(open)
     if (inside(worldPath.value)) worldPath.value = null
     await refresh()
+    filesChanged([path])
     await selectFallback()
     rememberSelection()
   }
@@ -336,6 +361,7 @@ export function useProject() {
     forget(path)
     if (worldPath.value === path) worldPath.value = null
     await refresh()
+    filesChanged([path])
     await selectFallback()
     rememberSelection()
   }
@@ -372,6 +398,7 @@ export function useProject() {
       await project.value.write(path, text)
       buffer.saved = text
       saveFailed.value = false
+      for (const listener of saveListeners) listener(path)
       return true
     }
     catch {
