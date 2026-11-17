@@ -160,6 +160,8 @@ class SharedWorldRoom implements Room {
   private room?: WorldRoom
   private loading?: Promise<WorldRoom>
   private sockets = new Map<string, LiveSocket>()
+  /** Verbindungen, die schon weg waren, bevor die Startwelt geladen war */
+  private gone = new Set<string>()
 
   constructor(private groupId: string) {}
 
@@ -174,6 +176,7 @@ class SharedWorldRoom implements Room {
 
   async join(socket: LiveSocket, context: LivePeerContext) {
     const room = await this.ready(context.user.id)
+    if (this.gone.delete(socket.id)) return
     this.sockets.set(socket.id, socket)
     room.join({
       id: socket.id,
@@ -195,7 +198,7 @@ class SharedWorldRoom implements Room {
   }
 
   leave(socket: LiveSocket) {
-    this.sockets.delete(socket.id)
+    if (!this.sockets.delete(socket.id)) this.gone.add(socket.id)
     this.room?.leave(socket.id)
   }
 }
