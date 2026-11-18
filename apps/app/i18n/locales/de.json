@@ -33,6 +33,14 @@
     "create": "Erstellen",
     "reset": "Zurücksetzen",
     "resetCamera": "Ansicht zurücksetzen",
+    "view": {
+      "label": "Darstellung der Welt",
+      "sceneShort": "3D",
+      "planShort": "2D",
+      "scene": "3D-Ansicht",
+      "plan": "Draufsicht (2D)",
+      "noWebgl": "3D geht in diesem Browser nicht (WebGL fehlt) – die Draufsicht funktioniert überall."
+    },
     "speed": "Geschwindigkeit",
     "keyboardHelp": "Tastatur: ↑ Schritt, ← → drehen, H hinlegen, A aufheben, M markieren",
     "size": {

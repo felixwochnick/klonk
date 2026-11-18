@@ -207,8 +207,12 @@ const showProject = ref(true)
             class="relative min-h-64 shrink-0 border-t border-(--ui-border) bg-(--ui-bg-muted) lg:w-[40%] lg:border-s lg:border-t-0"
             data-testid="sql-world"
           >
-            <KlonkWorld :world="world" />
+            <KlonkWorld
+              :world="world"
+              :toggle="false"
+            />
             <div class="absolute right-3 top-3 flex items-center gap-2">
+              <WorldViewToggle />
               <div
                 v-if="worldFromSql"
                 class="flex items-center gap-2 rounded-md bg-(--ui-bg)/90 px-2 py-1 text-xs shadow"

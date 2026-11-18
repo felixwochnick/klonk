@@ -77,6 +77,8 @@ async function fromProject() {
   }
 }
 const view = useTemplateRef('view')
+// Kamera zurücksetzen gibt es nur in 3D
+const worldView = useWorldView()
 </script>
 
 <template>
@@ -194,6 +196,7 @@ const view = useTemplateRef('view')
         />
       </ClientOnly>
       <UButton
+        v-if="worldView.mode.value === '3d'"
         class="absolute right-2 bottom-2"
         color="neutral"
         variant="outline"

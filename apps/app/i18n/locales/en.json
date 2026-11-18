@@ -33,6 +33,14 @@
     "create": "Create",
     "reset": "Reset",
     "resetCamera": "Reset view",
+    "view": {
+      "label": "World display",
+      "sceneShort": "3D",
+      "planShort": "2D",
+      "scene": "3D view",
+      "plan": "Top view (2D)",
+      "noWebgl": "3D is not available in this browser (no WebGL) – the top view works everywhere."
+    },
     "speed": "Speed",
     "keyboardHelp": "Keyboard: ↑ step, ← → turn, H place, A pick up, M mark",
     "size": {

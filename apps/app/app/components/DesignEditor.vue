@@ -236,6 +236,7 @@ const preview = computed(() => new World({
         <KlonkWorld
           :world="preview"
           :show-names="false"
+          view="3d"
         />
       </ClientOnly>
     </div>

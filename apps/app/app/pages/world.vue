@@ -36,6 +36,8 @@ onMounted(async () => {
   await navigateTo({ query: {} }, { replace: true })
 })
 const view = useTemplateRef('view')
+// Kamera zurücksetzen gibt es nur in 3D
+const worldView = useWorldView()
 
 const tools = computed<{ value: EditorTool, icon: string, label: string }[]>(() => [
   { value: 'brick', icon: 'i-lucide-box', label: t('world.tools.brick') },
@@ -402,6 +404,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey))
           </template>
         </div>
         <UButton
+          v-if="worldView.mode.value === '3d'"
           class="pointer-events-auto"
           color="neutral"
           variant="outline"
