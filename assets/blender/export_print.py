@@ -7,6 +7,10 @@ Baut die Figuren mit build_models.py (ohne Animationen ⇒ Ruhehaltung), vereini
 Körper und exportiert sie in Millimetern (1 Einheit = 1 Feld = 32 mm) nach apps/docs/public/print/klonk-figur-<modell>.stl.
 Die Noppenlöcher der Füße werden an die gedruckten Noppen angepasst (Ø 4,8 mm, 1,8 mm hoch – siehe assets/print):
 Ø 4,9 mm und 1,9 mm tief, damit die Figur klemmt und flach aufsteht.
+
+Nur die Standardfigur (männlich) und mit Druckanpassungen (PRINT_PATCHES, die Figuren der App bleiben unverändert):
+breiterer Hals (bricht nicht ab), Arme gerade und anliegend am Oberkörper, Hände als Würfel im Querschnitt
+der Arme (gleiche Abrundung) mit Trennkerbe, seitlich an der Hüfte – so gibt es kaum Überhang und die Hände wachsen am Bein mit hoch.
 """
 import math
 import os
@@ -20,9 +24,33 @@ MM = 32.0                       # Millimeter je Einheit (1 Feld = 4 × 4 Noppen 
 HOLE_D = 4.9 / MM
 HOLE_DEPTH = 1.9 / MM
 
+# Abweichungen der Druckfigur von der App-Figur (Text in build_models.py ⇒ Ersatz)
+PRINT_PATCHES = (
+    # Arme senkrecht und etwas in den Oberkörper gerückt ⇒ der Greifring liegt am Bein an (tiefster Punkt nur 0,2 mm darunter)
+    ('ARM_TILT = math.radians(4)', 'ARM_TILT = 0.0'),
+    ('ARM_OUT = 0.058', 'ARM_OUT = 0.025'),
+    # Unterarm gerade nach unten statt 55° nach vorn ⇒ kein frei hängender Unterarm
+    ('FOREARM_ANGLE = math.radians(-55)', 'FOREARM_ANGLE = 0.0'),
+    # Hals Ø 6,1 statt 4,2 mm
+    ("cylinder('Neck', 0.065,", "cylinder('Neck', 0.095,"),
+    # Hand als kurzes Stück Arm statt C-Greifring: gleicher Querschnitt und gleiche Abrundung wie das Armende
+    # (tube() mit arm_widths am Handgelenk, Kuppe 0,012 oben und unten). Die beiden Kuppen überschneiden sich nur
+    # wenig ⇒ runde Trennkerbe zwischen Arm und Hand. Die Hand liegt innen an Hüfte/Bein an ⇒ druckt ohne Stütze
+    ("        b.add(h, j[f'Hand{side}'], cylinder(f'Wrist{side}', 0.026, 0.05, tuple(hand - d * 0.015), m_skin, col, rotation=arm_rot(side, (FOREARM_ANGLE + math.pi, 0, 0))))\n"
+     "        grip = hand + d * (0.03 + major + minor * 0.6)\n"
+     "        b.add(h, j[f'Hand{side}'], c_ring(f'Grip{side}', major, minor, math.radians(75), math.pi, tuple(grip), m_skin, col, rotation=frame_euler(axis, gap_dir)))\n",
+     "        cap, length, widths = 0.012, 0.075, arm_widths()(1.0)\n"
+     "        top = hand + d * (2 * cap - 0.006)\n"
+     "        points = [top + d * (length * i / 8) for i in range(9)]\n"
+     "        b.add(h, j[f'Hand{side}'], tube(f'HandBlock{side}', points, lambda t: widths, m_skin, col, cap_start=cap, cap_end=cap))\n"),
+)
+
 # build_models.py ohne den Aufruf von main() laden – nur die Bausteine
 source = open(os.path.join(HERE, 'build_models.py'), encoding='utf-8').read()
 source = source[:source.rindex('\nmain()')]
+for old, new in PRINT_PATCHES:
+    assert source.count(old) == 1, f'Druckanpassung passt nicht mehr zu build_models.py: {old!r}'
+    source = source.replace(old, new)
 ns = {'__file__': os.path.join(HERE, 'build_models.py'), '__name__': 'klonk_models'}
 exec(compile(source, 'build_models.py', 'exec'), ns)
 ns['build_clips'] = lambda joints: None     # keine Animationen ⇒ Ruhehaltung
@@ -116,8 +144,6 @@ def main():
     os.makedirs(OUT, exist_ok=True)
     for name, shirt, pants, hair, style in (
         ('male', '#0055bf', '#3a3a3a', '#5b3a1e', 'short'),
-        ('female', '#c91a09', '#1f3b70', '#b98a3e', 'long'),
-        ('diverse', '#237841', '#c9b48a', '#6b2f86', 'bun'),
     ):
         col, _ = ns['build_character'](name, shirt, pants, hair, style)
         body = printable(col, name)
