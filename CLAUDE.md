@@ -453,6 +453,13 @@ node scripts/build-csharp.ts        # C#-Host bauen (.NET-SDK 10 nötig; Ausgabe
 - **3D (Details):** `apps/app/app/utils/world-renderer.ts` (three.js, InstancedMesh, animiert `WorldEvent`s aus `@klonk/world`),
   Komponente `KlonkWorld` nur in `<ClientOnly>` (`.client.vue` + Template-Ref funktionierte nicht). Kameraabstand hängt vom Seitenverhältnis ab
   (hochkant weiter weg, `resetCamera`); bei Größenänderungen richtet sie sich neu aus, bis jemand sie dreht/zoomt (`cameraMoved`).
+- **Draufsicht (2D)** (vom User gewünscht: zwischen 2D und 3D wechseln, Optik wie der Bauplan `worldPlanSvg` im Unterrichtsmaterial):
+  `utils/world-plan-renderer.ts` (SVG-DOM, gleiche Schnittstelle wie `WorldRenderer`: `setWorld/pick/setHover/cheer/bumpAt/snapshot`),
+  Warteschlange gemeinsam in `utils/animation-queue.ts`. Felder/Figuren folgen nur den **Ereignissen** (eigener Anzeigestand), nicht dem
+  Weltstand – sonst wären Ziegel vor ihrer Animation zu sehen. Farben über `var(--ui-*, hell)` im `style` (Dunkelmodus ohne Neuaufbau).
+  Umschalter `WorldViewToggle` (oben rechts in `KlonkWorld`; `toggle: false` ⇒ Seite platziert ihn selbst, z. B. Datenbanken; `view="3d"`
+  fest, z. B. Kleiderschrank), Wahl in `useWorldView()` (`klonk:world-view`, erst in `onMounted` gelesen), ohne WebGL automatisch 2D.
+  „Kamera zurücksetzen“ nur in 3D. E2E-Attribute: `world-view[data-mode]`, `[data-cell][data-bricks|mark|block]`, `[data-character][data-x|z|direction]`.
 - **PWA** (`@vite-pwa/nuxt`, nur `apps/app`): Logo/Favicon/Icons aus `assets/brand/*.svg` per `node scripts/gen-icons.ts`
   (rsvg-convert + ImageMagick ⇒ `packages/ui/public`, `apps/app/public/icons`, `apps/docs/public`). Workbox precacht alle
   Assets (Monaco, Modelle, Blockly-Medien, Schriften) + die SPA-Shell `/`; `/`, `/world`, `/projects` laufen mit `ssr: false`

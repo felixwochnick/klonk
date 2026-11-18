@@ -1,3 +1,4 @@
+import { AnimationQueue, easeInOut, type WorldAnimation } from './animation-queue'
 import { applyDesign, nameLabel, needsOutfits } from './character-look'
 import type { BrickColor, CharacterData, CharacterModel, Direction, MarkColor, Position, World, WorldEvent } from '@klonk/world'
 import * as THREE from 'three'
@@ -54,9 +55,6 @@ type CharacterView = {
   clips: Map<string, THREE.AnimationClip>
   action?: THREE.AnimationAction
 }
-
-type Animation = { duration: number, update: (t: number) => void, done?: () => void }
-type Lane = { queue: Animation[], current?: { animation: Animation, start: number, duration: number } }
 
 let modelsPromise: Promise<Models> | undefined
 
@@ -122,11 +120,7 @@ export class WorldRenderer {
   private marks?: THREE.InstancedMesh
   private characters = new Map<string, CharacterView>()
   private hover: THREE.Mesh
-  /**
-   * Warteschlangen der Animationen: sonst eine für alles (Befehle eines Programms nacheinander), in der gemeinsamen
-   * Welt (`parallel`) eine je Figur – die Figuren mehrerer Personen bewegen sich gleichzeitig.
-   */
-  private lanes = new Map<string, Lane>()
+  private animations = new AnimationQueue(() => this.stopIdle())
   private frame = 0
   /** Nur bei Bedarf rendern (Animation, Kamera, Änderungen) – spart Leistung und lässt dem Browser Leerlaufzeit */
   private dirty = true
@@ -138,7 +132,14 @@ export class WorldRenderer {
   /** Namensschilder über den Figuren (aus z. B. in der Design-Vorschau) */
   showNames = true
   /** Figuren unabhängig voneinander animieren (gemeinsame Welt); staut es sich, laufen die Animationen schneller */
-  parallel = false
+  get parallel() {
+    return this.animations.parallel
+  }
+
+  set parallel(parallel: boolean) {
+    this.animations.parallel = parallel
+  }
+
   /** Dunkles Farbschema (Namensschilder) */
   dark = false
 
@@ -186,7 +187,7 @@ export class WorldRenderer {
     this.unsubscribe?.()
     this.world = world
     this.unsubscribe = world.on(event => this.onEvent(event))
-    this.lanes.clear()
+    this.animations.clear()
     this.rebuild()
     this.resetCamera()
   }
@@ -248,8 +249,7 @@ export class WorldRenderer {
 
   /** Läuft gerade noch eine Animation? */
   get busy() {
-    for (const lane of this.lanes.values()) if (lane.current || lane.queue.length) return true
-    return false
+    return this.animations.busy
   }
 
   dispose() {
@@ -296,38 +296,12 @@ export class WorldRenderer {
       this.tickIdle(now)
       return
     }
-    for (const lane of [...this.lanes.values()]) this.tickLane(lane, now)
-  }
-
-  private tickLane(lane: Lane, now: number) {
-    if (!lane.current) {
-      const next = lane.queue.shift()
-      if (!next) return
-      this.stopIdle()
-      // Gemeinsame Welt: Rückstau aufholen (die anderen warten nicht auf die Animation)
-      const catchUp = this.parallel && lane.queue.length > 1 ? 2 / (lane.queue.length + 1) : 1
-      lane.current = { animation: next, start: now, duration: next.duration * catchUp }
-    }
-    const { animation, start, duration } = lane.current
-    const t = duration > 0 ? Math.min(1, (now - start) / duration) : 1
-    animation.update(t)
-    if (t >= 1) {
-      animation.done?.()
-      lane.current = undefined
-      // Restliche Sofort-Animationen im selben Frame abarbeiten
-      if (lane.queue[0]?.duration === 0) this.tickLane(lane, now)
-    }
+    this.animations.tick(now)
   }
 
   /** Animation anhängen – in der gemeinsamen Welt in die Warteschlange der Figur `lane` */
-  private enqueue(animation: Animation, lane = '') {
-    const key = this.parallel ? lane : ''
-    let entry = this.lanes.get(key)
-    if (!entry) {
-      entry = { queue: [] }
-      this.lanes.set(key, entry)
-    }
-    entry.queue.push(animation)
+  private enqueue(animation: WorldAnimation, lane = '') {
+    this.animations.enqueue(animation, lane)
   }
 
   /** Oberkante eines Feldes (Boden + Ziegel bzw. Quader) */
@@ -649,7 +623,7 @@ export class WorldRenderer {
         }, event.id)
         break
       case 'reset':
-        this.lanes.clear()
+        this.animations.clear()
         this.rebuild()
         break
     }
@@ -675,8 +649,4 @@ export class WorldRenderer {
       if (view) view.root.position.y = this.surface(character) + this.markOffset(character)
     }
   }
-}
-
-function easeInOut(t: number) {
-  return t < 0.5 ? 2 * t * t : 1 - (-2 * t + 2) ** 2 / 2
 }
