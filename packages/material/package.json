@@ -17,13 +17,13 @@
     "@klonk/learn": "workspace:*",
     "@klonk/world": "workspace:*",
     "docx": "9.15.4",
+    "fflate": "0.8.3",
     "pptxgenjs": "4.0.1"
   },
   "devDependencies": {
     "@nuxt/eslint-config": "^1.17.0",
     "@types/node": "^26.6.6",
     "eslint": "^10.14.0",
-    "fflate": "0.8.3",
     "typescript": "^5.9.3",
     "vitest": "^5.0.5"
   }

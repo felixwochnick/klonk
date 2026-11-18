@@ -71,6 +71,8 @@ Their licenses apply unchanged; the license texts are included with the packages
 | better-sqlite3 (Docs) | 13.0 | MIT | https://github.com/WiseLibs/better-sqlite3 |
 | Caddy (Proxy-Image) | 2 | Apache-2.0 | https://github.com/caddyserver/caddy |
 | PostgreSQL (Image) | – | PostgreSQL License | https://www.postgresql.org |
+| Gotenberg (Image, PDF-Dienst / PDF service) | 8 | MIT | https://github.com/gotenberg/gotenberg |
+| LibreOffice (im Gotenberg-Image / in the Gotenberg image) | – | MPL-2.0 | https://www.libreoffice.org |
 
 Indirekte Abhängigkeiten der npm-Pakete stehen mit ihren Lizenzen in `node_modules` (z. B. `pnpm licenses list`).
 Transitive npm dependencies and their licenses are listed in `node_modules` (e.g. `pnpm licenses list`).

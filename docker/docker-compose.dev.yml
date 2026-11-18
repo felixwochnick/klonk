@@ -1,4 +1,5 @@
-# Entwicklung: Datenbank; mit `--profile sso` zusätzlich Test-LDAP (glauth) und Test-OIDC (Dex)
+# Entwicklung: Datenbank; mit `--profile sso` zusätzlich Test-LDAP (glauth) und Test-OIDC (Dex),
+# mit `--profile pdf` der PDF-Dienst für Unterrichtsmaterial (Gotenberg, :3005 ⇒ NUXT_GOTENBERG_URL=http://localhost:3005)
 name: klonk-dev
 
 services:
@@ -31,6 +32,13 @@ services:
       - "5556:5556"
     depends_on:
       - glauth
+
+  gotenberg:
+    image: gotenberg/gotenberg:8
+    profiles: [pdf]
+    command: [gotenberg, --libreoffice-auto-start=true, --chromium-disable-routes, --webhook-disable, --api-timeout=120s, --api-body-limit=50MB]
+    ports:
+      - "3005:3000"
 
 volumes:
   klonk-dev-db:

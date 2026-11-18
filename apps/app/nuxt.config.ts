@@ -49,6 +49,11 @@ export default defineNuxtConfig({
 
   devtools: { enabled: true },
 
+  runtimeConfig: {
+    // PDF-Dienst für Unterrichtsmaterial (Gotenberg, z. B. http://gotenberg:3000); leer = PDF über den Druckdialog des Browsers
+    gotenbergUrl: '',
+  },
+
   // JS/TS laufen synchron im Worker und werden über SharedArrayBuffer gesteuert ⇒ Cross-Origin-Isolation.
   // Alle Ressourcen kommen von der eigenen Origin (Modelle, Monaco, Schriften, Icons).
   routeRules: {

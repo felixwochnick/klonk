@@ -52,6 +52,7 @@ Abrechnungslogik oder private Signaturschlüssel in dieses Repo.
 pnpm db:up          # Postgres für Entwicklung (docker/docker-compose.dev.yml, Port 5432)
 pnpm sso:up         # + Test-LDAP glauth (:3893) und Test-OIDC Dex (:5556, Client klonk/klonk-dev-secret);
                     #   Nutzer tim/lisa/anna, Passwort <name>-pass; E2E-SSO-Tests werden ohne diese übersprungen
+pnpm pdf:up         # PDF-Dienst Gotenberg (:3005, NUXT_GOTENBERG_URL) für Unterrichtsmaterial; E2E prüft PDFs nur, wenn er läuft
 pnpm dev            # App auf :3000 (migriert DB beim Start)
 pnpm dev:admin      # Verwaltung auf :3002
 pnpm dev:auth       # Zentrale Anmeldung auf :3003 (für Login in app/admin mitstarten, s. NUXT_PUBLIC_AUTH_URL)
@@ -75,7 +76,7 @@ node scripts/build-csharp.ts        # C#-Host bauen (.NET-SDK 10 nötig; Ausgabe
   Handgeschriebenes SQL (RLS, Rollen, Funktionen) ⇒ `pnpm --filter @klonk/core db:generate --custom --name <thema>`.
 - `server/plugins/01.migrate.ts` prüft beim Serverstart das Schema und spielt fehlende Migrationen ein
   (Postgres-Advisory-Lock gegen parallele Instanzen; bei Fehler bricht der Start ab).
-- Self-Hosting: `docker/docker-compose.yml` (proxy + app + admin + auth + Postgres, Variablen aus `docker/.env`, Vorlage
+- Self-Hosting: `docker/docker-compose.yml` (proxy + app + admin + auth + Postgres + PDF-Dienst `gotenberg` im internen Netz `pdf` nur mit der App, Variablen aus `docker/.env`, Vorlage
   `docker/.env.example`), ein Image pro App aus `docker/Dockerfile` (`--build-arg APP=app|admin|auth`, Build-Kontext = Repo-Root),
   `NUXT_MIGRATIONS_DIR=/app/migrations` im Image. Alle öffentlichen URLs/Cookie-Domain werden aus `KLONK_DOMAIN` abgeleitet.
 - **Releases** (`.github/workflows/release.yml`): Tag `vX.Y.Z` pushen ⇒ Images `ghcr.io/felixwochnick/klonk-{app,admin,auth,proxy}`
@@ -425,7 +426,21 @@ node scripts/build-csharp.ts        # C#-Host bauen (.NET-SDK 10 nötig; Ausgabe
   Ausgabe `renderDocumentHtml`/`renderSlidesHtml` (alles maskiert, `@page` mit Seitenzahlen), `@klonk/material/docx` (docx, A4, Arial/Courier New)
   und `@klonk/material/pptx` (pptxgenjs, 16:9, Sprechernotizen) – beide erst beim Herunterladen per dynamischem Import. Bilder: `worldPlanSvg()` =
   Draufsicht/Bauplan (Zahl = Ziegel, Pfeil = Figur), 3D über einen unsichtbaren `WorldRenderer` (`utils/material-images.ts`, freigestellt, Cache je
-  Welt). App-Seite `/teaching/material/<modul>?type=worksheet|solutions|slides` (Vorschau im Sandbox-iframe per `srcdoc`, **PDF = Druckdialog**,
+  Welt). **Bildzeilen** (vom User so gewünscht): Block `images.rows` (je Startwelt eine Zeile, `taskImageRows`), jede Zeile im Blocksatz –
+  Breite ∝ Seitenverhältnis ⇒ alle Rahmen gleich hoch und zusammen 100 % breit (HTML `--ar` als `flex-grow`/`aspect-ratio`, DOCX Spaltenbreiten), höchstens 62 mm hoch.
+  **PDF-Dienst** (vom User so festgelegt: PDF aus dem DOCX, damit beides gleich ist): Gotenberg 8 (LibreOffice, `NUXT_GOTENBERG_URL`,
+  Compose-Dienst `gotenberg`, eigenes internes Netz ohne Internet, Chromium-Routen/Webhooks aus). Browser baut DOCX/PPTX ⇒ `POST /api/material/pdf?type=`
+  (`server/utils/material-pdf.ts`: Rolle wie die Oberfläche + Feature `customModules`, ≤ 40 MB, `exportFormFields=true`) ⇒ PDF als Vorschau
+  (iframe mit Blob-URL, **ohne Sandbox** – die blockiert den PDF-Betrachter; Chromium zeigt ihn trotz COEP), Drucken = `print()` am PDF-iframe,
+  DOCX-Download = dieselben Bytes. `GET /api/material/pdf` prüft `/health` (30 s gemerkt); ohne Dienst HTML-Vorschau + Druckdialog wie bisher.
+  **Eingabefelder** (`WorksheetOptions.fillable`, vom User gewünscht: Name/Klasse/Datum + Programm-Kasten): DOCX-Inhaltssteuerelement „Nur Text“
+  (`textField()` in `docx.ts`, `BuilderElement`); LibreOffice macht daraus PDF-Felder **so groß wie der Platzhalter** ⇒ Platzhalter = Zeilen aus
+  normalen Leerzeichen (NBSP ⇒ gar kein Feld!), mehrzeilig über `w:br`. **Bildgröße** `imageSize` large/compact (62/45 mm, `IMAGE_HEIGHTS`).
+  PPTX: pptxgenjs setzt vor jeden Textabschnitt ein `a:pPr` und beginnt bei `bullet` neue Absätze ⇒ Aufzählung nur am ersten Abschnitt +
+  `fixParagraphProperties()` beim Schreiben.
+  **Seitenumbruch:** jede Aufgabe ist ein Baustein `keep` (bleibt auf einer Seite, solange sie passt): HTML `break-inside: avoid`, DOCX „nicht vom nächsten
+  trennen“ an allen Absätzen (auch in Zellen, Helfer `paragraph()` + Merker `keeping`) mit einem Schlussabsatz ohne – geprüft mit LibreOffice; Legende als Zeile der Bildtabelle.
+  App-Seite `/teaching/material/<modul>?type=worksheet|solutions|slides` (Vorschau im Sandbox-iframe per `srcdoc`, **PDF = Druckdialog**,
   Einstellungen in `klonk:material`), Einstieg Modulseite (Karte „Unterrichtsmaterial“), Unterricht-Matrix (Drucker-Symbol), Menü eigener Module.
   Sichtbar wie Musterlösungen (nicht für Lernende einer Organisation). **Lizenz-Feature `customModules`** (vom User so festgelegt, dasselbe wie eigene Lernmodule):
   nur Oberfläche (`useLicense().can('customModules')`, Hinweis erst nach `loaded`), da alles im Browser entsteht – Modulseite zeigt die Karte mit Hinweis

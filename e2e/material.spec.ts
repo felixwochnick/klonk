@@ -7,6 +7,7 @@ import { changePassword, gotoHydrated, loginWithPassword, waitForPage } from './
 
 // Unterrichtsmaterial zu Lernmodulen: Lena (Lehrkraft aus admin-accounts.spec.ts) erstellt Arbeitsblatt, Lösungsblatt und
 // Präsentation zu E2 – Vorschau mit 3D-Bildern und Bauplänen, Drucken, DOCX/PPTX; eine Schülerin bekommt kein Material.
+// Mit PDF-Dienst (`pnpm pdf:up`, Gotenberg) zusätzlich: PDF aus der DOCX-Datei als Vorschau und Download, Eingabefelder.
 // Lizenz-Feature `customModules` (wie eigene Lernmodule): ohne gesperrt; am Ende gilt wieder die Lizenz aus admin-license.spec.ts.
 test.use({ locale: 'de-DE', viewport: { width: 1400, height: 900 } })
 
@@ -30,10 +31,16 @@ const FEATURES = ['oidc', 'characters', 'models', 'libraries', 'ai']
 
 const ready = (page: Page) => expect(page.getByTestId('material-status')).toHaveAttribute('data-state', 'ready', { timeout: 120_000 })
 
-async function download(page: Page, testId: string) {
+async function downloadRaw(page: Page, testId: string) {
   const [file] = await Promise.all([page.waitForEvent('download'), page.getByTestId(testId).click()])
-  return { name: file.suggestedFilename(), files: unzipSync(readFileSync(await file.path())) }
+  return { name: file.suggestedFilename(), bytes: readFileSync(await file.path()) }
 }
+async function download(page: Page, testId: string) {
+  const { name, bytes } = await downloadRaw(page, testId)
+  return { name, files: unzipSync(bytes) }
+}
+/** Formularfelder (Text) einer PDF aus LibreOffice – sie schreibt die Felder unkomprimiert */
+const pdfTextFields = (pdf: Buffer) => pdf.toString('latin1').match(/\/FT\s*\/Tx/g)?.length ?? 0
 
 test('Unterrichtsmaterial: Arbeitsblatt, Lösungen und Präsentation', async ({ browser }) => {
   test.setTimeout(420_000)
@@ -55,6 +62,8 @@ test('Unterrichtsmaterial: Arbeitsblatt, Lösungen und Präsentation', async ({ 
   await gotoHydrated(lena, `${APP_URL}/teaching/material/building`)
   await expect(lena.getByTestId('material-license')).toBeVisible()
   await expect(lena.getByTestId('material-preview')).toHaveCount(0)
+  // Auch der PDF-Endpunkt verlangt die Lizenz
+  expect((await api(lena, `${APP_URL}/api/material/pdf?type=docx`, 'POST', {})).status).toBe(402)
 
   // Einstieg über die Modulseite
   await license(true)
@@ -66,25 +75,29 @@ test('Unterrichtsmaterial: Arbeitsblatt, Lösungen und Präsentation', async ({ 
   await expect(lena.getByTestId('material-title')).toHaveText('E2 Bauen nach Bauplan')
   await ready(lena)
 
+  // Mit PDF-Dienst zeigt die Vorschau die PDF; die HTML-Fassung bleibt (unsichtbar) im Dokument
+  const pdfMode = (await api<{ available: boolean }>(lena, `${APP_URL}/api/material/pdf`)).body.available
   const preview = lena.frameLocator('[data-testid="material-preview"]')
+  const shownFrame = pdfMode ? 'material-pdf-preview' : 'material-preview'
+  if (pdfMode) await expect(lena.getByTestId('material-pdf-preview')).toBeVisible()
   await expect(preview.locator('h1')).toHaveText('Bauen nach Bauplan')
   await expect(preview.locator('h2')).toHaveText(['Aufgabe 1: Ein Turm', 'Aufgabe 2: Treppe', 'Aufgabe 3: Mauer', 'Aufgabe 4: Abriss'])
   await expect(preview.locator('.fields')).toContainText('Klasse:')
   // 3D-Ansicht (Renderer) und Draufsicht, bei Bauaufgaben auch das Ziel
-  await expect(preview.locator('img[data-kind="world"]').first()).toBeVisible()
-  await expect(preview.locator('img[data-kind="plan"]').first()).toBeVisible()
-  await expect(preview.locator('figcaption', { hasText: /^Ziel$/ }).first()).toBeVisible()
+  await expect(preview.locator('img[data-kind="world"]').first()).toBeAttached()
+  await expect(preview.locator('img[data-kind="plan"]').first()).toBeAttached()
+  await expect(preview.locator('figcaption', { hasText: /^Ziel$/ }).first()).toBeAttached()
   const size = await preview.locator('img[data-kind="world"]').first().evaluate(img => (img as HTMLImageElement).naturalWidth)
   expect(size).toBeGreaterThan(200)
   await expect(preview.locator('.lines').first().locator('.write')).not.toHaveCount(0)
 
-  // Drucken öffnet den Druckdialog des Vorschau-Dokuments
-  await lena.getByTestId('material-preview').evaluate((frame) => {
+  // Drucken öffnet den Druckdialog des angezeigten Dokuments (PDF bzw. HTML-Fassung)
+  await lena.getByTestId(shownFrame).evaluate((frame) => {
     const win = (frame as HTMLIFrameElement).contentWindow as Window & { printed?: boolean }
     win.print = () => (win.printed = true)
   })
   await lena.getByTestId('material-print').click()
-  expect(await lena.getByTestId('material-preview').evaluate(frame => ((frame as HTMLIFrameElement).contentWindow as Window & { printed?: boolean }).printed)).toBe(true)
+  expect(await lena.getByTestId(shownFrame).evaluate(frame => ((frame as HTMLIFrameElement).contentWindow as Window & { printed?: boolean }).printed)).toBe(true)
 
   // DOCX
   const docx = await download(lena, 'material-docx')
@@ -93,6 +106,25 @@ test('Unterrichtsmaterial: Arbeitsblatt, Lösungen und Präsentation', async ({ 
   expect(document).toContain('Aufgabe 1: Ein Turm')
   expect(document).toContain('Dein Programm:')
   expect(Object.keys(docx.files).filter(name => name.startsWith('word/media/')).length).toBeGreaterThan(3)
+  expect(document).not.toContain('<w:sdt>')
+
+  if (pdfMode) {
+    // PDF aus genau dieser Datei; mit „Digital ausfüllbar“ Formularfelder (Name, Klasse, Datum + je Aufgabe das Programm)
+    const pdf = await downloadRaw(lena, 'material-pdf')
+    expect(pdf.name).toBe('E2 Bauen nach Bauplan – Arbeitsblatt.pdf')
+    expect(pdf.bytes.subarray(0, 5).toString()).toBe('%PDF-')
+    expect(pdfTextFields(pdf.bytes)).toBe(0)
+    await lena.getByTestId('material-fillable').click()
+    // Erst die neue Fassung abwarten (der Status steht nach dem Klick noch kurz auf „fertig“)
+    await expect(preview.locator('.lines.fill').first()).toBeAttached()
+    await ready(lena)
+    const fillable = await downloadRaw(lena, 'material-pdf')
+    expect(pdfTextFields(fillable.bytes)).toBe(3 + 4)
+    expect(strFromU8((await download(lena, 'material-docx')).files['word/document.xml']!)).toContain('<w:sdt>')
+    await lena.getByTestId('material-fillable').click()
+    await expect(preview.locator('.lines.fill')).toHaveCount(0)
+    await ready(lena)
+  }
 
   // Aufgaben auswählen
   await lena.getByTestId('material-task-stairs').click()
@@ -104,7 +136,7 @@ test('Unterrichtsmaterial: Arbeitsblatt, Lösungen und Präsentation', async ({ 
   await lena.getByTestId('material-tab-solutions').click()
   await ready(lena)
   await expect(lena).toHaveURL(/type=solutions/)
-  await expect(preview.locator('.box.teacher')).toBeVisible()
+  await expect(preview.locator('.box.teacher')).toBeAttached()
   await expect(preview.locator('.box.solution pre').first()).toContainText('hinlegen')
   await expect(preview.locator('.lines')).toHaveCount(0)
 
@@ -121,6 +153,11 @@ test('Unterrichtsmaterial: Arbeitsblatt, Lösungen und Präsentation', async ({ 
   expect(pptx.name).toBe('E2 Building from a plan – Presentation.pptx')
   expect(Object.keys(pptx.files).filter(name => /^ppt\/slides\/slide\d+\.xml$/.test(name))).toHaveLength(slides)
   expect(strFromU8(pptx.files['ppt/slides/slide1.xml']!)).toContain('Building from a plan')
+  if (pdfMode) {
+    const pdf = await downloadRaw(lena, 'material-pdf')
+    expect(pdf.name).toBe('E2 Building from a plan – Presentation.pdf')
+    expect(pdf.bytes.subarray(0, 5).toString()).toBe('%PDF-')
+  }
 
   // Einstieg aus dem Unterricht: Programmiersprache bei Reihe F
   await gotoHydrated(lena, `${APP_URL}/teaching/material/code-start?type=solutions`)
@@ -140,6 +177,7 @@ test('Unterrichtsmaterial: Arbeitsblatt, Lösungen und Präsentation', async ({ 
   await gotoHydrated(marla, `${APP_URL}/teaching/material/building`)
   await expect(marla.getByTestId('material-denied')).toBeVisible()
   await expect(marla.getByTestId('material-preview')).toHaveCount(0)
+  expect((await api(marla, `${APP_URL}/api/material/pdf?type=docx`, 'POST', {})).status).toBe(403)
   await marla.context().close()
   expect((await api(admin, `${ADMIN_URL}/api/admin/users/${pupil.body.id}`, 'DELETE')).status).toBe(200)
 

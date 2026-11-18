@@ -25,6 +25,8 @@ x-env: &env
   NUXT_AI_API_KEY: ${KLONK_AI_API_KEY:-}
   NUXT_AI_WEBLLM_MODEL: ${KLONK_AI_WEBLLM_MODEL:-}
   NUXT_AI_STUDENTS: ${KLONK_AI_STUDENTS:-tutor}
+  # PDF-Dienst für Unterrichtsmaterial (leer = PDF über den Druckdialog des Browsers)
+  NUXT_GOTENBERG_URL: ${KLONK_GOTENBERG_URL-http://gotenberg:3000}
   NUXT_CLOUD_USER_QUOTA_MB: ${KLONK_CLOUD_USER_QUOTA_MB:-50}
   NUXT_CLOUD_GROUP_QUOTA_MB: ${KLONK_CLOUD_GROUP_QUOTA_MB:-200}
   # Nur gehostete Plattform: Endpunkte der Klonk-KI (JSON, siehe CLAUDE.md)
@@ -116,6 +118,7 @@ services:
       dockerfile: docker/Dockerfile
       args:
         APP: app
+    networks: [default, pdf]
 
   admin:
     <<: *app
@@ -135,6 +138,27 @@ services:
       args:
         APP: auth
 
+  # PDF-Dienst (Gotenberg mit LibreOffice): macht aus DOCX/PPTX des Unterrichtsmaterials die PDF samt ausfüllbaren Feldern.
+  # Eigenes internes Netz nur mit der App, ohne Internet – hochgeladene Dateien erreichen so keine anderen Dienste.
+  # Abschalten: KLONK_GOTENBERG_URL= (leer) setzen und mit `--scale gotenberg=0` starten.
+  gotenberg:
+    image: gotenberg/gotenberg:8
+    command:
+      - gotenberg
+      - --libreoffice-auto-start=true
+      - --chromium-disable-routes
+      - --webhook-disable
+      - --prometheus-disable-collect
+      - --api-timeout=120s
+      - --api-body-limit=50MB
+      - --log-level=warn
+    networks: [pdf]
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://127.0.0.1:3000/health"]
+      interval: 10s
+      retries: 10
+    restart: unless-stopped
+
   postgres:
     image: postgres:18-alpine
     environment:
@@ -148,6 +172,11 @@ services:
       interval: 5s
       retries: 10
     restart: unless-stopped
+
+networks:
+  default:
+  pdf:
+    internal: true
 
 volumes:
   klonk-db:

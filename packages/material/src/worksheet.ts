@@ -1,5 +1,5 @@
 import { codeOf, type LearnModule, type LearnTask } from '@klonk/learn'
-import { answerLines, isCodeTrack, moduleLabel, selectedTasks, solutionText, starterFrame, taskImages, toTable, type MaterialContext, type PictureStyle } from './content'
+import { answerLines, isCodeTrack, moduleLabel, selectedTasks, solutionText, starterFrame, taskImageRows, toTable, type MaterialContext, type PictureStyle } from './content'
 import { inline, markdownBlocks } from './markdown'
 import type { MaterialBlock, MaterialDocument } from './model'
 
@@ -20,7 +20,15 @@ export type WorksheetOptions = {
   fields: boolean
   /** Lösungsblatt: Hinweise für Lehrkräfte voranstellen */
   teacher: boolean
+  /** Bildgröße: groß (bis 62 mm hoch) oder kompakt (bis 45 mm, öfter zwei Aufgaben je Seite) */
+  imageSize: ImageSize
+  /** Digital ausfüllbar: Name/Klasse/Datum und Programm als Eingabefelder (DOCX, PDF über den PDF-Dienst) */
+  fillable: boolean
 }
+
+export type ImageSize = 'large' | 'compact'
+/** Höchste Höhe einer Bildzeile in mm */
+export const IMAGE_HEIGHTS: Record<ImageSize, number> = { large: 62, compact: 45 }
 
 export const DEFAULT_WORKSHEET: WorksheetOptions = {
   kind: 'worksheet',
@@ -32,6 +40,8 @@ export const DEFAULT_WORKSHEET: WorksheetOptions = {
   hints: false,
   fields: true,
   teacher: true,
+  imageSize: 'large',
+  fillable: false,
 }
 
 function taskBlocks(module: LearnModule, task: LearnTask, number: number, ctx: MaterialContext, options: WorksheetOptions): MaterialBlock[] {
@@ -44,14 +54,14 @@ function taskBlocks(module: LearnModule, task: LearnTask, number: number, ctx: M
   }
 
   // Welten: Start und (Bauaufgaben bzw. Lösungsblatt) Ziel; SQL über die Welt-Datenbank zeigt die Welt mit Koordinaten
-  const images = taskImages(task, ctx, {
+  const rows = taskImageRows(task, ctx, {
     pictures: options.pictures,
     goal: options.goal && (solutions ? !!(task.check.position || task.check.cells || task.check.direction) : !!task.check.cells),
     allWorlds: options.allWorlds,
   })
-  if (images.length) {
-    const plan = images.some(image => image.kind === 'plan')
-    blocks.push({ type: 'images', images, note: plan ? t('planLegend') : undefined })
+  if (rows.length) {
+    const plan = rows.some(row => row.some(image => image.kind === 'plan'))
+    blocks.push({ type: 'images', rows, note: plan ? t('planLegend') : undefined, maxHeight: IMAGE_HEIGHTS[options.imageSize] ?? IMAGE_HEIGHTS.large })
   }
   if (task.worlds.length > 1 && !solutions) blocks.push({ type: 'paragraph', muted: true, lines: [[{ kind: 'text', value: t('severalWorlds', { n: task.worlds.length }) }]] })
 
@@ -87,6 +97,7 @@ function taskBlocks(module: LearnModule, task: LearnTask, number: number, ctx: M
     label: module.track === 'sql' ? t('yourQuery') : t('yourProgram'),
     count: answerLines(module, task, ctx),
     code: true,
+    fillable: options.fillable,
     ...(frame ? { before: frame.before, after: frame.after, indent: frame.indent } : {}),
   })
   return blocks
@@ -97,7 +108,7 @@ export function buildWorksheet(module: LearnModule, options: WorksheetOptions, c
   const { t, lang } = ctx
   const solutions = options.kind === 'solutions'
   const blocks: MaterialBlock[] = []
-  if (options.fields && !solutions) blocks.push({ type: 'fields', labels: [t('name'), t('class'), t('date')] })
+  if (options.fields && !solutions) blocks.push({ type: 'fields', labels: [t('name'), t('class'), t('date')], fillable: options.fillable })
   if (solutions && options.teacher && module.teacher[lang].trim()) {
     blocks.push({ type: 'box', tone: 'teacher', title: t('teacherNotes'), blocks: markdownBlocks(module.teacher[lang], ctx.language) })
   }
@@ -110,7 +121,7 @@ export function buildWorksheet(module: LearnModule, options: WorksheetOptions, c
     blocks.push({ type: 'box', tone: 'info', title: t('intro'), blocks: intro })
   }
   for (const task of selectedTasks(module, options.tasks)) {
-    blocks.push(...taskBlocks(module, task, module.tasks.indexOf(task) + 1, ctx, options))
+    blocks.push({ type: 'keep', blocks: taskBlocks(module, task, module.tasks.indexOf(task) + 1, ctx, options) })
   }
   const label = solutions ? t('solutions') : t('worksheet')
   return {

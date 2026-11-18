@@ -1,3 +1,4 @@
+import { strFromU8, strToU8, unzipSync, zipSync } from 'fflate'
 import PptxGenJS from 'pptxgenjs'
 import type { ImageMap, Line, MaterialBlock, MaterialImage, Presentation, Slide } from './model'
 
@@ -80,11 +81,13 @@ function addBlocks(slide: PptxSlide, blocks: MaterialBlock[], area: { x: number,
       }
       case 'list': {
         const runs = block.items.flatMap((item) => {
-          // Absatzeigenschaften (Aufzählung, Abstände) an jedem Teil – pptxgenjs übernimmt sie je Zeile
+          // Absatzeigenschaften (Aufzählung, Abstände) nur am ersten Teil – pptxgenjs beginnt bei jedem Teil mit `bullet` einen
+          // neuen Absatz (ein Punkt mit Code zerfiel sonst in mehrere Punkte); doppelte `a:pPr` entfernt `fixParagraphProperties`
           const paragraph = { ...(block.check ? {} : { bullet: { indent: 18 } }), paraSpaceBefore: 2, paraSpaceAfter: 4 }
-          const parts = textRuns(item, size, paragraph)
+          const parts = textRuns(item, size)
           if (!parts.length) return []
-          if (block.check) parts.unshift({ text: '✓  ', options: { fontSize: size, color: GREEN, bold: true, ...paragraph } })
+          if (block.check) parts.unshift({ text: '✓  ', options: { fontSize: size, color: GREEN, bold: true } })
+          Object.assign(parts[0]!.options!, paragraph)
           parts[parts.length - 1]!.options!.breakLine = true
           return parts
         })
@@ -207,7 +210,31 @@ export function buildPptx(deck: Presentation, images: ImageMap): Pptx {
   return pptx
 }
 
+/**
+ * pptxgenjs schreibt vor jeden Textabschnitt eines Absatzes eigene Absatzeigenschaften (`a:pPr`); erlaubt ist nur eine am
+ * Anfang. Je Absatz bleibt die erste – sonst übernehmen manche Programme die der späteren Abschnitte (z. B. „keine Aufzählung“).
+ */
+export function fixParagraphProperties(xml: string) {
+  return xml.replace(/<a:p>([\s\S]*?)<\/a:p>/g, (_, body: string) => {
+    let first = true
+    const cleaned = body.replace(/<a:pPr\b[^>]*?(?:\/>|>[\s\S]*?<\/a:pPr>)/g, (props) => {
+      if (!first) return ''
+      first = false
+      return props
+    })
+    return `<a:p>${cleaned}</a:p>`
+  })
+}
+
+const PPTX_TYPE = 'application/vnd.openxmlformats-officedocument.presentationml.presentation'
+
+/** PPTX als Bytes (Node, Tests, PDF-Dienst) */
+export async function renderPptxBytes(deck: Presentation, images: ImageMap): Promise<Uint8Array> {
+  const files = unzipSync(await buildPptx(deck, images).write({ outputType: 'uint8array' }) as Uint8Array)
+  for (const name of Object.keys(files)) {
+    if (/^ppt\/slides\/slide\d+\.xml$/.test(name)) files[name] = strToU8(fixParagraphProperties(strFromU8(files[name]!)))
+  }
+  return zipSync(files)
+}
 /** PPTX als Blob (Browser) */
-export const renderPptx = async (deck: Presentation, images: ImageMap) => await buildPptx(deck, images).write({ outputType: 'blob' }) as Blob
-/** PPTX als Bytes (Node, Tests) */
-export const renderPptxBytes = async (deck: Presentation, images: ImageMap) => await buildPptx(deck, images).write({ outputType: 'uint8array' }) as Uint8Array
+export const renderPptx = async (deck: Presentation, images: ImageMap) => new Blob([await renderPptxBytes(deck, images) as BlobPart], { type: PPTX_TYPE })

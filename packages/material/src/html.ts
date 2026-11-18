@@ -1,4 +1,4 @@
-import type { ImageMap, Line, MaterialBlock, MaterialDocument, MaterialImage, Presentation, Slide } from './model'
+import { imageRatio, type ImageMap, type Line, type MaterialBlock, type MaterialDocument, type MaterialImage, type Presentation, type Slide } from './model'
 
 // HTML für Vorschau und Druck (PDF über den Druckdialog des Browsers). Alle Texte werden maskiert – eigene Module
 // stammen von Lehrkräften und dürfen kein HTML einschleusen. Die App zeigt das Ergebnis in einem Sandbox-iframe.
@@ -24,12 +24,13 @@ function line(parts: Line) {
   }).join('')
 }
 
+/** Bild mit Bildunterschrift; `--ar` = Seitenverhältnis (Rahmen und Breite in der Bildzeile) */
 function figure(image: MaterialImage, images: ImageMap) {
   const resolved = images[image.id]
   const img = resolved
-    ? `<img src="${escape(resolved.src)}" alt="${escape(image.caption ?? '')}" data-kind="${image.kind}" style="aspect-ratio: ${resolved.width} / ${resolved.height}">`
+    ? `<img src="${escape(resolved.src)}" alt="${escape(image.caption ?? '')}" data-kind="${image.kind}">`
     : `<div class="missing" data-kind="${image.kind}"></div>`
-  return `<figure class="${image.kind}">${img}${image.caption ? `<figcaption>${escape(image.caption)}</figcaption>` : ''}</figure>`
+  return `<figure class="${image.kind}" style="--ar: ${imageRatio(image, images).toFixed(4)}">${img}${image.caption ? `<figcaption>${escape(image.caption)}</figcaption>` : ''}</figure>`
 }
 
 function table(block: Extract<MaterialBlock, { type: 'table' }>) {
@@ -45,7 +46,7 @@ function lines(block: Extract<MaterialBlock, { type: 'lines' }>) {
   const pad = block.indent ? ` style="padding-left: ${block.indent}ch"` : ''
   const empty = Array.from({ length: block.count }, (_, i) => `<div class="write"${pad}><span class="no">${i + 1}</span></div>`).join('')
   const label = block.label ? `<p class="answer-label"><strong>${escape(block.label)}</strong></p>` : ''
-  return `<div class="answer">${label}<div class="lines${block.code ? ' code' : ''}">${block.before ? given(block.before) : ''}${empty}${block.after ? given(block.after) : ''}</div></div>`
+  return `<div class="answer">${label}<div class="lines${block.code ? ' code' : ''}${block.fillable ? ' fill' : ''}">${block.before ? given(block.before) : ''}${empty}${block.after ? given(block.after) : ''}</div></div>`
 }
 
 export function renderBlocks(blocks: MaterialBlock[], images: ImageMap): string {
@@ -55,10 +56,11 @@ export function renderBlocks(blocks: MaterialBlock[], images: ImageMap): string 
       case 'paragraph': return `<p${block.muted ? ' class="muted"' : ''}>${block.lines.map(line).join('<br>')}</p>`
       case 'list': return `<ul${block.check ? ' class="check"' : ''}>${block.items.map(item => `<li>${line(item)}</li>`).join('')}</ul>`
       case 'code': return `<pre>${escape(block.code)}</pre>`
-      case 'images': return `<div class="images n${Math.min(block.images.length, 3)}">${block.images.map(image => figure(image, images)).join('')}</div>${block.note ? `<p class="note">${escape(block.note)}</p>` : ''}`
+      case 'images': return `<div class="images"${block.maxHeight ? ` style="--max-h: ${block.maxHeight}mm"` : ''}>${block.rows.map(row => `<div class="row">${row.map(image => figure(image, images)).join('')}</div>`).join('')}</div>${block.note ? `<p class="note">${escape(block.note)}</p>` : ''}`
       case 'table': return table(block)
       case 'lines': return lines(block)
       case 'box': return `<aside class="box ${block.tone}"><p class="box-title">${escape(block.title)}</p>${renderBlocks(block.blocks, images)}</aside>`
+      case 'keep': return `<section class="keep">${renderBlocks(block.blocks, images)}</section>`
       case 'fields': return `<div class="fields">${block.labels.map(label => `<div><span>${escape(label)}:</span><i></i></div>`).join('')}</div>`
       case 'pageBreak': return '<div class="page-break"></div>'
     }
@@ -101,14 +103,14 @@ ul.check li::before { content: '☐'; margin-right: 0.5em; }
 .box.solution { border-left-color: var(--green); background: #f0fdf4; break-inside: avoid; }
 .box.teacher { border-left-color: var(--red); background: #fef2f2; }
 .box-title { font-weight: 700; margin: 2px 0 4px; }
-.images { display: flex; flex-wrap: wrap; gap: 10px; margin: 8px 0 2px; break-inside: avoid; align-items: flex-end; }
-.images figure { margin: 0; text-align: center; flex: 0 1 auto; }
-.images.n1 figure { width: 58%; }
-.images.n2 figure { width: calc(50% - 5px); }
-.images.n3 figure { width: calc(33.33% - 7px); }
-.images figure.plan { max-width: 52mm; }
-.images img, .images .missing { display: block; width: 100%; max-height: 62mm; object-fit: contain; border: 1px solid var(--line); border-radius: 6px; background: #fff; }
-.images .missing { aspect-ratio: 4 / 3; background: repeating-linear-gradient(45deg, #f3f4f6 0 8px, #fff 8px 16px); }
+/* Bildzeile im Blocksatz: Breite je Bild ∝ Seitenverhältnis ⇒ alle Rahmen einer Zeile gleich hoch und zusammen 100 % breit.
+   Wird die Zeile zu hoch, kappt max-height alle Rahmen gleich – sie bleiben voll breit, das Bild steht mittig darin. */
+.images { margin: 8px 0 2px; }
+.images .row { display: flex; gap: 10px; break-inside: avoid; }
+.images .row + .row { margin-top: 8px; }
+.images figure { margin: 0; text-align: center; flex: var(--ar) 1 0%; min-width: 0; }
+.images img, .images .missing { display: block; width: 100%; aspect-ratio: var(--ar); max-height: var(--max-h, 62mm); padding: 3px; object-fit: contain; border: 1px solid var(--line); border-radius: 6px; background: #fff; }
+.images .missing { background: repeating-linear-gradient(45deg, #f3f4f6 0 8px, #fff 8px 16px); }
 figcaption { font-size: 8.5pt; color: var(--muted); margin-top: 2px; }
 .table { margin: 8px 0; break-inside: avoid; }
 .table .caption { font-weight: 700; font-size: 9.5pt; margin: 0 0 3px; }
@@ -121,7 +123,12 @@ tr.more td { color: var(--muted); font-style: italic; }
 .lines { border: 1px solid #9ca3af; border-radius: 6px; padding: 4px 10px 6px; margin: 4px 0 10px; break-inside: avoid; font-size: 10pt; }
 .lines .given { color: #374151; white-space: pre; line-height: 1.5; }
 .lines .write { position: relative; height: 9mm; border-bottom: 1px dotted #9ca3af; }
+/* Digital ausfüllbar: ein Eingabefeld statt Linien (wie im DOCX bzw. in der PDF aus dem DOCX) */
+.lines.fill .write { border-bottom-color: transparent; }
+.lines.fill .no { display: none; }
 .lines .no { position: absolute; left: -2px; bottom: 1px; font-size: 7pt; color: #9ca3af; font-family: Arial, sans-serif; }
+/* Aufgabe nicht über zwei Seiten verteilen (ist sie länger als eine Seite, bricht der Browser trotzdem um) */
+.keep { break-inside: avoid; }
 .page-break { break-after: page; }
 @media print {
   body { background: none; }
@@ -171,7 +178,7 @@ body { background: #e5e7eb; padding: 16px 0; }
 .slide tr.more td { color: var(--muted); font-style: italic; }
 .slide .pictures { display: flex; flex-direction: column; gap: 1.4cqw; min-height: 0; justify-content: center; }
 .slide .pictures figure { margin: 0; flex: 1; min-height: 0; display: flex; flex-direction: column; align-items: center; }
-.slide .pictures img, .slide .pictures .missing { flex: 1; min-height: 0; max-width: 100%; object-fit: contain; border-radius: 1cqw; }
+.slide .pictures img, .slide .pictures .missing { flex: 1; min-height: 0; max-width: 100%; aspect-ratio: var(--ar); object-fit: contain; border-radius: 1cqw; }
 .slide .pictures .missing { width: 100%; background: repeating-linear-gradient(45deg, #f3f4f6 0 8px, #fff 8px 16px); }
 .slide figcaption { font-size: 1.4cqw; color: var(--muted); margin-top: 0.4cqw; }
 .slide footer { display: flex; justify-content: space-between; font-size: 1.2cqw; color: var(--muted); margin-top: 1.6cqw; }

@@ -16,6 +16,8 @@ const env = {
   NUXT_PLATFORM_OIDC_CLIENT_SECRET: 'klonk-dev-secret',
   NUXT_PLATFORM_OIDC_SCOPES: 'openid profile email groups',
   NUXT_PLATFORM_OIDC_OWNER_GROUPS: 'admins',
+  // PDF-Dienst (`pnpm pdf:up`); läuft er nicht, meldet die App ihn als nicht verfügbar und die PDF-Prüfungen entfallen
+  NUXT_GOTENBERG_URL: process.env.KLONK_E2E_GOTENBERG_URL ?? 'http://localhost:3005',
   // Klonk-KI der gehosteten Plattform gegen den Test-Anbieter (e2e/mock-llm.ts); 1 Anfrage ≈ 105 Credits
   NUXT_AI_PLATFORM_PROVIDERS: JSON.stringify({ mock: { provider: 'openai', baseUrl: `http://localhost:${E2E_PORTS.llm}/v1`, apiKey: 'test-key' } }),
   NUXT_AI_PLATFORM_MODELS: JSON.stringify([

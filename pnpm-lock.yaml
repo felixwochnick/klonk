@@ -521,6 +521,9 @@ importers:
       docx:
         specifier: 9.15.4
         version: 9.15.4
+      fflate:
+        specifier: 0.8.3
+        version: 0.8.3
       pptxgenjs:
         specifier: 4.0.1
         version: 4.0.1
@@ -534,9 +537,6 @@ importers:
       eslint:
         specifier: ^10.14.0
         version: 10.14.0(jiti@2.7.0)(supports-color@10.2.2)
-      fflate:
-        specifier: 0.8.3
-        version: 0.8.3
       typescript:
         specifier: ^5.9.3
         version: 5.9.3
