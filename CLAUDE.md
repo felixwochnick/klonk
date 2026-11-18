@@ -206,6 +206,10 @@ node scripts/build-csharp.ts        # C#-Host bauen (.NET-SDK 10 nötig; Ausgabe
   `KlonkWorld` exposed `cheer()` (Lernaufgabe gelöst) und `bumpAt()` (Fehler mit x/z, z. B. Wand). Jede Figur wird einzeln gebaut, exportiert und dann umbenannt –
   sonst hießen die Gelenke der 2./3. Figur `ArmL.001` (alter Fehler: nur die männliche Figur war animiert). Skins/Zubehör: `outfits.glb`.
   Blender-MCP (Port 9876) ist optional – das Skript läuft headless.
+  **Prototyp Klötzchen-Figuren** (vom User gewünscht: leichter zu drucken, Voxel-Stil, eigene Form – keine Kopie einer Spielfigur):
+  `assets/blender/build_blocky.py` (lädt build_models.py, gleiche Gelenke/Clips/Materialnamen) ⇒ `character-blocky-<modell>.glb`,
+  Druckvorlagen `assets/print/blocky/*.stl`, Vergleich `preview-blocky.png`; in der App per `localStorage['klonk:figures'] = 'blocky'`
+  (noch ohne Skins/Zubehör – `outfits.glb` passt nur zur bisherigen Figur).
 - **JS/TS-Ausführung** (`packages/runtime/src/js/`): Nutzercode läuft **synchron** im Worker. `instrument.ts` (acorn +
   magic-string, nur Einfügungen ⇒ Zeilen bleiben) setzt vor jede Anweisung `__klonk_cp(zeile, () => vars)`, auch in leere/
   blocklose Schleifen. Steuerung über `SharedArrayBuffer` (`shared.ts`: PAUSE/SIGNAL/DELAY + Haltepunkt-Bitmap), da der

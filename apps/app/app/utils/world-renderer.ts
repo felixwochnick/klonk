@@ -60,6 +60,19 @@ type Lane = { queue: Animation[], current?: { animation: Animation, start: numbe
 
 let modelsPromise: Promise<Models> | undefined
 
+/**
+ * Prototyp Klötzchen-Figuren (assets/blender/build_blocky.py): leichter zu drucken, noch ohne Skins/Zubehör.
+ * Zum Ausprobieren `localStorage.setItem('klonk:figures', 'blocky')` und neu laden.
+ */
+function blockyFigures() {
+  try {
+    return localStorage.getItem('klonk:figures') === 'blocky'
+  }
+  catch {
+    return false
+  }
+}
+
 /** Modelle einmalig laden und zwischen Ansichten teilen */
 function loadModels(): Promise<Models> {
   modelsPromise ??= (async () => {
@@ -72,8 +85,9 @@ function loadModels(): Promise<Models> {
       })
       return geometry!
     }
+    const figure = blockyFigures() ? 'character-blocky' : 'character'
     const [brick, plate, tile, male, female, diverse] = await Promise.all(
-      ['brick', 'plate', 'tile', 'character-male', 'character-female', 'character-diverse'].map(load),
+      ['brick', 'plate', 'tile', `${figure}-male`, `${figure}-female`, `${figure}-diverse`].map(load),
     )
     for (const character of [male!, female!, diverse!]) {
       character.scene.traverse((o) => {
@@ -434,7 +448,7 @@ export class WorldRenderer {
     const design = character.design
     if (design) {
       applyDesign(model, design, outfits)
-      if (!outfits && needsOutfits(design)) {
+      if (!outfits && needsOutfits(design) && !blockyFigures()) {
         void loadOutfits().then((loaded) => {
           outfits = loaded
           applyDesign(model, design, loaded)
