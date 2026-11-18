@@ -9,8 +9,8 @@ Die Noppenlöcher der Füße werden an die gedruckten Noppen angepasst (Ø 4,8 m
 Ø 4,9 mm und 1,9 mm tief, damit die Figur klemmt und flach aufsteht.
 
 Nur die Standardfigur (männlich) und mit Druckanpassungen (PRINT_PATCHES, die Figuren der App bleiben unverändert):
-breiterer Hals (bricht nicht ab), Arme gerade und anliegend am Oberkörper, Hände als Würfel mit Trennkerbe
-seitlich an der Hüfte – so gibt es kaum Überhang und die Hände wachsen am Bein mit hoch.
+breiterer Hals (bricht nicht ab), Arme gerade und anliegend am Oberkörper, Hände als Würfel im Querschnitt
+der Arme (gleiche Abrundung) mit Trennkerbe, seitlich an der Hüfte – so gibt es kaum Überhang und die Hände wachsen am Bein mit hoch.
 """
 import math
 import os
@@ -33,14 +33,16 @@ PRINT_PATCHES = (
     ('FOREARM_ANGLE = math.radians(-55)', 'FOREARM_ANGLE = 0.0'),
     # Hals Ø 6,1 statt 4,2 mm
     ("cylinder('Neck', 0.065,", "cylinder('Neck', 0.095,"),
-    # Hand als Würfel (3,5 mm) statt C-Greifring, darüber eine umlaufende Trennkerbe (0,4 mm hoch, 0,35 mm tief) zum Arm;
-    # der Würfel liegt innen an Hüfte/Bein an ⇒ druckt ohne Stütze
+    # Hand als kurzes Stück Arm statt C-Greifring: gleicher Querschnitt und gleiche Abrundung wie das Armende
+    # (tube() mit arm_widths am Handgelenk, Kuppe 0,012 oben und unten). Die beiden Kuppen überschneiden sich nur
+    # wenig ⇒ runde Trennkerbe zwischen Arm und Hand. Die Hand liegt innen an Hüfte/Bein an ⇒ druckt ohne Stütze
     ("        b.add(h, j[f'Hand{side}'], cylinder(f'Wrist{side}', 0.026, 0.05, tuple(hand - d * 0.015), m_skin, col, rotation=arm_rot(side, (FOREARM_ANGLE + math.pi, 0, 0))))\n"
      "        grip = hand + d * (0.03 + major + minor * 0.6)\n"
      "        b.add(h, j[f'Hand{side}'], c_ring(f'Grip{side}', major, minor, math.radians(75), math.pi, tuple(grip), m_skin, col, rotation=frame_euler(axis, gap_dir)))\n",
-     "        cube, notch, inset = 0.11, 0.0125, 0.011\n"
-     "        b.add(h, j[f'Hand{side}'], box(f'HandNotch{side}', (cube - 2 * inset, cube - 2 * inset, notch + 0.02), (hand.x, hand.y, hand.z - notch - 0.01), m_skin, col, bevel=0.003))\n"
-     "        b.add(h, j[f'Hand{side}'], box(f'HandCube{side}', (cube, cube, cube), (hand.x, hand.y, hand.z - notch - cube), m_skin, col, bevel=0.008))\n"),
+     "        cap, length, widths = 0.012, 0.075, arm_widths()(1.0)\n"
+     "        top = hand + d * (2 * cap - 0.006)\n"
+     "        points = [top + d * (length * i / 8) for i in range(9)]\n"
+     "        b.add(h, j[f'Hand{side}'], tube(f'HandBlock{side}', points, lambda t: widths, m_skin, col, cap_start=cap, cap_end=cap))\n"),
 )
 
 # build_models.py ohne den Aufruf von main() laden – nur die Bausteine
